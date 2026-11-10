@@ -1,0 +1,632 @@
+{
+  "$comment": "Single source of truth for the BLW-1301 digital twin: Aerzen AT 150-0.8 S-G5 turbo blower aerating one activated-sludge basin through Sanitaire Silver Series II membrane discs under DO control. Blower data from the Aerzen catalogue, diffuser data from the Sanitaire brochure; map shape, efficiency curve, basin and limits are assumptions (labelled).",
+  "twin": {
+    "id": "urn:maximo:twin:aerationblower:BLW-1301",
+    "version": "1.0.0",
+    "kind": "Turbo aeration blower with fine-bubble diffused aeration and DO control",
+    "standards": {
+      "performance": "Aerzen AT 150-0.8 S-G5: 4800 m3/h, 800 mbar max, 150 hp, 650 kg (Aerzen catalogue)",
+      "diffusers": "Sanitaire Silver Series II EPDM discs: 0.8-7 Nm3/h per disc, SOTE approx. 6.5 % per m (Xylem brochure 03-2020)",
+      "oxygen_transfer": "AOTR = SOTR alpha F (beta Cs*(T) - C)/Cs*(20) theta^(T-20) (ASCE 2-06 / EPA fine pore manual form)",
+      "power": "Adiabatic compression power / wire-to-air efficiency (efficiency curve assumed)",
+      "information_model": "Points named after the blower controller signals with Project Haystack tags"
+    }
+  },
+  "identification": {
+    "assetnum": "BLW-1301",
+    "description": "Aeration blower 1301 (activated sludge train 1)",
+    "manufacturer": "Aerzen",
+    "model": "AT 150-0.8 S-G5 turbo blower",
+    "site": "BEDFORD",
+    "location": "Wastewater treatment works / blower building / aeration train 1",
+    "medium": "Air to fine-bubble membrane diffusers"
+  },
+  "design": {
+    "blower": {
+      "type": "Turbo blower, oil-free, frequency-controlled (Generation 5)",
+      "flow_max_nm3h": 4800,
+      "pressure_max_mbar": 800,
+      "motor_hp": 150,
+      "motor_kw": 112,
+      "weight_kg": 650,
+      "dimensions_mm": [
+        1855,
+        1435,
+        1501
+      ],
+      "flow_min_nm3h": 1900,
+      "turndown_note": "turndown to about 40 % assumed",
+      "dp_shutoff_mbar": 1050,
+      "map_note": "dp = dp_shutoff n^2 - (dp_shutoff - 800) (Q/4800)^2, assumed map shape",
+      "eta_wire_bep": 0.74,
+      "flow_bep_frac": 0.75,
+      "eta_wire_curv": 0.6,
+      "eta_note": "wire-to-air efficiency curve assumed",
+      "filter_dp_clean_mbar": 9,
+      "vfd_trip_c": 85
+    },
+    "surge": {
+      "q_sref_nm3h": 2100,
+      "dp_sref_mbar": 800,
+      "note": "surge line Q_s = 2100 sqrt(dp/800) Nm3/h, assumed"
+    },
+    "grid": {
+      "diffuser": "Sanitaire Silver Series II, 229 mm EPDM disc",
+      "discs": 1200,
+      "submergence_m": 4.5,
+      "flow_per_disc_range_nm3h": [
+        0.8,
+        7.0
+      ],
+      "dwp0_mbar": 25,
+      "dwp1_mbar_per_nm3h": 4,
+      "dwp_note": "dynamic wet pressure assumed",
+      "k_grid_mbar": 10,
+      "k_pipe_mbar": 25,
+      "pipe_note": "losses at 4800 Nm3/h, assumed"
+    },
+    "oxygen": {
+      "sote_per_m": 0.065,
+      "q_ref_nm3h": 3.0,
+      "sote_exp": 0.15,
+      "sote_coarse_per_m": 0.02,
+      "alpha_f_design": 0.55,
+      "beta": 0.95,
+      "theta": 1.024,
+      "d_eff_frac": 0.4,
+      "note": "SOTE 6.5 %/m from Sanitaire; flux exponent, alpha F, beta, d_eff typical values (assumed)"
+    },
+    "process": {
+      "basin_volume_m3": 3500,
+      "inflow_base_m3h": 330,
+      "inflow_am_m3h": 160,
+      "inflow_pm_m3h": 110,
+      "nh4_base_mgl": 28,
+      "nh4_peak_mgl": 9,
+      "carbon_o2_kg_m3": 0.13,
+      "nitrified_frac": 0.85,
+      "water_temp_c": 22,
+      "note": "one aeration train; oxygen demand = Q_in (0.13 + 4.57 x 0.85 NH4/1000) kg/h, assumed"
+    },
+    "control": {
+      "do_setpoint_mgl": 2.0,
+      "kp_nm3h_per_mgl": 600,
+      "ki_nm3h_per_mgl_h": 1800
+    },
+    "site": {
+      "ambient_pressure_mbar": 1008,
+      "air_temp_mean_c": 24,
+      "air_temp_swing_c": 6
+    },
+    "demo": {
+      "time_scale": 60,
+      "note": "plant clock runs 60x real time: one plant day = 24 min"
+    }
+  },
+  "telemetry": {
+    "event": "blower",
+    "publish_every_s": 5,
+    "device_type": "AERATION_BLOWER",
+    "groups": {
+      "Site": "Site",
+      "Blower": "Turbo blower",
+      "Header": "Air header",
+      "Basin": "Aeration basin",
+      "Control": "DO control",
+      "Influent": "Influent analyzers"
+    },
+    "points": [
+      {
+        "metric": "ambient_pressure_mbar",
+        "path": "Site.AmbientPressure",
+        "label": "Ambient pressure",
+        "unit": "mbar(a)",
+        "range": [
+          900,
+          1100
+        ],
+        "noise": 0.3,
+        "opc": null
+      },
+      {
+        "metric": "inlet_temp_c",
+        "path": "Blower.InletTemp",
+        "label": "Blower inlet air temperature",
+        "unit": "degC",
+        "range": [
+          -20,
+          60
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "inlet_filter_dp_mbar",
+        "path": "Blower.InletFilterDp",
+        "label": "Inlet filter differential pressure",
+        "unit": "mbar",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.1,
+        "opc": null
+      },
+      {
+        "metric": "discharge_pressure_mbar",
+        "path": "Blower.DischargePressure",
+        "label": "Blower discharge pressure",
+        "unit": "mbar(g)",
+        "range": [
+          0,
+          1100
+        ],
+        "noise": 0.8,
+        "opc": "Aerzen AERtronic: discharge pressure"
+      },
+      {
+        "metric": "discharge_temp_c",
+        "path": "Blower.DischargeTemp",
+        "label": "Blower discharge temperature",
+        "unit": "degC",
+        "range": [
+          -20,
+          160
+        ],
+        "noise": 0.2,
+        "opc": null
+      },
+      {
+        "metric": "airflow_nm3h",
+        "path": "Header.Airflow",
+        "label": "Airflow to the basin (thermal mass flow meter)",
+        "unit": "Nm3/h",
+        "range": [
+          0,
+          6000
+        ],
+        "noise": 6.0,
+        "opc": null
+      },
+      {
+        "metric": "airflow_setpoint_nm3h",
+        "path": "Control.AirflowSetpoint",
+        "label": "Airflow setpoint (DO controller)",
+        "unit": "Nm3/h",
+        "range": [
+          0,
+          6000
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "grid_pressure_mbar",
+        "path": "Basin.GridPressure",
+        "label": "Diffuser grid pressure (drop leg)",
+        "unit": "mbar(g)",
+        "range": [
+          0,
+          1100
+        ],
+        "noise": 0.8,
+        "opc": null
+      },
+      {
+        "metric": "speed_pct",
+        "path": "Blower.Speed",
+        "label": "Blower speed (VFD)",
+        "unit": "%",
+        "range": [
+          0,
+          110
+        ],
+        "noise": 0.1,
+        "opc": null
+      },
+      {
+        "metric": "motor_power_kw",
+        "path": "Blower.MotorPower",
+        "label": "Motor power (VFD input)",
+        "unit": "kW",
+        "range": [
+          0,
+          200
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "motor_current_a",
+        "path": "Blower.MotorCurrent",
+        "label": "Motor current",
+        "unit": "A",
+        "range": [
+          0,
+          400
+        ],
+        "noise": 0.3,
+        "opc": null
+      },
+      {
+        "metric": "motor_temp_c",
+        "path": "Blower.MotorWindingTemp",
+        "label": "Motor winding temperature",
+        "unit": "degC",
+        "range": [
+          -20,
+          200
+        ],
+        "noise": 0.2,
+        "opc": null
+      },
+      {
+        "metric": "vfd_temp_c",
+        "path": "Blower.VfdTemp",
+        "label": "VFD heat-sink temperature",
+        "unit": "degC",
+        "range": [
+          -20,
+          120
+        ],
+        "noise": 0.2,
+        "opc": null
+      },
+      {
+        "metric": "bearing_temp_c",
+        "path": "Blower.BearingTemp",
+        "label": "Bearing temperature",
+        "unit": "degC",
+        "range": [
+          -20,
+          160
+        ],
+        "noise": 0.2,
+        "opc": null
+      },
+      {
+        "metric": "vibration_mm_s",
+        "path": "Blower.Vibration",
+        "label": "Blower vibration (velocity rms)",
+        "unit": "mm/s",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.03,
+        "opc": null
+      },
+      {
+        "metric": "do_control_mgl",
+        "path": "Basin.DOControl",
+        "label": "Dissolved oxygen, control probe (mid-basin)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          20
+        ],
+        "noise": 0.03,
+        "opc": "haystack: dissolved oxygen sensor"
+      },
+      {
+        "metric": "do_outlet_mgl",
+        "path": "Basin.DOOutlet",
+        "label": "Dissolved oxygen, outlet probe",
+        "unit": "mg/L",
+        "range": [
+          0,
+          20
+        ],
+        "noise": 0.03,
+        "opc": null
+      },
+      {
+        "metric": "do_setpoint_mgl",
+        "path": "Control.DOSetpoint",
+        "label": "DO setpoint",
+        "unit": "mg/L",
+        "range": [
+          0,
+          10
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "water_temp_c",
+        "path": "Basin.WaterTemp",
+        "label": "Mixed-liquor temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          40
+        ],
+        "noise": 0.03,
+        "opc": null
+      },
+      {
+        "metric": "influent_flow_m3h",
+        "path": "Influent.Flow",
+        "label": "Influent flow to this train",
+        "unit": "m3/h",
+        "range": [
+          0,
+          2000
+        ],
+        "noise": 1.5,
+        "opc": null
+      },
+      {
+        "metric": "influent_nh4_mgl",
+        "path": "Influent.NH4",
+        "label": "Influent ammonium (online analyzer)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.2,
+        "opc": null
+      },
+      {
+        "metric": "run_hours",
+        "path": "Blower.RunHours",
+        "label": "Blower running hours",
+        "unit": "h",
+        "range": [
+          0,
+          1000000.0
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "trip_code",
+        "path": "Blower.TripCode",
+        "label": "Trip (0 none, 1 surge, 2 VFD over-temperature)",
+        "unit": "code",
+        "range": [
+          0,
+          9
+        ],
+        "noise": 0,
+        "opc": null
+      }
+    ]
+  },
+  "twin_model": {
+    "limits": {
+      "running_flow_nm3h": 500,
+      "grid_residual_high_mbar": 25,
+      "grid_residual_low_mbar": -15,
+      "air_ratio_high": 1.15,
+      "air_ratio_alarm": 1.35,
+      "filter_dp_alert_mbar": 25,
+      "filter_dp_high_mbar": 40,
+      "surge_margin_alert_pct": 10,
+      "header_residual_alert_mbar": 60,
+      "vibration_alert_mm_s": 4.5,
+      "bearing_temp_alert_c": 95,
+      "power_residual_alert_pct": 8,
+      "do_spread_alert_mgl": 0.9,
+      "do_low_alert_mgl": 0.8,
+      "vfd_temp_alert_c": 62,
+      "motor_temp_alert_c": 135,
+      "note": "typical alarm values, not Aerzen settings"
+    }
+  },
+  "failure_modes": {
+    "diffuser_fouling": {
+      "label": "Diffuser fouling (biofilm / scale)",
+      "cause": "Biofilm and scale on the EPDM membranes: higher dynamic wet pressure and fewer, larger bubbles (lower alpha F)",
+      "detect": [
+        "grid_pressure_residual_mbar",
+        "air_ratio",
+        "specific_energy_kwh_kg"
+      ],
+      "action": "Bump/flex the membranes (air bump) or acid-clean the grid; plan membrane replacement",
+      "default_ramp_min": 15
+    },
+    "membrane_tear": {
+      "label": "Torn membrane / broken grid pipe",
+      "cause": "A split membrane or a cracked pipe lets air out as coarse bubbles: lower grid pressure, much less oxygen transfer, uneven DO",
+      "detect": [
+        "grid_pressure_residual_mbar",
+        "air_ratio",
+        "do_spread_mgl"
+      ],
+      "action": "Drain the zone, inspect the grid, replace torn discs / repair the pipe",
+      "default_ramp_min": 10
+    },
+    "inlet_filter": {
+      "label": "Inlet filter clogging",
+      "cause": "Dust and pollen load the inlet filter mats: the blower sucks at lower pressure and uses more power",
+      "detect": [
+        "inlet_filter_dp_mbar",
+        "power_residual_pct"
+      ],
+      "action": "Change the inlet filter mats",
+      "default_ramp_min": 15
+    },
+    "bearing_wear": {
+      "label": "Bearing / impeller wear",
+      "cause": "Worn bearing or eroded impeller: more vibration, a hotter bearing and lower wire-to-air efficiency",
+      "detect": [
+        "vibration_mm_s",
+        "bearing_temp_c",
+        "power_residual_pct"
+      ],
+      "action": "Vibration analysis; service the bearing and impeller (Aerzen service)",
+      "default_ramp_min": 15
+    },
+    "surge_approach": {
+      "label": "Zone valve stuck part-closed (surge risk)",
+      "cause": "A zone air valve sticks part-closed: the header loses more pressure and the blower runs closer to its surge line, especially at night",
+      "detect": [
+        "header_loss_residual_mbar",
+        "surge_margin_pct",
+        "discharge_pressure_mbar"
+      ],
+      "action": "Free the zone valve and check its actuator; review the most-open-valve logic",
+      "default_ramp_min": 10
+    },
+    "do_probe_drift": {
+      "label": "DO probe reads high",
+      "cause": "A fouled or drifting control DO probe reads high: the controller gives too little air and the basin under-aerates",
+      "detect": [
+        "do_spread_mgl",
+        "grid_pressure_residual_mbar",
+        "do_outlet_mgl"
+      ],
+      "action": "Clean and calibrate the DO probe (luminescent cap check)",
+      "default_ramp_min": 10
+    },
+    "vfd_overheating": {
+      "label": "VFD cooling fault",
+      "cause": "The VFD cabinet fan fails or its filter blocks: heat-sink and motor temperatures climb towards trip",
+      "detect": [
+        "vfd_temp_c",
+        "motor_temp_c"
+      ],
+      "action": "Replace the cabinet fan / filter mats; check the room ventilation",
+      "default_ramp_min": 15
+    }
+  },
+  "presentation": {
+    "category": "Aeration blower",
+    "kpis": [
+      {
+        "metric": "airflow_nm3h",
+        "label": "Airflow",
+        "unit": "Nm³/h",
+        "decimals": 0
+      },
+      {
+        "metric": "discharge_pressure_mbar",
+        "label": "Discharge",
+        "unit": "mbar",
+        "decimals": 0
+      },
+      {
+        "metric": "do_control_mgl",
+        "label": "DO",
+        "unit": "mg/L",
+        "decimals": 2
+      },
+      {
+        "metric": "motor_power_kw",
+        "label": "Power",
+        "unit": "kW",
+        "decimals": 1
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "air_ratio",
+        "label": "Air vs. twin",
+        "unit": "x",
+        "decimals": 2
+      },
+      {
+        "metric": "specific_energy_kwh_kg",
+        "label": "Energy",
+        "unit": "kWh/kg O2",
+        "decimals": 2
+      }
+    ],
+    "compare": [
+      {
+        "label": "Grid pressure",
+        "measured": "grid_pressure_mbar",
+        "expected": "grid_pressure_expected_mbar",
+        "unit": "mbar",
+        "decimals": 0,
+        "basis": "4.5 m submergence + clean-disc DWP + grid loss"
+      },
+      {
+        "label": "Airflow",
+        "measured": "airflow_nm3h",
+        "expected": "airflow_expected_nm3h",
+        "unit": "Nm³/h",
+        "decimals": 0,
+        "basis": "Oxygen demand / (SOTE 6.5 %/m x alpha F 0.55 x driving force)"
+      },
+      {
+        "label": "Motor power",
+        "measured": "motor_power_kw",
+        "expected": "power_expected_kw",
+        "unit": "kW",
+        "decimals": 1,
+        "basis": "Adiabatic power / wire-to-air efficiency"
+      },
+      {
+        "label": "Specific energy",
+        "measured": "specific_energy_kwh_kg",
+        "expected": "specific_energy_expected_kwh_kg",
+        "unit": "kWh/kg O2",
+        "decimals": 2,
+        "basis": "kW per kg O2 of demand"
+      },
+      {
+        "label": "Surge margin",
+        "measured": "surge_margin_pct",
+        "expected": null,
+        "unit": "%",
+        "decimals": 0,
+        "basis": "alert < 10 %"
+      },
+      {
+        "label": "Header loss",
+        "measured": "header_loss_mbar",
+        "expected": null,
+        "unit": "mbar",
+        "decimals": 0,
+        "basis": "discharge - grid"
+      },
+      {
+        "label": "DO spread (control - outlet)",
+        "measured": "do_spread_mgl",
+        "expected": null,
+        "unit": "mg/L",
+        "decimals": 2,
+        "basis": "about 0.4 mg/L normally"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "grid_pressure_residual_mbar",
+        "label": "Grid pressure vs. clean"
+      },
+      {
+        "metric": "air_ratio",
+        "label": "Air ratio"
+      },
+      {
+        "metric": "power_residual_pct",
+        "label": "Power vs. expected %"
+      },
+      {
+        "metric": "surge_margin_pct",
+        "label": "Surge margin %"
+      }
+    ],
+    "design": [
+      {
+        "label": "Blower",
+        "value": "Aerzen AT 150-0.8 S-G5 turbo, 4800 m³/h, 800 mbar max, 150 hp, oil-free, VFD"
+      },
+      {
+        "label": "Diffusers",
+        "value": "1200 Sanitaire Silver Series II 229 mm EPDM discs at 4.5 m submergence"
+      },
+      {
+        "label": "Basin",
+        "value": "3500 m³ activated-sludge train, DO setpoint 2.0 mg/L (assumed)"
+      },
+      {
+        "label": "Source",
+        "value": "Aerzen catalogue AT 150-0.8 S-G5; Xylem/Sanitaire aeration brochure 03-2020"
+      }
+    ]
+  }
+}

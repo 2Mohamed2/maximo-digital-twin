@@ -190,6 +190,8 @@ def dashboard(tw):
         return x
 
     def known(mtr):
+        if not mtr:                      # comparison rows with only an expected (or only a measured) value
+            return False
         return mtr.upper() in calc or any(p["metric"] == mtr for p in tw.doc["telemetry"]["points"])
 
     def value(k, title, its):

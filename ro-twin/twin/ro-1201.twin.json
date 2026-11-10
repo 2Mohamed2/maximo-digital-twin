@@ -1,0 +1,794 @@
+{
+  "$comment": "Single source of truth for the RO-1201 digital twin: one seawater reverse osmosis train (40 pressure vessels x 7 DuPont FilmTec SW30HRLE-440i elements, 3 Energy Recovery PX Q300). Membrane data from the DuPont data sheet; normalisation per ASTM D4516; train sizing and pump data are assumptions.",
+  "twin": {
+    "id": "urn:maximo:twin:reverseosmosis:RO-1201",
+    "version": "1.0.0",
+    "kind": "Seawater reverse osmosis train with isobaric energy recovery",
+    "standards": {
+      "performance": "DuPont FilmTec SW30HRLE-440i: 41 m2, 31 m3/d and 99.80 % at 32,000 mg/L / 55.2 bar / 25 C / 8 %; fitted A 1.100 L/m2/h/bar, B 0.0605 L/m2/h",
+      "normalisation": "ASTM D4516: normalised permeate flow, normalised salt passage, normalised pressure drop",
+      "energy_recovery": "Energy Recovery PX Q series: isobaric, up to 98 % efficiency, < 3 % mixing (Q400)",
+      "information_model": "OPC UA tags named after ISA-5.1 instrument numbers (FIT, PIT, PDIT, AIT, TIT, JIT, SIT)"
+    }
+  },
+  "identification": {
+    "assetnum": "RO-1201",
+    "description": "Seawater RO train 1201 (40 x 7 SW30HRLE-440i, PX energy recovery)",
+    "manufacturer": "DuPont FilmTec / Energy Recovery",
+    "model": "SW30HRLE-440i x 280, PX Q300 x 3",
+    "site": "BEDFORD",
+    "location": "BEDFORD desalination plant / RO hall / train 1201",
+    "medium": "Seawater 38,500 mg/L TDS, 27 C"
+  },
+  "design": {
+    "seawater": {
+      "tds_mgl": 38500.0,
+      "temp_c": 27.0,
+      "temp_swing_c": 1.2,
+      "tds_swing_mgl": 300.0,
+      "orp_mv": 220.0,
+      "assumed": "open intake after dual-media filtration and SBS dechlorination; values assumed"
+    },
+    "membrane": {
+      "element": "DuPont FilmTec SW30HRLE-440i",
+      "area_m2": 41.0,
+      "a": 1.099591,
+      "b": 0.060504,
+      "kdp": 0.006,
+      "test": {
+        "permeate_m3d": 31.0,
+        "recovery": 0.08,
+        "nacl_mgl": 32000.0,
+        "rejection": 0.998,
+        "pressure_bar": 55.16,
+        "temp_c": 25.0,
+        "kdp": 0.006
+      },
+      "max_pressure_bar": 83,
+      "max_element_dp_bar": 1.0,
+      "max_vessel_dp_bar": 3.4,
+      "max_temp_c": 45,
+      "free_chlorine_mgl": 0.1,
+      "spacer_mil": 28,
+      "length_mm": 1016,
+      "od_mm": 201,
+      "permeate_tube_id_mm": 29,
+      "basis": "A (L/m2/h/bar) and B (L/m2/h) fitted with physics.element() to the data-sheet test point; k_dp assumed"
+    },
+    "train": {
+      "vessels": 40,
+      "elements_per_vessel": 7,
+      "banks": 4,
+      "permeate_setpoint_m3h": 160.0,
+      "recovery": 0.43,
+      "max_pressure_bar": 82.0,
+      "permeate_pressure_bar": 0.6,
+      "oring_leak_frac": 0.004,
+      "average_flux_lmh": 13.9,
+      "assumed": "train size, recovery and permeate setpoint are a typical one-pass SWRO design (assumed)"
+    },
+    "hp_pump": {
+      "type": "multi-stage horizontal centrifugal, VFD",
+      "eta_bep": 0.82,
+      "q_bep_m3h": 162.0,
+      "eta_motor": 0.96,
+      "head_rated_bar": 62.0,
+      "assumed": "efficiency curve eta_bep (1 - 0.8 (Q/Qbep - 1)^2) assumed"
+    },
+    "erd": {
+      "type": "3 x Energy Recovery PX Q300 (isobaric)",
+      "units": 3,
+      "lubrication_frac": 0.01,
+      "mixing_frac": 0.02,
+      "hp_dp_bar": 0.5,
+      "lp_out_pressure_bar": 2.3,
+      "assumed": "lubrication 1 %, volumetric mixing 2 % (below the < 3 % ERI quotes for the Q400) and the PX pressure losses are assumed"
+    },
+    "booster": {
+      "eta": 0.78,
+      "eta_motor": 0.95,
+      "assumed": "booster (circulation) pump efficiency assumed"
+    },
+    "cartridge": {
+      "rating_um": 5,
+      "dp_clean_bar": 0.35,
+      "design_flow_m3h": 372.0,
+      "supply_pressure_bar": 3.6,
+      "assumed": "clean dP and supply pressure assumed; dP rises with Q^2"
+    },
+    "cleaning_triggers": {
+      "npf_drop_pct": 10,
+      "nsp_rise_pct": 10,
+      "ndp_rise_pct": 15,
+      "source": "Water Technology, Membrane cleaning fundamentals (ASTM D4516 normalisation)"
+    },
+    "demo": {
+      "time_scale": 1,
+      "note": "Real time. Fouling that takes weeks in a plant is compressed into a 2-3 minute ramp when a failure mode is injected; Clear all restores the clean membranes."
+    }
+  },
+  "telemetry": {
+    "event": "ro",
+    "publish_every_s": 5,
+    "device_type": "REVERSE_OSMOSIS_TRAIN",
+    "groups": {
+      "Intake": "Seawater after pretreatment",
+      "Cartridge": "5-micron cartridge filters",
+      "HPPump": "High-pressure pump",
+      "ERD": "Pressure exchangers and booster pump",
+      "Membranes": "Pressure vessel rack",
+      "Permeate": "Permeate and bank conductivity"
+    },
+    "points": [
+      {
+        "metric": "feed_flow_m3h",
+        "path": "Intake.FeedFlow",
+        "label": "Seawater feed flow (after cartridge filters)",
+        "unit": "m3/h",
+        "range": [
+          0,
+          600
+        ],
+        "noise": 0.6,
+        "opc": "OPC UA ns=2;s=RO1201.FIT-1201.PV"
+      },
+      {
+        "metric": "feed_tds_mgl",
+        "path": "Intake.FeedTDS",
+        "label": "Seawater salinity (conductivity as TDS)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          60000
+        ],
+        "noise": 15,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1201.PV"
+      },
+      {
+        "metric": "feed_temp_c",
+        "path": "Intake.FeedTemperature",
+        "label": "Seawater temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          50
+        ],
+        "noise": 0.03,
+        "opc": "OPC UA ns=2;s=RO1201.TIT-1201.PV"
+      },
+      {
+        "metric": "feed_ph",
+        "path": "Intake.FeedPH",
+        "label": "Feed pH",
+        "unit": "pH",
+        "range": [
+          0,
+          14
+        ],
+        "noise": 0.005,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1202.PV"
+      },
+      {
+        "metric": "feed_orp_mv",
+        "path": "Intake.FeedORP",
+        "label": "Feed ORP (oxidant after dechlorination)",
+        "unit": "mV",
+        "range": [
+          -500,
+          1000
+        ],
+        "noise": 1.5,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1203.PV"
+      },
+      {
+        "metric": "cf_inlet_pressure_bar",
+        "path": "Cartridge.InletPressure",
+        "label": "Cartridge filter inlet pressure",
+        "unit": "bar(g)",
+        "range": [
+          0,
+          10
+        ],
+        "noise": 0.005,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1201.PV"
+      },
+      {
+        "metric": "cf_dp_bar",
+        "path": "Cartridge.DifferentialPressure",
+        "label": "Cartridge filter differential pressure",
+        "unit": "bar",
+        "range": [
+          0,
+          5
+        ],
+        "noise": 0.004,
+        "opc": "OPC UA ns=2;s=RO1201.PDIT-1201.PV"
+      },
+      {
+        "metric": "hp_suction_pressure_bar",
+        "path": "HPPump.SuctionPressure",
+        "label": "HP pump suction pressure",
+        "unit": "bar(g)",
+        "range": [
+          -1,
+          10
+        ],
+        "noise": 0.005,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1202.PV"
+      },
+      {
+        "metric": "hp_discharge_pressure_bar",
+        "path": "HPPump.DischargePressure",
+        "label": "HP pump discharge pressure",
+        "unit": "bar(g)",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.03,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1203.PV"
+      },
+      {
+        "metric": "hp_flow_m3h",
+        "path": "HPPump.Flow",
+        "label": "HP pump flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          400
+        ],
+        "noise": 0.25,
+        "opc": "OPC UA ns=2;s=RO1201.FIT-1203.PV"
+      },
+      {
+        "metric": "hp_power_kw",
+        "path": "HPPump.Power",
+        "label": "HP pump motor power (VFD)",
+        "unit": "kW",
+        "range": [
+          0,
+          800
+        ],
+        "noise": 0.4,
+        "opc": "OPC UA ns=2;s=RO1201.JIT-1203.PV"
+      },
+      {
+        "metric": "hp_speed_pct",
+        "path": "HPPump.Speed",
+        "label": "HP pump speed (VFD)",
+        "unit": "%",
+        "range": [
+          0,
+          110
+        ],
+        "noise": 0.05,
+        "opc": "OPC UA ns=2;s=RO1201.SIT-1203.PV"
+      },
+      {
+        "metric": "px_hp_out_pressure_bar",
+        "path": "ERD.HPOutletPressure",
+        "label": "PX high-pressure outlet (to booster)",
+        "unit": "bar(g)",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.03,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1205.PV"
+      },
+      {
+        "metric": "px_lp_in_pressure_bar",
+        "path": "ERD.LPInletPressure",
+        "label": "PX low-pressure inlet (seawater)",
+        "unit": "bar(g)",
+        "range": [
+          -1,
+          10
+        ],
+        "noise": 0.005,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1204.PV"
+      },
+      {
+        "metric": "px_lp_out_pressure_bar",
+        "path": "ERD.LPOutletPressure",
+        "label": "PX low-pressure outlet (brine to outfall)",
+        "unit": "bar(g)",
+        "range": [
+          -1,
+          10
+        ],
+        "noise": 0.005,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1206.PV"
+      },
+      {
+        "metric": "px_hp_out_flow_m3h",
+        "path": "ERD.HPOutletFlow",
+        "label": "PX high-pressure outlet flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          400
+        ],
+        "noise": 0.25,
+        "opc": "OPC UA ns=2;s=RO1201.FIT-1205.PV"
+      },
+      {
+        "metric": "px_lp_in_flow_m3h",
+        "path": "ERD.LPInletFlow",
+        "label": "PX low-pressure inlet flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          400
+        ],
+        "noise": 0.25,
+        "opc": "OPC UA ns=2;s=RO1201.FIT-1204.PV"
+      },
+      {
+        "metric": "px_lp_out_flow_m3h",
+        "path": "ERD.LPOutletFlow",
+        "label": "PX low-pressure outlet flow (brine reject)",
+        "unit": "m3/h",
+        "range": [
+          0,
+          400
+        ],
+        "noise": 0.25,
+        "opc": "OPC UA ns=2;s=RO1201.FIT-1206.PV"
+      },
+      {
+        "metric": "booster_power_kw",
+        "path": "ERD.BoosterPower",
+        "label": "Booster (circulation) pump power",
+        "unit": "kW",
+        "range": [
+          0,
+          200
+        ],
+        "noise": 0.08,
+        "opc": "OPC UA ns=2;s=RO1201.JIT-1205.PV"
+      },
+      {
+        "metric": "membrane_feed_pressure_bar",
+        "path": "Membranes.FeedPressure",
+        "label": "Membrane feed pressure (vessel inlet header)",
+        "unit": "bar(g)",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.03,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1207.PV"
+      },
+      {
+        "metric": "membrane_feed_tds_mgl",
+        "path": "Membranes.FeedTDS",
+        "label": "Membrane feed salinity (after PX mixing)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          80000
+        ],
+        "noise": 15,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1207.PV"
+      },
+      {
+        "metric": "vessel_dp_bar",
+        "path": "Membranes.DifferentialPressure",
+        "label": "Pressure vessel differential pressure (feed to concentrate header)",
+        "unit": "bar",
+        "range": [
+          0,
+          6
+        ],
+        "noise": 0.004,
+        "opc": "OPC UA ns=2;s=RO1201.PDIT-1207.PV"
+      },
+      {
+        "metric": "concentrate_pressure_bar",
+        "path": "Membranes.ConcentratePressure",
+        "label": "Concentrate pressure (vessel outlet header)",
+        "unit": "bar(g)",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.03,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1208.PV"
+      },
+      {
+        "metric": "concentrate_flow_m3h",
+        "path": "Membranes.ConcentrateFlow",
+        "label": "Concentrate flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          400
+        ],
+        "noise": 0.25,
+        "opc": "OPC UA ns=2;s=RO1201.FIT-1208.PV"
+      },
+      {
+        "metric": "concentrate_tds_mgl",
+        "path": "Membranes.ConcentrateTDS",
+        "label": "Concentrate salinity",
+        "unit": "mg/L",
+        "range": [
+          0,
+          120000
+        ],
+        "noise": 25,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1208.PV"
+      },
+      {
+        "metric": "permeate_pressure_bar",
+        "path": "Permeate.Pressure",
+        "label": "Permeate back pressure",
+        "unit": "bar(g)",
+        "range": [
+          -1,
+          10
+        ],
+        "noise": 0.003,
+        "opc": "OPC UA ns=2;s=RO1201.PIT-1209.PV"
+      },
+      {
+        "metric": "permeate_flow_m3h",
+        "path": "Permeate.Flow",
+        "label": "Permeate flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          300
+        ],
+        "noise": 0.15,
+        "opc": "OPC UA ns=2;s=RO1201.FIT-1209.PV"
+      },
+      {
+        "metric": "permeate_tds_mgl",
+        "path": "Permeate.TDS",
+        "label": "Permeate salinity (train)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          5000
+        ],
+        "noise": 0.6,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1209.PV"
+      },
+      {
+        "metric": "bank1_permeate_tds_mgl",
+        "path": "Permeate.Bank1TDS",
+        "label": "Permeate salinity, bank 1 (vessels 1-10)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          5000
+        ],
+        "noise": 0.6,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1211.PV"
+      },
+      {
+        "metric": "bank2_permeate_tds_mgl",
+        "path": "Permeate.Bank2TDS",
+        "label": "Permeate salinity, bank 2 (vessels 11-20)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          5000
+        ],
+        "noise": 0.6,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1212.PV"
+      },
+      {
+        "metric": "bank3_permeate_tds_mgl",
+        "path": "Permeate.Bank3TDS",
+        "label": "Permeate salinity, bank 3 (vessels 21-30)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          5000
+        ],
+        "noise": 0.6,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1213.PV"
+      },
+      {
+        "metric": "bank4_permeate_tds_mgl",
+        "path": "Permeate.Bank4TDS",
+        "label": "Permeate salinity, bank 4 (vessels 31-40)",
+        "unit": "mg/L",
+        "range": [
+          0,
+          5000
+        ],
+        "noise": 0.6,
+        "opc": "OPC UA ns=2;s=RO1201.AIT-1214.PV"
+      }
+    ]
+  },
+  "twin_model": {
+    "limits": {
+      "npf_low_pct": 90.0,
+      "nsp_high_pct": 110.0,
+      "ndp_high_pct": 115.0,
+      "scaling_npf_pct": 94.0,
+      "scaling_nsp_pct": 105.0,
+      "scaling_ndp_max_pct": 110.0,
+      "oxidation_nsp_pct": 130.0,
+      "oxidation_npf_pct": 103.0,
+      "orp_alert_mv": 400.0,
+      "bank_ratio_alert": 1.3,
+      "hp_eff_dev_alert_pts": 4.0,
+      "px_eff_alert_pct": 95.0,
+      "px_mixing_alert_pct": 5.0,
+      "px_leakage_alert_pct": 3.5,
+      "cf_dp_alert_bar": 1.0,
+      "suction_low_bar": 1.0,
+      "feed_pressure_alert_bar": 80.0,
+      "permeate_tds_alert_mgl": 500.0
+    },
+    "baseline": {
+      "ndp_ref_bar": 13.782,
+      "qavg_ref_m3h": 292.09,
+      "npf_poly": [
+        181.98912,
+        -0.73573268,
+        -0.015519257
+      ],
+      "nsp_poly": [
+        0.0039228839,
+        2.1795195e-06,
+        1.0935657e-06
+      ],
+      "ndp_poly": [
+        0.79855645,
+        -0.002561367,
+        -1.1118141e-06
+      ],
+      "basis": "normalised values of the clean, noise-free physics model at 14-40 C and 38,100-38,900 mg/L, fitted as c0 + c1 T + c2 T^2 by build_twin.py (NPF in m3/h, NSP as a fraction, NdP in bar)"
+    }
+  },
+  "failure_modes": {
+    "biofouling": {
+      "label": "Biofouling (lead elements)",
+      "cause": "Biofilm grows in the feed spacer of the first elements: the feed-concentrate pressure drop climbs first, permeate flow follows",
+      "detect": [
+        "ndp_norm_pct",
+        "npf_pct",
+        "membrane_feed_pressure_bar"
+      ],
+      "action": "Clean in place (high-pH clean first); review chlorination/dechlorination and the pretreatment SDI",
+      "default_ramp_min": 3
+    },
+    "scaling": {
+      "label": "Scaling (tail elements)",
+      "cause": "Sparingly soluble salts (CaCO3, CaSO4) precipitate where the brine is most concentrated: permeate flow falls and salt passage rises at the tail, pressure drop barely moves",
+      "detect": [
+        "npf_pct",
+        "nsp_pct",
+        "ndp_norm_pct"
+      ],
+      "action": "Clean in place (low-pH clean); check the antiscalant dose and the recovery",
+      "default_ramp_min": 3
+    },
+    "oxidation": {
+      "label": "Membrane oxidation (chlorine breakthrough)",
+      "cause": "Dechlorination (SBS) fails and free chlorine reaches the polyamide: ORP jumps, then flow and salt passage both rise for good",
+      "detect": [
+        "feed_orp_mv",
+        "nsp_pct",
+        "npf_pct"
+      ],
+      "action": "Stop the train, restore SBS dosing; autopsy one element; damaged elements must be replaced",
+      "default_ramp_min": 2
+    },
+    "oring_leak": {
+      "label": "O-ring / interconnector leak (bank 3)",
+      "cause": "A rolled or cut interconnector O-ring lets feed into the permeate tube of one vessel: the permeate of that bank turns salty while the train flow is normal",
+      "detect": [
+        "bank_tds_ratio",
+        "bank3_permeate_tds_mgl",
+        "permeate_tds_mgl"
+      ],
+      "action": "Probe the vessels of bank 3 (permeate conductivity profile), replace the O-rings / interconnector",
+      "default_ramp_min": 2
+    },
+    "hp_pump_wear": {
+      "label": "HP pump wear",
+      "cause": "Impeller and wear-ring wear in the multi-stage HP pump: the same head and flow take more power",
+      "detect": [
+        "hp_pump_eff_dev_pts",
+        "hp_power_kw",
+        "sec_kwh_m3"
+      ],
+      "action": "Plan an overhaul: wear rings, impellers, balance drum; check the vibration trend",
+      "default_ramp_min": 3
+    },
+    "erd_leakage": {
+      "label": "Energy recovery device leakage / mixing",
+      "cause": "Worn PX rotor or seals: more lubrication flow goes to the brine, more brine mixes into the membrane feed, the booster works harder",
+      "detect": [
+        "px_eff_pct",
+        "px_leakage_pct",
+        "px_mixing_pct"
+      ],
+      "action": "Check PX flow balance and lubrication flow; inspect the rotor and sleeve of the worst unit",
+      "default_ramp_min": 3
+    },
+    "cartridge_clogging": {
+      "label": "Cartridge filter clogging",
+      "cause": "Solids from the pretreatment load the 5-micron cartridges: the filter dP rises and the HP pump and PX suction pressure fall",
+      "detect": [
+        "cf_dp_bar",
+        "hp_suction_pressure_bar"
+      ],
+      "action": "Change the cartridges; look upstream for media filter or coagulation upsets",
+      "default_ramp_min": 3
+    },
+    "feed_temperature": {
+      "label": "Warm intake (not a fault)",
+      "cause": "The seawater warms 7 C (season, outfall recirculation): the membranes pass more water and more salt, so feed pressure falls and permeate salinity rises. The normalised values stay flat, so the twin raises no alarm",
+      "detect": [
+        "feed_temp_c",
+        "tcf",
+        "npf_pct",
+        "nsp_pct"
+      ],
+      "action": "None: normalisation separates temperature from membrane condition",
+      "default_ramp_min": 3
+    }
+  },
+  "presentation": {
+    "category": "Reverse osmosis train",
+    "kpis": [
+      {
+        "metric": "permeate_flow_m3h",
+        "label": "Permeate",
+        "unit": "m³/h",
+        "decimals": 1
+      },
+      {
+        "metric": "membrane_feed_pressure_bar",
+        "label": "Feed pressure",
+        "unit": "bar",
+        "decimals": 1
+      },
+      {
+        "metric": "permeate_tds_mgl",
+        "label": "Permeate TDS",
+        "unit": "mg/L",
+        "decimals": 0
+      },
+      {
+        "metric": "feed_temp_c",
+        "label": "Seawater",
+        "unit": "°C",
+        "decimals": 1
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "npf_pct",
+        "label": "Norm. flow",
+        "unit": "%",
+        "decimals": 1
+      },
+      {
+        "metric": "sec_kwh_m3",
+        "label": "Specific energy",
+        "unit": "kWh/m³",
+        "decimals": 2
+      }
+    ],
+    "compare": [
+      {
+        "label": "Permeate flow",
+        "measured": "permeate_flow_m3h",
+        "expected": "permeate_expected_m3h",
+        "unit": "m³/h",
+        "decimals": 1,
+        "basis": "clean membranes at today's NDP and temperature: NPF0 x TCF x NDP / NDP_ref"
+      },
+      {
+        "label": "Normalised permeate flow",
+        "measured": "npf_pct",
+        "expected": null,
+        "unit": "%",
+        "decimals": 1,
+        "basis": "ASTM D4516; clean below 90 %"
+      },
+      {
+        "label": "Normalised salt passage",
+        "measured": "nsp_pct",
+        "expected": null,
+        "unit": "%",
+        "decimals": 1,
+        "basis": "ASTM D4516; clean above 110 %"
+      },
+      {
+        "label": "Normalised pressure drop",
+        "measured": "ndp_norm_pct",
+        "expected": null,
+        "unit": "%",
+        "decimals": 1,
+        "basis": "dP x (Qavg_ref/Qavg)^1.5; clean above 115 %"
+      },
+      {
+        "label": "HP pump efficiency",
+        "measured": "hp_pump_eff_pct",
+        "expected": "hp_pump_eff_expected_pct",
+        "unit": "%",
+        "decimals": 1,
+        "basis": "wire-to-water, assumed curve 0.82 (1 - 0.8 (Q/162 - 1)²) x 0.96"
+      },
+      {
+        "label": "PX efficiency",
+        "measured": "px_eff_pct",
+        "expected": null,
+        "unit": "%",
+        "decimals": 1,
+        "basis": "ΣQ·P out / ΣQ·P in; ERI up to 98 %"
+      },
+      {
+        "label": "PX mixing",
+        "measured": "px_mixing_pct",
+        "expected": null,
+        "unit": "%",
+        "decimals": 1,
+        "basis": "salinity rise of the membrane feed; ERI < 3 % (Q400)"
+      },
+      {
+        "label": "Specific energy",
+        "measured": "sec_kwh_m3",
+        "expected": null,
+        "unit": "kWh/m³",
+        "decimals": 2,
+        "basis": "(HP + booster) / permeate"
+      },
+      {
+        "label": "Bank TDS ratio",
+        "measured": "bank_tds_ratio",
+        "expected": null,
+        "unit": "x",
+        "decimals": 2,
+        "basis": "worst bank / train average; leak above 1.3"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "npf_pct",
+        "label": "Normalised flow (%)"
+      },
+      {
+        "metric": "nsp_pct",
+        "label": "Normalised salt passage (%)"
+      },
+      {
+        "metric": "ndp_norm_pct",
+        "label": "Normalised dP (%)"
+      },
+      {
+        "metric": "sec_kwh_m3",
+        "label": "Specific energy (kWh/m³)"
+      }
+    ],
+    "design": [
+      {
+        "label": "Element",
+        "value": "DuPont FilmTec SW30HRLE-440i: 41 m², 31 m³/d, 99.80 % (32 g/L NaCl, 55.2 bar, 25 °C), max 83 bar"
+      },
+      {
+        "label": "Train",
+        "value": "40 vessels x 7 elements (11,480 m²), 160 m³/h permeate, 43 % recovery, ~13.9 L/m²h (assumed)"
+      },
+      {
+        "label": "Energy recovery",
+        "value": "3 x Energy Recovery PX Q300 isobaric + booster; HP pump 0.82 BEP (assumed)"
+      },
+      {
+        "label": "Source",
+        "value": "DuPont data sheet 609-03001; ERI PX Q brochure; ASTM D4516; 3D built from published element dimensions, not manufacturer CAD"
+      }
+    ]
+  }
+}

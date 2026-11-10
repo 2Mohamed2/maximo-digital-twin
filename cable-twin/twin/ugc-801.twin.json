@@ -1,0 +1,695 @@
+{
+  "$comment": "Single source of truth for the UGC-801 digital twin: 3.6 km 132 kV XLPE underground circuit, three Prysmian 1200 mm2 Al single cores in trefoil, cross-bonded, with DTS fibre. Construction from the Prysmian data sheet; ratings computed with IEC 60287 (not published by Prysmian).",
+  "twin": {
+    "id": "urn:maximo:twin:hvcable:UGC-801",
+    "version": "1.0.0",
+    "kind": "132 kV XLPE underground cable circuit with DTS, PD and bonding monitoring",
+    "standards": {
+      "construction": "Prysmian R89BD901200MIJNE 132 kV XLP 1200 mm2 Al LS0H, IEC 60840",
+      "rating": "IEC 60287-1-1 (losses, sheath loss factor) and IEC 60287-2-1 (thermal resistances), steady state",
+      "transient": "IEC 60853 idea: cable and soil time constants; real-time thermal rating (RTTR) from DTS + load",
+      "information_model": "Points named after IEC 61850 logical nodes (MMXU, ZCAB, STMP, SPDC, MMET)"
+    }
+  },
+  "identification": {
+    "assetnum": "UGC-801",
+    "description": "132 kV underground cable circuit 801 (substation A to substation B)",
+    "manufacturer": "Prysmian",
+    "model": "132 kV XLPE 1x1200 mm2 Al LS0H (R89BD901200MIJNE)",
+    "site": "Demo transmission network",
+    "location": "Substation A - substation B, 3.6 km route",
+    "medium": "Direct buried trefoil, road crossing in ducts, cross-bonded"
+  },
+  "design": {
+    "cable": {
+      "conductor": "Al compact class 2, 1200 mm2",
+      "conductor_d_mm": 41.85,
+      "insulation_mm": 16.0,
+      "insulation_screen_d_mm": 80.83,
+      "screen": "50 x 2.052 mm Cu wires (165 mm2) + Al tape",
+      "screen_mean_d_mm": 83.91,
+      "outer_d_mm": 98.4,
+      "r20_ohm_km": 0.0247,
+      "capacitance_uf_km": 0.2402,
+      "um_kv": 145,
+      "up_kv": 650,
+      "theta_max_c": 90,
+      "theta_sc_c": 250,
+      "sc_conductor_ka_05s": 160,
+      "sc_screen_ka_05s": 31.5,
+      "mass_kg_km": 11408,
+      "bending_radius_m": [
+        2.46,
+        1.97
+      ]
+    },
+    "circuit": {
+      "u_kv": 132,
+      "length_km": 3.6,
+      "formation": "trefoil touching",
+      "bonding": "cross-bonded, 2 major sections",
+      "joints": {
+        "J1": 0.6,
+        "J2": 1.2,
+        "J3": 1.8,
+        "J4": 2.4,
+        "J5": 3.0
+      },
+      "link_boxes": {
+        "J1": "cross-bond",
+        "J2": "cross-bond",
+        "J3": "earth",
+        "J4": "cross-bond",
+        "J5": "cross-bond"
+      },
+      "crossing_km": [
+        1.7999999999999998,
+        2.1
+      ],
+      "segments": 12,
+      "segment_km": 0.3,
+      "crossing_segment": 7,
+      "assumed": "route, depth, soil, bonding layout and sensor positions are assumptions of the demo circuit"
+    },
+    "thermal": {
+      "r20_ohm_m": 2.47e-05,
+      "alpha20": 0.00403,
+      "r90_dc_ohm_m": 3.16679e-05,
+      "ys": 0.07696,
+      "yp": 0.04813,
+      "r90_ac_ohm_m": 3.56293e-05,
+      "wd_w_m": 0.4383,
+      "tan_delta": 0.001,
+      "c_f_m": 2.402e-10,
+      "T1": 0.3708,
+      "T3": 0.06222,
+      "T4_normal": 1.8663,
+      "T4_crossing": 2.1977,
+      "T4_crossing_parts": {
+        "cable_to_duct": 0.3079,
+        "duct_wall": 0.0696,
+        "external": 1.8201
+      },
+      "lambda1_cross_bonded": 0.02,
+      "lambda1_solid": 0.5441,
+      "rho_soil": 1.2,
+      "soil_ambient_c": 25.0,
+      "depth_m": 1.2,
+      "depth_crossing_m": 1.8,
+      "theta_max_c": 90.0,
+      "rating_normal_a": 877.0,
+      "rating_crossing_a": 818.9,
+      "rating_crossing_solid_bonded_a": 681.8,
+      "tau_cable_min": 30.0,
+      "tau_soil_min": 600.0,
+      "basis": "IEC 60287-1-1 / 60287-2-1 steady state from the Prysmian construction; IEC 60853-style two time constants (cable 30 min, soil 10 h) for the transient (assumed values, demo-compressed)"
+    },
+    "terminations": {
+      "type": "outdoor sealing ends (porcelain/composite)",
+      "connector_rise_k_at_1000a": 12.0,
+      "note": "connector temperature rise over air ~ k I^2 (assumed for the IR check)"
+    },
+    "sheath": {
+      "expected_ratio": 0.03,
+      "note": "cross-bonded: sheath current a few % of the load; solid bonding (fault) gives tens of %"
+    },
+    "demo": {
+      "time_scale": 60,
+      "note": "The plant clock runs 60x real time (one day in 24 min): the 10-h soil time constant plays out in 10 minutes and the 30-min cable time constant in 30 s; injected faults ramp in 1-3 min."
+    }
+  },
+  "telemetry": {
+    "event": "cable",
+    "publish_every_s": 5,
+    "device_type": "HV_CABLE_XLPE",
+    "groups": {
+      "Load": "Load (CTs and VTs)",
+      "Rttr": "Real-time thermal rating unit",
+      "Soil": "Reference soil sensor",
+      "Weather": "Weather station",
+      "Dts": "Distributed temperature sensing (fibre in the screen)",
+      "Bonding": "Link boxes and sheath",
+      "Pd": "Partial discharge (HFCT)",
+      "Termination": "Outdoor sealing ends"
+    },
+    "points": [
+      {
+        "metric": "current_l1_a",
+        "path": "Load.CurrentL1",
+        "label": "Load current L1",
+        "unit": "A",
+        "range": [
+          0,
+          2000
+        ],
+        "noise": 1.0,
+        "opc": "IEC 61850: MMXU.A.phsA"
+      },
+      {
+        "metric": "current_l2_a",
+        "path": "Load.CurrentL2",
+        "label": "Load current L2",
+        "unit": "A",
+        "range": [
+          0,
+          2000
+        ],
+        "noise": 1.0,
+        "opc": "IEC 61850: MMXU.A.phsB"
+      },
+      {
+        "metric": "current_l3_a",
+        "path": "Load.CurrentL3",
+        "label": "Load current L3",
+        "unit": "A",
+        "range": [
+          0,
+          2000
+        ],
+        "noise": 1.0,
+        "opc": "IEC 61850: MMXU.A.phsC"
+      },
+      {
+        "metric": "load_eq_a",
+        "path": "Rttr.EquivalentCurrent",
+        "label": "Equivalent current over the soil time constant (RTTR unit)",
+        "unit": "A",
+        "range": [
+          0,
+          2000
+        ],
+        "noise": 0.5,
+        "opc": "IEC 61850: ZCAB (thermal image)"
+      },
+      {
+        "metric": "voltage_kv",
+        "path": "Load.Voltage",
+        "label": "Voltage (line to line)",
+        "unit": "kV",
+        "range": [
+          0,
+          160
+        ],
+        "noise": 0.05,
+        "opc": "IEC 61850: MMXU.PPV"
+      },
+      {
+        "metric": "soil_ambient_c",
+        "path": "Soil.AmbientTemp",
+        "label": "Soil ambient at cable depth (reference, 5 m from the trench)",
+        "unit": "degC",
+        "range": [
+          -10,
+          60
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "air_temp_c",
+        "path": "Weather.AirTemp",
+        "label": "Air temperature at the terminations",
+        "unit": "degC",
+        "range": [
+          -20,
+          60
+        ],
+        "noise": 0.1,
+        "opc": "IEC 61850: MMET.EnvTmp"
+      },
+      {
+        "metric": "dts_seg01_c",
+        "path": "Dts.Segment01",
+        "label": "DTS max temperature km 0.0-0.3",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg02_c",
+        "path": "Dts.Segment02",
+        "label": "DTS max temperature km 0.3-0.6",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg03_c",
+        "path": "Dts.Segment03",
+        "label": "DTS max temperature km 0.6-0.9",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg04_c",
+        "path": "Dts.Segment04",
+        "label": "DTS max temperature km 0.9-1.2",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg05_c",
+        "path": "Dts.Segment05",
+        "label": "DTS max temperature km 1.2-1.5",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg06_c",
+        "path": "Dts.Segment06",
+        "label": "DTS max temperature km 1.5-1.8",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg07_c",
+        "path": "Dts.Segment07",
+        "label": "DTS max temperature km 1.8-2.1 (road crossing)",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg08_c",
+        "path": "Dts.Segment08",
+        "label": "DTS max temperature km 2.1-2.4",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg09_c",
+        "path": "Dts.Segment09",
+        "label": "DTS max temperature km 2.4-2.7",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg10_c",
+        "path": "Dts.Segment10",
+        "label": "DTS max temperature km 2.7-3.0",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg11_c",
+        "path": "Dts.Segment11",
+        "label": "DTS max temperature km 3.0-3.3",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_seg12_c",
+        "path": "Dts.Segment12",
+        "label": "DTS max temperature km 3.3-3.6",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "dts_max_c",
+        "path": "Dts.MaxTemp",
+        "label": "DTS hottest point on the route (screen temperature)",
+        "unit": "degC",
+        "range": [
+          -10,
+          150
+        ],
+        "noise": 0.15,
+        "opc": "IEC 61850: STMP.Tmp"
+      },
+      {
+        "metric": "dts_max_km",
+        "path": "Dts.MaxLocation",
+        "label": "DTS hottest point location",
+        "unit": "km",
+        "range": [
+          0,
+          4
+        ],
+        "noise": 0.0,
+        "opc": null
+      },
+      {
+        "metric": "dts_fibre_km",
+        "path": "Dts.FibreLength",
+        "label": "DTS measured fibre length (signal end)",
+        "unit": "km",
+        "range": [
+          0,
+          5
+        ],
+        "noise": 0.0,
+        "opc": null
+      },
+      {
+        "metric": "sheath_current_a",
+        "path": "Bonding.SheathCurrent",
+        "label": "Sheath current at the earthing link (J3)",
+        "unit": "A",
+        "range": [
+          0,
+          800
+        ],
+        "noise": 0.4,
+        "opc": null
+      },
+      {
+        "metric": "sheath_voltage_v",
+        "path": "Bonding.SheathVoltage",
+        "label": "Sheath standing voltage at link box J2",
+        "unit": "V",
+        "range": [
+          0,
+          400
+        ],
+        "noise": 0.3,
+        "opc": null
+      },
+      {
+        "metric": "sheath_leakage_ma",
+        "path": "Bonding.JacketLeakage",
+        "label": "Jacket leakage current (sheath voltage limiters)",
+        "unit": "mA",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.02,
+        "opc": null
+      },
+      {
+        "metric": "pd_joint_pc",
+        "path": "Pd.JointJ4",
+        "label": "Partial discharge, joint J4 (HFCT on the earth lead)",
+        "unit": "pC",
+        "range": [
+          0,
+          5000
+        ],
+        "noise": 1.5,
+        "opc": "IEC 61850: SPDC"
+      },
+      {
+        "metric": "pd_term_pc",
+        "path": "Pd.TerminationA",
+        "label": "Partial discharge, sealing end A",
+        "unit": "pC",
+        "range": [
+          0,
+          5000
+        ],
+        "noise": 1.5,
+        "opc": "IEC 61850: SPDC"
+      },
+      {
+        "metric": "term_a_temp_c",
+        "path": "Termination.TempA",
+        "label": "Sealing end A connector temperature (IR)",
+        "unit": "degC",
+        "range": [
+          -20,
+          200
+        ],
+        "noise": 0.2,
+        "opc": null
+      }
+    ]
+  },
+  "twin_model": {
+    "limits": {
+      "conductor_alert_c": 85.0,
+      "conductor_max_c": 90.0,
+      "crossing_residual_alert_k": 6.0,
+      "steady_load_min_a": 150,
+      "utilisation_alert": 1.0,
+      "utilisation_warn": 0.9,
+      "sheath_ratio_alert": 0.12,
+      "sheath_voltage_alert_v": 120,
+      "leakage_alert_ma": 1.0,
+      "pd_alert_pc": 100,
+      "pd_high_pc": 500,
+      "term_residual_alert_k": 15.0,
+      "fibre_shortfall_km": 0.05
+    }
+  },
+  "failure_modes": {
+    "soil_drying": {
+      "label": "Soil drying at the road crossing",
+      "cause": "Heat from the cables dries the backfill around the ducts under the road: its thermal resistivity climbs from 1.2 towards 2.5 K.m/W, the crossing runs hotter for the same load and can run away thermally",
+      "detect": [
+        "dts_seg07_c",
+        "crossing_residual_k",
+        "conductor_temp_c",
+        "rating_utilisation"
+      ],
+      "action": "Derate the circuit now; re-bed the crossing in a stabilised, low-resistivity backfill (or add a water/cooling measure)",
+      "default_ramp_min": 3
+    },
+    "joint_pd": {
+      "label": "Partial discharge in joint J4",
+      "cause": "A void or a contaminated interface in the pre-moulded joint discharges every cycle; the HFCT on the earth lead sees it long before the joint fails",
+      "detect": [
+        "pd_joint_pc"
+      ],
+      "action": "Confirm with a UHF / acoustic PD survey; plan a joint replacement in the next outage",
+      "default_ramp_min": 2
+    },
+    "cross_bonding_fault": {
+      "label": "Cross-bonding fault (link box J2)",
+      "cause": "Water in link box J2 shorts the cross-bonding: the screens act as if solidly bonded, circulating currents flow and heat the whole major section",
+      "detect": [
+        "sheath_current_a",
+        "sheath_ratio",
+        "sheath_voltage_v",
+        "conductor_temp_c"
+      ],
+      "action": "Open and dry link box J2, replace the sheath voltage limiters, seal the box; verify the bonding with a sheath current test",
+      "default_ramp_min": 2
+    },
+    "termination_overheating": {
+      "label": "Sealing end A connector overheating",
+      "cause": "A loose or corroded compression connector at the outdoor sealing end: contact resistance grows and the lug runs hot",
+      "detect": [
+        "term_a_temp_c",
+        "term_residual_k"
+      ],
+      "action": "Thermographic check, then re-make the connector in the next outage",
+      "default_ramp_min": 3
+    },
+    "overload": {
+      "label": "Sustained overload",
+      "cause": "Load transferred from a parallel circuit stays above the circuit's dynamic rating: the conductor heads for 90 C at the crossing",
+      "detect": [
+        "load_eq_a",
+        "rating_utilisation",
+        "conductor_temp_c"
+      ],
+      "action": "Re-dispatch or shed load; use the dynamic rating, not the static one, to decide how long it can last",
+      "default_ramp_min": 3
+    },
+    "jacket_damage": {
+      "label": "Outer jacket damage",
+      "cause": "Third-party digging scraped the jacket: water reaches the screen and leakage current through the sheath voltage limiters rises; corrosion follows",
+      "detect": [
+        "sheath_leakage_ma"
+      ],
+      "action": "Locate the fault with a sheath fault locator, repair the jacket before the screen corrodes",
+      "default_ramp_min": 2
+    },
+    "dts_fibre_break": {
+      "label": "DTS fibre break",
+      "cause": "The DTS fibre is cut or a splice fails: the interrogator only sees the fibre up to the break; the route beyond is blind. This is a sensor fault, not a cable fault",
+      "detect": [
+        "dts_fibre_km",
+        "dts_seg07_c"
+      ],
+      "action": "OTDR the fibre, repair the splice; meanwhile rate the circuit from the load model only",
+      "default_ramp_min": 1
+    }
+  },
+  "presentation": {
+    "category": "Underground cable",
+    "kpis": [
+      {
+        "metric": "current_l2_a",
+        "label": "Load",
+        "unit": "A",
+        "decimals": 0
+      },
+      {
+        "metric": "dts_max_c",
+        "label": "DTS max",
+        "unit": "°C",
+        "decimals": 1
+      },
+      {
+        "metric": "dts_seg07_c",
+        "label": "Road crossing",
+        "unit": "°C",
+        "decimals": 1
+      },
+      {
+        "metric": "pd_joint_pc",
+        "label": "PD joint J4",
+        "unit": "pC",
+        "decimals": 0
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "conductor_temp_c",
+        "label": "Conductor (est.)",
+        "unit": "°C",
+        "decimals": 1
+      },
+      {
+        "metric": "rating_utilisation",
+        "label": "Rating used",
+        "unit": "x",
+        "decimals": 2
+      }
+    ],
+    "compare": [
+      {
+        "label": "Road crossing screen temperature",
+        "measured": "dts_seg07_c",
+        "expected": "crossing_expected_c",
+        "unit": "°C",
+        "decimals": 1,
+        "basis": "IEC 60287 at the equivalent current and soil ambient (T4 crossing, rho 1.2 K.m/W)"
+      },
+      {
+        "label": "Conductor temperature (hot spot)",
+        "measured": "conductor_temp_c",
+        "expected": null,
+        "unit": "°C",
+        "decimals": 1,
+        "basis": "DTS screen temperature + Wc T1 + Wd T1/2 (RTTR)"
+      },
+      {
+        "label": "Dynamic rating (crossing)",
+        "measured": "load_eq_a",
+        "expected": "rating_a",
+        "unit": "A",
+        "decimals": 0,
+        "basis": "IEC 60287 at the live soil ambient, cross-bonded"
+      },
+      {
+        "label": "Sheath current",
+        "measured": "sheath_current_a",
+        "expected": "sheath_expected_a",
+        "unit": "A",
+        "decimals": 1,
+        "basis": "cross-bonded: about 3 % of the load"
+      },
+      {
+        "label": "Sealing end A",
+        "measured": "term_a_temp_c",
+        "expected": "term_expected_c",
+        "unit": "°C",
+        "decimals": 1,
+        "basis": "air + 12 K at 1000 A, ~ I² (assumed)"
+      },
+      {
+        "label": "Joint losses",
+        "measured": "losses_kw_km",
+        "expected": null,
+        "unit": "kW/km",
+        "decimals": 1,
+        "basis": "3 (I²R(1+λ1) + Wd)"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "crossing_residual_k",
+        "label": "Crossing vs. IEC (K)"
+      },
+      {
+        "metric": "conductor_temp_c",
+        "label": "Conductor (°C)"
+      },
+      {
+        "metric": "rating_utilisation",
+        "label": "Rating used"
+      },
+      {
+        "metric": "sheath_ratio",
+        "label": "Sheath / load"
+      }
+    ],
+    "design": [
+      {
+        "label": "Cable",
+        "value": "Prysmian 132 kV XLPE 1x1200 mm² Al, 16 mm XLPE, Cu wire screen 165 mm², LS0H, Ø 98.4 mm"
+      },
+      {
+        "label": "Circuit",
+        "value": "3.6 km, trefoil at 1.2 m, road crossing in ducts at 1.8 m, cross-bonded (joints every 600 m)"
+      },
+      {
+        "label": "Ratings (IEC 60287)",
+        "value": "877 A buried, 819 A at the crossing (soil 25 °C, 1.2 K.m/W); solid-bonded 682 A"
+      },
+      {
+        "label": "Source",
+        "value": "Prysmian data sheet R89BD901200MIJNE; ratings computed (IEC 60287); 3D built procedurally, not manufacturer CAD"
+      }
+    ]
+  }
+}

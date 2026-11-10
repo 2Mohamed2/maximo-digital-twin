@@ -64,5 +64,115 @@
     "device": "TR-601",
     "model": "SGB-SMIT DOTML 1000 kVA 24 kV hermetic",
     "version": "1.0.0"
+  },
+  {
+    "assetnum": "CAP-1101",
+    "siteid": "BEDFORD",
+    "description": "Shunt capacitor bank 1101 - 33 kV double-wye, Vishay ESTA units (digital twin)",
+    "dir": "capbank-twin",
+    "url": "https://capbanktwin.monitor.<your-mas-domain>",
+    "devtype": "CAPACITOR_BANK",
+    "device": "CAP-1101",
+    "model": "33 kV 8.9 Mvar double-wye, 24 x Vishay ESTA 400 kvar",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "BAT-1001",
+    "siteid": "BEDFORD",
+    "description": "Substation 110 V DC battery 1001 - EnerSys PowerSafe 6 OPzV 420 (digital twin)",
+    "dir": "battery-twin",
+    "url": "https://batterytwin.monitor.<your-mas-domain>",
+    "devtype": "DC_BATTERY_SYSTEM",
+    "device": "BAT-1001",
+    "model": "EnerSys PowerSafe 6 OPzV 420, 54 cells, 110 V",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "OHL-901",
+    "siteid": "BEDFORD",
+    "description": "Overhead line 901 - 132 kV ACSR Drake span with line sensor (digital twin)",
+    "dir": "line-twin",
+    "url": "https://linetwin.monitor.<your-mas-domain>",
+    "devtype": "OVERHEAD_LINE",
+    "device": "OHL-901",
+    "model": "ACSR Drake 795 kcmil 26/7 (ASTM B232)",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "UGC-801",
+    "siteid": "BEDFORD",
+    "description": "132 kV XLPE cable circuit 801 - Prysmian 1x1200 mm2 Al with DTS (digital twin)",
+    "dir": "cable-twin",
+    "url": "https://cabletwin.monitor.<your-mas-domain>",
+    "devtype": "HV_CABLE_XLPE",
+    "device": "UGC-801",
+    "model": "Prysmian R89BD901200MIJNE 132 kV 1x1200 mm2 Al XLPE",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "CB-701",
+    "siteid": "BEDFORD",
+    "description": "132 kV SF6 circuit breaker 701 - Siemens Energy 3AP1 FG 145 kV (digital twin)",
+    "dir": "breaker-twin",
+    "url": "https://breakertwin.monitor.<your-mas-domain>",
+    "devtype": "CIRCUIT_BREAKER_SF6",
+    "device": "CB-701",
+    "model": "Siemens Energy 3AP1 FG 145 kV 3150 A 40 kA",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "PIPE-1501",
+    "siteid": "BEDFORD",
+    "description": "Transmission water main 1501 - 14 km DN 1200 ductile iron (digital twin)",
+    "dir": "pipeline-twin",
+    "url": "https://pipelinetwin.monitor.<your-mas-domain>",
+    "devtype": "TRANSMISSION_MAIN",
+    "device": "PIPE-1501",
+    "model": "Saint-Gobain PAM NATURAL DN 1200 C25",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "BLW-1301",
+    "siteid": "BEDFORD",
+    "description": "Aeration blower 1301 - Aerzen AT 150 turbo with fine-bubble diffusers (digital twin)",
+    "dir": "blower-twin",
+    "url": "https://blowertwin.monitor.<your-mas-domain>",
+    "devtype": "AERATION_BLOWER",
+    "device": "BLW-1301",
+    "model": "Aerzen AT 150-0.8 S-G5 + Sanitaire Silver Series II",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "UV-1601",
+    "siteid": "BEDFORD",
+    "description": "UV disinfection reactor 1601 - TrojanUVSwiftSC D12 (digital twin)",
+    "dir": "uv-twin",
+    "url": "https://uvtwin.monitor.<your-mas-domain>",
+    "devtype": "UV_DISINFECTION",
+    "device": "UV-1601",
+    "model": "TrojanUVSwiftSC D12, 12 LPHO amalgam lamps",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "FLT-1401",
+    "siteid": "BEDFORD",
+    "description": "Rapid gravity filter 1401 - dual media on Xylem Leopold Type S underdrain (digital twin)",
+    "dir": "filter-twin",
+    "url": "https://filtertwin.monitor.<your-mas-domain>",
+    "devtype": "GRAVITY_FILTER",
+    "device": "FLT-1401",
+    "model": "Xylem Leopold Universal Type S + I.M.S. cap, anthracite/sand",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "RO-1201",
+    "siteid": "BEDFORD",
+    "description": "Seawater RO train 1201 - DuPont FilmTec SW30HRLE-440i with PX energy recovery (digital twin)",
+    "dir": "ro-twin",
+    "url": "https://rotwin.monitor.<your-mas-domain>",
+    "devtype": "REVERSE_OSMOSIS_TRAIN",
+    "device": "RO-1201",
+    "model": "DuPont FilmTec SW30HRLE-440i, 40 x 7, ERI PX Q",
+    "version": "1.0.0"
   }
 ]

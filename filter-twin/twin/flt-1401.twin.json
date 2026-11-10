@@ -1,0 +1,632 @@
+{
+  "$comment": "Single source of truth for the FLT-1401 digital twin: rapid gravity dual-media filter cell (anthracite over sand) on a Xylem Leopold Universal Type S underdrain with I.M.S. cap, in the filter block of a conventional water treatment plant. Media per AWWA B100 (Clack anthracite / filter sand data); clean-bed head loss Carman-Kozeny, backwash expansion Richardson-Zaki with Ferguson-Church settling velocity.",
+  "twin": {
+    "id": "urn:maximo:twin:gravityfilter:FLT-1401",
+    "version": "1.0.0",
+    "kind": "Rapid gravity dual-media filter with head-loss, turbidity and backwash instrumentation",
+    "standards": {
+      "media": "AWWA B100 filter media: anthracite ES 0.85-0.95 mm UC < 1.7 SG 1.6; sand ES 0.45-0.55 mm UC <= 1.6 SG 2.65",
+      "underdrain": "Leopold Universal Type S + I.M.S. cap: backwash <= 90 m/h, air scour <= 120 m/h",
+      "turbidity": "US EPA IESWTR: combined filter effluent <= 0.3 NTU (95 %), never > 1 NTU; individual filters monitored continuously",
+      "physics": "Carman-Kozeny clean-bed head loss, deposit head loss proportional to stored solids, Richardson-Zaki expansion",
+      "information_model": "Points named after ISA-88 unit states with Project Haystack tags"
+    }
+  },
+  "identification": {
+    "assetnum": "FLT-1401",
+    "description": "Rapid gravity filter 14 cell 01 (dual media)",
+    "manufacturer": "Xylem Leopold",
+    "model": "Universal Type S underdrain + I.M.S. cap, anthracite/sand",
+    "site": "BEDFORD",
+    "location": "Filter block / cell 01",
+    "medium": "Settled surface water"
+  },
+  "design": {
+    "cell": {
+      "area_m2": 60.0,
+      "length_m": 10.0,
+      "width_m": 6.0,
+      "water_depth_m": 1.5,
+      "area_note": "assumed"
+    },
+    "media": {
+      "anthracite": {
+        "depth_m": 0.6,
+        "d_eq_mm": 1.0,
+        "es_mm": [
+          0.85,
+          0.95
+        ],
+        "uc_max": 1.7,
+        "sg": 1.6,
+        "porosity": 0.5,
+        "sphericity": 0.7
+      },
+      "sand": {
+        "depth_m": 0.3,
+        "d_eq_mm": 0.55,
+        "es_mm": [
+          0.45,
+          0.55
+        ],
+        "uc_max": 1.6,
+        "sg": 2.65,
+        "porosity": 0.42,
+        "sphericity": 0.8
+      },
+      "note": "depths, d_eq, porosity and sphericity assumed within AWWA B100 grades"
+    },
+    "underdrain": {
+      "type": "Leopold Universal Type S, I.M.S. cap",
+      "headloss_at_design_m": 0.12,
+      "headloss_note": "assumed",
+      "max_backwash_m_h": 90,
+      "max_air_m_h": 120
+    },
+    "operation": {
+      "rate_design_m_h": 8.0,
+      "flow_design_m3h": 480.0,
+      "terminal_headloss_m": 2.4,
+      "max_run_h": 36,
+      "breakthrough_backwash_ntu": 0.3,
+      "ftw_min": 20,
+      "available_head_range_m": [
+        1.8,
+        3.0
+      ]
+    },
+    "backwash": {
+      "rate_m_h": 55.0,
+      "air_m_h": 60.0,
+      "air_min": 4,
+      "water_min": 8,
+      "target_expansion_pct": 20,
+      "expansion_range_pct": [
+        15,
+        30
+      ]
+    },
+    "hydraulics": {
+      "mu20_pa_s": 0.001001748759408952,
+      "rho": 998.0,
+      "clean_anthracite_m": 0.1002,
+      "clean_sand_m": 0.288,
+      "clean_underdrain_m": 0.12,
+      "basis": "Carman-Kozeny at 8 m/h, 20 C; laminar media loss ~ v mu; underdrain ~ v^2"
+    },
+    "deposit": {
+      "tss_per_ntu": 1.5,
+      "k_m_per_kg_m2": 2.58,
+      "anthracite_share": 0.7,
+      "capacity_kg_m2": 1.1,
+      "note": "deposit head loss = k x stored solids x (v/v0) x (mu/mu20); capacity sets breakthrough (assumed)"
+    },
+    "settling": {
+      "vt20_m_s": 0.06965,
+      "re20": 69.39,
+      "n20": 2.912,
+      "expansion_at_design_pct": 23.1,
+      "c1": 18.0,
+      "c2": 1.0
+    },
+    "turbidity": {
+      "effluent_goal_ntu": 0.1,
+      "goal_note": "utility goal (assumed); regulatory 0.3 NTU 95 %, 1 NTU max",
+      "regulatory_ntu": 0.3,
+      "max_ntu": 1.0
+    },
+    "demo": {
+      "time_scale": 60,
+      "note": "plant clock runs 60x real time: a 30 h filter run takes 30 min"
+    }
+  },
+  "telemetry": {
+    "event": "filter",
+    "publish_every_s": 5,
+    "device_type": "GRAVITY_FILTER",
+    "groups": {
+      "Filter": "Filter cell",
+      "Media": "Media bed",
+      "Underdrain": "Underdrain",
+      "Influent": "Settled water",
+      "Effluent": "Filtered water",
+      "Run": "Run counters",
+      "Backwash": "Backwash"
+    },
+    "points": [
+      {
+        "metric": "filter_state",
+        "path": "Filter.State",
+        "label": "Filter state (0 filtering, 1 backwash, 2 filter-to-waste, 3 standby)",
+        "unit": "code",
+        "range": [
+          0,
+          3
+        ],
+        "noise": 0,
+        "opc": "ISA-88 unit state"
+      },
+      {
+        "metric": "flow_m3h",
+        "path": "Filter.Flow",
+        "label": "Filtered water flow (effluent magmeter)",
+        "unit": "m3/h",
+        "range": [
+          0,
+          900
+        ],
+        "noise": 1.0,
+        "opc": "haystack: water filter flow sensor"
+      },
+      {
+        "metric": "flow_setpoint_m3h",
+        "path": "Filter.FlowSetpoint",
+        "label": "Flow setpoint (plant demand split)",
+        "unit": "m3/h",
+        "range": [
+          0,
+          900
+        ],
+        "noise": 0,
+        "opc": "haystack: water filter flow sp"
+      },
+      {
+        "metric": "effluent_valve_pct",
+        "path": "Filter.EffluentValvePosition",
+        "label": "Effluent rate-control valve position",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.1,
+        "opc": "haystack: valve sensor"
+      },
+      {
+        "metric": "water_level_m",
+        "path": "Filter.WaterLevel",
+        "label": "Water depth above the media surface",
+        "unit": "m",
+        "range": [
+          0,
+          3
+        ],
+        "noise": 0.003,
+        "opc": "haystack: water level sensor"
+      },
+      {
+        "metric": "headloss_media_m",
+        "path": "Media.HeadLoss",
+        "label": "Head loss across the media (piezometers top/bottom)",
+        "unit": "m",
+        "range": [
+          0,
+          4
+        ],
+        "noise": 0.004,
+        "opc": null
+      },
+      {
+        "metric": "underdrain_dp_m",
+        "path": "Underdrain.HeadLoss",
+        "label": "Underdrain + I.M.S. cap head loss (media bottom to plenum)",
+        "unit": "m",
+        "range": [
+          0,
+          2
+        ],
+        "noise": 0.002,
+        "opc": null
+      },
+      {
+        "metric": "headloss_total_m",
+        "path": "Filter.HeadLossTotal",
+        "label": "Total filter head loss (DP transmitter)",
+        "unit": "m",
+        "range": [
+          0,
+          4
+        ],
+        "noise": 0.004,
+        "opc": null
+      },
+      {
+        "metric": "bed_pressure_head_m",
+        "path": "Media.InterfacePressureHead",
+        "label": "Pressure head at the anthracite/sand interface (piezometer)",
+        "unit": "m",
+        "range": [
+          -3,
+          4
+        ],
+        "noise": 0.004,
+        "opc": null
+      },
+      {
+        "metric": "settled_turbidity_ntu",
+        "path": "Influent.Turbidity",
+        "label": "Settled (filter influent) water turbidity",
+        "unit": "NTU",
+        "range": [
+          0,
+          50
+        ],
+        "noise": 0.02,
+        "opc": "haystack: water turbidity sensor"
+      },
+      {
+        "metric": "settled_turbidity_avg_ntu",
+        "path": "Influent.TurbidityRunAverage",
+        "label": "Settled turbidity, PLC average since the last backwash",
+        "unit": "NTU",
+        "range": [
+          0,
+          50
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "effluent_turbidity_ntu",
+        "path": "Effluent.Turbidity",
+        "label": "Filtered water turbidity (individual filter turbidimeter)",
+        "unit": "NTU",
+        "range": [
+          0,
+          5
+        ],
+        "noise": 0.003,
+        "opc": "haystack: water turbidity sensor"
+      },
+      {
+        "metric": "particle_count_ml",
+        "path": "Effluent.ParticleCount",
+        "label": "Filtered water particle count > 2 um",
+        "unit": "1/mL",
+        "range": [
+          0,
+          5000
+        ],
+        "noise": 1.5,
+        "opc": null
+      },
+      {
+        "metric": "water_temp_c",
+        "path": "Influent.Temperature",
+        "label": "Water temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          40
+        ],
+        "noise": 0.03,
+        "opc": "haystack: water temp sensor"
+      },
+      {
+        "metric": "run_time_h",
+        "path": "Run.Time",
+        "label": "Filter run time since the last backwash",
+        "unit": "h",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "run_volume_m3",
+        "path": "Run.Volume",
+        "label": "Filtered volume since the last backwash (totaliser)",
+        "unit": "m3",
+        "range": [
+          0,
+          100000
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "backwash_flow_m3h",
+        "path": "Backwash.Flow",
+        "label": "Backwash water flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          6000
+        ],
+        "noise": 3.0,
+        "opc": null
+      },
+      {
+        "metric": "air_scour_nm3h",
+        "path": "Backwash.AirFlow",
+        "label": "Air scour flow",
+        "unit": "Nm3/h",
+        "range": [
+          0,
+          8000
+        ],
+        "noise": 3.0,
+        "opc": null
+      },
+      {
+        "metric": "bed_expansion_pct",
+        "path": "Backwash.BedExpansion",
+        "label": "Media bed expansion during backwash (sonar)",
+        "unit": "%",
+        "range": [
+          0,
+          80
+        ],
+        "noise": 0.15,
+        "opc": null
+      },
+      {
+        "metric": "bed_depth_m",
+        "path": "Media.BedDepth",
+        "label": "Settled media depth (sonar, filtering)",
+        "unit": "m",
+        "range": [
+          0,
+          1.5
+        ],
+        "noise": 0.002,
+        "opc": null
+      },
+      {
+        "metric": "backwash_count",
+        "path": "Run.BackwashCount",
+        "label": "Backwashes since commissioning",
+        "unit": "count",
+        "range": [
+          0,
+          10000000.0
+        ],
+        "noise": 0,
+        "opc": null
+      }
+    ]
+  },
+  "twin_model": {
+    "limits": {
+      "headloss_residual_high_m": 0.15,
+      "headloss_residual_low_m": -0.15,
+      "deposit_ratio_alert": 1.6,
+      "deposit_ufrv_min_m": 30.0,
+      "bed_depth_alert_m": 0.85,
+      "pressure_head_alert_m": 0.0,
+      "underdrain_ratio_alert": 0.7,
+      "expansion_ratio_alert": 0.7,
+      "flow_error_alert_pct": 8.0,
+      "turbidity_alert_ntu": 0.3,
+      "turbidity_warn_ntu": 0.15,
+      "particles_breakthrough_ml": 100,
+      "particles_clean_ml": 50,
+      "terminal_headloss_m": 2.4,
+      "rate_min_m_h": 4.0
+    }
+  },
+  "failure_modes": {
+    "mudballs": {
+      "label": "Mudballs / media fouling",
+      "cause": "Incomplete backwashing leaves mud balls and coated grains: the clean bed loses porosity",
+      "detect": [
+        "headloss_residual_m",
+        "deposit_ratio"
+      ],
+      "action": "Extended air scour backwash; inspect the bed (core sample), replace media if needed",
+      "default_ramp_min": 6
+    },
+    "media_loss": {
+      "label": "Anthracite loss",
+      "cause": "Over-expansion during backwash carries anthracite over the wash troughs",
+      "detect": [
+        "bed_depth_m",
+        "headloss_residual_m"
+      ],
+      "action": "Check backwash rate vs. water temperature, trough height; top up anthracite",
+      "default_ramp_min": 6
+    },
+    "air_binding": {
+      "label": "Air binding (negative head)",
+      "cause": "Head loss in the anthracite exceeds the static head: dissolved air comes out and blocks pores",
+      "detect": [
+        "bed_pressure_head_m",
+        "headloss_residual_m"
+      ],
+      "action": "Raise the water level over the media, backwash earlier, check for supersaturation",
+      "default_ramp_min": 4
+    },
+    "short_circuiting": {
+      "label": "Short-circuiting (cracks, wall channels)",
+      "cause": "Cracks and wall separation let water bypass the media",
+      "detect": [
+        "headloss_residual_m",
+        "effluent_turbidity_ntu",
+        "particle_count_ml"
+      ],
+      "action": "Backwash with air scour, inspect wall gaps; filter to waste until stable",
+      "default_ramp_min": 4
+    },
+    "underdrain_failure": {
+      "label": "Underdrain / media retainer failure",
+      "cause": "A broken lateral or I.M.S. cap: uneven backwash, boils, media in the clearwell",
+      "detect": [
+        "underdrain_ratio",
+        "expansion_ratio",
+        "particle_count_ml"
+      ],
+      "action": "Take the cell out of service; inspect laterals and caps",
+      "default_ramp_min": 5
+    },
+    "valve_sticking": {
+      "label": "Effluent control valve sticking",
+      "cause": "Worn actuator or packing: the rate-control valve sticks and jumps, flow hunts",
+      "detect": [
+        "flow_error_pct",
+        "effluent_valve_pct"
+      ],
+      "action": "Service the valve actuator and positioner; retune the level/flow loop",
+      "default_ramp_min": 3
+    },
+    "coagulation_upset": {
+      "label": "Coagulation upset (weak floc)",
+      "cause": "Wrong coagulant dose or pH: fine floc penetrates deep, head loss climbs fast, early breakthrough",
+      "detect": [
+        "deposit_ratio",
+        "effluent_turbidity_ntu",
+        "particle_count_ml"
+      ],
+      "action": "Jar test; correct coagulant / polymer dose and pH; shorten runs",
+      "default_ramp_min": 5
+    },
+    "turbidimeter_drift": {
+      "label": "Turbidimeter fouling / drift",
+      "cause": "Fouled flow cell or lamp drift: the turbidimeter reads high while the water is clean",
+      "detect": [
+        "effluent_turbidity_ntu",
+        "particle_count_ml"
+      ],
+      "action": "Clean and recalibrate the turbidimeter (formazin / StablCal)",
+      "default_ramp_min": 3
+    }
+  },
+  "presentation": {
+    "category": "Gravity filter",
+    "kpis": [
+      {
+        "metric": "flow_m3h",
+        "label": "Flow",
+        "unit": "m³/h",
+        "decimals": 0
+      },
+      {
+        "metric": "headloss_total_m",
+        "label": "Head loss",
+        "unit": "m",
+        "decimals": 2
+      },
+      {
+        "metric": "effluent_turbidity_ntu",
+        "label": "Turbidity",
+        "unit": "NTU",
+        "decimals": 3
+      },
+      {
+        "metric": "run_time_h",
+        "label": "Run time",
+        "unit": "h",
+        "decimals": 1
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "headloss_residual_m",
+        "label": "Head loss vs. model",
+        "unit": "m",
+        "decimals": 2
+      },
+      {
+        "metric": "ufrv_m3_m2",
+        "label": "UFRV",
+        "unit": "m³/m²",
+        "decimals": 0
+      }
+    ],
+    "compare": [
+      {
+        "label": "Media head loss",
+        "measured": "headloss_media_m",
+        "expected": "headloss_media_expected_m",
+        "unit": "m",
+        "decimals": 3,
+        "basis": "Carman-Kozeny clean bed + deposit (k 2.58 m per kg/m²) at the live rate and temperature"
+      },
+      {
+        "label": "Clean-bed head loss",
+        "measured": null,
+        "expected": "clean_bed_expected_m",
+        "unit": "m",
+        "decimals": 3,
+        "basis": "anthracite 0.6 m + sand 0.3 m, Carman-Kozeny, viscosity at the water temperature"
+      },
+      {
+        "label": "Underdrain head loss",
+        "measured": "underdrain_dp_m",
+        "expected": "underdrain_expected_m",
+        "unit": "m",
+        "decimals": 3,
+        "basis": "0.12 m at 8 m/h, ~ v² (assumed)"
+      },
+      {
+        "label": "Interface pressure head",
+        "measured": "bed_pressure_head_m",
+        "expected": null,
+        "unit": "m",
+        "decimals": 2,
+        "basis": "< 0 = negative head, air binding"
+      },
+      {
+        "label": "Filtration rate",
+        "measured": "rate_m_h",
+        "expected": null,
+        "unit": "m/h",
+        "decimals": 2,
+        "basis": "design 8 m/h"
+      },
+      {
+        "label": "Stored solids",
+        "measured": "solids_load_kg_m2",
+        "expected": null,
+        "unit": "kg/m²",
+        "decimals": 3,
+        "basis": "UFRV x settled TSS (1.5 x NTU)"
+      },
+      {
+        "label": "Bed expansion (backwash)",
+        "measured": "bed_expansion_pct",
+        "expected": "expansion_expected_pct",
+        "unit": "%",
+        "decimals": 1,
+        "basis": "Richardson-Zaki, anthracite, at the live backwash rate and temperature"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "headloss_residual_m",
+        "label": "Head loss vs. model (m)"
+      },
+      {
+        "metric": "effluent_turbidity_ntu",
+        "label": "Effluent turbidity (NTU)"
+      },
+      {
+        "metric": "deposit_ratio",
+        "label": "Deposit ratio"
+      },
+      {
+        "metric": "ufrv_m3_m2",
+        "label": "UFRV (m³/m²)"
+      }
+    ],
+    "design": [
+      {
+        "label": "Cell",
+        "value": "60 m², 8 m/h (480 m³/h), 1.5 m water over the media, terminal head loss 2.4 m (assumed)"
+      },
+      {
+        "label": "Media",
+        "value": "0.6 m anthracite ES 0.85-0.95 mm SG 1.6 over 0.3 m sand ES 0.45-0.55 mm SG 2.65 (AWWA B100)"
+      },
+      {
+        "label": "Underdrain",
+        "value": "Xylem Leopold Universal Type S + I.M.S. cap; backwash 55 m/h with 60 m/h air scour"
+      },
+      {
+        "label": "Source",
+        "value": "Leopold, Clack, Covia data; EPA IESWTR; 3D built from typical dimensions, not manufacturer CAD"
+      }
+    ]
+  }
+}

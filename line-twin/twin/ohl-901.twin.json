@@ -1,0 +1,608 @@
+{
+  "$comment": "Single source of truth for the OHL-901 digital twin: one 132 kV overhead line span with ACSR Drake 795 kcmil 26/7 conductor, a line monitor on the lower phase and a weather station. Conductor data from Southwire (ASTM B232); heat balance IEEE 738.",
+  "twin": {
+    "id": "urn:maximo:twin:overheadline:OHL-901",
+    "version": "1.0.0",
+    "kind": "Overhead line span with line monitor (conductor temperature, current, LiDAR clearance) and weather station",
+    "standards": {
+      "conductor": "Southwire ACSR (ASTM B232) Drake 795 kcmil 26/7: OD 28.14 mm, 1.628 kg/m, RBS 140.1 kN, R_dc20 0.0702 ohm/km, R_ac75 0.0863 ohm/km",
+      "thermal": "IEEE Std 738 heat balance (Joule, solar, convective, radiative), steady state and transient; dynamic line rating at 75 C",
+      "sag": "Ruling-span change of state, parabolic approximation, elastic + thermal strain (no creep model); fitted as a cubic of conductor temperature",
+      "information_model": "Points named after IEC 61850 logical nodes (MMXU, STMP, MMET, GGIO)"
+    }
+  },
+  "identification": {
+    "assetnum": "OHL-901",
+    "description": "132 kV overhead line 901, span 14-15 (lower phase L1)",
+    "manufacturer": "Southwire (conductor)",
+    "model": "ACSR Drake 795 kcmil 26/7",
+    "site": "Demo transmission network",
+    "location": "Line 901 / towers 14-15",
+    "medium": "Bare ACSR conductor, 350 m span, lattice towers"
+  },
+  "design": {
+    "conductor": {
+      "code_word": "Drake",
+      "standard": "ASTM B232 ACSR",
+      "size_kcmil": 795.0,
+      "stranding": "26/7 (Al/steel)",
+      "diameter_m": 0.02814,
+      "area_al_m2": 0.00040303,
+      "area_total_m2": 0.00046864,
+      "mass_kg_m": 1.6281,
+      "mass_al_kg_m": 1.1149,
+      "mass_steel_kg_m": 0.5131,
+      "rated_breaking_strength_n": 140119,
+      "r_dc_20c_ohm_m": 7.0153e-05,
+      "r_ac_25c_ohm_m": 7.2054e-05,
+      "r_ac_75c_ohm_m": 8.6286e-05,
+      "ac_dc_ratio": 1.0068,
+      "r_note": "AC 75 C from the Southwire catalogue (0.0263 ohm/kft, 60 Hz); AC 25 C derived = DC 20 C x (1 + 0.00403 x 5) x the same AC/DC ratio",
+      "final_modulus_pa": 76000000000.0,
+      "expansion_per_k": 1.89e-05,
+      "mech_note": "typical 26/7 ACSR values, not from the Southwire table (UNVERIFIED)",
+      "emissivity": 0.8,
+      "absorptivity": 0.8,
+      "surface_note": "aged conductor (assumption; Southwire rates with emissivity 0.5)",
+      "heat_capacity_j_mk": 1309.0,
+      "max_operating_c": 75,
+      "emergency_c": 100,
+      "strands": {
+        "al_dia_m": 0.00444,
+        "steel_dia_m": 0.00345,
+        "core_dia_m": 0.01036,
+        "al_layers": [
+          10,
+          16
+        ],
+        "steel": 7
+      }
+    },
+    "line": {
+      "voltage_kv": 132,
+      "circuits": 1,
+      "phases": 3,
+      "ruling_span_m": 350.0,
+      "everyday_temp_c": 20.0,
+      "everyday_tension_n": 28024,
+      "everyday_tension_pct_rbs": 20,
+      "attachment_height_m": 19.5,
+      "phase_spacing_m": 5.0,
+      "azimuth_deg": 75.0,
+      "elevation_m": 120.0,
+      "frequency_hz": 50,
+      "assumed": "132 kV single circuit, 350 m level ruling span, everyday tension 20 % RBS at 20 C, lower phase attachment 19.5 m, azimuth 75 deg"
+    },
+    "ratings": {
+      "static_a": 725.3,
+      "static_basis": "IEEE 738 at 75 C, 40 C ambient, 0.61 m/s wind at 90 deg, 1000 W/m2 (conservative seasonal assumptions)",
+      "check_southwire_a": 906.8,
+      "check_note": "this implementation with emissivity/absorptivity 0.5, 25 C, 0.61 m/s, 1000 W/m2 at 75 C; Southwire lists 907 A (their sun model may differ)"
+    },
+    "sag_fit": {
+      "sag_from_tc": [
+        7.907585022,
+        0.041849928,
+        -4.1911e-05,
+        1.4e-08
+      ],
+      "tc_from_sag": [
+        -174.969382,
+        22.6864881,
+        -0.3695129,
+        0.0377831
+      ],
+      "range_c": [
+        -10,
+        130
+      ],
+      "max_error_m": 0.0027,
+      "max_error_inv_c": 0.042,
+      "table": [
+        {
+          "tc": -10.0,
+          "tension_kn": 32.66,
+          "sag_m": 7.488
+        },
+        {
+          "tc": 0.0,
+          "tension_kn": 30.93,
+          "sag_m": 7.907
+        },
+        {
+          "tc": 10.0,
+          "tension_kn": 29.39,
+          "sag_m": 8.321
+        },
+        {
+          "tc": 20.0,
+          "tension_kn": 28.02,
+          "sag_m": 8.727
+        },
+        {
+          "tc": 30.0,
+          "tension_kn": 26.8,
+          "sag_m": 9.126
+        },
+        {
+          "tc": 40.0,
+          "tension_kn": 25.7,
+          "sag_m": 9.516
+        },
+        {
+          "tc": 50.0,
+          "tension_kn": 24.71,
+          "sag_m": 9.898
+        },
+        {
+          "tc": 60.0,
+          "tension_kn": 23.81,
+          "sag_m": 10.271
+        },
+        {
+          "tc": 70.0,
+          "tension_kn": 22.99,
+          "sag_m": 10.637
+        },
+        {
+          "tc": 80.0,
+          "tension_kn": 22.24,
+          "sag_m": 10.994
+        },
+        {
+          "tc": 90.0,
+          "tension_kn": 21.56,
+          "sag_m": 11.344
+        },
+        {
+          "tc": 100.0,
+          "tension_kn": 20.93,
+          "sag_m": 11.686
+        },
+        {
+          "tc": 110.0,
+          "tension_kn": 20.34,
+          "sag_m": 12.021
+        },
+        {
+          "tc": 120.0,
+          "tension_kn": 19.8,
+          "sag_m": 12.349
+        },
+        {
+          "tc": 130.0,
+          "tension_kn": 19.3,
+          "sag_m": 12.671
+        }
+      ]
+    },
+    "clearances": {
+      "ground_min_m": 7.0,
+      "vegetation_min_m": 3.0,
+      "note": "assumed minimum clearances for 132 kV (utility practice varies)"
+    },
+    "weather_model": {
+      "solar": "global irradiance x absorptivity x D (simplified vs. IEEE 738 solar position model)"
+    },
+    "monitor": {
+      "line_monitor": "Clamp-on line monitor modelled on the Lindsey TLM: conductor temperature, current, LiDAR clearance; second unit at the mid-span joint",
+      "weather": "Weather station on tower 15 at conductor height",
+      "insulator": "Leakage-current sensor on the tower 15 L1 insulator string",
+      "vibration": "Aeolian vibration recorder at the tower 14 suspension clamp (bending amplitude, IEEE 1368 method)"
+    },
+    "demo": {
+      "time_scale": 30,
+      "note": "The plant clock runs 30x real time (one day in 48 min): the conductor's ~20 min thermal time constant plays out in about 40 s, so weather and load changes are visible during a demo."
+    }
+  },
+  "telemetry": {
+    "event": "line",
+    "publish_every_s": 5,
+    "device_type": "OVERHEAD_LINE",
+    "groups": {
+      "Line": "Electrical (substation and line monitor)",
+      "Conductor": "Line monitors on the conductor",
+      "Span": "LiDAR clearances at mid-span",
+      "Weather": "Weather station",
+      "Insulator": "Insulator string"
+    },
+    "points": [
+      {
+        "metric": "line_current_a",
+        "path": "Line.Current",
+        "label": "Line current (line monitor, phase L1)",
+        "unit": "A",
+        "range": [
+          0,
+          2500
+        ],
+        "noise": 1.5,
+        "opc": "IEC 61850: MMXU.A.phsA"
+      },
+      {
+        "metric": "line_voltage_kv",
+        "path": "Line.Voltage",
+        "label": "Line voltage (substation)",
+        "unit": "kV",
+        "range": [
+          0,
+          170
+        ],
+        "noise": 0.08,
+        "opc": "IEC 61850: MMXU.PPV"
+      },
+      {
+        "metric": "active_power_mw",
+        "path": "Line.ActivePower",
+        "label": "Active power flow (substation)",
+        "unit": "MW",
+        "range": [
+          -400,
+          400
+        ],
+        "noise": 0.2,
+        "opc": "IEC 61850: MMXU.TotW"
+      },
+      {
+        "metric": "conductor_temp_c",
+        "path": "Conductor.Temperature",
+        "label": "Conductor temperature (line monitor)",
+        "unit": "degC",
+        "range": [
+          -30,
+          250
+        ],
+        "noise": 0.2,
+        "opc": "IEC 61850: STMP.Tmp"
+      },
+      {
+        "metric": "joint_temp_c",
+        "path": "Conductor.JointTemperature",
+        "label": "Mid-span compression joint temperature (second line monitor)",
+        "unit": "degC",
+        "range": [
+          -30,
+          300
+        ],
+        "noise": 0.25,
+        "opc": "IEC 61850: STMP.Tmp (joint)"
+      },
+      {
+        "metric": "clearance_m",
+        "path": "Span.GroundClearance",
+        "label": "Ground clearance at mid-span (LiDAR)",
+        "unit": "m",
+        "range": [
+          0,
+          40
+        ],
+        "noise": 0.02,
+        "opc": "IEC 61850: GGIO.AnIn (clearance)"
+      },
+      {
+        "metric": "vegetation_distance_m",
+        "path": "Span.VegetationDistance",
+        "label": "Distance to the nearest vegetation below the span (LiDAR)",
+        "unit": "m",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.03,
+        "opc": null
+      },
+      {
+        "metric": "ambient_temp_c",
+        "path": "Weather.AmbientTemperature",
+        "label": "Ambient temperature (weather station)",
+        "unit": "degC",
+        "range": [
+          -40,
+          60
+        ],
+        "noise": 0.1,
+        "opc": "IEC 61850: MMET.EnvTmp"
+      },
+      {
+        "metric": "wind_speed_ms",
+        "path": "Weather.WindSpeed",
+        "label": "Wind speed (weather station, conductor height)",
+        "unit": "m/s",
+        "range": [
+          0,
+          40
+        ],
+        "noise": 0.08,
+        "opc": "IEC 61850: MMET.HorWdSpd"
+      },
+      {
+        "metric": "wind_dir_deg",
+        "path": "Weather.WindDirection",
+        "label": "Wind direction (from north)",
+        "unit": "deg",
+        "range": [
+          0,
+          360
+        ],
+        "noise": 1.5,
+        "opc": "IEC 61850: MMET.HorWdDir"
+      },
+      {
+        "metric": "solar_wm2",
+        "path": "Weather.SolarIrradiance",
+        "label": "Global solar irradiance (pyranometer)",
+        "unit": "W/m2",
+        "range": [
+          0,
+          1400
+        ],
+        "noise": 4.0,
+        "opc": "IEC 61850: MMET.HorInsol"
+      },
+      {
+        "metric": "humidity_pct",
+        "path": "Weather.Humidity",
+        "label": "Relative humidity",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.4,
+        "opc": "IEC 61850: MMET.EnvHum"
+      },
+      {
+        "metric": "leakage_current_ma",
+        "path": "Insulator.LeakageCurrent",
+        "label": "Insulator string leakage current (peak, tower 2 L1)",
+        "unit": "mA",
+        "range": [
+          0,
+          200
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "vibration_um",
+        "path": "Conductor.AeolianVibration",
+        "label": "Aeolian vibration, bending amplitude p-p at 89 mm from the clamp",
+        "unit": "um",
+        "range": [
+          0,
+          1000
+        ],
+        "noise": 1.0,
+        "opc": null
+      }
+    ]
+  },
+  "twin_model": {
+    "limits": {
+      "tc_max_c": 75,
+      "tc_emergency_c": 100,
+      "tc_residual_alert_k": 10.0,
+      "tc_sag_diff_alert_k": 12.0,
+      "sensor_sag_agree_k": 6.0,
+      "clearance_residual_alert_m": 0.6,
+      "ground_clearance_min_m": 7.0,
+      "vegetation_min_m": 3.0,
+      "joint_delta_alert_k": 10.0,
+      "joint_delta_critical_k": 25.0,
+      "leakage_alert_ma": 5.0,
+      "leakage_high_ma": 15.0,
+      "vibration_alert_um": 150.0,
+      "basis": "joint delta-T after NETA MTS infrared guidance (typical, unverified); leakage-current and vibration (IEEE 1368 safe bending amplitude for ACSR) limits are typical public values, assumed"
+    }
+  },
+  "failure_modes": {
+    "joint_hotspot": {
+      "label": "Mid-span joint degradation",
+      "cause": "A compression joint loses contact (corrosion, poor crimp): its resistance rises, so it runs hotter than the conductor next to it, more so at high current, until it fails",
+      "detect": [
+        "joint_delta_k",
+        "joint_temp_c"
+      ],
+      "action": "Thermographic check from the ground or air; replace the joint (or add a shunt sleeve) at the next outage",
+      "default_ramp_min": 3
+    },
+    "conductor_creep": {
+      "label": "Excess sag (conductor creep)",
+      "cause": "The aluminium has crept or the conductor was overstretched in a past overload: the span sags more than its temperature explains",
+      "detect": [
+        "clearance_residual_m",
+        "tc_sag_diff_k",
+        "clearance_m"
+      ],
+      "action": "Survey the span; re-sag (re-tension) the conductor and check the clearance at the maximum operating temperature",
+      "default_ramp_min": 3
+    },
+    "vegetation_encroachment": {
+      "label": "Vegetation encroachment",
+      "cause": "Trees below the span grow into the clearance zone; on a hot afternoon the sagging conductor gets closer still",
+      "detect": [
+        "vegetation_distance_m"
+      ],
+      "action": "Raise a vegetation work order: trim or remove the trees below the span",
+      "default_ramp_min": 3
+    },
+    "insulator_pollution": {
+      "label": "Insulator pollution",
+      "cause": "Dust, salt or industrial deposits on the insulator string become conductive when wet: leakage current rises, most at dawn when the humidity is high",
+      "detect": [
+        "leakage_current_ma",
+        "humidity_pct"
+      ],
+      "action": "Wash the insulators (live washing) or replace them with silicone / RTV-coated units",
+      "default_ramp_min": 3
+    },
+    "overload_beyond_dlr": {
+      "label": "Overload beyond the dynamic rating",
+      "cause": "The current exceeds what today's weather can cool: the conductor heats past its maximum operating temperature, sags towards the ground and anneals the aluminium",
+      "detect": [
+        "load_pct_dlr",
+        "conductor_temp_c",
+        "clearance_m"
+      ],
+      "action": "Re-dispatch or switch to cut the flow below the dynamic rating; inspect for annealing after a long excursion",
+      "default_ramp_min": 2
+    },
+    "damper_loss": {
+      "label": "Vibration damper lost",
+      "cause": "A Stockbridge damper has slipped or lost a weight: aeolian vibration in steady low winds grows and fatigues the strands at the clamp",
+      "detect": [
+        "vibration_um",
+        "wind_speed_ms"
+      ],
+      "action": "Replace or reposition the damper; inspect the strands at the suspension clamp",
+      "default_ramp_min": 3
+    },
+    "sensor_fault": {
+      "label": "Conductor temperature sensor fault",
+      "cause": "The line monitor's temperature probe has lost contact: it reads low, while the heat balance and the measured sag both say the conductor is hotter",
+      "detect": [
+        "tc_residual_k",
+        "tc_sag_diff_k"
+      ],
+      "action": "Do not trust the sensor for ratings: fall back to the heat-balance temperature, then service the line monitor",
+      "default_ramp_min": 2
+    }
+  },
+  "presentation": {
+    "category": "Overhead line",
+    "kpis": [
+      {
+        "metric": "line_current_a",
+        "label": "Current",
+        "unit": "A",
+        "decimals": 0
+      },
+      {
+        "metric": "conductor_temp_c",
+        "label": "Conductor",
+        "unit": "°C",
+        "decimals": 1
+      },
+      {
+        "metric": "clearance_m",
+        "label": "Clearance",
+        "unit": "m",
+        "decimals": 2
+      },
+      {
+        "metric": "wind_speed_ms",
+        "label": "Wind",
+        "unit": "m/s",
+        "decimals": 1
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "dlr_a",
+        "label": "Dynamic rating",
+        "unit": "A",
+        "decimals": 0
+      },
+      {
+        "metric": "load_pct_dlr",
+        "label": "Load of DLR",
+        "unit": "%",
+        "decimals": 0
+      }
+    ],
+    "compare": [
+      {
+        "label": "Conductor temperature",
+        "measured": "conductor_temp_c",
+        "expected": "tc_expected_c",
+        "unit": "°C",
+        "decimals": 1,
+        "basis": "IEEE 738 steady heat balance at the live current and weather"
+      },
+      {
+        "label": "Dynamic line rating",
+        "measured": "line_current_a",
+        "expected": "dlr_a",
+        "unit": "A",
+        "decimals": 0,
+        "basis": "IEEE 738 at 75 °C with the live weather (static rating 725 A)"
+      },
+      {
+        "label": "Ground clearance",
+        "measured": "clearance_m",
+        "expected": "clearance_expected_m",
+        "unit": "m",
+        "decimals": 2,
+        "basis": "19.5 m attachment − sag at the measured conductor temperature (change of state)"
+      },
+      {
+        "label": "Temperature from sag",
+        "measured": "conductor_temp_c",
+        "expected": "tc_from_sag_c",
+        "unit": "°C",
+        "decimals": 1,
+        "basis": "conductor temperature that explains the measured sag"
+      },
+      {
+        "label": "Joint vs. conductor",
+        "measured": "joint_delta_k",
+        "expected": null,
+        "unit": "K",
+        "decimals": 1,
+        "basis": "alert > 10 K, failing > 25 K"
+      },
+      {
+        "label": "Joule / solar heating",
+        "measured": "joule_w_m",
+        "expected": "solar_w_m",
+        "unit": "W/m",
+        "decimals": 1,
+        "basis": "I²R(Tc) / absorptivity × irradiance × D"
+      },
+      {
+        "label": "Emergency rating (100 °C)",
+        "measured": "line_current_a",
+        "expected": "dlr_emergency_a",
+        "unit": "A",
+        "decimals": 0,
+        "basis": "IEEE 738 at 100 °C"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "dlr_a",
+        "label": "Dynamic rating (A)"
+      },
+      {
+        "metric": "tc_residual_k",
+        "label": "Conductor vs. IEEE 738 (K)"
+      },
+      {
+        "metric": "clearance_residual_m",
+        "label": "Clearance vs. expected (m)"
+      },
+      {
+        "metric": "joint_delta_k",
+        "label": "Joint ΔT (K)"
+      }
+    ],
+    "design": [
+      {
+        "label": "Conductor",
+        "value": "ACSR Drake 795 kcmil 26/7 (ASTM B232): OD 28.14 mm, 1.628 kg/m, RBS 140 kN, Rac75 0.0863 Ω/km"
+      },
+      {
+        "label": "Span",
+        "value": "132 kV single circuit, 350 m ruling span, 20 % RBS at 20 °C, attachment 19.5 m (assumed)"
+      },
+      {
+        "label": "Ratings",
+        "value": "75 °C continuous / 100 °C emergency (Southwire); static 725 A at 40 °C, 0.61 m/s, full sun"
+      },
+      {
+        "label": "Source",
+        "value": "Southwire ACSR data (SPEC 80100, Drake product page); IEEE 738; 3D built procedurally, not manufacturer CAD"
+      }
+    ]
+  }
+}
