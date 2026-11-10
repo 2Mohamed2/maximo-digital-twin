@@ -21,7 +21,7 @@ The posts are on the IBM Community (Maximo group), by Mohamed Chihaoui.
                                   limits and failure modes
 <asset>-twin/twin_calc.py         the twin's physics: Monitor PythonExpression formulas and AlertExpression rules generated
                                   from the twin file, and the same numbers computed in Python
-<asset>-twin/build_twin.py        builds the twin file from the manufacturer's published data
+<asset>-twin/build_twin.py        (all but the pump) builds the twin file from the manufacturer's published data
 chiller-twin/data/                BITZER EN 12900 polynomial coefficients fitted to BITZER SOFTWARE
 tower-twin/tools/sat2glb.py       turns BAC's ACIS (.sat) CAD into glTF for the 3D view
 turbine-twin, transformer-twin    also physics.py: the stand-in plant (calibrated gas turbine cycle; IEC 60076-7 thermal model + gas-in-oil)
