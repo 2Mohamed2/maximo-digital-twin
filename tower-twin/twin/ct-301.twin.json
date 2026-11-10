@@ -1,0 +1,695 @@
+{
+  "$comment": "Single source of truth for the CT-301 digital twin: BAC FXV-0812B-16D-L closed-circuit cooling tower serving the CH-201 condenser. Thermal performance calibrated to BAC's published nominal rating; geometry from BAC 3D CAD.",
+  "twin": {
+    "id": "urn:maximo:twin:coolingtower:CT-301",
+    "version": "1.0.0",
+    "kind": "Closed-circuit cooling tower (evaporative fluid cooler), induced draft, combined flow",
+    "standards": {
+      "performance": "BAC FXV Engineering Data: FXV-0812B-16D-L = 131 nominal tons, i.e. 393 USGPM cooled 95 -> 85 F at 78 F wet bulb (573 kW, 89.3 m3/h, 35.0 -> 29.4 C at 25.6 C); CTI certified",
+      "thermal_model": "Braun effectiveness model for evaporative heat exchangers (air treated as a stream with cs = dh_sat/dT), UA calibrated to the BAC rating: UA0 = 107.68 kW/K",
+      "psychrometrics": "Saturation pressure by Magnus (Alduchov-Eskridge); enthalpy of saturated air at 101.325 kPa",
+      "fans": "Fan affinity laws: air flow proportional to speed, power to speed cubed",
+      "information_model": "Points named after BACnet objects with Project Haystack tags"
+    }
+  },
+  "identification": {
+    "assetnum": "CT-301",
+    "description": "Closed-circuit cooling tower 301 (CH-201 condenser loop)",
+    "manufacturer": "Baltimore Aircoil Company (BAC)",
+    "model": "FXV-0812B-16D-L",
+    "site": "Demo district cooling plant",
+    "location": "Roof / CT-301",
+    "medium": "Condenser water (closed loop) 35/30 C; spray water open circuit"
+  },
+  "design": {
+    "water_cp_kW_per_m3h_K": 1.15647,
+    "rating": {
+      "tons": 131,
+      "q_kW": 573.5,
+      "fluid_flow_m3h": 89.26,
+      "t_in_C": 35.0,
+      "t_out_C": 29.44,
+      "wet_bulb_C": 25.56,
+      "source": "BAC FXV Engineering Data, note 1"
+    },
+    "thermal": {
+      "UA0_kW_K": 107.676,
+      "ua_air_exponent": 0.6,
+      "ua_fluid_exponent": 0.2
+    },
+    "coil": {
+      "fluid_flow_m3h": 89.26,
+      "volume_l": 443.0,
+      "connection": "4 in, beveled for welding",
+      "dp_bar_at_rated_flow": 0.55,
+      "dp_note": "assumed (not in BAC engineering data)"
+    },
+    "fan": {
+      "motor_hp": 15,
+      "motor_kw": 11.19,
+      "motor_power_kw_at_100pct": 10.73,
+      "air_flow_cfm": 83810,
+      "air_flow_kg_s": 45.49,
+      "fans": 2,
+      "fan_diameter_m": 1.55,
+      "fan_rpm_at_100pct": 420,
+      "rpm_note": "fan speed assumed (belt drive ratio not in BAC engineering data)",
+      "min_speed_pct": 20
+    },
+    "spray": {
+      "flow_m3h": 163.3,
+      "pump_hp": 5,
+      "pump_power_kw": 3.56,
+      "pressure_bar": 0.35,
+      "pressure_note": "header pressure assumed"
+    },
+    "water": {
+      "makeup_conductivity_us_cm": 500,
+      "conductivity_setpoint_us_cm": 2000,
+      "drift_rate_pct": 0.001,
+      "latent_kJ_kg": 2430.0,
+      "evaporation_share": 0.9
+    },
+    "dimensions": {
+      "length_m": 3.66,
+      "height_m": 4.65,
+      "operating_weight_kg": 7058
+    },
+    "control": {
+      "fluid_out_setpoint_C": 30.0,
+      "loop": "fan VFD PI on leaving fluid temperature"
+    },
+    "load": {
+      "served_by": "CH-201 condenser (heat of cooling + compressor power)",
+      "design_heat_kW": 344,
+      "design_flow_m3h": 57.5
+    }
+  },
+  "telemetry": {
+    "event": "tower",
+    "publish_every_s": 5,
+    "device_type": "COOLING_TOWER_CLOSED",
+    "groups": {
+      "Fluid": "Process fluid (condenser water)",
+      "Ambient": "Ambient air",
+      "Fan": "Fans and drive",
+      "Spray": "Spray water system",
+      "Basin": "Cold-water basin",
+      "Water": "Water balance",
+      "Plant": "Plant and state"
+    },
+    "points": [
+      {
+        "metric": "fluid_in_temp_c",
+        "path": "Fluid.EnteringTemp",
+        "label": "Process fluid entering (from CH-201 condenser)",
+        "unit": "degC",
+        "range": [
+          0,
+          60
+        ],
+        "noise": 0.03,
+        "opc": "haystack: entering condenser water temp sensor"
+      },
+      {
+        "metric": "fluid_out_temp_c",
+        "path": "Fluid.LeavingTemp",
+        "label": "Process fluid leaving (to CH-201 condenser)",
+        "unit": "degC",
+        "range": [
+          0,
+          60
+        ],
+        "noise": 0.03,
+        "opc": "haystack: leaving condenser water temp sensor"
+      },
+      {
+        "metric": "fluid_out_setpoint_c",
+        "path": "Fluid.LeavingTempSetpoint",
+        "label": "Leaving fluid setpoint",
+        "unit": "degC",
+        "range": [
+          10,
+          45
+        ],
+        "noise": 0,
+        "opc": "haystack: leaving water temp sp"
+      },
+      {
+        "metric": "fluid_flow_m3h",
+        "path": "Fluid.Flow",
+        "label": "Process fluid flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          150
+        ],
+        "noise": 0.3,
+        "opc": "haystack: condenser water flow sensor"
+      },
+      {
+        "metric": "coil_dp_bar",
+        "path": "Fluid.CoilPressureDrop",
+        "label": "Coil pressure drop",
+        "unit": "bar",
+        "range": [
+          0,
+          3
+        ],
+        "noise": 0.004,
+        "opc": null
+      },
+      {
+        "metric": "heat_rejected_kw",
+        "path": "Fluid.HeatRejected",
+        "label": "Heat rejected (flow x range)",
+        "unit": "kW",
+        "range": [
+          0,
+          900
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "ambient_dry_bulb_c",
+        "path": "Ambient.DryBulb",
+        "label": "Ambient dry bulb",
+        "unit": "degC",
+        "range": [
+          -20,
+          60
+        ],
+        "noise": 0.05,
+        "opc": "haystack: outside air temp sensor"
+      },
+      {
+        "metric": "ambient_wet_bulb_c",
+        "path": "Ambient.WetBulb",
+        "label": "Ambient wet bulb",
+        "unit": "degC",
+        "range": [
+          -20,
+          40
+        ],
+        "noise": 0.05,
+        "opc": "haystack: outside air wetBulb sensor"
+      },
+      {
+        "metric": "ambient_rh_pct",
+        "path": "Ambient.RelativeHumidity",
+        "label": "Ambient relative humidity",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.3,
+        "opc": "haystack: outside air humidity sensor"
+      },
+      {
+        "metric": "fan_speed_pct",
+        "path": "Fan.SpeedCommand",
+        "label": "Fan VFD speed",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0,
+        "opc": "haystack: fan vfd speed cmd"
+      },
+      {
+        "metric": "fan_rpm",
+        "path": "Fan.ShaftSpeed",
+        "label": "Fan shaft speed (proximity sensor)",
+        "unit": "rpm",
+        "range": [
+          0,
+          600
+        ],
+        "noise": 0.8,
+        "opc": null
+      },
+      {
+        "metric": "fan_power_kw",
+        "path": "Fan.MotorPower",
+        "label": "Fan motor power",
+        "unit": "kW",
+        "range": [
+          0,
+          20
+        ],
+        "noise": 0.03,
+        "opc": "haystack: fan elec power sensor"
+      },
+      {
+        "metric": "fan_current_a",
+        "path": "Fan.MotorCurrent",
+        "label": "Fan motor current",
+        "unit": "A",
+        "range": [
+          0,
+          40
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "fan_current_imbalance_pct",
+        "path": "Fan.CurrentImbalance",
+        "label": "Fan motor current imbalance",
+        "unit": "%",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "fan_winding_temp_c",
+        "path": "Fan.WindingTemp",
+        "label": "Fan motor winding temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          200
+        ],
+        "noise": 0.1,
+        "opc": null
+      },
+      {
+        "metric": "fan_vib_mm_s",
+        "path": "Fan.Vibration",
+        "label": "Fan bearing vibration (velocity RMS)",
+        "unit": "mm/s",
+        "range": [
+          0,
+          40
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "fan_bearing_temp_c",
+        "path": "Fan.BearingTemp",
+        "label": "Fan bearing temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          150
+        ],
+        "noise": 0.1,
+        "opc": null
+      },
+      {
+        "metric": "spray_flow_m3h",
+        "path": "Spray.Flow",
+        "label": "Spray water flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          250
+        ],
+        "noise": 0.5,
+        "opc": null
+      },
+      {
+        "metric": "spray_pressure_bar",
+        "path": "Spray.HeaderPressure",
+        "label": "Spray header pressure",
+        "unit": "bar",
+        "range": [
+          0,
+          2
+        ],
+        "noise": 0.002,
+        "opc": null
+      },
+      {
+        "metric": "spray_pump_power_kw",
+        "path": "Spray.PumpPower",
+        "label": "Spray pump power",
+        "unit": "kW",
+        "range": [
+          0,
+          8
+        ],
+        "noise": 0.02,
+        "opc": null
+      },
+      {
+        "metric": "basin_temp_c",
+        "path": "Basin.WaterTemp",
+        "label": "Basin water temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          50
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "basin_level_pct",
+        "path": "Basin.Level",
+        "label": "Basin level",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.2,
+        "opc": null
+      },
+      {
+        "metric": "makeup_flow_m3h",
+        "path": "Water.MakeupFlow",
+        "label": "Make-up water flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          5
+        ],
+        "noise": 0.005,
+        "opc": null
+      },
+      {
+        "metric": "blowdown_flow_m3h",
+        "path": "Water.BlowdownFlow",
+        "label": "Blowdown flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          3
+        ],
+        "noise": 0.002,
+        "opc": null
+      },
+      {
+        "metric": "conductivity_us_cm",
+        "path": "Water.Conductivity",
+        "label": "Basin water conductivity",
+        "unit": "uS/cm",
+        "range": [
+          0,
+          6000
+        ],
+        "noise": 4,
+        "opc": null
+      },
+      {
+        "metric": "water_m3",
+        "path": "Plant.WaterTotal",
+        "label": "Make-up water total",
+        "unit": "m3",
+        "range": [
+          0,
+          10000000.0
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "energy_kwh",
+        "path": "Plant.EnergyTotal",
+        "label": "Fan and pump energy total",
+        "unit": "kWh",
+        "range": [
+          0,
+          1000000000.0
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "run_hours",
+        "path": "Plant.RunHours",
+        "label": "Run hours",
+        "unit": "h",
+        "range": [
+          0,
+          1000000.0
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "running",
+        "path": "Plant.Running",
+        "label": "Running",
+        "unit": "0/1",
+        "range": [
+          0,
+          1
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "trip_code",
+        "path": "Plant.TripCode",
+        "label": "Protection trip (0 none, 1 fan vibration, 2 motor winding)",
+        "unit": "code",
+        "range": [
+          0,
+          9
+        ],
+        "noise": 0,
+        "opc": null
+      }
+    ]
+  },
+  "twin_model": {
+    "limits": {
+      "out_dev_alert_k": 1.0,
+      "nozzle_ratio_alert": 1.3,
+      "belt_slip_alert_pct": 4.0,
+      "vib_alert_mm_s": 4.5,
+      "vib_trip_mm_s": 11.0,
+      "bearing_alert_c": 80,
+      "imbalance_alert_pct": 5.0,
+      "winding_alert_c": 130,
+      "winding_trip_c": 155,
+      "unaccounted_water_alert_m3h": 0.25,
+      "conductivity_alert_us_cm": 2800
+    }
+  },
+  "failure_modes": {
+    "coil_scaling": {
+      "label": "Coil scaling (external)",
+      "cause": "Mineral scale on the outside of the coil tubes insulates them from the spray film",
+      "detect": [
+        "out_temp_deviation_k",
+        "capacity_ratio_pct",
+        "fan_speed_pct"
+      ],
+      "action": "Inspect and descale the coil; review water treatment and cycles",
+      "default_ramp_min": 30
+    },
+    "nozzle_blockage": {
+      "label": "Spray nozzle blockage",
+      "cause": "Debris and scale plug spray nozzles: dry patches on the coil",
+      "detect": [
+        "spray_pressure_bar",
+        "spray_flow_m3h",
+        "nozzle_k_ratio",
+        "out_temp_deviation_k"
+      ],
+      "action": "Clean spray branches and nozzles; check basin strainer",
+      "default_ramp_min": 20
+    },
+    "fan_bearing": {
+      "label": "Fan bearing wear",
+      "cause": "Lubrication loss and wear in the fan shaft bearings",
+      "detect": [
+        "fan_vib_mm_s",
+        "fan_bearing_temp_c"
+      ],
+      "action": "Grease or replace fan bearings; check alignment",
+      "default_ramp_min": 20
+    },
+    "belt_slip": {
+      "label": "Fan belt slip",
+      "cause": "Worn or loose V-belts: the fan turns slower than the motor drives it",
+      "detect": [
+        "fan_rpm",
+        "belt_slip_pct",
+        "fan_power_kw",
+        "out_temp_deviation_k"
+      ],
+      "action": "Re-tension or replace the belts",
+      "default_ramp_min": 15
+    },
+    "fan_motor_winding": {
+      "label": "Fan motor winding / supply imbalance",
+      "cause": "Insulation ageing or a weak phase: unbalanced currents heat the winding",
+      "detect": [
+        "fan_current_imbalance_pct",
+        "fan_winding_temp_c",
+        "fan_power_kw"
+      ],
+      "action": "Megger the motor, check supply and terminals",
+      "default_ramp_min": 20
+    },
+    "drift_eliminator": {
+      "label": "Drift eliminator damage",
+      "cause": "Displaced or broken eliminator blades let spray droplets escape with the air",
+      "detect": [
+        "makeup_flow_m3h",
+        "unaccounted_water_m3h"
+      ],
+      "action": "Re-seat or replace eliminator sections",
+      "default_ramp_min": 15
+    },
+    "water_treatment": {
+      "label": "Blowdown failure (water treatment)",
+      "cause": "Blowdown valve stuck closed: dissolved solids concentrate in the basin",
+      "detect": [
+        "conductivity_us_cm",
+        "blowdown_flow_m3h",
+        "cycles_of_concentration"
+      ],
+      "action": "Free the blowdown valve; check the conductivity controller",
+      "default_ramp_min": 10
+    }
+  },
+  "presentation": {
+    "category": "Closed-circuit cooling tower",
+    "kpis": [
+      {
+        "metric": "heat_rejected_kw",
+        "label": "Heat rejected",
+        "unit": "kW",
+        "decimals": 0
+      },
+      {
+        "metric": "fluid_out_temp_c",
+        "label": "Leaving fluid",
+        "unit": "°C",
+        "decimals": 1
+      },
+      {
+        "metric": "ambient_wet_bulb_c",
+        "label": "Wet bulb",
+        "unit": "°C",
+        "decimals": 1
+      },
+      {
+        "metric": "fan_speed_pct",
+        "label": "Fan speed",
+        "unit": "%",
+        "decimals": 0
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "out_temp_deviation_k",
+        "label": "Leaving fluid vs. BAC rating",
+        "unit": "K",
+        "decimals": 2
+      },
+      {
+        "metric": "approach_k",
+        "label": "Approach",
+        "unit": "K",
+        "decimals": 2
+      }
+    ],
+    "compare": [
+      {
+        "label": "Heat rejected",
+        "measured": "heat_rejected_kw",
+        "expected": "q_expected_kw",
+        "unit": "kW",
+        "decimals": 1,
+        "basis": "BAC rating, Braun effectiveness at measured wet bulb, flow and fan speed"
+      },
+      {
+        "label": "Leaving fluid",
+        "measured": "fluid_out_temp_c",
+        "expected": "fluid_out_expected_c",
+        "unit": "°C",
+        "decimals": 2,
+        "basis": "BAC rating at measured conditions"
+      },
+      {
+        "label": "Fan power",
+        "measured": "fan_power_kw",
+        "expected": "fan_power_expected_kw",
+        "unit": "kW",
+        "decimals": 2,
+        "basis": "Fan affinity law: power ~ speed^3"
+      },
+      {
+        "label": "Approach to wet bulb",
+        "measured": "approach_k",
+        "expected": null,
+        "unit": "K",
+        "decimals": 2,
+        "basis": "Leaving fluid - wet bulb"
+      },
+      {
+        "label": "Belt slip",
+        "measured": "belt_slip_pct",
+        "expected": null,
+        "unit": "%",
+        "decimals": 1,
+        "basis": "Fan rpm vs. VFD command"
+      },
+      {
+        "label": "Spray nozzle resistance",
+        "measured": "nozzle_k_ratio",
+        "expected": null,
+        "unit": "x clean",
+        "decimals": 2,
+        "basis": "(p/p0) / (Q/Q0)^2"
+      },
+      {
+        "label": "Unaccounted water",
+        "measured": "unaccounted_water_m3h",
+        "expected": null,
+        "unit": "m³/h",
+        "decimals": 3,
+        "basis": "Make-up - evaporation - blowdown - rated drift"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "out_temp_deviation_k",
+        "label": "Leaving fluid deviation K"
+      },
+      {
+        "metric": "approach_k",
+        "label": "Approach K"
+      },
+      {
+        "metric": "belt_slip_pct",
+        "label": "Belt slip %"
+      },
+      {
+        "metric": "nozzle_k_ratio",
+        "label": "Nozzle resistance x"
+      }
+    ],
+    "design": [
+      {
+        "label": "Unit",
+        "value": "BAC FXV-0812B-16D-L, 131 nominal tons, CTI certified, combined flow coil + fill"
+      },
+      {
+        "label": "Rating",
+        "value": "573 kW: 89.3 m³/h 35.0 -> 29.4 °C at 25.6 °C wet bulb"
+      },
+      {
+        "label": "Fans",
+        "value": "2 axial fans, 15 HP VFD drive, 83,810 CFM (45.5 kg/s air)"
+      },
+      {
+        "label": "Spray",
+        "value": "719 USGPM (163 m³/h) spray pump, 5 HP; coil 117 gal"
+      }
+    ]
+  }
+}

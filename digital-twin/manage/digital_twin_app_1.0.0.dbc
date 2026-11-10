@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE script SYSTEM "script.dtd">
+<!--
+  Registers the Maximo Digital Twin Graphite app (MAFAPPDATA appid DIGITALTWIN) as a Manage
+  application, so signed-in users get past the 403 on /maximo/oslc/graphite/digitaltwin/.
+  Same shape as IBM's AI configuration app: MAXAPPS apptype WC / custapptype REACT, no URL.
+  ORIGINALAPP must be set: MXServer only treats MAXAPPS rows with ORIGINALAPP as valid custom
+  apps, and a user's profile drops any other app. Takes effect after a Manage server restart.
+
+  Access: sigoption READ, granted to MAXADMIN. Grant it to other groups in Security Groups.
+  Menu: placed in the module that holds the Assets application, at its end.
+  Re-runnable: every statement is guarded by "not exists".
+-->
+<script author="DIGITALTWIN" scriptname="digital_twin_app_1.0.0">
+  <description>Add the Maximo Digital Twin application.</description>
+  <statements>
+    <freeform description="Application DIGITALTWIN (custom app derived from AICONFIG)">
+      <sql target="all">insert into maxapps (app, description, apptype, custapptype, originalapp, ismobile, lockenabled, hasld, langcode, skipnavigation, maxappsid) select 'DIGITALTWIN', 'Maximo Digital Twin', 'WC', 'REACT', 'AICONFIG', 0, 0, 0, 'EN', 0, nextval for maxappsseq from sysibm.sysdummy1 where not exists (select 1 from maxapps where app = 'DIGITALTWIN')</sql>
+    </freeform>
+    <freeform description="Mark the application as a custom app (re-run safety)">
+      <sql target="all">update maxapps set originalapp = 'AICONFIG' where app = 'DIGITALTWIN' and originalapp is null</sql>
+    </freeform>
+    <freeform description="Read option for the application">
+      <sql target="all">insert into sigoption (app, optionname, description, esigenabled, visible, alsorevokes, sigoptionid, langcode, hasld) select 'DIGITALTWIN', 'READ', 'Access to Maximo Digital Twin application', 0, 1, 'ALL', nextval for sigoptionseq, 'EN', 0 from sysibm.sysdummy1 where not exists (select 1 from sigoption where app = 'DIGITALTWIN' and optionname = 'READ')</sql>
+    </freeform>
+    <freeform description="Grant READ to MAXADMIN">
+      <sql target="all">insert into applicationauth (groupname, app, optionname, conditionnum, applicationauthid) select 'MAXADMIN', 'DIGITALTWIN', 'READ', null, nextval for applicationauthseq from sysibm.sysdummy1 where not exists (select 1 from applicationauth where groupname = 'MAXADMIN' and app = 'DIGITALTWIN' and optionname = 'READ')</sql>
+    </freeform>
+    <freeform description="Menu entry in the module that holds Assets">
+      <sql target="all">insert into maxmenu (menutype, moduleapp, position, subposition, elementtype, keyvalue, visible, pinned, maxmenuid) select 'MODULE', m.moduleapp, (select max(x.position) from maxmenu x where x.menutype = 'MODULE' and x.moduleapp = m.moduleapp) + 10, 0, 'APP', 'DIGITALTWIN', 1, 0, nextval for maxmenuseq from maxmenu m where m.maxmenuid = (select min(maxmenuid) from maxmenu where menutype = 'MODULE' and elementtype = 'APP' and keyvalue = 'ASSET') and not exists (select 1 from maxmenu where menutype = 'MODULE' and keyvalue = 'DIGITALTWIN')</sql>
+    </freeform>
+  </statements>
+</script>

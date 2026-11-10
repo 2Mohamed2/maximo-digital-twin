@@ -1,0 +1,4 @@
+digital-twin/maf-app/src/demokeys.js
+*.properties
+*-device-*.json
+__pycache__/

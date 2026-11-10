@@ -1,0 +1,855 @@
+{
+  "$comment": "Single source of truth for the PUMP-101 digital twin. The simulator (the stand-in for the physical pump), the Monitor configuration and the twin viewer all read this file. Structure follows the Asset Administration Shell idea: identification, design (technical data), operational data (telemetry), condition monitoring (failure modes). Telemetry names follow OPC 40223 (OPC UA for Pumps and Vacuum Pumps v1.0) where the spec defines the item; items the spec does not define sit in clearly labelled extension groups.",
+  "twin": {
+    "id": "urn:maximo:twin:pump:PUMP-101",
+    "version": "2.0.0",
+    "kind": "Centrifugal pump set (pump + motor + VFD)",
+    "standards": {
+      "information_model": "OPC 40223 OPC UA for Pumps and Vacuum Pumps v1.0 (namespace http://opcfoundation.org/UA/Pumps/), derived from the VDMA pump Asset Administration Shell",
+      "twin_framework": "ISO 23247 (observable element / data collection / core / user entities); Digital Twin Consortium definition (synchronised at a specified frequency and fidelity)",
+      "performance": "Pump curves per ISO 9906 test convention; affinity laws for speed changes",
+      "operating_region": "Preferred operating region around the best efficiency point (typical 70-120 % of BEP flow, ANSI/HI 9.6.3 concept); limits below are site-configurable",
+      "vibration": "Velocity RMS on bearing housings (ISO 20816-7 method). Alarm limits below are site settings, NOT values quoted from the standard: set them from your licensed copy and pump category"
+    }
+  },
+  "identification": {
+    "assetnum": "PUMP-101",
+    "description": "Raw water transfer pump 101",
+    "pump_class": "Rotodynamic, end-suction, single stage, back pull-out (EN 733 / ISO 2858)",
+    "manufacturer": "KSB SE & Co. KGaA",
+    "model": "Etanorm R 200-500-3e",
+    "serial_number": "DEMO-2026-0101",
+    "year": 2024,
+    "site": "Demo water plant",
+    "location": "Pump house 1 / Transfer station",
+    "medium": "Raw water, 28 degC",
+    "impeller_diameter_mm": 440,
+    "bearing_bracket": "WE 65",
+    "coupling": "Eupex N 160",
+    "baseplate": "E5",
+    "suction_flange": "DN 250 PN 10 EN 1092-2",
+    "discharge_flange": "DN 200 PN 10 EN 1092-2"
+  },
+  "design": {
+    "$comment": "Hydraulic data of the real pump: KSB Etanorm R 200-500, n = 1450 rpm, impeller trimmed to 440 mm. Source: KSB Characteristic Curves Booklet 50 Hz (Etanorm/Etabloc/Etanorm-R), page 107, curve K34579/0, ISO 9906 class 3B. Curves digitised from the vector PDF and fitted (max deviation: head 0.47 m, shaft power 0.42 kW, efficiency 0.85 pts, NPSHr 0.28 m). Efficiency is derived as rho*g*Q*H/P from KSB's head and power curves.",
+    "rated_speed_rpm": 1450,
+    "bep_flow_m3h": 486.0,
+    "bep_head_m": 59.84,
+    "bep_power_kw": 102.5,
+    "opc_design_items": {
+      "OptimumRateOfFlow": "bep_flow_m3h",
+      "OptimumHead": "bep_head_m",
+      "OptimumPumpPowerInput": "bep_power_kw",
+      "NetPositiveSuctionHeadRequired": "curves.npshr_m"
+    },
+    "max_continuous_speed_rpm": 1480,
+    "min_continuous_speed_rpm": 725,
+    "motor": {
+      "$comment": "Sized for this duty (max shaft power 120 kW at runout): 132 kW IE3 4-pole. The KSB CAD configuration downloaded on 2026-11-08 carries a 45 kW 225M motor, which cannot drive this impeller; regenerate the CAD with the 132 kW drive for a consistent model.",
+      "rated_power_kw": 132.0,
+      "rated_voltage_v": 400,
+      "rated_current_a": 230.0,
+      "rated_frequency_hz": 50,
+      "poles": 4,
+      "insulation_class": "F",
+      "efficiency": 0.962,
+      "power_factor": 0.86,
+      "frame": "IEC 315M",
+      "efficiency_class": "IE3"
+    },
+    "vfd": {
+      "efficiency": 0.97
+    },
+    "system": {
+      "$comment": "Installation: H_sys = static + k * Q^2",
+      "static_head_m": 35.0,
+      "k": 0.0001051606,
+      "suction_elevation_m": 1.5,
+      "suction_loss_k": 4.3e-06
+    },
+    "fluid": {
+      "density_kg_m3": 998.0,
+      "cp_j_kgk": 4180.0,
+      "vapour_pressure_kpa": 3.8,
+      "inlet_temp_c": 28.0,
+      "casing_water_kg": 150
+    },
+    "ambient_temp_c": 35.0,
+    "curve_source": {
+      "document": "KSB Characteristic Curves Booklet 50 Hz, Etanorm-R 200-500, n = 1450 rpm",
+      "page": 107,
+      "curve": "K34579/0",
+      "test_class": "ISO 9906 class 3B (NPSH at 3 % head drop)",
+      "impeller_mm": 440,
+      "impeller_range_mm": [
+        420,
+        510
+      ]
+    },
+    "bep_efficiency": 0.772,
+    "max_flow_m3h": 674.0,
+    "max_power_kw": 119.9,
+    "curves": {
+      "$comment": "Polynomials in Q [m3/h] at 1450 rpm, coefficients c0..c3. Other speeds via affinity laws: Q~n, H~n^2, P~n^3, efficiency unchanged. NPSHr is published from 300 m3/h (0.3*Qopt rule); below that it is held at its 300 m3/h value.",
+      "head_m": [
+        69.44772011361441,
+        -0.012451785361018666,
+        5.8310651309655706e-05,
+        -1.5097305771059487e-07
+      ],
+      "shaft_power_kw": [
+        34.26026800063885,
+        0.18977819822986242,
+        -0.00012800870093051495,
+        5.4053069849451206e-08
+      ],
+      "npshr_m": [
+        -0.9743038894134902,
+        0.01892442684575882,
+        -4.368707917690319e-05,
+        4.090132380847777e-08
+      ],
+      "npshr_q_min_m3h": 300
+    }
+  },
+  "telemetry": {
+    "event": "pump",
+    "publish_every_s": 5,
+    "$comment": "path = location in the MQTT payload {\"d\": {...}}; metric = Monitor metric name; opc = OPC 40223 BrowseName (MeasurementsType) or null for extensions; unit = unit of the published value; opc_si = factor to convert to the OPC SI unit",
+    "groups": {
+      "Measurements": "OPC 40223 MeasurementsType items",
+      "Drive": "Extension: motor and VFD (not in OPC 40223 v1.0)",
+      "Process": "Extension: installation and seal items not defined as MeasurementsType items in OPC 40223 v1.0",
+      "Counters": "Extension: totalisers",
+      "State": "Extension: run state"
+    },
+    "points": [
+      {
+        "metric": "suction_pressure_bar",
+        "path": "Measurements.InletPressureOfTheInstallation",
+        "opc": "InletPressureOfTheInstallation",
+        "unit": "bar(g)",
+        "opc_unit": "Pa",
+        "range": [
+          -1,
+          6
+        ],
+        "noise": 0.004,
+        "label": "Suction pressure"
+      },
+      {
+        "metric": "discharge_pressure_bar",
+        "path": "Measurements.OutletPressureOfTheInstallation",
+        "opc": "OutletPressureOfTheInstallation",
+        "unit": "bar(g)",
+        "opc_unit": "Pa",
+        "range": [
+          0,
+          10
+        ],
+        "noise": 0.01,
+        "label": "Discharge pressure"
+      },
+      {
+        "metric": "diff_pressure_bar",
+        "path": "Measurements.DifferentialPressure",
+        "opc": "DifferentialPressure",
+        "unit": "bar",
+        "opc_unit": "Pa",
+        "range": [
+          0,
+          10
+        ],
+        "noise": 0.01,
+        "label": "Differential pressure"
+      },
+      {
+        "metric": "head_m",
+        "path": "Measurements.PumpTotalHead",
+        "opc": "PumpTotalHead",
+        "unit": "m",
+        "opc_unit": "m",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.1,
+        "label": "Total head"
+      },
+      {
+        "metric": "speed_rpm",
+        "path": "Measurements.Speed",
+        "opc": "Speed",
+        "unit": "rpm",
+        "opc_unit": "s-1 (rpm/60)",
+        "range": [
+          0,
+          1600
+        ],
+        "noise": 1.0,
+        "label": "Speed"
+      },
+      {
+        "metric": "shaft_power_kw",
+        "path": "Measurements.PumpPowerInput",
+        "opc": "PumpPowerInput",
+        "unit": "kW",
+        "opc_unit": "W",
+        "range": [
+          0,
+          220
+        ],
+        "noise": 0.15,
+        "label": "Pump power input (shaft)"
+      },
+      {
+        "metric": "hydraulic_power_kw",
+        "path": "Measurements.PumpPowerOutput",
+        "opc": "PumpPowerOutput",
+        "unit": "kW",
+        "opc_unit": "W",
+        "range": [
+          0,
+          180
+        ],
+        "noise": 0.1,
+        "label": "Pump power output (hydraulic)"
+      },
+      {
+        "metric": "pump_efficiency_pct",
+        "path": "Measurements.PumpEfficiency",
+        "opc": "PumpEfficiency",
+        "unit": "%",
+        "opc_unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.2,
+        "label": "Pump efficiency"
+      },
+      {
+        "metric": "npsha_m",
+        "path": "Measurements.NetPositiveSuctionHead",
+        "opc": "NetPositiveSuctionHead",
+        "unit": "m",
+        "opc_unit": "m",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.05,
+        "label": "NPSH available"
+      },
+      {
+        "metric": "fluid_temp_c",
+        "path": "Measurements.FluidTemperature",
+        "opc": "FluidTemperature",
+        "unit": "degC",
+        "opc_unit": "K",
+        "range": [
+          0,
+          120
+        ],
+        "noise": 0.05,
+        "label": "Fluid temperature"
+      },
+      {
+        "metric": "bearing_de_temp_c",
+        "path": "Measurements.BearingTemperature",
+        "opc": "BearingTemperature",
+        "unit": "degC",
+        "opc_unit": "K",
+        "range": [
+          0,
+          130
+        ],
+        "noise": 0.1,
+        "label": "Bearing temperature DE"
+      },
+      {
+        "metric": "starts",
+        "path": "Measurements.NumberOfStarts",
+        "opc": "NumberOfStarts",
+        "unit": "count",
+        "opc_unit": "count",
+        "range": [
+          0,
+          100000
+        ],
+        "noise": 0,
+        "label": "Number of starts"
+      },
+      {
+        "metric": "vib_de_vel_rms",
+        "path": "Measurements.Vibration.DE.VelocityRms",
+        "opc": "Vibration (VibrationMeasurementType placeholder; child naming ours)",
+        "unit": "mm/s",
+        "opc_unit": "m/s",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.03,
+        "label": "Vibration DE velocity RMS"
+      },
+      {
+        "metric": "vib_nde_vel_rms",
+        "path": "Measurements.Vibration.NDE.VelocityRms",
+        "opc": "Vibration (placeholder)",
+        "unit": "mm/s",
+        "opc_unit": "m/s",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.03,
+        "label": "Vibration NDE velocity RMS"
+      },
+      {
+        "metric": "vib_de_accel_pk",
+        "path": "Measurements.Vibration.DE.AccelerationPeak",
+        "opc": "Vibration (placeholder)",
+        "unit": "g",
+        "opc_unit": "m/s2",
+        "range": [
+          0,
+          50
+        ],
+        "noise": 0.02,
+        "label": "Vibration DE acceleration peak (HF)"
+      },
+      {
+        "metric": "vib_de_envelope",
+        "path": "Measurements.Vibration.DE.Envelope",
+        "opc": "Vibration (placeholder)",
+        "unit": "gE",
+        "opc_unit": "m/s2",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.01,
+        "label": "Bearing DE envelope (demodulated)"
+      },
+      {
+        "metric": "vib_de_1x",
+        "path": "Measurements.Vibration.DE.Amplitude1x",
+        "opc": "Vibration (placeholder)",
+        "unit": "mm/s",
+        "opc_unit": "m/s",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.02,
+        "label": "Vibration DE 1x running speed"
+      },
+      {
+        "metric": "vib_de_2x",
+        "path": "Measurements.Vibration.DE.Amplitude2x",
+        "opc": "Vibration (placeholder)",
+        "unit": "mm/s",
+        "opc_unit": "m/s",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.02,
+        "label": "Vibration DE 2x running speed"
+      },
+      {
+        "metric": "flow_m3h",
+        "path": "Process.VolumeFlow",
+        "opc": null,
+        "unit": "m3/h",
+        "range": [
+          0,
+          800
+        ],
+        "noise": 1.2,
+        "label": "Flow"
+      },
+      {
+        "metric": "suction_level_m",
+        "path": "Process.SuctionTankLevel",
+        "opc": null,
+        "unit": "m",
+        "range": [
+          0,
+          6
+        ],
+        "noise": 0.005,
+        "label": "Suction tank level"
+      },
+      {
+        "metric": "bearing_nde_temp_c",
+        "path": "Process.BearingTemperatureNDE",
+        "opc": null,
+        "unit": "degC",
+        "range": [
+          0,
+          130
+        ],
+        "noise": 0.1,
+        "label": "Bearing temperature NDE"
+      },
+      {
+        "metric": "seal_leak_mlmin",
+        "path": "Process.SealLeakage",
+        "opc": null,
+        "unit": "ml/min",
+        "range": [
+          0,
+          500
+        ],
+        "noise": 0.2,
+        "label": "Mechanical seal leakage"
+      },
+      {
+        "metric": "seal_temp_c",
+        "path": "Process.SealChamberTemperature",
+        "opc": null,
+        "unit": "degC",
+        "range": [
+          0,
+          150
+        ],
+        "noise": 0.1,
+        "label": "Seal chamber temperature"
+      },
+      {
+        "metric": "motor_power_kw",
+        "path": "Drive.ElectricalPower",
+        "opc": null,
+        "unit": "kW",
+        "range": [
+          0,
+          240
+        ],
+        "noise": 0.2,
+        "label": "Electrical power (VFD input)"
+      },
+      {
+        "metric": "motor_current_a",
+        "path": "Drive.Current",
+        "opc": null,
+        "unit": "A",
+        "range": [
+          0,
+          400
+        ],
+        "noise": 0.8,
+        "label": "Motor current"
+      },
+      {
+        "metric": "current_imbalance_pct",
+        "path": "Drive.CurrentImbalance",
+        "opc": null,
+        "unit": "%",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.05,
+        "label": "Phase current imbalance"
+      },
+      {
+        "metric": "motor_voltage_v",
+        "path": "Drive.Voltage",
+        "opc": null,
+        "unit": "V",
+        "range": [
+          0,
+          450
+        ],
+        "noise": 0.5,
+        "label": "Motor voltage"
+      },
+      {
+        "metric": "vfd_frequency_hz",
+        "path": "Drive.Frequency",
+        "opc": null,
+        "unit": "Hz",
+        "range": [
+          0,
+          55
+        ],
+        "noise": 0.01,
+        "label": "VFD output frequency"
+      },
+      {
+        "metric": "power_factor",
+        "path": "Drive.PowerFactor",
+        "opc": null,
+        "unit": "-",
+        "range": [
+          0,
+          1
+        ],
+        "noise": 0.002,
+        "label": "Power factor"
+      },
+      {
+        "metric": "winding_temp_c",
+        "path": "Drive.WindingTemperature",
+        "opc": null,
+        "unit": "degC",
+        "range": [
+          0,
+          180
+        ],
+        "noise": 0.1,
+        "label": "Motor winding temperature"
+      },
+      {
+        "metric": "operating_hours",
+        "path": "Counters.OperatingHours",
+        "opc": null,
+        "unit": "h",
+        "range": [
+          0,
+          200000
+        ],
+        "noise": 0,
+        "label": "Operating hours"
+      },
+      {
+        "metric": "energy_kwh",
+        "path": "Counters.Energy",
+        "opc": null,
+        "unit": "kWh",
+        "range": [
+          0,
+          1000000000.0
+        ],
+        "noise": 0,
+        "label": "Energy total"
+      },
+      {
+        "metric": "volume_m3",
+        "path": "Counters.Volume",
+        "opc": null,
+        "unit": "m3",
+        "range": [
+          0,
+          10000000000.0
+        ],
+        "noise": 0,
+        "label": "Pumped volume total"
+      },
+      {
+        "metric": "flow_setpoint_m3h",
+        "path": "State.FlowSetpoint",
+        "opc": null,
+        "unit": "m3/h",
+        "range": [
+          0,
+          800
+        ],
+        "noise": 0,
+        "label": "Flow setpoint"
+      },
+      {
+        "metric": "running",
+        "path": "State.Running",
+        "opc": null,
+        "unit": "0/1",
+        "range": [
+          0,
+          1
+        ],
+        "noise": 0,
+        "label": "Running"
+      },
+      {
+        "metric": "trip_code",
+        "path": "State.TripCode",
+        "opc": null,
+        "unit": "code",
+        "range": [
+          0,
+          9
+        ],
+        "noise": 0,
+        "label": "Protection trip code (0 = none)"
+      }
+    ]
+  },
+  "twin_model": {
+    "$comment": "Physics-based expectations computed INSIDE Monitor (PythonExpression functions generated from the design block). The simulator never sends these: the twin computes them from measured flow and speed, so a gap between expected and measured is evidence of degradation.",
+    "calculations": [
+      {
+        "metric": "speed_ratio",
+        "label": "Speed ratio n/n0",
+        "formula": "speed / rated_speed"
+      },
+      {
+        "metric": "bep_ratio",
+        "label": "Flow / BEP flow at current speed",
+        "formula": "Q / (Q_bep * s)"
+      },
+      {
+        "metric": "head_expected_m",
+        "label": "Expected head (design curve, affinity laws)",
+        "formula": "a*s^2 + b*s*Q + c*Q^2"
+      },
+      {
+        "metric": "head_deviation_pct",
+        "label": "Head deviation from design",
+        "formula": "(H_meas - H_exp) / H_exp * 100"
+      },
+      {
+        "metric": "eff_expected_pct",
+        "label": "Expected efficiency",
+        "formula": "eta_bep * (2x - x^2) * 100, x = bep_ratio"
+      },
+      {
+        "metric": "eff_deviation_pts",
+        "label": "Efficiency deviation (points)",
+        "formula": "eta_meas - eta_exp"
+      },
+      {
+        "metric": "npshr_m",
+        "label": "NPSH required at operating point",
+        "formula": "(n0 + n2*x^2) * s^2"
+      },
+      {
+        "metric": "npsh_margin_m",
+        "label": "NPSH margin",
+        "formula": "NPSHa - NPSHr"
+      },
+      {
+        "metric": "specific_energy_kwh_m3",
+        "label": "Specific energy",
+        "formula": "P_elec / Q"
+      },
+      {
+        "metric": "wire_to_water_pct",
+        "label": "Wire-to-water efficiency",
+        "formula": "P_hyd / P_elec * 100"
+      }
+    ],
+    "limits": {
+      "$comment": "Site settings for alerts. Vibration values are example site limits, not quoted from ISO 20816-7.",
+      "vib_alert_mm_s": 4.5,
+      "vib_trip_mm_s": 7.1,
+      "bearing_alert_c": 85,
+      "bearing_trip_c": 95,
+      "winding_alert_c": 140,
+      "winding_trip_c": 155,
+      "envelope_alert_ge": 2.0,
+      "npsh_margin_alert_m": 1.0,
+      "bep_ratio_low": 0.7,
+      "bep_ratio_high": 1.2,
+      "head_deviation_alert_pct": -5.0,
+      "eff_deviation_alert_pts": -4.0,
+      "seal_leak_alert_mlmin": 30,
+      "current_imbalance_alert_pct": 5.0,
+      "fluid_temp_trip_c": 70
+    }
+  },
+  "failure_modes": {
+    "$comment": "FMEA-style catalogue. 'detect' lists the symptoms in the order they appear on the P-F curve (earliest first). The simulator injects these; the twin should detect them in that order.",
+    "bearing_de": {
+      "label": "DE bearing outer race defect",
+      "cause": "Fatigue / lubrication",
+      "detect": [
+        "vib_de_envelope",
+        "vib_de_accel_pk",
+        "vib_de_vel_rms",
+        "bearing_de_temp_c"
+      ],
+      "action": "Plan bearing replacement; check lubrication",
+      "manage_problem": "BEARING",
+      "default_ramp_min": 30
+    },
+    "cavitation": {
+      "label": "Cavitation from suction strainer blockage",
+      "cause": "Strainer fouling raises suction loss, NPSHa falls below the margin",
+      "detect": [
+        "suction_pressure_bar",
+        "npsh_margin_m",
+        "vib_de_accel_pk",
+        "head_deviation_pct"
+      ],
+      "action": "Clean suction strainer; review suction conditions",
+      "manage_problem": "CAVITATION",
+      "default_ramp_min": 15
+    },
+    "impeller_wear": {
+      "label": "Impeller and wear ring wear",
+      "cause": "Erosion opens wear-ring clearance; recirculation lowers head and efficiency",
+      "detect": [
+        "head_deviation_pct",
+        "eff_deviation_pts",
+        "specific_energy_kwh_m3",
+        "speed_rpm"
+      ],
+      "action": "Plan wear ring / impeller renewal; energy case",
+      "manage_problem": "WEAR",
+      "default_ramp_min": 30
+    },
+    "misalignment": {
+      "label": "Shaft misalignment",
+      "cause": "Thermal growth / soft foot / poor alignment",
+      "detect": [
+        "vib_de_2x",
+        "vib_de_vel_rms",
+        "bearing_de_temp_c"
+      ],
+      "action": "Laser alignment; check soft foot",
+      "manage_problem": "ALIGN",
+      "default_ramp_min": 20
+    },
+    "imbalance": {
+      "label": "Rotor imbalance",
+      "cause": "Impeller fouling / damage",
+      "detect": [
+        "vib_de_1x",
+        "vib_de_vel_rms"
+      ],
+      "action": "Clean / balance impeller",
+      "manage_problem": "IMBALANCE",
+      "default_ramp_min": 20
+    },
+    "seal_leak": {
+      "label": "Mechanical seal leakage",
+      "cause": "Face wear / dry running",
+      "detect": [
+        "seal_temp_c",
+        "seal_leak_mlmin"
+      ],
+      "action": "Plan seal replacement",
+      "manage_problem": "SEAL",
+      "default_ramp_min": 20
+    },
+    "motor_winding": {
+      "label": "Motor winding / supply imbalance",
+      "cause": "Insulation degradation or supply phase imbalance",
+      "detect": [
+        "current_imbalance_pct",
+        "winding_temp_c"
+      ],
+      "action": "Insulation test (IR / PI); check supply",
+      "manage_problem": "MOTOR",
+      "default_ramp_min": 25
+    },
+    "valve_closed": {
+      "label": "Discharge valve closed (dead-head)",
+      "cause": "Operating error",
+      "detect": [
+        "flow_m3h",
+        "bep_ratio",
+        "fluid_temp_c"
+      ],
+      "action": "Open valve; protection trips on fluid temperature",
+      "manage_problem": "OPERATION",
+      "default_ramp_min": 1
+    }
+  },
+  "presentation": {
+    "category": "Centrifugal pump",
+    "icon": "pump",
+    "kpis": [
+      {
+        "metric": "flow_m3h",
+        "label": "Flow",
+        "unit": "m³/h",
+        "decimals": 0
+      },
+      {
+        "metric": "head_m",
+        "label": "Head",
+        "unit": "m",
+        "decimals": 1
+      },
+      {
+        "metric": "motor_power_kw",
+        "label": "Power",
+        "unit": "kW",
+        "decimals": 1
+      },
+      {
+        "metric": "pump_efficiency_pct",
+        "label": "Efficiency",
+        "unit": "%",
+        "decimals": 1
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "head_deviation_pct",
+        "label": "Head vs. KSB curve",
+        "unit": "%",
+        "decimals": 1
+      },
+      {
+        "metric": "npsh_margin_m",
+        "label": "NPSH margin",
+        "unit": "m",
+        "decimals": 1
+      }
+    ],
+    "compare": [
+      {
+        "label": "Head",
+        "measured": "head_m",
+        "expected": "head_expected_m",
+        "unit": "m",
+        "decimals": 1,
+        "basis": "KSB Ø440 curve at live speed"
+      },
+      {
+        "label": "Pump efficiency",
+        "measured": "pump_efficiency_pct",
+        "expected": "eff_expected_pct",
+        "unit": "%",
+        "decimals": 1,
+        "basis": "KSB head and power curves"
+      },
+      {
+        "label": "NPSH available vs required",
+        "measured": "npsha_m",
+        "expected": "npshr_m",
+        "unit": "m",
+        "decimals": 2,
+        "basis": "KSB NPSH3 curve"
+      },
+      {
+        "label": "Flow / best-efficiency flow",
+        "measured": "bep_ratio",
+        "expected": null,
+        "unit": "x",
+        "decimals": 2,
+        "basis": "Preferred 0.70-1.20"
+      },
+      {
+        "label": "Specific energy",
+        "measured": "specific_energy_kwh_m3",
+        "expected": null,
+        "unit": "kWh/m³",
+        "decimals": 3,
+        "basis": "Electrical input per m³"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "head_deviation_pct",
+        "label": "Head deviation %"
+      },
+      {
+        "metric": "eff_deviation_pts",
+        "label": "Efficiency deviation pts"
+      },
+      {
+        "metric": "vib_de_vel_rms",
+        "label": "Vibration DE mm/s"
+      },
+      {
+        "metric": "vib_de_envelope",
+        "label": "Envelope DE gE"
+      }
+    ]
+  }
+}

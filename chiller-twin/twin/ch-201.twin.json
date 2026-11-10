@@ -1,0 +1,821 @@
+{
+  "$comment": "Single source of truth for the CH-201 digital twin: water-cooled screw chiller built from BITZER components. Performance from BITZER SOFTWARE v7.2.1.1 (EN 12900) and BITZER heat-exchanger selections.",
+  "twin": {
+    "id": "urn:maximo:twin:chiller:CH-201",
+    "version": "1.0.0",
+    "kind": "Water-cooled screw chiller (R134a): compressor, condenser, evaporator",
+    "standards": {
+      "performance": "Compressor: BITZER SOFTWARE v7.2.1.1 calculations to EN 12900 (10 K superheat, 0 K subcooling), fitted to the EN 12900 10-coefficient polynomial (max deviation 0.2 % capacity, 0.1 % power)",
+      "information_model": "Chiller points named after BACnet chiller objects with Project Haystack tags",
+      "rating": "Efficiency as COP and kW/ton (AHRI 550/590 metrics); 1 ton of refrigeration = 3.517 kW",
+      "heat_exchangers": "Evaporator BITZER SQD2507207-11-6037 and condenser BITZER K2923T 2-pass from BITZER SOFTWARE selections; fouling as series resistance (1/U = 1/U_clean + Rf)",
+      "refrigerant": "R134a saturation from standard property tables (Antoine fit, max error 0.08 %)"
+    }
+  },
+  "identification": {
+    "assetnum": "CH-201",
+    "description": "Water-cooled screw chiller 201 (district cooling)",
+    "manufacturer": "BITZER",
+    "model": "CSH8583-125Y + K2923T + SQD2507207",
+    "site": "Demo district cooling plant",
+    "location": "Chiller hall / CH-201",
+    "medium": "Chilled water 12/7 C, condenser water 30/35 C, refrigerant R134a"
+  },
+  "design": {
+    "refrigerant": "R134a",
+    "r134a_sat": {
+      "refrigerant": "R134a",
+      "form": "ln(P_kPa) = A - B/(T_C + C)",
+      "A": 14.669590539103398,
+      "B": 2235.0884122654843,
+      "C": 248.59999999999724,
+      "source": "fit to standard R134a saturation tables, -10..60 degC"
+    },
+    "compressor": {
+      "model": "BITZER CSH8583-125Y-40P",
+      "type": "Semi-hermetic compact screw, slide-valve capacity control 25-100 % (stepless)",
+      "displacement_m3h": 470,
+      "max_power_kw": 120.0,
+      "max_current_a": 196.0,
+      "rated_voltage_v": 400,
+      "oil_charge_dm3": 18.0,
+      "weight_kg": 860,
+      "design_point": {
+        "to": 3,
+        "tc": 40,
+        "Q_kW": 280,
+        "P_kW": 63.8,
+        "I_A": 113.5,
+        "m_kgh": 6610,
+        "tdis_C": 61.9,
+        "COP": 4.38
+      },
+      "en12900": {
+        "Q_kW": [
+          340.62103063082054,
+          12.84970682680053,
+          -1.1103159813677212,
+          0.21257556030120597,
+          -0.03296040086220034,
+          -0.03948214724596849,
+          0.0017393974770754106,
+          -0.0013571810979159382,
+          -0.000758082269914917,
+          0.00022392670561899308
+        ],
+        "P_kW": [
+          30.78537241013021,
+          0.6681847928362646,
+          0.71646171988833,
+          0.017201670836518218,
+          -0.00986932403654927,
+          -0.006008750871129603,
+          -5.2183953160862655e-05,
+          -0.000226185634955375,
+          0.0001047443360404493,
+          0.00019704223057259718
+        ],
+        "I_A": [
+          71.61916412487336,
+          0.6560043449538864,
+          0.8931089734696263,
+          0.02441450481890547,
+          -0.004109846345654218,
+          -0.010519929082956488,
+          2.8060462915812344e-05,
+          -0.00032969261953495234,
+          7.198386913459531e-05,
+          0.0003286016378978296
+        ],
+        "m_kgh": [
+          6007.164818332396,
+          208.7157070716518,
+          11.543950183831733,
+          3.029914001543992,
+          0.6486233326988213,
+          -0.3267268397211742,
+          0.022398007250928553,
+          -0.0010540697273642152,
+          -0.008069519390634383,
+          -0.00044109980726148024
+        ],
+        "tdis_C": [
+          30.32884110128948,
+          0.06997717336688399,
+          0.6613549248309452,
+          -0.0008487702536069298,
+          0.004771743006477754,
+          -0.0017474323747014454,
+          -0.0006230674498009009,
+          0.0007329403172758417,
+          -0.0004653219439543768,
+          0.00014215264409830897
+        ]
+      },
+      "en12900_form": "EN 12900: X = c1 + c2*to + c3*tc + c4*to^2 + c5*to*tc + c6*tc^2 + c7*to^3 + c8*to^2*tc + c9*to*tc^2 + c10*tc^3 (to, tc dew point degC)",
+      "validity": {
+        "to": [
+          -5,
+          12
+        ],
+        "tc": [
+          25,
+          55
+        ],
+        "excluded": [
+          [
+            8,
+            25
+          ],
+          [
+            12,
+            25
+          ],
+          [
+            12,
+            30
+          ],
+          [
+            0,
+            45
+          ]
+        ]
+      },
+      "part_load_power": {
+        "$comment": "Slide-valve screw at part load: P/P100 = a + (1-a)*slide. a = 0.30 is a typical slide-valve value (an assumption, labelled as such)",
+        "a": 0.3
+      }
+    },
+    "evaporator": {
+      "model": "BITZER SQD2507207-11-6037 (dry expansion, water on shell side)",
+      "design_kW": 280,
+      "chw_in_C": 12,
+      "chw_out_C": 7,
+      "chw_flow_m3h": 48.06,
+      "to_C": 3.06,
+      "pressure_drop_kPa": 42.4,
+      "UA_kW_K": 45.88,
+      "U_clean_kW_m2K": 2.0,
+      "Rf_design_m2K_W": 1.8e-05
+    },
+    "condenser": {
+      "model": "BITZER K2923T 2-pass shell and tube",
+      "design_kW": 344,
+      "cw_in_C": 30,
+      "cw_out_C": 35.2,
+      "cw_flow_m3h": 57.5,
+      "tc_C": 40,
+      "pressure_drop_bar": 0.36,
+      "UA_kW_K": 48.55,
+      "U_clean_kW_m2K": 2.5,
+      "Rf_design_m2K_W": 4e-05,
+      "receiver_dm3": 67.0,
+      "max_charge_R134a_kg": 73.9,
+      "weight_kg": 221
+    },
+    "water_cp_kW_per_m3h_K": 1.1616,
+    "chw_setpoint_C": 7.0,
+    "design_superheat_K": 5.0,
+    "design_subcooling_K": 4.0,
+    "ambient_C": 35.0
+  },
+  "telemetry": {
+    "event": "chiller",
+    "publish_every_s": 5,
+    "device_type": "CHILLER_SCREW",
+    "groups": {
+      "Evaporator": "Evaporator / chilled water",
+      "Condenser": "Condenser / condenser water",
+      "Compressor": "Compressor and oil",
+      "Electrical": "Motor and supply",
+      "Plant": "Plant and state"
+    },
+    "points": [
+      {
+        "metric": "chw_in_temp_c",
+        "path": "Evaporator.EnteringWaterTemp",
+        "label": "Chilled water entering",
+        "unit": "degC",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.03,
+        "opc": "haystack: entering chilled water temp sensor"
+      },
+      {
+        "metric": "chw_out_temp_c",
+        "path": "Evaporator.LeavingWaterTemp",
+        "label": "Chilled water leaving (supply)",
+        "unit": "degC",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.03,
+        "opc": "haystack: leaving chilled water temp sensor"
+      },
+      {
+        "metric": "chw_flow_m3h",
+        "path": "Evaporator.WaterFlow",
+        "label": "Chilled water flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.3,
+        "opc": "haystack: chilled water flow sensor"
+      },
+      {
+        "metric": "evap_pressure_bar",
+        "path": "Evaporator.RefrigerantPressure",
+        "label": "Evaporating pressure",
+        "unit": "bar(a)",
+        "range": [
+          0,
+          10
+        ],
+        "noise": 0.005,
+        "opc": "BACnet chiller: evaporator refrigerant pressure"
+      },
+      {
+        "metric": "evap_sat_temp_c",
+        "path": "Evaporator.SaturatedTemp",
+        "label": "Evaporating temperature (saturated)",
+        "unit": "degC",
+        "range": [
+          -20,
+          30
+        ],
+        "noise": 0.03,
+        "opc": "BACnet chiller: evaporator saturated temperature"
+      },
+      {
+        "metric": "suction_temp_c",
+        "path": "Evaporator.SuctionTemp",
+        "label": "Suction gas temperature",
+        "unit": "degC",
+        "range": [
+          -20,
+          40
+        ],
+        "noise": 0.05,
+        "opc": "suction temperature"
+      },
+      {
+        "metric": "superheat_k",
+        "path": "Evaporator.Superheat",
+        "label": "Suction superheat",
+        "unit": "K",
+        "range": [
+          0,
+          40
+        ],
+        "noise": 0.05,
+        "opc": "superheat"
+      },
+      {
+        "metric": "cw_in_temp_c",
+        "path": "Condenser.EnteringWaterTemp",
+        "label": "Condenser water entering",
+        "unit": "degC",
+        "range": [
+          0,
+          50
+        ],
+        "noise": 0.03,
+        "opc": "haystack: entering condenser water temp sensor"
+      },
+      {
+        "metric": "cw_out_temp_c",
+        "path": "Condenser.LeavingWaterTemp",
+        "label": "Condenser water leaving",
+        "unit": "degC",
+        "range": [
+          0,
+          60
+        ],
+        "noise": 0.03,
+        "opc": "haystack: leaving condenser water temp sensor"
+      },
+      {
+        "metric": "cw_flow_m3h",
+        "path": "Condenser.WaterFlow",
+        "label": "Condenser water flow",
+        "unit": "m3/h",
+        "range": [
+          0,
+          120
+        ],
+        "noise": 0.3,
+        "opc": "haystack: condenser water flow sensor"
+      },
+      {
+        "metric": "cond_pressure_bar",
+        "path": "Condenser.RefrigerantPressure",
+        "label": "Condensing pressure",
+        "unit": "bar(a)",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.01,
+        "opc": "BACnet chiller: condenser refrigerant pressure"
+      },
+      {
+        "metric": "cond_sat_temp_c",
+        "path": "Condenser.SaturatedTemp",
+        "label": "Condensing temperature (saturated)",
+        "unit": "degC",
+        "range": [
+          0,
+          80
+        ],
+        "noise": 0.03,
+        "opc": "BACnet chiller: condenser saturated temperature"
+      },
+      {
+        "metric": "liquid_temp_c",
+        "path": "Condenser.LiquidTemp",
+        "label": "Liquid line temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          80
+        ],
+        "noise": 0.05,
+        "opc": "liquid temperature"
+      },
+      {
+        "metric": "subcooling_k",
+        "path": "Condenser.Subcooling",
+        "label": "Liquid subcooling",
+        "unit": "K",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.05,
+        "opc": "subcooling"
+      },
+      {
+        "metric": "slide_pct",
+        "path": "Compressor.SlideValve",
+        "label": "Slide valve (capacity)",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.2,
+        "opc": "BACnet chiller: percent load"
+      },
+      {
+        "metric": "discharge_temp_c",
+        "path": "Compressor.DischargeTemp",
+        "label": "Discharge gas temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          150
+        ],
+        "noise": 0.1,
+        "opc": "discharge temperature"
+      },
+      {
+        "metric": "oil_temp_c",
+        "path": "Compressor.OilTemp",
+        "label": "Oil temperature (PTC sensor)",
+        "unit": "degC",
+        "range": [
+          0,
+          130
+        ],
+        "noise": 0.1,
+        "opc": "oil temperature"
+      },
+      {
+        "metric": "oil_filter_dp_bar",
+        "path": "Compressor.OilFilterDp",
+        "label": "Oil filter pressure drop",
+        "unit": "bar",
+        "range": [
+          0,
+          5
+        ],
+        "noise": 0.005,
+        "opc": "oil filter differential pressure"
+      },
+      {
+        "metric": "oil_level_pct",
+        "path": "Compressor.OilLevel",
+        "label": "Oil level (OLC-D1)",
+        "unit": "%",
+        "range": [
+          0,
+          100
+        ],
+        "noise": 0.2,
+        "opc": "oil level"
+      },
+      {
+        "metric": "vib_mm_s",
+        "path": "Compressor.Vibration",
+        "label": "Compressor vibration RMS",
+        "unit": "mm/s",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.03,
+        "opc": "vibration"
+      },
+      {
+        "metric": "power_kw",
+        "path": "Electrical.Power",
+        "label": "Compressor power input",
+        "unit": "kW",
+        "range": [
+          0,
+          160
+        ],
+        "noise": 0.15,
+        "opc": "BACnet chiller: power"
+      },
+      {
+        "metric": "current_a",
+        "path": "Electrical.Current",
+        "label": "Motor current",
+        "unit": "A",
+        "range": [
+          0,
+          260
+        ],
+        "noise": 0.3,
+        "opc": "BACnet chiller: current"
+      },
+      {
+        "metric": "current_imbalance_pct",
+        "path": "Electrical.CurrentImbalance",
+        "label": "Phase current imbalance",
+        "unit": "%",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "voltage_v",
+        "path": "Electrical.Voltage",
+        "label": "Supply voltage",
+        "unit": "V",
+        "range": [
+          0,
+          450
+        ],
+        "noise": 0.5,
+        "opc": null
+      },
+      {
+        "metric": "winding_temp_c",
+        "path": "Electrical.WindingTemp",
+        "label": "Motor winding temperature (SE-E4 PTC)",
+        "unit": "degC",
+        "range": [
+          0,
+          180
+        ],
+        "noise": 0.1,
+        "opc": null
+      },
+      {
+        "metric": "cooling_kw",
+        "path": "Plant.CoolingCapacity",
+        "label": "Cooling delivered",
+        "unit": "kW",
+        "range": [
+          0,
+          500
+        ],
+        "noise": 0.6,
+        "opc": "BACnet chiller: cooling capacity"
+      },
+      {
+        "metric": "chw_setpoint_c",
+        "path": "Plant.ChwSetpoint",
+        "label": "Chilled water setpoint",
+        "unit": "degC",
+        "range": [
+          0,
+          20
+        ],
+        "noise": 0,
+        "opc": "setpoint"
+      },
+      {
+        "metric": "energy_kwh",
+        "path": "Plant.Energy",
+        "label": "Energy total",
+        "unit": "kWh",
+        "range": [
+          0,
+          1000000000.0
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "run_hours",
+        "path": "Plant.RunHours",
+        "label": "Run hours",
+        "unit": "h",
+        "range": [
+          0,
+          200000
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "starts",
+        "path": "Plant.Starts",
+        "label": "Compressor starts",
+        "unit": "count",
+        "range": [
+          0,
+          100000
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "running",
+        "path": "Plant.Running",
+        "label": "Running",
+        "unit": "0/1",
+        "range": [
+          0,
+          1
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "trip_code",
+        "path": "Plant.TripCode",
+        "label": "Protection trip (0 none, 1 HP, 2 LP, 3 discharge, 4 winding)",
+        "unit": "code",
+        "range": [
+          0,
+          9
+        ],
+        "noise": 0,
+        "opc": null
+      }
+    ]
+  },
+  "twin_model": {
+    "limits": {
+      "cond_fouling_alert_k": 1.5,
+      "evap_fouling_alert_k": 1.2,
+      "superheat_high_k": 12,
+      "subcooling_low_k": 1.5,
+      "subcooling_high_k": 7.5,
+      "capacity_dev_alert_pct": -8,
+      "power_dev_alert_pct": 8,
+      "discharge_alert_c": 95,
+      "discharge_trip_c": 110,
+      "oil_dp_alert_bar": 1.5,
+      "current_imbalance_alert_pct": 5,
+      "winding_alert_c": 110,
+      "winding_trip_c": 130,
+      "vib_alert_mm_s": 7.1,
+      "hp_trip_bar": 16.0,
+      "lp_trip_c": -1.0,
+      "kw_per_ton_alert": 0.95
+    }
+  },
+  "failure_modes": {
+    "cond_fouling": {
+      "label": "Condenser tube fouling / scaling",
+      "cause": "Scale and biofilm in condenser-water tubes raise thermal resistance",
+      "detect": [
+        "cond_approach_k",
+        "cond_pressure_bar",
+        "power_kw",
+        "discharge_temp_c"
+      ],
+      "action": "Clean condenser tubes (brush or chemical); check water treatment",
+      "default_ramp_min": 30
+    },
+    "evap_fouling": {
+      "label": "Evaporator fouling",
+      "cause": "Dirt and biofilm in the chilled-water circuit",
+      "detect": [
+        "evap_approach_k",
+        "evap_sat_temp_c",
+        "cooling_kw"
+      ],
+      "action": "Clean evaporator; check chilled-water strainers and treatment",
+      "default_ramp_min": 30
+    },
+    "low_charge": {
+      "label": "Refrigerant undercharge (leak)",
+      "cause": "A refrigerant leak reduces the charge; the evaporator starves",
+      "detect": [
+        "superheat_k",
+        "subcooling_k",
+        "evap_sat_temp_c",
+        "cooling_kw"
+      ],
+      "action": "Leak test, repair and recharge (F-gas record)",
+      "default_ramp_min": 30
+    },
+    "noncondensables": {
+      "label": "Non-condensable gases in the circuit",
+      "cause": "Air or nitrogen left after service raises head pressure",
+      "detect": [
+        "subcooling_k",
+        "cond_pressure_bar",
+        "cond_approach_k",
+        "power_kw"
+      ],
+      "action": "Purge non-condensables; check the service procedure",
+      "default_ramp_min": 20
+    },
+    "compressor_wear": {
+      "label": "Compressor rotor / bearing wear (internal leakage)",
+      "cause": "Rotor tip and bearing wear increase internal leakage",
+      "detect": [
+        "capacity_deviation_pct",
+        "discharge_temp_c",
+        "vib_mm_s"
+      ],
+      "action": "Compressor inspection; plan an overhaul",
+      "default_ramp_min": 30
+    },
+    "oil_filter": {
+      "label": "Oil filter clogging",
+      "cause": "Oil degradation and debris load the filter",
+      "detect": [
+        "oil_filter_dp_bar",
+        "oil_temp_c"
+      ],
+      "action": "Replace the oil filter; oil analysis",
+      "default_ramp_min": 20
+    },
+    "motor_winding": {
+      "label": "Motor winding / supply imbalance",
+      "cause": "Insulation degradation or phase imbalance",
+      "detect": [
+        "current_imbalance_pct",
+        "winding_temp_c"
+      ],
+      "action": "Insulation test; check supply and terminals",
+      "default_ramp_min": 25
+    },
+    "cw_flow_loss": {
+      "label": "Condenser water flow loss",
+      "cause": "Condenser pump or cooling tower fault",
+      "detect": [
+        "cw_flow_m3h",
+        "cond_pressure_bar",
+        "discharge_temp_c"
+      ],
+      "action": "Check condenser pump, strainers and valves; protection trips on high pressure",
+      "default_ramp_min": 2
+    }
+  },
+  "presentation": {
+    "category": "Water-cooled chiller",
+    "kpis": [
+      {
+        "metric": "cooling_kw",
+        "label": "Cooling",
+        "unit": "kW",
+        "decimals": 0
+      },
+      {
+        "metric": "power_kw",
+        "label": "Power",
+        "unit": "kW",
+        "decimals": 1
+      },
+      {
+        "metric": "chw_out_temp_c",
+        "label": "CHW supply",
+        "unit": "°C",
+        "decimals": 1
+      },
+      {
+        "metric": "slide_pct",
+        "label": "Slide",
+        "unit": "%",
+        "decimals": 0
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "kw_per_ton",
+        "label": "kW/ton",
+        "unit": "",
+        "decimals": 3
+      },
+      {
+        "metric": "cond_fouling_k",
+        "label": "Condenser approach vs. clean",
+        "unit": "K",
+        "decimals": 2
+      }
+    ],
+    "compare": [
+      {
+        "label": "Cooling capacity",
+        "measured": "cooling_kw",
+        "expected": "q_expected_kw",
+        "unit": "kW",
+        "decimals": 1,
+        "basis": "BITZER EN 12900 polynomial at measured to/tc and slide"
+      },
+      {
+        "label": "Compressor power",
+        "measured": "power_kw",
+        "expected": "p_expected_kw",
+        "unit": "kW",
+        "decimals": 1,
+        "basis": "BITZER EN 12900 polynomial, slide-valve part load"
+      },
+      {
+        "label": "Condenser approach",
+        "measured": "cond_approach_k",
+        "expected": "cond_approach_expected_k",
+        "unit": "K",
+        "decimals": 2,
+        "basis": "BITZER K2923T clean UA at design water flow"
+      },
+      {
+        "label": "Evaporator approach",
+        "measured": "evap_approach_k",
+        "expected": "evap_approach_expected_k",
+        "unit": "K",
+        "decimals": 2,
+        "basis": "BITZER SQD evaporator clean UA"
+      },
+      {
+        "label": "COP",
+        "measured": "cop",
+        "expected": "cop_expected",
+        "unit": "",
+        "decimals": 2,
+        "basis": "Cooling / power"
+      },
+      {
+        "label": "kW per ton",
+        "measured": "kw_per_ton",
+        "expected": null,
+        "unit": "kW/TR",
+        "decimals": 3,
+        "basis": "Power / (cooling / 3.517)"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "cond_fouling_k",
+        "label": "Condenser fouling K"
+      },
+      {
+        "metric": "capacity_deviation_pct",
+        "label": "Capacity deviation %"
+      },
+      {
+        "metric": "kw_per_ton",
+        "label": "kW/ton"
+      },
+      {
+        "metric": "superheat_k",
+        "label": "Superheat K"
+      }
+    ],
+    "design": [
+      {
+        "label": "Compressor",
+        "value": "BITZER CSH8583-125Y-40P, 470 m³/h, 120 kW max, slide 25-100 %"
+      },
+      {
+        "label": "Condenser",
+        "value": "BITZER K2923T 2-pass, 344 kW at 40 °C, 57.5 m³/h"
+      },
+      {
+        "label": "Evaporator",
+        "value": "BITZER SQD2507207-11-6037, 280 kW at 3 °C, 48.1 m³/h"
+      },
+      {
+        "label": "Design point",
+        "value": "280 kW cooling, 63.8 kW power, COP 4.38 (3/40 °C)"
+      }
+    ]
+  }
+}

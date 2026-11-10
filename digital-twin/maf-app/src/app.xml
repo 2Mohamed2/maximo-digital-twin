@@ -1,0 +1,528 @@
+<maximo-application product-name="Maximo Application Suite" controller="AppController" title="Digital Twin" id="digitaltwin" version="1.1.1.0" default-log-level="info">
+  <messages id="dtmsgs">
+    <message id="wo_created" text="Work order {0} created on {1}."/>
+  </messages>
+  <maximo-datasource id="woDS" object-structure="mxapiwodetail" order-by="-reportdate" page-size="20" selection-mode="none" pre-load="false">
+    <schema id="ppqz_">
+      <attribute name="workorderid" unique-id="true" id="qq7vr"/>
+      <attribute name="wonum" searchable="true" id="aey4b"/>
+      <attribute name="description" searchable="true" id="b7akm"/>
+      <attribute name="status" id="jy9ra"/>
+      <attribute name="worktype" id="gk66w"/>
+      <attribute name="wopriority" id="wvqgg"/>
+      <attribute name="reportdate" id="eqe_v"/>
+      <attribute name="assetnum" searchable="true" id="ez2xk"/>
+      <attribute name="siteid" id="ver5j"/>
+    </schema>
+  </maximo-datasource>
+  <json-datasource id="twinsDS" src="{[]}" pre-load="false" id-attribute="assetnum" selection-mode="none">
+    <schema id="x9wzd">
+      <attribute name="assetnum" unique-id="true" id="v9vw6"/>
+      <attribute name="siteid" id="yr_62"/>
+      <attribute name="description" id="mzz7w"/>
+      <attribute name="category" id="aq5ng"/>
+      <attribute name="model" id="yw8y2"/>
+      <attribute name="health" id="ewr_a"/>
+      <attribute name="healthband" id="gvxja"/>
+      <attribute name="state" id="d46kb"/>
+      <attribute name="topcond" id="zy894"/>
+      <attribute name="ncond" id="v87x3"/>
+      <attribute name="kpis" id="ndp5a"/>
+      <attribute name="twinkpis" id="majgy"/>
+      <attribute name="version" id="pg2e2"/>
+      <attribute name="device" id="g2_6m"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="healthDS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="j4jbv">
+      <attribute name="key" unique-id="true" id="j2ep5"/>
+      <attribute name="group" id="a6ka9"/>
+      <attribute name="value" id="m25_8"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="condDS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="q2667">
+      <attribute name="key" unique-id="true" id="nkeg7"/>
+      <attribute name="severity" id="d6xmz"/>
+      <attribute name="name" id="aj35r"/>
+      <attribute name="text" id="q9v8j"/>
+      <attribute name="part" id="d32_d"/>
+      <attribute name="action" id="kvbbk"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="measDS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="r6avv">
+      <attribute name="key" unique-id="true" id="k7kzb"/>
+      <attribute name="label" id="x62_d"/>
+      <attribute name="measured" id="n7zme"/>
+      <attribute name="expected" id="n66bz"/>
+      <attribute name="deviation" id="rm7em"/>
+      <attribute name="basis" id="y4qpr"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="liveDS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="kb5mk">
+      <attribute name="key" unique-id="true" id="w749r"/>
+      <attribute name="group" id="bybnj"/>
+      <attribute name="label" id="wbp56"/>
+      <attribute name="value" id="da34w"/>
+      <attribute name="opc" id="kbmak"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="trend1DS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="yr6y5">
+      <attribute name="key" unique-id="true" id="rz4_p"/>
+      <attribute name="group" id="zrexg"/>
+      <attribute name="date" id="j9zpw"/>
+      <attribute name="value" id="v4akx"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="trend2DS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="q92bb">
+      <attribute name="key" unique-id="true" id="yex9n"/>
+      <attribute name="group" id="yvjnq"/>
+      <attribute name="date" id="j29e3"/>
+      <attribute name="value" id="w5vg_"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="trend3DS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="r9gg2">
+      <attribute name="key" unique-id="true" id="adm7x"/>
+      <attribute name="group" id="gjqpa"/>
+      <attribute name="date" id="waa7k"/>
+      <attribute name="value" id="am46b"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="trend4DS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="n9ddq">
+      <attribute name="key" unique-id="true" id="qw3ee"/>
+      <attribute name="group" id="xp349"/>
+      <attribute name="date" id="qajx6"/>
+      <attribute name="value" id="rrp3b"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="partDS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="ebr2p">
+      <attribute name="key" unique-id="true" id="kmrnp"/>
+      <attribute name="label" id="zn73b"/>
+      <attribute name="measured" id="w42z4"/>
+      <attribute name="expected" id="qnrgm"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="keyFormDS" src="{[{'formid':'1','demokey':''}]}" pre-load="true" id-attribute="formid" selection-mode="none">
+    <schema id="n56vd">
+      <attribute name="formid" unique-id="true" id="d3j6p"/>
+      <attribute name="demokey" title="Demo key" id="z363r"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="sensorsDS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="jy8mg">
+      <attribute name="key" unique-id="true" id="znn5y"/>
+      <attribute name="label" id="qr5q5"/>
+      <attribute name="opc" id="gj3p9"/>
+      <attribute name="path" id="v9mab"/>
+      <attribute name="unit" id="mkgvv"/>
+      <attribute name="metric" id="r9q4g"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="designDS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="a4nkv">
+      <attribute name="key" unique-id="true" id="zx2zr"/>
+      <attribute name="label" id="xmzd7"/>
+      <attribute name="value" id="g83x2"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="fmDS" src="{[]}" pre-load="false" id-attribute="key" selection-mode="none">
+    <schema id="ggx8d">
+      <attribute name="key" unique-id="true" id="yvgg4"/>
+      <attribute name="label" id="v96j7"/>
+      <attribute name="cause" id="vv_yw"/>
+      <attribute name="detect" id="ydxr9"/>
+      <attribute name="action" id="yj87q"/>
+      <attribute name="severity" id="d4xjv"/>
+      <attribute name="active" id="m_aav"/>
+      <attribute name="ramp" id="qpm3r"/>
+      <attribute name="btn" id="de5km"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="twinFormDS" src="{[{'formid':'1','twinurl':'','assetnum':'','siteid':'','devtype':'','device':'','model':'','version':''}]}" pre-load="true" id-attribute="formid" selection-mode="none">
+    <schema id="a84_v">
+      <attribute name="formid" unique-id="true" id="keb7x"/>
+      <attribute name="twinurl" title="Twin service URL" id="z39pr"/>
+      <attribute name="assetnum" title="Asset" id="ngww6"/>
+      <attribute name="siteid" title="Site" id="jzd2b"/>
+      <attribute name="devtype" title="Monitor device type" id="qrxna"/>
+      <attribute name="device" title="Monitor device" id="m2ajm"/>
+      <attribute name="model" title="Manufacturer and model" id="qr4e8"/>
+      <attribute name="version" title="Twin version" id="qp5rm"/>
+    </schema>
+  </json-datasource>
+  <json-datasource id="woFormDS" src="{[{'formid':'1','description':'','priority':'2'}]}" pre-load="true" id-attribute="formid" selection-mode="none">
+    <schema id="arm56">
+      <attribute name="formid" unique-id="true" id="q9d8p"/>
+      <attribute name="description" title="Description" id="a8_y9"/>
+      <attribute name="priority" title="Priority" id="j6zz_"/>
+    </schema>
+  </json-datasource>
+  <dialogs id="dtdialogs">
+    <dialog id="twinDialog" title="{app.state.twinDialogTitle}" on-primary-action="saveTwin" async-primary-action="true" primary-action-text="Save digital twin" secondary-action-text="Cancel" on-secondary-action="close" size="lg">
+      <box direction="column" padding="0.5" id="xmpbb">
+        <label label="A digital twin is a live twin service (physics model, 3D, performance view) linked to a Maximo asset. Read its definition from the service, check the values, then save: the asset gets the DIGITALTWIN classification and its TWIN attributes." wrap="true" theme="small" color="gray60" id="rdbm9"/>
+        <smart-input label="Twin service URL" value="{twinFormDS.item.twinurl}" helper-text="Base URL of the twin service, for example https://pumptwin.monitor.example.com" id="red_3"/>
+        <box direction="row" padding-top="0.5" id="wx67k">
+          <button kind="tertiary" label="Read twin definition" icon="carbon:download" on-click="readTwinDef" id="en4dg"/>
+        </box>
+        <label label="{app.state.twinReadMsg}" wrap="true" theme="small" color="gray60" id="z8ypy"/>
+        <smart-input label="Asset" value="{twinFormDS.item.assetnum}" helper-text="Existing Maximo asset that this twin represents" id="qp2j_"/>
+        <smart-input label="Site" value="{twinFormDS.item.siteid}" id="j59a3"/>
+        <smart-input label="Monitor device type" value="{twinFormDS.item.devtype}" helper-text="Device type in Maximo Monitor that holds the twin's functions and alerts" id="bezxm"/>
+        <smart-input label="Monitor device" value="{twinFormDS.item.device}" id="mnmwa"/>
+        <smart-input label="Manufacturer and model" value="{twinFormDS.item.model}" id="gre2p"/>
+        <smart-input label="Twin version" value="{twinFormDS.item.version}" id="x3g44"/>
+      </box>
+    </dialog>
+    <dialog id="woDialog" title="Create corrective work order" on-primary-action="createWorkOrder" async-primary-action="true" primary-action-text="Create work order" secondary-action-text="Cancel" on-secondary-action="close" size="md">
+      <box direction="column" padding="0.5" id="ypzm5">
+        <field label="Asset" value="{app.state.sel.assetnum + ' (' + app.state.sel.siteid + ')'}" id="dykj_"/>
+        <field label="Condition" value="{app.state.woCond}" id="m2jpe"/>
+        <field label="Recommended action" value="{app.state.woAction}" id="zdraw"/>
+        <smart-input label="Description" value="{woFormDS.item.description}" helper-text="Goes to the work order description (100 characters)" id="ew7p9"/>
+        <smart-input label="Priority" value="{woFormDS.item.priority}" helper-text="1 = highest" id="wbekd"/>
+      </box>
+    </dialog>
+  </dialogs>
+  <pages id="dtpages">
+    <page id="portfolio" title="Digital Twin">
+      <header-template title="Digital Twin" hide-breadcrumb="true" enable-white-background="true" id="npq7a">
+        <button slot="dropdown" kind="primary" label="Refresh" icon="carbon:renew" on-click="refreshPortfolio" id="dazww"/>
+        <icon-group slot="status" primary-icon="{app.state.kpi.alarm ? 'carbon:warning--filled' : 'carbon:checkmark--filled'}" primary-icon-color="{app.state.kpi.alarm ? 'support-03' : 'green'}" label="{app.state.kpi.statusText}" id="bkag2"/>
+      </header-template>
+      <box direction="row" padding-start="0.5" id="v579z">
+        <label label="Physics-based digital twins of Maximo assets: manufacturer CAD and performance curves, live sensor data, Maximo Monitor analytics and Maximo work, in one place." wrap="true" theme="small" color="gray60" id="zz7gd"/>
+      </box>
+      <box direction="column" padding="0.5" id="g6amw">
+        <dashboard id="pqppj">
+          <dashboard-tile size="small" title="Twinned assets" id="zj2pz">
+            <box direction="column" id="g5e8n">
+              <label label="{app.state.kpi.twinsText}" theme="header-large" id="ybq2n"/>
+              <label label="assets of class DIGITALTWIN" theme="small" color="gray60" id="r2_ww"/>
+            </box>
+          </dashboard-tile>
+          <dashboard-tile size="small" title="Running" id="dz9dn">
+            <box direction="column" id="x4d6b">
+              <label label="{app.state.kpi.runningCount}" theme="header-large" id="yx9e8"/>
+              <label label="{app.state.kpi.runningText}" theme="small" color="gray60" id="rdkw5"/>
+            </box>
+          </dashboard-tile>
+          <dashboard-tile size="small" title="Active conditions" id="ypvq3">
+            <box direction="column" id="k4yxq">
+              <label label="{app.state.kpi.condCount}" theme="header-large" id="m2emw"/>
+              <label label="{app.state.kpi.condText}" theme="small" color="gray60" id="p5qr2"/>
+            </box>
+          </dashboard-tile>
+          <dashboard-tile size="small" title="Average twin health" id="yx645">
+            <box direction="column" id="d7na4">
+              <label label="{app.state.kpi.health}" theme="header-large" id="wedqm"/>
+              <label label="100 = runs as designed" theme="small" color="gray60" id="rv3mg"/>
+            </box>
+          </dashboard-tile>
+        </dashboard>
+        <box direction="column" padding-top="1" id="bk6w9">
+          <label label="Twinned assets" theme="header-x-small" id="nr5rd"/>
+          <table datasource="twinsDS" display-row-count="true" search-expanded="false" no-data-message="No asset of class DIGITALTWIN has a reachable twin." id="rymy_">
+            <toolbar-actions id="mnyp9">
+              <button kind="primary" label="Add digital twin" icon="carbon:add" on-click="addTwin" slot="action-button" id="be2mz"/>
+            </toolbar-actions>
+            <table-column name="assetnum" label="Asset" width="140" id="j8md6">
+              <link label="{item.assetnum}" on-click="openTwin" on-click-arg="{item}" id="xpq4b"/>
+            </table-column>
+            <table-column name="description" label="Description" width="300" id="j59wk"/>
+            <table-column name="model" label="Manufacturer and model" width="240" id="b6k7r"/>
+            <table-column name="health" label="Twin health" width="150" id="y27qq">
+              <icon-group primary-icon="carbon:checkmark--filled" primary-icon-color="green" label="{item.health}" padding="false" hidden="{!(item.healthband == 'good')}" id="b632b"/>
+              <icon-group primary-icon="carbon:warning--alt--filled" primary-icon-color="support-03" label="{item.health}" padding="false" hidden="{!(item.healthband == 'watch')}" id="zbr5z"/>
+              <icon-group primary-icon="carbon:warning--filled" primary-icon-color="red" label="{item.health}" padding="false" hidden="{!(item.healthband == 'alarm')}" id="ag49j"/>
+            </table-column>
+            <table-column name="state" label="State" width="110" id="mgn32"/>
+            <table-column name="topcond" label="Top condition" width="260" id="zyv3m"/>
+            <table-column name="kpis" label="Live" width="320" id="bnv2y"/>
+            <table-column name="twinkpis" label="Twin vs. design" width="260" id="bkjdq"/>
+            <table-column name="siteid" label="Site" width="90" id="w5xmn"/>
+            <table-column name="version" label="Twin" width="80" id="yaeqj"/>
+          </table>
+        </box>
+        <box direction="column" padding-top="1" id="neq3b">
+          <label label="Twin health by asset" theme="header-x-small" id="xg9rv"/>
+          <chart type="bar" datasource="healthDS" height="260" id="r2k6q">
+            <chart-option name="data.groupMapsTo" value="group" id="y953n"/>
+            <chart-option name="legend.enabled" value="{false}" id="pjeva"/>
+            <chart-axis position="start" title="Asset" data-field="key" scale-type="labels" id="e2wxn"/>
+            <chart-axis position="bottom" title="Health (0-100)" data-field="value" scale-type="linear" id="xwzma"/>
+          </chart>
+        </box>
+      </box>
+    </page>
+    <page id="twin" title="Digital twin">
+      <header-template title="{app.state.sel.title}" hide-breadcrumb="true" enable-white-background="true" id="xk9kw">
+        <button slot="dropdown" kind="secondary" label="All twins" icon="carbon:arrow--left" on-click="goPortfolio" id="vzmwp"/>
+        <button slot="dropdown" kind="tertiary" label="Edit twin" icon="carbon:edit" on-click="editTwin" id="vpmdb"/>
+        <icon-group slot="status" primary-icon="{app.state.sel.alarm ? 'carbon:warning--filled' : 'carbon:checkmark--filled'}" primary-icon-color="{app.state.sel.alarm ? 'support-03' : 'green'}" label="{app.state.sel.statusText}" id="v3bya"/>
+      </header-template>
+      <box direction="row" padding-start="0.5" id="q8jvp">
+        <label label="{app.state.sel.subtitle}" wrap="true" theme="small" color="gray60" id="rdyed"/>
+      </box>
+      <tabs increase-tabs-width="false" id="j6ynd">
+        <tab label="3D twin" id="g4kp6">
+          <box direction="row" padding="0.5" children-sizes="70,30" manage-children="true" id="g3dbd">
+            <box direction="column" fill-child="true" fill-parent="true" manage-children="true" id="v4nqy">
+              <twin-scene id="twin3d" url="{app.state.sel.twinUrl}" devtype="{app.state.sel.devtype}" height="max(420px, calc(100vh - 300px))"/>
+              <box direction="row" padding-top="1" children-sizes="50,50" manage-children="true" id="y7xkd">
+                <box direction="column" padding-end="0.5" fill-child="true" fill-parent="true" manage-children="true" id="r2xr5">
+                  <label label="Active conditions" theme="header-x-small" id="av_7k"/>
+                  <label label="Same rules run as Maximo Monitor alert rules." wrap="true" theme="small" color="gray60" id="n2rzr"/>
+                  <table datasource="condDS" search-expanded="false" can-search="false" can-filter="false" can-download="false" has-column-config="false" no-data-message="No active conditions. The asset runs as designed." id="y58pd">
+                    <table-column name="severity" label="Severity" width="110" id="jkrdb">
+                      <tag label="{item.severity}" type="{item.severity == 'Critical' ? 'red' : (item.severity == 'High' ? 'magenta' : (item.severity == 'Medium' ? 'warm-gray' : 'blue'))}" id="bwdd_"/>
+                    </table-column>
+                    <table-column name="text" label="Evidence" width="360" id="je2je"/>
+                  </table>
+                </box>
+                <box direction="column" padding-start="0.5" fill-child="true" fill-parent="true" manage-children="true" id="a3624">
+                  <label label="Inject a failure mode" theme="header-x-small" id="eq5gm"/>
+                  <label label="The physical model degrades. The twin must detect it from sensor data alone." wrap="true" theme="small" color="gray60" id="mkr6b"/>
+                  <text-input type="password" label="Demo key" value="{app.state.demoKey}" on-change="setDemoKey" id="b9xvp"/>
+                  <table datasource="fmDS" search-expanded="false" can-search="false" can-filter="false" can-download="false" has-column-config="false" id="x824m">
+                    <table-column name="label" label="Failure mode" width="260" id="j552v"/>
+                    <table-column name="btn" label="Action" width="140" can-sort="false" can-filter="false" id="j6z85">
+                      <button kind="tertiary" label="{item.btn}" on-click="injectFault" on-click-arg="{item}" id="jzjq_"/>
+                    </table-column>
+                  </table>
+                  <box direction="row" padding-top="0.5" id="mkqjj">
+                    <button-group id="d5n_k">
+                      <button kind="secondary" label="Clear all" on-click="clearFaults" id="g_wbg"/>
+                      <button kind="danger" label="Operator reset" on-click="resetTwin" id="ze2y4"/>
+                    </button-group>
+                  </box>
+                  <label label="{app.state.faultMsg}" wrap="true" theme="small" color="gray60" id="e9j3q"/>
+                </box>
+              </box>
+            </box>
+            <box direction="column" padding-start="1" id="wdzyr">
+              <label label="{app.state.sel.partTitle}" theme="header-x-small" id="m437_"/>
+              <label label="{app.state.sel.partSub}" wrap="true" theme="small" color="gray60" id="x8r_j"/>
+              <table datasource="partDS" search-expanded="false" can-search="false" can-filter="false" can-download="false" has-column-config="false" rows-per-page="20" no-data-message="Click a component or a sensor tag in the model." id="jwej_">
+                <table-column name="label" label="Quantity" width="170" id="zwpw9"/>
+                <table-column name="measured" label="Measured" width="110" id="j534p"/>
+                <table-column name="expected" label="Expected" width="130" id="mp6pg"/>
+              </table>
+              <box padding-top="1" id="eeb7b">
+                <label label="Live sensor readings" theme="header-x-small" id="dkw8x"/>
+              </box>
+              <label label="All sensors of the asset, as the twin receives them every 5 seconds." wrap="true" theme="small" color="gray60" id="g6e58"/>
+              <table datasource="liveDS" search-expanded="false" can-search="false" can-filter="false" can-download="false" has-column-config="false" rows-per-page="50" id="wpaq2">
+                <table-column name="label" label="Reading" width="200" id="ew57v"/>
+                <table-column name="value" label="Value" width="130" id="n_wbb"/>
+              </table>
+            </box>
+          </box>
+        </tab>
+        <tab label="Performance" id="n_xmp">
+          <box direction="column" padding="0.5" id="pvaby">
+            <twin-curves id="twinperf" url="{app.state.sel.twinUrl}" devtype="{app.state.sel.devtype}" height="max(420px, calc(100vh - 330px))"/>
+            <box direction="column" padding-top="1" id="bvnxq">
+              <dashboard id="nw77z">
+                <dashboard-tile size="small" title="Twin health" id="k8jgw">
+                  <box direction="column" id="zwd4g">
+                    <label label="{app.state.sel.health}" theme="header-large" id="nqep2"/>
+                    <label label="100 = runs as designed" theme="small" color="gray60" id="q2av_"/>
+                  </box>
+                </dashboard-tile>
+                <dashboard-tile size="small" title="{app.state.sel.k1label}" id="b2j9z">
+                  <box direction="column" id="nav3v">
+                    <label label="{app.state.sel.k1value}" theme="header-large" id="qavrj"/>
+                    <label label="twin vs. manufacturer data" theme="small" color="gray60" id="bmama"/>
+                  </box>
+                </dashboard-tile>
+                <dashboard-tile size="small" title="{app.state.sel.k2label}" id="pamry">
+                  <box direction="column" id="zxxy_">
+                    <label label="{app.state.sel.k2value}" theme="header-large" id="vwjg5"/>
+                    <label label="twin vs. manufacturer data" theme="small" color="gray60" id="pzb8d"/>
+                  </box>
+                </dashboard-tile>
+              </dashboard>
+            </box>
+            <box direction="column" padding-top="1" id="mwyka">
+              <label label="Measured vs. expected (the twin's evidence)" theme="header-x-small" id="av674"/>
+              <table datasource="measDS" search-expanded="false" no-data-message="Waiting for the twin." id="qjqpk">
+                <table-column name="label" label="Quantity" width="260" id="wge74"/>
+                <table-column name="measured" label="Measured" width="140" id="ma8x8"/>
+                <table-column name="expected" label="Expected (twin)" width="160" id="xm4w2"/>
+                <table-column name="deviation" label="Deviation" width="140" id="gdzq7"/>
+                <table-column name="basis" label="Basis" width="360" id="vbgwk"/>
+              </table>
+            </box>
+          </box>
+        </tab>
+        <tab label="Condition" id="bbw25">
+          <box direction="column" padding="0.5" id="z3x48">
+            <dashboard id="krww7">
+              <dashboard-tile size="small" title="Twin health" id="nq2_z">
+                <box direction="column" id="e4q88">
+                  <label label="{app.state.sel.health}" theme="header-large" id="n54jq"/>
+                  <label label="100 = runs as designed" theme="small" color="gray60" id="kdwn5"/>
+                </box>
+              </dashboard-tile>
+              <dashboard-tile size="small" title="{app.state.sel.k1label}" id="da4r7">
+                <box direction="column" id="w7wz8">
+                  <label label="{app.state.sel.k1value}" theme="header-large" id="rb7z_"/>
+                  <label label="twin vs. manufacturer data" theme="small" color="gray60" id="eb8kw"/>
+                </box>
+              </dashboard-tile>
+              <dashboard-tile size="small" title="{app.state.sel.k2label}" id="y4y4w">
+                <box direction="column" id="r97dz">
+                  <label label="{app.state.sel.k2value}" theme="header-large" id="rzmgz"/>
+                  <label label="twin vs. manufacturer data" theme="small" color="gray60" id="xy3kx"/>
+                </box>
+              </dashboard-tile>
+              <dashboard-tile size="small" title="Active conditions" id="w884y">
+                <box direction="column" id="wv_2n">
+                  <label label="{app.state.sel.ncondText}" theme="header-large" id="ze6ev"/>
+                  <label label="same rules as Maximo Monitor" theme="small" color="gray60" id="xr33a"/>
+                </box>
+              </dashboard-tile>
+            </dashboard>
+            <box direction="column" padding-top="1" id="zev94">
+              <label label="Twin residuals and condition trends (last 2 hours)" theme="header-x-small" id="w4bwr"/>
+              <box direction="row" children-sizes="50,50" manage-children="true" padding-top="0.5" id="dwp_a">
+                <box direction="column" padding-end="0.5" fill-child="true" fill-parent="true" manage-children="true" id="w5nke">
+                  <label label="{app.state.sel.tr1}" theme="header-x-small" id="geaq6"/>
+                  <chart type="line" datasource="trend1DS" height="240" id="z6yv8">
+                    <chart-option name="data.groupMapsTo" value="group" id="wmr2q"/>
+                    <chart-option name="legend.enabled" value="{false}" id="qprpw"/>
+                    <chart-option name="points.enabled" value="{false}" id="n5rqd"/>
+                    <chart-option name="width" value="100%" id="dmp3r"/>
+                    <chart-option name="curve" value="curveMonotoneX" id="jrrpd"/>
+                    <chart-axis position="bottom" data-field="date" scale-type="time" id="vmb2_"/>
+                    <chart-axis position="start" title="{app.state.sel.tr1}" data-field="value" scale-type="linear" id="paqrj"/>
+                  </chart>
+                </box>
+                <box direction="column" padding-start="0.5" fill-child="true" fill-parent="true" manage-children="true" id="a4xrw">
+                  <label label="{app.state.sel.tr2}" theme="header-x-small" id="yey_w"/>
+                  <chart type="line" datasource="trend2DS" height="240" id="j9xjp">
+                    <chart-option name="data.groupMapsTo" value="group" id="ax2x8"/>
+                    <chart-option name="legend.enabled" value="{false}" id="nwq55"/>
+                    <chart-option name="points.enabled" value="{false}" id="r6q2b"/>
+                    <chart-option name="width" value="100%" id="k987q"/>
+                    <chart-option name="curve" value="curveMonotoneX" id="qm8r3"/>
+                    <chart-axis position="bottom" data-field="date" scale-type="time" id="ya_3m"/>
+                    <chart-axis position="start" title="{app.state.sel.tr2}" data-field="value" scale-type="linear" id="m4jme"/>
+                  </chart>
+                </box>
+              </box>
+              <box direction="row" children-sizes="50,50" manage-children="true" padding-top="1" id="nwv5v">
+                <box direction="column" padding-end="0.5" fill-child="true" fill-parent="true" manage-children="true" id="x3ab3">
+                  <label label="{app.state.sel.tr3}" theme="header-x-small" id="qdzbj"/>
+                  <chart type="line" datasource="trend3DS" height="240" id="qyjqn">
+                    <chart-option name="data.groupMapsTo" value="group" id="xpgxv"/>
+                    <chart-option name="legend.enabled" value="{false}" id="ex88p"/>
+                    <chart-option name="points.enabled" value="{false}" id="gzqey"/>
+                    <chart-option name="width" value="100%" id="vmg64"/>
+                    <chart-option name="curve" value="curveMonotoneX" id="g2pb5"/>
+                    <chart-axis position="bottom" data-field="date" scale-type="time" id="gxp3k"/>
+                    <chart-axis position="start" title="{app.state.sel.tr3}" data-field="value" scale-type="linear" id="bv3vg"/>
+                  </chart>
+                </box>
+                <box direction="column" padding-start="0.5" fill-child="true" fill-parent="true" manage-children="true" id="a_z6x">
+                  <label label="{app.state.sel.tr4}" theme="header-x-small" id="y7rkm"/>
+                  <chart type="line" datasource="trend4DS" height="240" id="dj62k">
+                    <chart-option name="data.groupMapsTo" value="group" id="a3qg2"/>
+                    <chart-option name="legend.enabled" value="{false}" id="jdyq3"/>
+                    <chart-option name="points.enabled" value="{false}" id="agvg8"/>
+                    <chart-option name="width" value="100%" id="gbp6m"/>
+                    <chart-option name="curve" value="curveMonotoneX" id="yrjg8"/>
+                    <chart-axis position="bottom" data-field="date" scale-type="time" id="v7_v9"/>
+                    <chart-axis position="start" title="{app.state.sel.tr4}" data-field="value" scale-type="linear" id="qv53j"/>
+                  </chart>
+                </box>
+              </box>
+            </box>
+            <box direction="column" padding-top="1" id="qv6mx">
+              <label label="Live sensor readings" theme="header-x-small" id="x3wm_"/>
+              <table datasource="liveDS" display-row-count="true" search-expanded="false" id="e3a4z">
+                <table-column name="group" label="Group" width="140" id="kx4wp"/>
+                <table-column name="label" label="Reading" width="300" id="apex6"/>
+                <table-column name="value" label="Value" width="160" id="jbvgb"/>
+                <table-column name="opc" label="OPC UA name" width="300" id="zxr4e"/>
+              </table>
+            </box>
+          </box>
+        </tab>
+        <tab label="Alerts and work" id="bdjpv">
+          <box direction="column" padding="0.5" id="w2vkz">
+            <inline-notification kind="info" hide-close-button="true" title="From condition to work" subtitle="Conditions are the twin's rules, also deployed as Maximo Monitor alert rules. Create work order raises a corrective work order on this asset in Maximo with the twin's recommended action." id="y4km5"/>
+            <table datasource="condDS" no-data-message="No active conditions. The asset runs as designed." search-expanded="false" id="w6_yg">
+              <table-column name="severity" label="Severity" width="120" id="w36kk">
+                <icon-group primary-icon="carbon:warning--filled" primary-icon-color="red" label="{item.severity}" padding="false" hidden="{!(item.severity == 'Critical' || item.severity == 'High')}" id="ggwe2"/>
+                <icon-group primary-icon="carbon:warning--alt--filled" primary-icon-color="support-03" label="{item.severity}" padding="false" hidden="{!(item.severity == 'Medium')}" id="a_9xd"/>
+                <icon-group primary-icon="carbon:information--filled" primary-icon-color="blue" label="{item.severity}" padding="false" hidden="{!(item.severity == 'Low')}" id="wydag"/>
+              </table-column>
+              <table-column name="name" label="Rule" width="260" id="wzaj5"/>
+              <table-column name="text" label="Evidence" width="320" id="bjk93"/>
+              <table-column name="action" label="Recommended action" width="300" id="d8van"/>
+              <table-column name="part" label="Work" width="190" can-sort="false" can-filter="false" id="qkbp6">
+                <button kind="primary" label="Create work order" icon="carbon:add" on-click="askWorkOrder" on-click-arg="{item}" id="bx63_"/>
+              </table-column>
+            </table>
+            <box padding-top="1" id="v9xpg">
+              <label label="Work orders on this asset (Maximo)" theme="header-x-small" id="jyvyr"/>
+            </box>
+            <table datasource="woDS" display-row-count="true" search-expanded="false" no-data-message="No work order on this asset yet." id="gxv93">
+              <toolbar-actions id="vbkba">
+                <button icon="carbon:renew" on-click="refreshWork" slot="action-button" id="bp6ad"/>
+              </toolbar-actions>
+              <table-column name="wonum" label="Work order" width="120" id="wb97x"/>
+              <table-column name="description" label="Description" width="380" id="n28eg"/>
+              <table-column name="status" label="Status" width="110" id="x5wky"/>
+              <table-column name="worktype" label="Type" width="90" id="a543z"/>
+              <table-column name="wopriority" label="Priority" width="90" id="xv64n"/>
+              <table-column name="reportdate" label="Reported" width="200" id="mxay7"/>
+            </table>
+          </box>
+        </tab>
+        <tab label="Twin model" id="r3dy_">
+          <box direction="column" padding="0.5" id="nx2bw">
+            <label label="{app.state.sel.standards}" wrap="true" theme="small" color="gray60" id="q826w"/>
+            <box padding-top="1" id="m3x3d">
+              <label label="Design data (manufacturer)" theme="header-x-small" id="q8db_"/>
+            </box>
+            <table datasource="designDS" search-expanded="false" id="j77gn">
+              <table-column name="label" label="Item" width="320" id="xzjyj"/>
+              <table-column name="value" label="Value" width="600" id="g34_9"/>
+            </table>
+            <box padding-top="1" id="a_6b5">
+              <label label="Sensors and data mapping" theme="header-x-small" id="rkd87"/>
+            </box>
+            <table datasource="sensorsDS" display-row-count="true" search-expanded="false" id="ey5ma">
+              <table-column name="label" label="Sensor" width="280" id="v_yyj"/>
+              <table-column name="unit" label="Unit" width="90" id="nw5w5"/>
+              <table-column name="opc" label="OPC UA name" width="260" id="rpwzz"/>
+              <table-column name="path" label="Payload path" width="300" id="mwgqg"/>
+              <table-column name="metric" label="Monitor metric" width="220" id="jvzmr"/>
+            </table>
+          </box>
+        </tab>
+        <tab label="Failure library" id="rr2jj">
+          <box direction="column" padding="0.5" id="m3wq3">
+            <label label="Failure modes of this asset type, with the symptoms in the order they appear (P-F curve). The twin injects them in its physics model and must detect them from sensor data alone." wrap="true" theme="small" color="gray60" id="n6dgk"/>
+            <table datasource="fmDS" display-row-count="true" search-expanded="false" id="jq5j3">
+              <table-column name="label" label="Failure mode" width="260" id="g_9gk"/>
+              <table-column name="cause" label="Cause" width="300" id="dy29_"/>
+              <table-column name="detect" label="Detected by (earliest first)" width="360" id="ax9dj"/>
+              <table-column name="action" label="Action" width="280" id="dqz4m"/>
+            </table>
+          </box>
+        </tab>
+      </tabs>
+    </page>
+  </pages>
+</maximo-application>

@@ -1,0 +1,46 @@
+[
+  {
+    "assetnum": "PUMP-101",
+    "siteid": "BEDFORD",
+    "description": "Raw water transfer pump 101 - KSB Etanorm R 200-500 (digital twin)",
+    "dir": "pump-twin",
+    "url": "https://pumptwin.monitor.<your-mas-domain>",
+    "devtype": "PUMP_CENTRIFUGAL",
+    "device": "PUMP-101",
+    "model": "KSB Etanorm R 200-500-3e",
+    "version": "2.0.0"
+  },
+  {
+    "assetnum": "CH-201",
+    "siteid": "BEDFORD",
+    "description": "Water-cooled screw chiller 201 - BITZER CSH8583 R134a (digital twin)",
+    "dir": "chiller-twin",
+    "url": "https://chillertwin.monitor.<your-mas-domain>",
+    "devtype": "CHILLER_SCREW",
+    "device": "CH-201",
+    "model": "BITZER CSH8583-125Y + K2923T + SQD2507207",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "CT-301",
+    "siteid": "BEDFORD",
+    "description": "Closed-circuit cooling tower 301 - BAC FXV-0812B (digital twin)",
+    "dir": "tower-twin",
+    "url": "https://towertwin.monitor.<your-mas-domain>",
+    "devtype": "COOLING_TOWER_CLOSED",
+    "device": "CT-301",
+    "model": "BAC FXV-0812B-16D-L",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "FCV-401",
+    "siteid": "BEDFORD",
+    "description": "Chilled-water control valve 401 - KSB BOA-CVE IMS DN 100 (digital twin)",
+    "dir": "valve-twin",
+    "url": "https://valvetwin.monitor.<your-mas-domain>",
+    "devtype": "CONTROL_VALVE",
+    "device": "FCV-401",
+    "model": "KSB BOA-CVE IMS DN 100 PN 16 EA-C 40",
+    "version": "1.0.0"
+  }
+]
