@@ -1,0 +1,1119 @@
+{
+  "$comment": "Single source of truth for the GT-501 digital twin: Siemens Energy SGT-400 13 MW gas turbine generator set. Data-sheet values from Siemens Energy's public SGT-400 product page; the cycle constants are a calibrated thermodynamic stand-in, not Siemens data.",
+  "twin": {
+    "id": "urn:maximo:twin:gasturbine:GT-501",
+    "version": "1.0.0",
+    "kind": "Two-shaft industrial gas turbine generator set",
+    "standards": {
+      "performance": "Siemens Energy SGT-400 13 MW power generation, ISO: 12.9 MWe, 35.0 %, heat rate 10,294 kJ/kWh, PR 17.1, exhaust 40.0 kg/s at 555 C, PT 9,500 rpm",
+      "corrected_parameters": "theta = T1/288.15 K, delta = P1/101.325 kPa; corrected speed N/sqrt(theta)",
+      "compressor_efficiency": "eta_c = T1 (PR^((gamma-1)/gamma) - 1) / (T2 - T1), gamma = 1.4",
+      "vibration": "Casing velocity zones 9.3 / 14.7 mm/s (ISO 10816-4 as quoted publicly); ISO 20816-4 values not verified",
+      "egt_spread": "Typical public values (US 6,003,296: ~60 F normal, 150-160 F trip): alarm 45 K, trip level 80 K. Not Siemens limits.",
+      "information_model": "Points named after a typical gas turbine control system tag list"
+    }
+  },
+  "identification": {
+    "assetnum": "GT-501",
+    "description": "Gas turbine generator set 501",
+    "manufacturer": "Siemens Energy",
+    "model": "SGT-400 13 MW",
+    "site": "Demo power plant",
+    "location": "GT hall / unit 501",
+    "medium": "Natural gas, dry low emission"
+  },
+  "design": {
+    "rating": {
+      "power_mw": 12.9,
+      "heat_rate_kj_kwh": 10294,
+      "efficiency_pct": 35.0,
+      "pressure_ratio": 17.1,
+      "exhaust_flow_kg_s": 40.0,
+      "exhaust_temp_c": 555.0,
+      "pt_speed_rpm": 9500,
+      "lhv_mj_kg": 50.0,
+      "basis": "ISO 15 C, 101.325 kPa, 60 % RH, no inlet/exhaust losses",
+      "gg_speed_note": "gas generator speed shown in % (100 % = the ISO base-load speed of the stand-in; Siemens' rpm not published)"
+    },
+    "machine": {
+      "compressor": "11-stage transonic axial",
+      "compressor_turbine": "2-stage",
+      "power_turbine": "2-stage, free",
+      "combustion": "6 reverse-flow tubular can-annular DLE combustors",
+      "exhaust_tcs": 6,
+      "exhaust_tc_note": "6 exhaust thermocouples assumed (count not published)",
+      "package_m": [
+        14.0,
+        3.1,
+        4.3
+      ],
+      "package_mass_kg": 83825,
+      "gearbox": "PT 9,500 rpm -> 1,500 rpm 4-pole 50 Hz generator (assumed)",
+      "fuel_lhv_mj_kg": 50.0,
+      "fuel_note": "natural gas LHV 50 MJ/kg assumed"
+    },
+    "cycle": {
+      "eta_c": 0.86,
+      "cp_a": 1005.0,
+      "ka": 0.28571428571428575,
+      "kg": 0.24981245311327835,
+      "dp_comb": 0.04,
+      "eta_b": 0.995,
+      "L": 0.96,
+      "eta_m": 0.99,
+      "lhv": 50000000.0,
+      "wc_exp": 2.0,
+      "cp_g": 1069.35,
+      "eta_t": 0.89823,
+      "T4_iso": 1532.73,
+      "wc0": 39.2623,
+      "K1": 91.579183,
+      "K2": 312.945553,
+      "iso_check": {
+        "T2_c": 434.0,
+        "T4_c": 1259.6,
+        "T45_c": 869.2,
+        "pr_ct": 3.8,
+        "pr_pt": 4.32,
+        "fuel_kg_s": 0.7377,
+        "air_kg_s": 39.262
+      },
+      "note": "calibrated stand-in: eta_c, gamma, combustor loss, eta_b and L fixed; cp_g, eta_t, T4, K1, K2, Wc0 fitted to the ISO data-sheet point (12.9 MW, 35.0 %, 555 C, 40 kg/s, PR 17.1). Not Siemens data."
+    },
+    "site": {
+      "t_mean_c": 31.0,
+      "t_swing_c": 7.0,
+      "p0_kpa": 100.9,
+      "demand_base_mw": 7.4,
+      "demand_peak_mw": 3.2,
+      "note": "Gulf-coast site, 24-38 C day; plant load profile assumed"
+    },
+    "inlet": {
+      "filter_dp_clean_pa": 450.0,
+      "filter_note": "clean filter dp at ISO air flow, assumed"
+    },
+    "exhaust": {
+      "dp_kpa": 1.5,
+      "note": "exhaust/HRSG back-pressure, assumed"
+    },
+    "limits_control": {
+      "ngg_max": 1.03,
+      "t4_max_c": 1259.6,
+      "ramp_mw_min": 1.3
+    }
+  },
+  "telemetry": {
+    "event": "turbine",
+    "publish_every_s": 5,
+    "device_type": "GAS_TURBINE",
+    "groups": {
+      "Inlet": "Air inlet and filter",
+      "GasGenerator": "Gas generator",
+      "Compressor": "Compressor",
+      "Exhaust": "Exhaust thermocouples",
+      "Fuel": "Fuel gas",
+      "PowerTurbine": "Power turbine",
+      "Generator": "Generator",
+      "LubeOil": "Lube oil system",
+      "Counters": "Counters",
+      "Control": "Control"
+    },
+    "points": [
+      {
+        "metric": "ambient_temp_c",
+        "path": "Inlet.AmbientTemperature",
+        "label": "Ambient temperature",
+        "unit": "degC",
+        "range": [
+          -40,
+          60
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "ambient_pressure_kpa",
+        "path": "Inlet.AmbientPressure",
+        "label": "Ambient pressure",
+        "unit": "kPa(a)",
+        "range": [
+          80,
+          110
+        ],
+        "noise": 0.01,
+        "opc": null
+      },
+      {
+        "metric": "inlet_temp_c",
+        "path": "Inlet.CompressorInletTemperature",
+        "label": "Compressor inlet temperature T1",
+        "unit": "degC",
+        "range": [
+          -40,
+          60
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "inlet_pressure_kpa",
+        "path": "Inlet.CompressorInletPressure",
+        "label": "Compressor inlet pressure P1 (after the filter)",
+        "unit": "kPa(a)",
+        "range": [
+          80,
+          110
+        ],
+        "noise": 0.01,
+        "opc": null
+      },
+      {
+        "metric": "inlet_filter_dp_pa",
+        "path": "Inlet.FilterDifferentialPressure",
+        "label": "Inlet filter differential pressure",
+        "unit": "Pa",
+        "range": [
+          0,
+          4000
+        ],
+        "noise": 2.0,
+        "opc": null
+      },
+      {
+        "metric": "ngg_pct",
+        "path": "GasGenerator.Speed",
+        "label": "Gas generator speed NGG",
+        "unit": "%",
+        "range": [
+          0,
+          110
+        ],
+        "noise": 0.02,
+        "opc": null
+      },
+      {
+        "metric": "npt_rpm",
+        "path": "PowerTurbine.Speed",
+        "label": "Power turbine speed NPT",
+        "unit": "rpm",
+        "range": [
+          0,
+          11000
+        ],
+        "noise": 1.0,
+        "opc": null
+      },
+      {
+        "metric": "cdp_bar",
+        "path": "Compressor.DischargePressure",
+        "label": "Compressor discharge pressure CDP (P2)",
+        "unit": "bar(a)",
+        "range": [
+          0,
+          30
+        ],
+        "noise": 0.005,
+        "opc": null
+      },
+      {
+        "metric": "cdt_c",
+        "path": "Compressor.DischargeTemperature",
+        "label": "Compressor discharge temperature CDT (T2)",
+        "unit": "degC",
+        "range": [
+          -40,
+          600
+        ],
+        "noise": 0.2,
+        "opc": null
+      },
+      {
+        "metric": "egt_tc1_c",
+        "path": "Exhaust.TC1",
+        "label": "Exhaust thermocouple 1",
+        "unit": "degC",
+        "range": [
+          -40,
+          800
+        ],
+        "noise": 0.4,
+        "opc": null
+      },
+      {
+        "metric": "egt_tc2_c",
+        "path": "Exhaust.TC2",
+        "label": "Exhaust thermocouple 2",
+        "unit": "degC",
+        "range": [
+          -40,
+          800
+        ],
+        "noise": 0.4,
+        "opc": null
+      },
+      {
+        "metric": "egt_tc3_c",
+        "path": "Exhaust.TC3",
+        "label": "Exhaust thermocouple 3",
+        "unit": "degC",
+        "range": [
+          -40,
+          800
+        ],
+        "noise": 0.4,
+        "opc": null
+      },
+      {
+        "metric": "egt_tc4_c",
+        "path": "Exhaust.TC4",
+        "label": "Exhaust thermocouple 4",
+        "unit": "degC",
+        "range": [
+          -40,
+          800
+        ],
+        "noise": 0.4,
+        "opc": null
+      },
+      {
+        "metric": "egt_tc5_c",
+        "path": "Exhaust.TC5",
+        "label": "Exhaust thermocouple 5",
+        "unit": "degC",
+        "range": [
+          -40,
+          800
+        ],
+        "noise": 0.4,
+        "opc": null
+      },
+      {
+        "metric": "egt_tc6_c",
+        "path": "Exhaust.TC6",
+        "label": "Exhaust thermocouple 6",
+        "unit": "degC",
+        "range": [
+          -40,
+          800
+        ],
+        "noise": 0.4,
+        "opc": null
+      },
+      {
+        "metric": "fuel_flow_kg_s",
+        "path": "Fuel.MassFlow",
+        "label": "Fuel gas mass flow",
+        "unit": "kg/s",
+        "range": [
+          0,
+          2
+        ],
+        "noise": 0.0008,
+        "opc": null
+      },
+      {
+        "metric": "fuel_gas_pressure_bar",
+        "path": "Fuel.SupplyPressure",
+        "label": "Fuel gas supply pressure",
+        "unit": "bar(g)",
+        "range": [
+          0,
+          40
+        ],
+        "noise": 0.02,
+        "opc": null
+      },
+      {
+        "metric": "fuel_gas_temp_c",
+        "path": "Fuel.Temperature",
+        "label": "Fuel gas temperature",
+        "unit": "degC",
+        "range": [
+          -20,
+          80
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "power_mw",
+        "path": "Generator.ActivePower",
+        "label": "Generator active power",
+        "unit": "MW",
+        "range": [
+          0,
+          20
+        ],
+        "noise": 0.01,
+        "opc": null
+      },
+      {
+        "metric": "gg_vib_mm_s",
+        "path": "GasGenerator.CasingVibration",
+        "label": "Gas generator casing vibration (velocity)",
+        "unit": "mm/s",
+        "range": [
+          0,
+          50
+        ],
+        "noise": 0.04,
+        "opc": null
+      },
+      {
+        "metric": "pt_prox_um",
+        "path": "PowerTurbine.ShaftVibration",
+        "label": "Power turbine bearing shaft vibration (proximity, pk-pk)",
+        "unit": "um",
+        "range": [
+          0,
+          250
+        ],
+        "noise": 0.4,
+        "opc": null
+      },
+      {
+        "metric": "gen_vib_mm_s",
+        "path": "Generator.BearingVibration",
+        "label": "Generator bearing vibration (velocity)",
+        "unit": "mm/s",
+        "range": [
+          0,
+          50
+        ],
+        "noise": 0.03,
+        "opc": null
+      },
+      {
+        "metric": "lube_oil_pressure_bar",
+        "path": "LubeOil.HeaderPressure",
+        "label": "Lube oil header pressure",
+        "unit": "bar(g)",
+        "range": [
+          0,
+          6
+        ],
+        "noise": 0.005,
+        "opc": null
+      },
+      {
+        "metric": "lube_oil_temp_c",
+        "path": "LubeOil.HeaderTemperature",
+        "label": "Lube oil header temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          120
+        ],
+        "noise": 0.05,
+        "opc": null
+      },
+      {
+        "metric": "brg_gg_temp_c",
+        "path": "GasGenerator.BearingDrainTemperature",
+        "label": "Gas generator bearing drain temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          160
+        ],
+        "noise": 0.1,
+        "opc": null
+      },
+      {
+        "metric": "brg_pt_temp_c",
+        "path": "PowerTurbine.BearingDrainTemperature",
+        "label": "Power turbine bearing drain temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          160
+        ],
+        "noise": 0.1,
+        "opc": null
+      },
+      {
+        "metric": "brg_gen_temp_c",
+        "path": "Generator.BearingTemperature",
+        "label": "Generator bearing temperature",
+        "unit": "degC",
+        "range": [
+          0,
+          160
+        ],
+        "noise": 0.1,
+        "opc": null
+      },
+      {
+        "metric": "running_hours",
+        "path": "Counters.RunningHours",
+        "label": "Fired hours",
+        "unit": "h",
+        "range": [
+          0,
+          1000000.0
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "starts",
+        "path": "Counters.Starts",
+        "label": "Starts",
+        "unit": "count",
+        "range": [
+          0,
+          1000000.0
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "washes",
+        "path": "Counters.OfflineWashes",
+        "label": "Off-line compressor washes",
+        "unit": "count",
+        "range": [
+          0,
+          100000.0
+        ],
+        "noise": 0,
+        "opc": null
+      },
+      {
+        "metric": "fault_code",
+        "path": "Control.TripCode",
+        "label": "Protection trip (0 none, 2 lube oil temperature, 3 PT shaft vibration)",
+        "unit": "code",
+        "range": [
+          0,
+          9
+        ],
+        "noise": 0,
+        "opc": null
+      }
+    ]
+  },
+  "twin_model": {
+    "limits": {
+      "min_load_frac": 0.3,
+      "eta_c_dev_alert_pts": -1.0,
+      "egt_dev_alert_k": 12.0,
+      "hr_dev_alert_pct": 3.0,
+      "egt_spread_alert_k": 45.0,
+      "egt_spread_trip_k": 80.0,
+      "tc_low_alert_k": 40.0,
+      "tc_high_quiet_k": 25.0,
+      "filter_dp_alert_pa": 1500.0,
+      "filter_dp_high_pa": 2000.0,
+      "gg_vib_alert_mm_s": 9.3,
+      "gg_vib_high_mm_s": 14.7,
+      "pt_prox_alert_um": 75.0,
+      "pt_prox_trip_um": 125.0,
+      "brg_temp_alert_c": 110.0,
+      "lube_temp_alert_c": 65.0,
+      "lube_temp_trip_c": 80.0
+    },
+    "limits_basis": "Typical public values (see standards); set from site baselines in a real installation"
+  },
+  "failure_modes": {
+    "compressor_fouling": {
+      "label": "Compressor fouling",
+      "cause": "Airborne dust, salt and oil mist that pass the filter stick to the compressor blades: less air, lower compressor efficiency",
+      "detect": [
+        "eta_c_dev_pts",
+        "hr_dev_pct",
+        "cdp_dev_pct",
+        "egt_dev_k"
+      ],
+      "action": "On-line wash now; schedule an off-line (crank) wash, which restores virtually all of the lost power",
+      "default_ramp_min": 30
+    },
+    "hot_section": {
+      "label": "Hot-section degradation",
+      "cause": "Erosion, coating loss or blocked cooling passages in the compressor turbine: lower turbine efficiency",
+      "detect": [
+        "egt_dev_k",
+        "hr_dev_pct",
+        "ngg_expected_pct"
+      ],
+      "action": "Borescope inspection of the combustor and compressor turbine; plan the hot-section overhaul",
+      "default_ramp_min": 30
+    },
+    "burner_fault": {
+      "label": "Burner / fuel nozzle fault (one can hot)",
+      "cause": "A partly blocked or eroded fuel nozzle sends a hot streak downstream of one of the six combustor cans",
+      "detect": [
+        "egt_spread_k",
+        "tc_high_dev_k"
+      ],
+      "action": "Check the burner of the hot sector (swirl-corrected); inspect the can and its transition duct",
+      "default_ramp_min": 10
+    },
+    "thermocouple_fault": {
+      "label": "Exhaust thermocouple fault",
+      "cause": "One exhaust thermocouple (TC5) drifts low or goes open-circuit: the sensor, not the engine",
+      "detect": [
+        "tc_low_dev_k",
+        "egt_spread_k"
+      ],
+      "action": "Replace the thermocouple; do not chase a combustion problem",
+      "default_ramp_min": 5
+    },
+    "inlet_filter": {
+      "label": "Inlet filter clogging",
+      "cause": "Dust load on the filter elements raises the pressure drop; less air reaches the compressor",
+      "detect": [
+        "inlet_filter_dp_pa"
+      ],
+      "action": "Pulse-clean or replace the filter elements",
+      "default_ramp_min": 20
+    },
+    "bearing_wear": {
+      "label": "Power turbine bearing wear",
+      "cause": "Worn tilting-pad bearing on the power turbine: shaft vibration and drain temperature rise",
+      "detect": [
+        "pt_prox_um",
+        "brg_pt_temp_c"
+      ],
+      "action": "Plan a bearing inspection; trend the shaft orbit; check oil quality",
+      "default_ramp_min": 20
+    },
+    "lube_cooler": {
+      "label": "Lube oil cooler fouling",
+      "cause": "Fouled oil cooler or a failed cooler fan: the lube oil header temperature rises and every bearing runs hotter",
+      "detect": [
+        "lube_oil_temp_c",
+        "brg_gg_temp_c"
+      ],
+      "action": "Clean the lube oil cooler; check the cooler fans and the thermostatic valve",
+      "default_ramp_min": 15
+    }
+  },
+  "presentation": {
+    "category": "Gas turbine",
+    "kpis": [
+      {
+        "metric": "power_mw",
+        "label": "Power",
+        "unit": "MW",
+        "decimals": 2
+      },
+      {
+        "metric": "inlet_temp_c",
+        "label": "T1",
+        "unit": "°C",
+        "decimals": 1
+      },
+      {
+        "metric": "ngg_pct",
+        "label": "NGG",
+        "unit": "%",
+        "decimals": 1
+      },
+      {
+        "metric": "cdp_bar",
+        "label": "CDP",
+        "unit": "bar(a)",
+        "decimals": 2
+      }
+    ],
+    "twin_kpis": [
+      {
+        "metric": "hr_dev_pct",
+        "label": "Heat rate vs. twin",
+        "unit": "%",
+        "decimals": 1
+      },
+      {
+        "metric": "egt_spread_k",
+        "label": "EGT spread",
+        "unit": "K",
+        "decimals": 0
+      }
+    ],
+    "compare": [
+      {
+        "label": "Heat rate",
+        "measured": "heat_rate_kj_kwh",
+        "expected": "hr_expected_kj_kwh",
+        "unit": "kJ/kWh",
+        "decimals": 0,
+        "basis": "Calibrated cycle at this load and T1 (SGT-400 ISO 10,294 kJ/kWh)"
+      },
+      {
+        "label": "Exhaust temperature (average)",
+        "measured": "egt_avg_c",
+        "expected": "egt_expected_c",
+        "unit": "°C",
+        "decimals": 1,
+        "basis": "Calibrated cycle (ISO 555 °C)"
+      },
+      {
+        "label": "Compressor discharge pressure",
+        "measured": "cdp_bar",
+        "expected": "cdp_expected_bar",
+        "unit": "bar(a)",
+        "decimals": 2,
+        "basis": "Calibrated cycle x delta (ISO PR 17.1)"
+      },
+      {
+        "label": "Compressor discharge temperature",
+        "measured": "cdt_c",
+        "expected": "cdt_expected_c",
+        "unit": "°C",
+        "decimals": 1,
+        "basis": "Calibrated cycle"
+      },
+      {
+        "label": "Gas generator speed",
+        "measured": "ngg_pct",
+        "expected": "ngg_expected_pct",
+        "unit": "%",
+        "decimals": 1,
+        "basis": "Calibrated cycle"
+      },
+      {
+        "label": "Compressor isentropic efficiency",
+        "measured": "eta_c_pct",
+        "expected": "eta_c_expected_pct",
+        "unit": "%",
+        "decimals": 1,
+        "basis": "From PR and T2/T1, gamma 1.4"
+      },
+      {
+        "label": "EGT spread",
+        "measured": "egt_spread_k",
+        "expected": null,
+        "unit": "K",
+        "decimals": 0,
+        "basis": "max - min of 6 TCs; alarm 45 K"
+      }
+    ],
+    "trends": [
+      {
+        "metric": "hr_dev_pct",
+        "label": "Heat rate deviation %"
+      },
+      {
+        "metric": "eta_c_dev_pts",
+        "label": "Compressor efficiency pts"
+      },
+      {
+        "metric": "egt_dev_k",
+        "label": "EGT deviation K"
+      },
+      {
+        "metric": "egt_spread_k",
+        "label": "EGT spread K"
+      }
+    ],
+    "design": [
+      {
+        "label": "Gas turbine",
+        "value": "Siemens Energy SGT-400, 13 MW power generation: 12.9 MWe, 35.0 %, 10,294 kJ/kWh, PR 17.1, 40.0 kg/s at 555 °C"
+      },
+      {
+        "label": "Machine",
+        "value": "11-stage compressor, 2-stage compressor turbine, 2-stage free power turbine at 9,500 rpm, 6 can-annular DLE combustors"
+      },
+      {
+        "label": "Package",
+        "value": "14.0 x 3.1 x 4.3 m, 83,825 kg; gearbox to a 4-pole 50 Hz generator (assumed)"
+      },
+      {
+        "label": "Duty",
+        "value": "Gulf-coast site, 24-38 °C day, plant load 7-11 MW"
+      },
+      {
+        "label": "Source",
+        "value": "Siemens Energy SGT-400 product page; cycle constants calibrated to it (not Siemens data); 3D visual built from the published package dimensions"
+      }
+    ]
+  },
+  "expected_fit": {
+    "x": "POWER_MW / (delta * 12.9)",
+    "y": "T1 degC",
+    "terms": [
+      [
+        0,
+        0
+      ],
+      [
+        0,
+        1
+      ],
+      [
+        0,
+        2
+      ],
+      [
+        1,
+        0
+      ],
+      [
+        1,
+        1
+      ],
+      [
+        1,
+        2
+      ],
+      [
+        2,
+        0
+      ],
+      [
+        2,
+        1
+      ],
+      [
+        2,
+        2
+      ],
+      [
+        3,
+        0
+      ],
+      [
+        3,
+        1
+      ],
+      [
+        3,
+        2
+      ]
+    ],
+    "n_points": 918,
+    "x_range": [
+      0.196,
+      1.112
+    ],
+    "y_range": [
+      -5,
+      47
+    ],
+    "fuel_rel": [
+      0.07843731851,
+      -1.400282738e-05,
+      -1.878346785e-07,
+      0.8058044741,
+      0.001116162677,
+      3.506419802e-06,
+      -0.2109558334,
+      -0.001552181424,
+      -1.592434052e-05,
+      0.0655787568,
+      0.000779395039,
+      1.555737152e-05
+    ],
+    "fuel_rel_max_err": 0.0007,
+    "cdp_rel": [
+      5.018874154,
+      -0.006293877801,
+      4.712182946e-06,
+      17.78201825,
+      0.005374813552,
+      0.0001654167689,
+      -7.452673756,
+      -0.03932254532,
+      -0.0005430829932,
+      2.331041303,
+      0.02229807939,
+      0.0005291074209
+    ],
+    "cdp_rel_max_err": 0.0251,
+    "cdt": [
+      196.2128563,
+      1.456807636,
+      -0.0003833087149,
+      377.894627,
+      2.255640716,
+      0.007022437972,
+      -258.6114513,
+      -2.763303929,
+      -0.02683576912,
+      85.62222038,
+      1.297498567,
+      0.02517288644
+    ],
+    "cdt_max_err": 1.0267,
+    "egt": [
+      244.9681467,
+      1.371819846,
+      -0.0008327172789,
+      573.1160254,
+      4.048691849,
+      0.01434416346,
+      -454.4797465,
+      -5.383659653,
+      -0.05382084186,
+      156.4708829,
+      2.54992425,
+      0.0502824938
+    ],
+    "egt_max_err": 2.0501,
+    "ngg": [
+      66.59504838,
+      -0.033824934,
+      2.794152706e-05,
+      59.18359815,
+      0.09086913492,
+      0.0007111709457,
+      -37.00341868,
+      -0.2191961849,
+      -0.002799450863,
+      11.97369851,
+      0.1217130541,
+      0.002754236464
+    ],
+    "ngg_max_err": 0.1337,
+    "base_load_iso": [
+      [
+        -30,
+        1.0583,
+        0.967,
+        103.0
+      ],
+      [
+        -28,
+        1.0628,
+        0.9671,
+        103.0
+      ],
+      [
+        -26,
+        1.0672,
+        0.9673,
+        103.0
+      ],
+      [
+        -24,
+        1.0716,
+        0.9674,
+        103.0
+      ],
+      [
+        -22,
+        1.076,
+        0.9676,
+        103.0
+      ],
+      [
+        -20,
+        1.0804,
+        0.9677,
+        103.0
+      ],
+      [
+        -18,
+        1.0848,
+        0.9678,
+        103.0
+      ],
+      [
+        -16,
+        1.0891,
+        0.9679,
+        103.0
+      ],
+      [
+        -14,
+        1.0934,
+        0.9681,
+        103.0
+      ],
+      [
+        -12,
+        1.0978,
+        0.9682,
+        103.0
+      ],
+      [
+        -10,
+        1.1021,
+        0.9683,
+        103.0
+      ],
+      [
+        -8,
+        1.1063,
+        0.9684,
+        103.0
+      ],
+      [
+        -6,
+        1.1106,
+        0.9685,
+        103.0
+      ],
+      [
+        -4,
+        1.1149,
+        0.9686,
+        103.0
+      ],
+      [
+        -2,
+        1.1191,
+        0.9688,
+        103.0
+      ],
+      [
+        0,
+        1.1233,
+        0.9689,
+        103.0
+      ],
+      [
+        2,
+        1.1276,
+        0.969,
+        103.0
+      ],
+      [
+        4,
+        1.1263,
+        0.97,
+        102.9
+      ],
+      [
+        6,
+        1.1019,
+        0.9754,
+        102.35
+      ],
+      [
+        8,
+        1.0781,
+        0.9808,
+        101.81
+      ],
+      [
+        10,
+        1.055,
+        0.9863,
+        101.28
+      ],
+      [
+        12,
+        1.0326,
+        0.9917,
+        100.76
+      ],
+      [
+        14,
+        1.0107,
+        0.9972,
+        100.25
+      ],
+      [
+        16,
+        0.9895,
+        1.0028,
+        99.75
+      ],
+      [
+        18,
+        0.9688,
+        1.0083,
+        99.25
+      ],
+      [
+        20,
+        0.9486,
+        1.0139,
+        98.77
+      ],
+      [
+        22,
+        0.929,
+        1.0196,
+        98.29
+      ],
+      [
+        24,
+        0.9099,
+        1.0253,
+        97.81
+      ],
+      [
+        26,
+        0.8913,
+        1.031,
+        97.35
+      ],
+      [
+        28,
+        0.8732,
+        1.0367,
+        96.89
+      ],
+      [
+        30,
+        0.8555,
+        1.0425,
+        96.44
+      ],
+      [
+        32,
+        0.8383,
+        1.0483,
+        96.0
+      ],
+      [
+        34,
+        0.8216,
+        1.0542,
+        95.56
+      ],
+      [
+        36,
+        0.8052,
+        1.0601,
+        95.13
+      ],
+      [
+        38,
+        0.7893,
+        1.066,
+        94.71
+      ],
+      [
+        40,
+        0.7737,
+        1.072,
+        94.29
+      ],
+      [
+        42,
+        0.7586,
+        1.078,
+        93.88
+      ],
+      [
+        44,
+        0.7438,
+        1.0841,
+        93.47
+      ],
+      [
+        46,
+        0.7293,
+        1.0902,
+        93.07
+      ],
+      [
+        48,
+        0.7152,
+        1.0963,
+        92.68
+      ],
+      [
+        50,
+        0.7015,
+        1.1025,
+        92.29
+      ]
+    ]
+  }
+}

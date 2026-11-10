@@ -1,6 +1,6 @@
 # Digital Twin for Maximo
 
-Code that goes with four IBM Community posts on building physics-based digital twins of Maximo assets
+Code that goes with six IBM Community posts on building physics-based digital twins of Maximo assets
 with standard Maximo Monitor and Maximo Manage features:
 
 | Asset | Twin folder | Post |
@@ -9,6 +9,8 @@ with standard Maximo Monitor and Maximo Manage features:
 | CH-201, BITZER screw chiller | `chiller-twin` | A chiller that knows its compressor map |
 | CT-301, BAC FXV closed-circuit cooling tower | `tower-twin` | A cooling tower that knows the weather |
 | FCV-401, KSB BOA-CVE IMS control valve | `valve-twin` | A valve that knows its Kv |
+| GT-501, Siemens Energy SGT-400 13 MW gas turbine | `turbine-twin` | A gas turbine that knows its heat rate |
+| TR-601, SGB-SMIT DOTML 1000 kVA oil distribution transformer | `transformer-twin` | A transformer that knows its hot spot |
 
 The posts are on the IBM Community (Maximo group), by Mohamed Chihaoui.
 
@@ -19,9 +21,10 @@ The posts are on the IBM Community (Maximo group), by Mohamed Chihaoui.
                                   limits and failure modes
 <asset>-twin/twin_calc.py         the twin's physics: Monitor PythonExpression formulas and AlertExpression rules generated
                                   from the twin file, and the same numbers computed in Python
-<asset>-twin/build_twin.py        (chiller, tower, valve) builds the twin file from the manufacturer's published data
+<asset>-twin/build_twin.py        builds the twin file from the manufacturer's published data
 chiller-twin/data/                BITZER EN 12900 polynomial coefficients fitted to BITZER SOFTWARE
 tower-twin/tools/sat2glb.py       turns BAC's ACIS (.sat) CAD into glTF for the 3D view
+turbine-twin, transformer-twin    also physics.py: the stand-in plant (calibrated gas turbine cycle; IEC 60076-7 thermal model + gas-in-oil)
 
 digital-twin/monitor/twin_monitor.py   creates, through the Monitor API, the device type (one metric per sensor), the device
                                        (id = Manage asset number), the functions, the alert rules and the dashboard

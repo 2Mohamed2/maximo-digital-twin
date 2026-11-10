@@ -42,5 +42,27 @@
     "device": "FCV-401",
     "model": "KSB BOA-CVE IMS DN 100 PN 16 EA-C 40",
     "version": "1.0.0"
+  },
+  {
+    "assetnum": "GT-501",
+    "siteid": "BEDFORD",
+    "description": "Gas turbine generator set 501 - Siemens Energy SGT-400 13 MW (digital twin)",
+    "dir": "turbine-twin",
+    "url": "https://turbinetwin.monitor.<your-mas-domain>",
+    "devtype": "GAS_TURBINE",
+    "device": "GT-501",
+    "model": "Siemens Energy SGT-400 13 MW",
+    "version": "1.0.0"
+  },
+  {
+    "assetnum": "TR-601",
+    "siteid": "BEDFORD",
+    "description": "Distribution transformer 601 - SGB-SMIT DOTML 1000 kVA oil hermetic (digital twin)",
+    "dir": "transformer-twin",
+    "url": "https://transformertwin.monitor.<your-mas-domain>",
+    "devtype": "OIL_TRANSFORMER",
+    "device": "TR-601",
+    "model": "SGB-SMIT DOTML 1000 kVA 24 kV hermetic",
+    "version": "1.0.0"
   }
 ]
