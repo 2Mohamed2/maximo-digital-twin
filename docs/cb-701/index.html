@@ -1,0 +1,498 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Interactive 3D view: how SF6 circuit breaker data travels from the switchyard through the bay IED, substation automation, SCADA and the DMZ into IBM Maximo Monitor, Health and Manage.">
+<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px}[hidden]{display:none!important}</style>
+<title>SF6 Breaker Data Path</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: full-screen 3D substation-to-Maximo scene, HUD panels float over it; on phones the detail panel becomes a bottom sheet.
+   Committed single dark look (control-room / IBM Carbon g100). */
+:root {
+  color-scheme: dark;
+  --bg: #161616; --layer: #262626; --layer2: #393939; --line: #525252;
+  --fg: #f4f4f4; --muted: #a8a8a8; --faint: #6f6f6f;
+  --blue: #4589ff; --green: #42be65; --yellow: #f1c21b; --red: #fa4d56;
+  --purple: #a56eff; --teal: #08bdba; --cyan: #33b1ff; --magenta: #ff7eb6;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); overflow: hidden; }
+#stage { position: fixed; inset: 0; }
+#stage canvas { display: block; }
+.hud { position: fixed; z-index: 5; background: rgba(22,22,22,.86); border: 1px solid var(--line); backdrop-filter: blur(6px); }
+#top { top: calc(12px + env(safe-area-inset-top, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); max-width: min(560px, calc(100vw - 32px)); padding: 12px 14px; }
+#top h1 { margin: 0; font-size: 18px; font-weight: 600; letter-spacing: .01em; text-wrap: balance; }
+#top p { margin: 4px 0 10px; color: var(--muted); font-size: 12.5px; line-height: 1.45; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 11px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.legend i { width: 18px; height: 3px; display: inline-block; border-radius: 2px; }
+#panel { top: calc(12px + env(safe-area-inset-top, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); width: 340px; max-height: calc(100% - 150px); overflow: auto; padding: 14px; }
+#panel .x { position: absolute; top: 8px; right: 8px; padding: 2px 8px; font-size: 14px; line-height: 1; }
+#panel .eyebrow { font: 500 10.5px var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+#panel h2 { margin: 4px 0 6px; font-size: 16px; font-weight: 600; }
+#panel .what { color: var(--muted); font-size: 12.5px; line-height: 1.5; margin: 0 0 10px; }
+.kv { display: grid; grid-template-columns: auto 1fr; gap: 5px 10px; font-size: 12px; margin: 8px 0 4px; }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; font-family: var(--mono); font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 8px; }
+.chip { font: 11px var(--mono); padding: 2px 7px; border: 1px solid var(--line); color: var(--fg); }
+#bottom { left: 50%; transform: translateX(-50%); bottom: calc(12px + env(safe-area-inset-bottom, 0px)); display: flex; flex-wrap: wrap; gap: 10px; align-items: stretch; padding: 10px 12px; max-width: calc(100vw - 32px); }
+.tile { min-width: 132px; padding: 6px 10px; border-left: 3px solid var(--green); background: var(--layer); }
+.tile .lab { font: 500 10px var(--mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); }
+.tile .val { font: 500 18px var(--mono); font-variant-numeric: tabular-nums; margin-top: 2px; }
+.tile .sub { font-size: 11px; color: var(--muted); }
+.tile.warn { border-left-color: var(--yellow); }
+.tile.bad { border-left-color: var(--red); }
+.btns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+button { font: 500 12.5px var(--sans); color: var(--fg); background: var(--layer2); border: 1px solid var(--line); padding: 8px 12px; cursor: pointer; }
+button:hover { border-color: var(--blue); }
+button:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+button.danger { border-color: var(--red); color: #ffb3b8; }
+.lbl { font: 500 11px var(--sans); color: var(--fg); background: rgba(22,22,22,.82); border: 1px solid var(--line); padding: 2px 7px; white-space: nowrap; cursor: pointer; pointer-events: auto; }
+.lbl small { display: block; font: 10px var(--mono); color: var(--muted); }
+.lbl.sel { border-color: var(--blue); }
+.lbl.alarm { border-color: var(--yellow); color: var(--yellow); }
+.lbl.lock { border-color: var(--red); color: #ffb3b8; }
+.zone { font: 600 11px var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); white-space: nowrap; text-align: center; pointer-events: none; }
+.zone b { display: block; font-weight: 500; letter-spacing: .02em; text-transform: none; color: var(--faint); font-size: 10px; }
+#events { margin-top: 10px; border-top: 1px solid var(--line); padding-top: 8px; font: 11px var(--mono); color: var(--muted); max-height: 160px; overflow: auto; }
+#events div { padding: 2px 0; }
+#events .w { color: var(--yellow); } #events .r { color: #ffb3b8; } #events .g { color: var(--green); }
+.note { font-size: 11px; color: var(--faint); margin-top: 8px; line-height: 1.4; }
+@media (max-width: 760px) {
+  #top p, .legend { display: none; }
+  #panel { top: auto; bottom: calc(118px + env(safe-area-inset-bottom, 0px)); left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); width: auto; max-height: 34%; }
+  #bottom { left: max(16px, env(safe-area-inset-left, 0px)); right: max(16px, env(safe-area-inset-right, 0px)); transform: none; max-width: none; }
+  .tile { min-width: 0; flex: 1 1 40%; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+</style>
+
+</head>
+<body>
+<div id="stage" aria-label="3D view of the SF6 circuit breaker data path from substation to Maximo"></div>
+
+<div id="top" class="hud">
+  <h1>SF6 breaker CB-701: where its data goes</h1>
+  <p>From the gas-density monitor on each pole, through the bay IED and substation automation, into control-centre SCADA, across the DMZ and into Maximo. Drag to orbit, scroll to zoom, click any box. Values are typical examples for a 145 kV dead-tank breaker. <a href="https://community.ibm.com/community/user/blogs/mohamed-chihaoui/2026/11/10/sf6-circuit-breaker-digital-twin-in-maximo" style="color:#78a9ff">Read the CB-701 post</a> · <a href="https://github.com/2Mohamed2/maximo-digital-twin/tree/main/breaker-twin" style="color:#78a9ff">Twin code</a></p>
+  <div class="legend" id="legend"></div>
+</div>
+
+<aside id="panel" class="hud" aria-live="polite"></aside>
+
+<div id="bottom" class="hud">
+  <div class="tile" id="t-dens"><div class="lab">SF6 density @20 °C</div><div class="val" id="v-dens">0.600 MPa</div><div class="sub">alarm 0.520 · lockout 0.500</div></div>
+  <div class="tile" id="t-scada"><div class="lab">SCADA sees</div><div class="val" id="v-scada">Normal</div><div class="sub">binary alarms only</div></div>
+  <div class="tile" id="t-health"><div class="lab">Maximo Health</div><div class="val" id="v-health">92</div><div class="sub" id="v-hsub">trend: stable</div></div>
+  <div class="btns">
+    <button class="danger" id="b-leak" type="button">Start SF6 leak</button>
+    <button id="b-trip" type="button">Trip + close</button>
+    <button id="b-refill" type="button">Refill + repair</button>
+    <button id="b-rot" type="button" aria-pressed="false">Auto-rotate</button>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+<script>
+(() => {
+'use strict';
+const C = { blue: 0x4589ff, green: 0x42be65, yellow: 0xf1c21b, red: 0xfa4d56, purple: 0xa56eff, teal: 0x08bdba, cyan: 0x33b1ff, magenta: 0xff7eb6, steel: 0x8d8d8d, dark: 0x262626, panel: 0x393939, glass: 0x9ec5ff };
+
+// ── protocols (link colours) ───────────────────────────────────────────────
+const PROTO = {
+  wire:  { name: 'Hard-wired alarm contacts', color: C.yellow },
+  ana:   { name: '4–20 mA / Modbus RTU', color: C.teal },
+  i61850:{ name: 'IEC 61850 MMS / GOOSE', color: C.blue },
+  i104:  { name: 'IEC 60870-5-104 / DNP3', color: C.purple },
+  hist:  { name: 'Historian replication', color: C.cyan },
+  mqtt:  { name: 'MQTT / REST', color: C.green },
+  mx:    { name: 'Maximo internal', color: C.magenta },
+};
+document.getElementById('legend').innerHTML = Object.values(PROTO).map(p =>
+  `<span><i style="background:#${p.color.toString(16).padStart(6,'0')}"></i>${p.name}</span>`).join('');
+
+// ── renderer / scene ───────────────────────────────────────────────────────
+const stage = document.getElementById('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(0x161616);
+stage.appendChild(renderer.domElement);
+const labels = new THREE.CSS2DRenderer();
+labels.domElement.style.position = 'absolute'; labels.domElement.style.top = '0'; labels.domElement.style.pointerEvents = 'none';
+stage.appendChild(labels.domElement);
+
+const scene = new THREE.Scene();
+scene.fog = new THREE.Fog(0x161616, 70, 150);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400);
+camera.position.set(-2, 40, 70);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.target.set(7, 1, 0); controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 12; controls.maxDistance = 110;
+
+scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x202020, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(-20, 40, 25); scene.add(sun);
+
+const grid = new THREE.GridHelper(120, 60, 0x333333, 0x262626); scene.add(grid);
+
+const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: o.r ?? 0.6, metalness: o.m ?? 0.2, emissive: o.e ?? 0x000000, emissiveIntensity: o.ei ?? 1, transparent: !!o.t, opacity: o.t ?? 1 });
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const cyl = (rt, rb, h, m, seg = 24) => new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m);
+
+function label(html, cls = 'lbl') { const d = document.createElement('div'); d.className = cls; d.innerHTML = html; return new THREE.CSS2DObject(d); }
+
+// ── Purdue zones on the floor ──────────────────────────────────────────────
+const ZONES = [
+  { x: -30, w: 12, name: 'Level 0', sub: 'switchyard: breaker + sensors' },
+  { x: -17, w: 10, name: 'Level 1', sub: 'bay control / protection' },
+  { x: -5, w: 12, name: 'Level 2', sub: 'substation automation' },
+  { x: 8.5, w: 13, name: 'Level 3', sub: 'control centre (OT)' },
+  { x: 19.5, w: 7, name: 'DMZ', sub: 'one-way out' },
+  { x: 31, w: 14, name: 'Level 4', sub: 'enterprise IT · Maximo' },
+];
+ZONES.forEach((z, i) => {
+  const tint = z.name === 'DMZ' ? C.red : i >= 5 ? C.green : C.blue;
+  const plate = new THREE.Mesh(new THREE.PlaneGeometry(z.w - 0.6, 26), new THREE.MeshBasicMaterial({ color: tint, transparent: true, opacity: z.name === 'DMZ' ? 0.07 : 0.035, depthWrite: false }));
+  plate.rotation.x = -Math.PI / 2; plate.position.set(z.x, 0.02, 0); scene.add(plate);
+  const edge = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(z.w - 0.6, 26)), new THREE.LineBasicMaterial({ color: tint, transparent: true, opacity: 0.35 }));
+  edge.rotation.x = -Math.PI / 2; edge.position.copy(plate.position); scene.add(edge);
+  const l = label(`${z.name}<b>${z.sub}</b>`, 'zone'); l.position.set(z.x, 0.1, 14.5); scene.add(l);
+});
+
+// ── nodes ──────────────────────────────────────────────────────────────────
+const nodes = {};       // id -> { group, lbl, info, lamps: [] }
+const pickables = [];
+function node(id, group, pos, title, sub, info) {
+  group.position.copy(pos); group.userData.id = id; scene.add(group);
+  group.traverse(o => { if (o.isMesh) { o.userData.id = id; pickables.push(o); } });
+  const l = label(`${title}<small>${sub}</small>`);
+  const top = new THREE.Box3().setFromObject(group).max.y;
+  l.position.set(pos.x, top + 1.2, pos.z); scene.add(l);
+  l.element.addEventListener('click', e => { e.stopPropagation(); select(id); });
+  nodes[id] = { group, lbl: l, info, lamps: [] };
+  return nodes[id];
+}
+function lamp(n, x, y, z, color = C.green, r = 0.18) {
+  const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2 }));
+  m.position.set(x, y, z); n.group.add(m); m.userData.id = n.group.userData.id; n.lamps.push(m); pickables.push(m); return m;
+}
+function setLamp(m, color) { m.material.color.setHex(color); m.material.emissive.setHex(color); }
+
+function cabinet(w, h, d, faceColor = C.panel) {
+  const g = new THREE.Group();
+  const body = box(w, h, d, mat(0x4c4c4c, { m: 0.4, r: 0.5 })); body.position.y = h / 2; g.add(body);
+  const face = box(w * 0.86, h * 0.8, 0.05, mat(faceColor, { r: 0.4 })); face.position.set(0, h / 2, d / 2 + 0.03); g.add(face);
+  return g;
+}
+function screen(w, h, color) {
+  const g = new THREE.Group();
+  const frame = box(w + 0.2, h + 0.2, 0.15, mat(0x1f1f1f)); g.add(frame);
+  const s = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color })); s.position.z = 0.08; g.add(s);
+  g.userData.screen = s; return g;
+}
+
+// Level 0: the breaker — three dead-tank poles, bushings, mechanism cabinet, density monitors
+const brk = new THREE.Group();
+const tankMat = mat(0xb4b4b4, { m: 0.55, r: 0.35 });
+const porcelain = mat(0x7a5a46, { r: 0.7 });
+const monitors = [];
+for (let i = 0; i < 3; i++) {
+  const z = -5 + i * 5;
+  const tank = cyl(1.0, 1.0, 5.4, tankMat); tank.rotation.z = Math.PI / 2; tank.position.set(0, 3.3, z); brk.add(tank);
+  [-2.7, 2.7].forEach(x => { const cap = new THREE.Mesh(new THREE.SphereGeometry(1.0, 20, 12, 0, Math.PI * 2, 0, Math.PI / 2), tankMat); cap.rotation.z = x < 0 ? Math.PI / 2 : -Math.PI / 2; cap.position.set(x, 3.3, z); brk.add(cap); });
+  [-1.5, 1.5].forEach(x => {
+    const b = cyl(0.22, 0.32, 4.6, porcelain, 14); b.position.set(x, 6.4, z); b.rotation.z = x < 0 ? 0.18 : -0.18; brk.add(b);
+    for (let k = 0; k < 7; k++) { const shed = cyl(0.46, 0.46, 0.08, porcelain, 16); shed.position.set(x + (x < 0 ? -1 : 1) * (0.1 + k * 0.08), 4.6 + k * 0.55, z); brk.add(shed); }
+  });
+  [-2, 2].forEach(x => { const leg = box(0.25, 2.3, 0.25, mat(0x6f6f6f, { m: 0.6 })); leg.position.set(x, 1.15, z); brk.add(leg); });
+  // density monitor (gauge disc on the tank)
+  const dm = new THREE.Group();
+  const disc = cyl(0.38, 0.38, 0.16, mat(0xe0e0e0, { m: 0.5 })); disc.rotation.x = Math.PI / 2; dm.add(disc);
+  dm.position.set(0.8, 3.3, z + 1.06); brk.add(dm); monitors.push(dm);
+}
+const mech = box(1.8, 2.2, 1.4, mat(0x6f6f6f, { m: 0.4 })); mech.position.set(-3.6, 2.2, 5); brk.add(mech);
+const N_BRK = node('breaker', brk, new THREE.Vector3(-30, 0, 0), 'CB-701 SF6 breaker', '145 kV · 3 poles · 3 density monitors', {
+  eyebrow: 'Level 0 · switchyard', title: 'CB-701 SF6 dead-tank breaker',
+  what: 'Each pole is a sealed tank of SF6 gas that quenches the arc. A temperature-compensated density monitor sits on every pole; the mechanism cabinet holds the spring motor, coils and auxiliary contacts.',
+  kv: [['Rated density', '0.60 MPa abs @20 °C'], ['Stage 1 (refill)', '0.52 MPa'], ['Stage 2 (lockout)', '0.50 MPa'], ['Other sensors', 'coil current, op. time, spring motor, position, counter']],
+  chips: ['density', 'gas temp', 'trip/close time', 'coil current', 'I²t wear', 'op. counter'],
+});
+monitors.forEach((m, i) => { lamp(N_BRK, 0.8 + 0.42, 3.3 + 0.32, -5 + i * 5 + 1.12, C.green, 0.13); });
+
+// Level 1: bay IED + condition monitor
+const N_IED = node('ied', cabinet(2.2, 4.2, 1.4), new THREE.Vector3(-18.5, 0, -4), 'Bay IED / protection relay', 'IEC 61850 server', {
+  eyebrow: 'Level 1 · bay control', title: 'Bay controller / protection IED',
+  what: 'Reads the density monitor alarm contacts and breaker auxiliaries as binary inputs, computes contact wear (I²t) and the operation counter from the CT currents, and publishes everything as IEC 61850 logical nodes (SIMG for gas, XCBR for the breaker).',
+  kv: [['Inputs', 'alarm contacts, position, CTs'], ['Publishes', 'IEC 61850 MMS reports + GOOSE'], ['Logical nodes', 'SIMG1, XCBR1, CSWI1']],
+  chips: ['SIMG.InsAlm', 'SIMG.InsBlk', 'XCBR.Pos', 'XCBR.OpCnt', 'XCBR.SumSwARs'],
+});
+lamp(N_IED, 0.6, 3.4, 0.76); lamp(N_IED, 0, 3.4, 0.76, C.green); lamp(N_IED, -0.6, 3.4, 0.76, C.green);
+const N_CM = node('cm', cabinet(2.0, 3.4, 1.2, 0x24324a), new THREE.Vector3(-16, 0, 5), 'Condition monitor', 'online, vendor system', {
+  eyebrow: 'Level 1 · condition monitoring', title: 'Online condition-monitoring unit',
+  what: 'Optional vendor system (ABB SwitchgearCare, GE CBWatch, Qualitrol, Siemens Sensgear…) with its own digital density sensors and coil-current transducers. Holds the richest data: the continuous density trend, leak rate and coil waveforms.',
+  kv: [['Inputs', 'digital density sensors, coil CTs'], ['Outputs', 'IEC 61850, Modbus TCP, vendor API'], ['Keeps', 'trend + waveforms']],
+  chips: ['density trend', 'leak rate', 'coil waveform', 'motor run time'],
+});
+lamp(N_CM, 0, 2.8, 0.66, C.green);
+
+// Level 2: SAS gateway + station HMI
+const N_GW = node('gw', cabinet(1.8, 4.6, 1.4), new THREE.Vector3(-6.5, 0, 0), 'SAS gateway', 'station computer / RTU', {
+  eyebrow: 'Level 2 · substation automation', title: 'Substation gateway (station computer / RTU)',
+  what: 'Collects IEC 61850 reports from every bay and maps a lean point list to the control centre over IEC 60870-5-104 or DNP3. Usually only alarms and status cross: the continuous density value often stays in the substation.',
+  kv: [['Station bus', 'IEC 61850'], ['Upstream', 'IEC 60870-5-104 / DNP3'], ['Typical points sent', 'SF6 alarm, SF6 lockout, position, trip']],
+  chips: ['point mapping', 'IEC 104', 'DNP3'],
+});
+lamp(N_GW, 0, 3.9, 0.76, C.green);
+const hmiG = new THREE.Group(); const desk = box(3.2, 1.1, 1.6, mat(0x4c4c4c)); desk.position.y = 0.55; hmiG.add(desk);
+const hmiS = screen(2.4, 1.4, 0x0f2a1a); hmiS.position.set(0, 2.0, -0.2); hmiS.rotation.x = -0.12; hmiG.add(hmiS);
+const N_HMI = node('hmi', hmiG, new THREE.Vector3(-3, 0, 7), 'Station HMI', 'local operator screen', {
+  eyebrow: 'Level 2 · substation', title: 'Station HMI',
+  what: 'Local operator screen in the substation control building: single-line diagram, alarm list and event log for every bay.',
+  kv: [['Shows', 'SLD, alarms, events'], ['Fed by', 'station bus (IEC 61850)']], chips: ['alarm list', 'event log'],
+});
+
+// Level 3: SCADA/EMS, video wall, historian
+const N_SCADA = node('scada', cabinet(2.2, 5, 1.6, 0x2a2440), new THREE.Vector3(5.5, 0, -3), 'SCADA / EMS / ADMS', 'control-centre servers', {
+  eyebrow: 'Level 3 · control centre', title: 'SCADA / EMS / ADMS',
+  what: 'The grid operators\' system: receives alarms and status from every substation, raises them on the alarm list and the video wall, and blocks switching on a locked-out breaker. Built for operations, not for asset health.',
+  kv: [['Receives', 'IEC 104 / DNP3 from gateways'], ['Sees for CB-701', 'SF6 stage 1/2 alarm, position, trips'], ['Usually not', 'the density trend']],
+  chips: ['alarm list', 'switching', 'interlocks'],
+});
+lamp(N_SCADA, 0, 4.3, 0.86, C.green);
+const wallG = new THREE.Group();
+const wallS = screen(7, 3, 0x10233f); wallS.position.y = 3.6; wallG.add(wallS);
+const legW = box(0.3, 2.2, 0.3, mat(0x4c4c4c)); legW.position.set(-3, 1.1, 0); wallG.add(legW); const legW2 = legW.clone(); legW2.position.x = 3; wallG.add(legW2);
+const N_WALL = node('wall', wallG, new THREE.Vector3(9.5, 0, -8.5), 'Control-room video wall', 'grid overview', {
+  eyebrow: 'Level 3 · control centre', title: 'Control-room video wall',
+  what: 'The grid overview the operators watch. An SF6 stage-1 alarm shows here as an alarm on the CB-701 bay; stage 2 shows the breaker as blocked.',
+  kv: [['Driven by', 'SCADA / EMS']], chips: ['grid overview'],
+});
+const N_HIST = node('hist', cabinet(1.8, 4.2, 1.4, 0x13303d), new THREE.Vector3(11.5, 0, 3.5), 'Historian', 'e.g. AVEVA PI', {
+  eyebrow: 'Level 3 · control centre', title: 'Process historian',
+  what: 'Stores every point SCADA receives, and often extra analogue points pulled straight from substations, as long time series. The usual place to get the density trend out of OT.',
+  kv: [['Stores', 'time series, years'], ['Out to IT', 'replicated one-way through the DMZ']], chips: ['time series', 'PI-to-PI', 'OPC UA'],
+});
+lamp(N_HIST, 0, 3.6, 0.76, C.cyan);
+
+// DMZ: firewall + data diode
+const dmzG = new THREE.Group();
+const wall = box(0.4, 5, 16, mat(C.red, { t: 0.18, r: 0.3 })); wall.position.set(-1.6, 2.5, 0); dmzG.add(wall);
+const diode = box(1.6, 1.0, 1.6, mat(0x4c4c4c, { m: 0.5 })); diode.position.set(0.8, 0.5, 0); dmzG.add(diode);
+const arrow = new THREE.Mesh(new THREE.ConeGeometry(0.35, 0.8, 16), mat(C.red, { e: C.red, ei: 0.6 })); arrow.rotation.z = -Math.PI / 2; arrow.position.set(0.8, 1.35, 0); dmzG.add(arrow);
+const N_DMZ = node('dmz', dmzG, new THREE.Vector3(19.5, 0, 0), 'Data diode / DMZ', 'OT → IT only', {
+  eyebrow: 'DMZ', title: 'Firewall + unidirectional gateway',
+  what: 'Data leaves OT through a DMZ, often through a hardware data diode, so nothing on the IT side can send commands back into the substation. Required under rules such as NERC CIP and the Saudi NCA OT controls (OTCC).',
+  kv: [['Direction', 'OT → IT only'], ['Carries', 'historian replica, CM server data']], chips: ['NERC CIP', 'NCA OTCC', 'IEC 62443'],
+});
+
+// Level 4: edge broker, Maximo Monitor / Health / Manage
+const N_EDGE = node('edge', cabinet(1.6, 3.4, 1.2, 0x173326), new THREE.Vector3(26, 0, 0), 'Edge / MQTT broker', 'IT side of the DMZ', {
+  eyebrow: 'Level 4 · enterprise IT', title: 'Edge gateway / MQTT broker',
+  what: 'Turns the historian replica (or the condition-monitor feed) into device messages for Maximo Monitor: one device per breaker, publishing only sensor values.',
+  kv: [['In', 'historian replica / CM API'], ['Out', 'MQTT to Maximo Monitor'], ['Device type', 'CIRCUIT_BREAKER_SF6']], chips: ['MQTT', 'Kepware', 'Node-RED', 'IBM Edge'],
+});
+lamp(N_EDGE, 0, 2.8, 0.66, C.green);
+const monG = new THREE.Group(); const monS = screen(3.2, 2, 0x0f2a1a); monS.position.y = 2.4; monG.add(monS);
+const st = box(0.25, 1.4, 0.25, mat(0x4c4c4c)); st.position.y = 0.7; monG.add(st);
+const N_MON = node('monitor', monG, new THREE.Vector3(31, 0, -6), 'Maximo Monitor', 'trends · anomaly · leak rate', {
+  eyebrow: 'Level 4 · Maximo', title: 'Maximo Monitor',
+  what: 'Stores the device data, computes the derived metrics (leak rate, days to refill, wear %) and raises anomalies before the stage-1 alarm would fire.',
+  kv: [['Computes', 'leak rate, days-to-refill, I²t %'], ['Raises', 'anomaly / alert']], chips: ['functions', 'anomaly', 'dashboard'],
+});
+const healthG = new THREE.Group();
+const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2, 0.18, 12, 48), mat(C.green, { e: C.green, ei: 0.5 })); ring.position.y = 2.6; healthG.add(ring);
+const hstand = box(0.25, 1.6, 0.25, mat(0x4c4c4c)); hstand.position.y = 0.8; healthG.add(hstand);
+const N_HEALTH = node('health', healthG, new THREE.Vector3(36, 0, 0), 'Maximo Health', 'health + risk score', {
+  eyebrow: 'Level 4 · Maximo', title: 'Maximo Health',
+  what: 'Turns the Monitor scores into a health and risk score for the asset, so the breaker shows up in the replacement and maintenance plan.',
+  kv: [['Score from', 'SF6 density, wear, op. time'], ['Feeds', 'work prioritisation']], chips: ['health score', 'risk'],
+});
+const manG = new THREE.Group(); const manS = screen(2.6, 1.7, 0x1a1a2e); manS.position.y = 2.2; manG.add(manS);
+const mst = box(0.25, 1.3, 0.25, mat(0x4c4c4c)); mst.position.y = 0.65; manG.add(mst);
+const N_MAN = node('manage', manG, new THREE.Vector3(31, 0, 7), 'Maximo Manage', 'work order', {
+  eyebrow: 'Level 4 · Maximo', title: 'Maximo Manage',
+  what: 'Creates the work order (leak check and SF6 top-up) on asset CB-701 with the right crew, gas-handling procedure and SF6 quantity tracking for F-gas reporting.',
+  kv: [['Creates', 'work order on CB-701'], ['Tracks', 'SF6 added (kg) for F-gas reporting']], chips: ['work order', 'F-gas log'],
+});
+
+// ── links + packets ────────────────────────────────────────────────────────
+const links = [];
+function anchor(id, dy = 1.6) { const g = nodes[id].group; const b = new THREE.Box3().setFromObject(g); return new THREE.Vector3((b.min.x + b.max.x) / 2, Math.min(b.max.y, dy), (b.min.z + b.max.z) / 2); }
+function link(a, b, proto, opt = {}) {
+  const pa = anchor(a, opt.ya ?? 1.6), pb = anchor(b, opt.yb ?? 1.6);
+  const mid = pa.clone().lerp(pb, 0.5); mid.y += opt.arc ?? (2 + pa.distanceTo(pb) * 0.12);
+  const curve = new THREE.CatmullRomCurve3([pa, mid, pb]);
+  const tube = new THREE.Mesh(new THREE.TubeGeometry(curve, 48, 0.06, 6, false), new THREE.MeshBasicMaterial({ color: PROTO[proto].color, transparent: true, opacity: opt.dashed ? 0.35 : 0.7 }));
+  scene.add(tube);
+  const L = { a, b, proto, curve, tube, packets: [], rate: opt.rate ?? 1.2, carries: opt.carries || '', alarmOnly: !!opt.alarmOnly, acc: Math.random() };
+  links.push(L); return L;
+}
+const LK = {
+  wire:   link('breaker', 'ied', 'wire', { rate: 0.0, alarmOnly: true, carries: 'density alarm contacts, position' }),
+  ana:    link('breaker', 'cm', 'ana', { rate: 1.6, carries: 'density, temperature, coil current' }),
+  ied_gw: link('ied', 'gw', 'i61850', { rate: 1.0, carries: 'SIMG alarms, XCBR status, op. counter' }),
+  cm_gw:  link('cm', 'gw', 'i61850', { rate: 0.7, carries: 'density value, leak rate' }),
+  gw_hmi: link('gw', 'hmi', 'i61850', { rate: 0.6, carries: 'alarm list, events' }),
+  gw_sc:  link('gw', 'scada', 'i104', { rate: 0.25, alarmOnly: false, carries: 'alarms + status (lean point list)' }),
+  sc_wall:link('scada', 'wall', 'i104', { rate: 0.3, carries: 'grid overview' }),
+  sc_hi:  link('scada', 'hist', 'hist', { rate: 0.6, carries: 'all SCADA points' }),
+  gw_hi:  link('gw', 'hist', 'hist', { rate: 0.6, dashed: true, carries: 'extra analogue points (density value)' }),
+  hi_dmz: link('hist', 'dmz', 'hist', { rate: 0.9, carries: 'PI-to-PI replica' }),
+  cm_dmz: link('cm', 'dmz', 'mqtt', { rate: 0.4, dashed: true, arc: 9, carries: 'vendor CM server feed (optional)' }),
+  dmz_ed: link('dmz', 'edge', 'hist', { rate: 0.9, carries: 'replica on the IT side' }),
+  ed_mon: link('edge', 'monitor', 'mqtt', { rate: 1.4, carries: 'device messages (sensors only)' }),
+  mon_he: link('monitor', 'health', 'mx', { rate: 0.5, carries: 'scores' }),
+  he_man: link('health', 'manage', 'mx', { rate: 0.0, carries: 'work order trigger' }),
+};
+const packetGeo = new THREE.SphereGeometry(0.2, 12, 8);
+function spawn(L, color, speed = 0.35, size = 1) {
+  const m = new THREE.Mesh(packetGeo, new THREE.MeshBasicMaterial({ color: color ?? PROTO[L.proto].color }));
+  m.scale.setScalar(size); scene.add(m); L.packets.push({ m, t: 0, speed });
+}
+
+// ── simulation state ───────────────────────────────────────────────────────
+const S = { dens: 0.600, temp: 21, leak: false, stage: 0, ops: 1284, wear: 37.5, trip: 31.2, health: 92, wo: false, anomaly: false };
+const ALARM = 0.52, LOCK = 0.50;
+const ev = []; function event(msg, cls = '') {
+  const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  ev.unshift(`<div class="${cls}">${t}  ${msg}</div>`); if (ev.length > 40) ev.pop();
+  const e = document.getElementById('events'); if (e) e.innerHTML = ev.join('');
+}
+
+let selected = 'breaker';
+function select(id, user = true) {
+  selected = id;
+  if (user) delete document.getElementById('panel').dataset.closed;
+  Object.entries(nodes).forEach(([k, n]) => n.lbl.element.classList.toggle('sel', k === id));
+  const i = nodes[id].info;
+  const live = {
+    breaker: [['Density now', S.dens.toFixed(3) + ' MPa'], ['Gas temp', S.temp.toFixed(1) + ' °C'], ['Operations', S.ops], ['Contact wear', S.wear.toFixed(1) + ' %'], ['Last trip time', S.trip.toFixed(1) + ' ms']],
+    scada: [['Alarm state', ['Normal', 'SF6 LOW stage 1', 'SF6 LOCKOUT stage 2'][S.stage]]],
+    monitor: [['Leak rate', leakRate()], ['Days to stage 1', daysToAlarm()], ['Anomaly', S.anomaly ? 'yes' : 'no']],
+    health: [['Health score', Math.round(S.health)]],
+    manage: [['Work order', S.wo ? 'WO 4711 · SF6 leak check + top-up · APPR' : 'none']],
+  }[id] || [];
+  document.getElementById('panel').innerHTML = `
+    <button class="x" id="b-x" type="button" aria-label="Hide details">×</button><div class="eyebrow">${i.eyebrow}</div><h2>${i.title}</h2><p class="what">${i.what}</p>
+    <dl class="kv">${[...live, ...i.kv].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+    <div class="chips">${(i.chips || []).map(c => `<span class="chip">${c}</span>`).join('')}</div>
+    ${linksFor(id)}
+    <div id="events">${ev.join('') || '<div>No events yet. Start a leak or trip the breaker.</div>'}</div>
+    <p class="note">Example values for illustration; real set points come from the breaker nameplate and the utility's settings.</p>`;
+  const P = document.getElementById('panel'); if (!P.dataset.closed) P.hidden = false;
+  document.getElementById('b-x').onclick = () => { P.hidden = true; P.dataset.closed = '1'; };
+}
+function linksFor(id) {
+  const ls = links.filter(l => l.a === id || l.b === id);
+  if (!ls.length) return '';
+  return `<dl class="kv" style="margin-top:12px">${ls.map(l => `<dt style="color:#${PROTO[l.proto].color.toString(16).padStart(6,'0')}">${l.a === id ? '→ ' + nodes[l.b].info.title.split(' (')[0] : '← ' + nodes[l.a].info.title.split(' (')[0]}</dt><dd>${PROTO[l.proto].name}: ${l.carries}</dd>`).join('')}</dl>`;
+}
+function leakRate() { return S.leak ? '−0.004 MPa/day' : '≈ 0 (within 0.5 %/yr)'; }
+function daysToAlarm() { if (!S.leak) return '> 10 years'; const d = (S.dens - ALARM) / 0.004; return d > 0 ? d.toFixed(1) + ' days (compressed time)' : 'reached'; }
+
+// ── UI ─────────────────────────────────────────────────────────────────────
+const bLeak = document.getElementById('b-leak'), bRot = document.getElementById('b-rot');
+bLeak.onclick = () => { S.leak = !S.leak; bLeak.textContent = S.leak ? 'Stop leak' : 'Start SF6 leak'; event(S.leak ? 'Leak started on pole B (flange seal)' : 'Leak stopped', S.leak ? 'w' : ''); };
+document.getElementById('b-trip').onclick = () => {
+  if (S.stage === 2) { event('Trip blocked: SF6 lockout (stage 2) is active', 'r'); spawn(LK.gw_sc, C.red, 0.5, 1.4); return; }
+  S.ops += 2; S.wear += 0.35; S.trip = 30 + Math.random() * 3;
+  event(`Trip + close: ${S.trip.toFixed(1)} ms, operation #${S.ops}`, 'g');
+  [LK.wire, LK.ana, LK.ied_gw, LK.gw_sc, LK.gw_hmi].forEach(L => spawn(L, 0xffffff, 0.55, 1.3));
+  select(selected, false);
+};
+document.getElementById('b-refill').onclick = () => { S.leak = false; S.dens = 0.600; S.wo = false; S.anomaly = false; S.health = 92; S.stage = 0; bLeak.textContent = 'Start SF6 leak'; event('Seal repaired, refilled to 0.600 MPa; work order completed', 'g'); refresh(); select(selected, false); };
+bRot.onclick = () => { controls.autoRotate = !controls.autoRotate; bRot.setAttribute('aria-pressed', controls.autoRotate); bRot.classList.toggle('primary', controls.autoRotate); };
+
+const tile = (id, cls) => { const t = document.getElementById(id); t.classList.remove('warn', 'bad'); if (cls) t.classList.add(cls); };
+function refresh() {
+  document.getElementById('v-dens').textContent = S.dens.toFixed(3) + ' MPa';
+  tile('t-dens', S.stage === 2 ? 'bad' : S.stage === 1 || S.anomaly ? 'warn' : '');
+  document.getElementById('v-scada').textContent = ['Normal', 'SF6 low (1)', 'LOCKOUT (2)'][S.stage];
+  tile('t-scada', S.stage === 2 ? 'bad' : S.stage === 1 ? 'warn' : '');
+  document.getElementById('v-health').textContent = Math.round(S.health);
+  document.getElementById('v-hsub').textContent = S.anomaly ? (S.wo ? 'anomaly · WO raised' : 'anomaly: leak trend') : 'trend: stable';
+  tile('t-health', S.health < 50 ? 'bad' : S.health < 80 ? 'warn' : '');
+  const col = S.stage === 2 ? C.red : S.stage === 1 ? C.yellow : C.green;
+  N_BRK.lamps.forEach((m, i) => setLamp(m, i === 1 ? col : (S.stage === 2 ? C.yellow : C.green)));
+  setLamp(N_IED.lamps[0], col);
+  setLamp(N_GW.lamps[0], col);
+  setLamp(N_SCADA.lamps[0], col);
+  setLamp(N_CM.lamps[0], S.anomaly ? C.yellow : C.green);
+  wallS.userData.screen.material.color.setHex(S.stage === 2 ? 0x4a1015 : S.stage === 1 ? 0x3d320a : 0x10233f);
+  hmiS.userData.screen.material.color.setHex(S.stage ? (S.stage === 2 ? 0x4a1015 : 0x3d320a) : 0x0f2a1a);
+  monS.userData.screen.material.color.setHex(S.anomaly ? 0x3d320a : 0x0f2a1a);
+  manS.userData.screen.material.color.setHex(S.wo ? 0x2a1f4a : 0x1a1a2e);
+  const hc = S.health < 50 ? C.red : S.health < 80 ? C.yellow : C.green; ring.material.color.setHex(hc); ring.material.emissive.setHex(hc);
+  nodes.breaker.lbl.element.classList.toggle('alarm', S.stage === 1); nodes.breaker.lbl.element.classList.toggle('lock', S.stage === 2);
+  nodes.scada.lbl.element.classList.toggle('alarm', S.stage === 1); nodes.scada.lbl.element.classList.toggle('lock', S.stage === 2);
+  nodes.monitor.lbl.element.classList.toggle('alarm', S.anomaly && S.stage < 2);
+}
+
+// slow simulation tick
+setInterval(() => {
+  S.temp = 21 + Math.sin(Date.now() / 20000) * 3;
+  if (S.leak) S.dens = Math.max(0.47, S.dens - 0.0012);
+  const prev = S.stage;
+  S.stage = S.dens <= LOCK ? 2 : S.dens <= ALARM ? 1 : 0;
+  if (S.leak && !S.anomaly && S.dens < 0.585) { S.anomaly = true; event('Monitor: leak trend detected on CB-701 (before any SCADA alarm)', 'w'); spawn(LK.mon_he, C.yellow, 0.4, 1.4); }
+  if (S.anomaly) S.health = Math.max(28, S.health - (S.stage ? 0.9 : 0.35));
+  if (S.anomaly && !S.wo && S.health < 75) { S.wo = true; event('Manage: WO 4711 created, SF6 leak check + top-up', 'w'); spawn(LK.he_man, C.magenta, 0.35, 1.5); }
+  if (S.stage !== prev) {
+    if (S.stage === 1) event('SCADA: SF6 LOW stage 1 (refill) on CB-701', 'w');
+    if (S.stage === 2) event('SCADA: SF6 LOCKOUT stage 2, breaker blocked from operating', 'r');
+    if (S.stage) { const c = S.stage === 2 ? C.red : C.yellow; [LK.wire, LK.ied_gw, LK.gw_sc, LK.gw_hmi, LK.sc_wall].forEach(L => spawn(L, c, 0.5, 1.5)); }
+  }
+  refresh();
+  if (['breaker', 'scada', 'monitor', 'health', 'manage'].includes(selected)) {
+    const dl = document.querySelector('#panel .kv'); if (dl) select(selected, false);
+  }
+}, 600);
+
+// ── picking ────────────────────────────────────────────────────────────────
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); let down = null;
+renderer.domElement.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return;
+  const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  ray.setFromCamera(ptr, camera);
+  const hit = ray.intersectObjects(pickables, false)[0];
+  if (hit && hit.object.userData.id) select(hit.object.userData.id);
+});
+
+// ── loop ───────────────────────────────────────────────────────────────────
+function resize() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  renderer.setSize(w, h); labels.setSize(w, h); camera.aspect = w / h;
+  camera.position.z = w < 760 ? 96 : 70; camera.updateProjectionMatrix();
+}
+window.addEventListener('resize', resize); resize();
+const clock = new THREE.Clock();
+const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+function tick() {
+  const dt = Math.min(clock.getDelta(), 0.05);
+  links.forEach(L => {
+    if (L.rate > 0 && !reduce) { L.acc += dt * L.rate; if (L.acc >= 1) { L.acc = 0; spawn(L, undefined, 0.3); } }
+    L.packets = L.packets.filter(p => {
+      p.t += dt * p.speed; if (p.t >= 1) { scene.remove(p.m); p.m.material.dispose(); return false; }
+      p.m.position.copy(L.curve.getPointAt(p.t)); return true;
+    });
+  });
+  arrow.position.x = 0.8 + Math.sin(clock.elapsedTime * 3) * 0.15;
+  ring.rotation.z += dt * 0.4;
+  controls.update(); renderer.render(scene, camera); labels.render(scene, camera);
+  requestAnimationFrame(tick);
+}
+refresh(); select('breaker'); tick();
+})();
+</script>
+
+</body>
+</html>
