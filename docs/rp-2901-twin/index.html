@@ -1,0 +1,370 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RP-2901 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>RP-2901</b><span class="g">Sucker-rod pumping system · C-320D-256-120 · pump at 6,000 ft</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-run"><span class="dot"></span><span id="c-run-t">unit –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Cards, torque and production →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the pumping unit model…</div>
+<div class="credit">Conventional crank-balanced beam pumping unit, tapered steel rod string and insert pump (well section compressed). Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway: show the well</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The beam strokes at the speed the controller reports and stops when the controller rests the well on pump-off.</div>
+<aside>
+  <section>
+    <h2>RP-2901 twin</h2>
+    <p class="sub" id="sub">rod-lifted oil well</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Pump fillage<b id="k-fill">–</b></div><div>Gearbox<b id="k-gb">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over one to two minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The controller sends only what it measures and the features of its cards. Every expected value (fluid load, peak and minimum loads, gearbox torque, rod stress, pump displacement) is computed from the twin file: the unit rating, the rod string and the well data.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for RP-2901: pumping unit, rod string, insert pump, well and rod pump controller, with injectable faults.\n\nThe real rod pump controller sends the same points (see telemetry.points in the twin file). Nothing here is used by\nMonitor: the expected values are computed in Monitor from the twin file only. This model only produces believable\ncard features, pressures, rates and motor currents, and the fingerprint of each failure mode, for the tests and figures.\n\"\"\"\nimport math\nimport random\n\n\nclass Well:\n    PART_DEPTH_FT = 3000.0          # where the rod string parts in the rod_part failure mode (in the 3/4 in section)\n\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.u, self.r, self.p, self.f, self.o = d[\"unit\"], d[\"rods\"], d[\"pump\"], d[\"fluid\"], d[\"operation\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        secs = self.r[\"sections\"]\n        self.wr = sum(s[\"weight_lb_ft\"] * s[\"length_ft\"] for s in secs)\n        above, left = 0.0, self.PART_DEPTH_FT\n        for s in secs:\n            ln = min(left, s[\"length_ft\"])\n            above += s[\"weight_lb_ft\"] * ln\n            left -= ln\n        self.wr_above = above\n        self.er = sum(12 * s[\"length_ft\"] / (s[\"area_in2\"] * self.r[\"modulus_psi\"]) for s in secs)\n        self.ap = math.pi / 4 * self.p[\"plunger_in\"] ** 2\n        self.grad = self.f[\"gradient_psi_ft\"] * self.f[\"sg\"]\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def state(self):\n        f, o = self.faults, self.o\n        spm, s = self.u[\"spm\"], self.u[\"stroke_in\"]\n        pt = o[\"tubing_pressure_psi\"] - 40 * f[\"tubing_leak\"]\n        pc = o[\"casing_pressure_psi\"] + 100 * f[\"gas_interference\"]\n        pip = (o[\"pip_psi\"] - 195 * f[\"fluid_pound\"] + 250 * f[\"gas_interference\"] + 100 * f[\"tubing_leak\"]\n               + 80 * f[\"worn_pump\"] + 150 * f[\"rod_part\"])\n        fo = (self.ap * (pt + self.grad * self.p[\"depth_ft\"] - pip) * (1 - 0.10 * f[\"tubing_leak\"]) * (1 - 0.05 * f[\"worn_pump\"])\n              * (1 - 0.97 * f[\"rod_part\"]))\n        wr = self.wr * (1 - f[\"rod_part\"]) + self.wr_above * f[\"rod_part\"]\n        wrf = wr * (1 - 0.128 * self.f[\"sg\"])\n        acc = s * spm ** 2 / 70500\n        drag = 3600 * f[\"paraffin_drag\"]\n        pprl = wrf + fo + acc * wr + drag\n        mprl = wrf - acc * wr - drag\n        fill = 93.0 - 38 * f[\"fluid_pound\"] - 33 * f[\"gas_interference\"] - 5 * f[\"worn_pump\"]\n        fill *= (1 - f[\"rod_part\"])\n        runtime = min(100.0, o[\"runtime_pct\"] + 12 * max(f[\"fluid_pound\"], f[\"gas_interference\"]) + 10 * f[\"tubing_leak\"])\n        gross = s - fo * self.er + 2.5\n        net = gross * fill / 100\n        pd = 0.1166 * self.p[\"plunger_in\"] ** 2 * net * spm * runtime / 100\n        flow = pd * o[\"ve_expected\"] * (1 - 0.5 * f[\"tubing_leak\"]) * (1 - 0.42 * f[\"worn_pump\"]) * (1 - f[\"rod_part\"])\n        cbe = self.u[\"cbe_lb\"] * (1 - 0.22 * f[\"counterbalance_shift\"])\n        tu, td = (pprl - cbe) * s / 2000, (cbe - mprl) * s / 2000\n        return dict(spm=spm, s=s, pt=pt, pc=pc, pip=pip, fo=fo, pprl=pprl, mprl=mprl, fill=fill, runtime=runtime, gross=gross,\n                    net=net, flow=flow, tu=tu, td=td, tv=2.0 + 28 * f[\"worn_pump\"])\n\n    # one published message ------------------------------------------------------------------------------------------\n    def measure(self):\n        x = self.state()\n        fill = max(0.0, min(100.0, x[\"fill\"] + self.n(0.8)))\n        gross = x[\"gross\"] + self.n(0.3)\n        tu, td = x[\"tu\"], x[\"td\"]\n        return {\n            \"running\": 1, \"spm\": round(x[\"spm\"] + self.n(0.02), 2), \"surface_stroke_in\": round(x[\"s\"] + self.n(0.1), 2),\n            \"runtime_pct\": round(min(100.0, x[\"runtime\"] + abs(self.n(0.3)) * (1 if x[\"runtime\"] < 99.5 else 0)), 1),\n            \"pumpoff_cycles_24h\": 0 if x[\"runtime\"] >= 99.5 else 12,\n            \"pprl_lb\": round(x[\"pprl\"] + self.n(40), 0), \"mprl_lb\": round(x[\"mprl\"] + self.n(40), 0),\n            \"pump_fillage_pct\": round(fill, 1), \"pump_gross_stroke_in\": round(gross, 2), \"pump_net_stroke_in\": round(gross * fill / 100, 2),\n            \"pump_fluid_load_lb\": round(x[\"fo\"] + self.n(35), 0), \"tv_load_loss_pct\": round(max(0.0, x[\"tv\"] + self.n(0.5)), 1),\n            \"tubing_pressure_psi\": round(x[\"pt\"] + self.n(1.0), 1), \"casing_pressure_psi\": round(x[\"pc\"] + self.n(1.0), 1),\n            \"pip_psi\": round(x[\"pip\"] + self.n(3.0), 1), \"flow_bpd\": round(max(0.0, x[\"flow\"] + self.n(1.5)), 1),\n            \"motor_kw\": round(4 + 0.032 * (abs(tu) + abs(td)) + self.n(0.2), 2),\n            \"current_up_a\": round(12 + 0.12 * max(0.0, tu) + self.n(0.3), 1), \"current_down_a\": round(12 + 0.12 * max(0.0, td) + self.n(0.3), 1),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The unit strokes at its real speed so the 3D beam moves like the real one. With pump-off control working, the RPC\n    stops the unit for a short idle period every POC_EVERY_S seconds (demo cadence) and starts it again; with fluid pound\n    or gas interference the run time is 100 % and it never stops.\n    \"\"\"\n    POC_EVERY_S, POC_IDLE_S = 120.0, 15.0\n\n    def __init__(self, twin, seed=2901):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.w = Well(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.crank, self.timer = 0.0, 0.0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.crank, self.timer, self.running = 0.0, 0.0, True\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.w.faults[k] = f.sev\n        self.t += dt * self.scale\n        x = self.w.state()\n        self.timer += dt\n        poc = x[\"runtime\"] < 99.5\n        self.running = not (poc and self.timer % self.POC_EVERY_S > self.POC_EVERY_S - self.POC_IDLE_S)\n        if self.running:\n            self.crank = (self.crank + 360.0 * x[\"spm\"] / 60.0 * dt) % 360.0\n        # polished rod position (0 = bottom) and an approximate surface load at this crank angle\n        pos = x[\"s\"] / 2 * (1 - math.cos(math.radians(self.crank)))\n        up = self.crank < 180\n        load = (x[\"pprl\"] if up else x[\"mprl\"]) - (x[\"pprl\"] - x[\"mprl\"]) * 0.15 * math.sin(math.radians(self.crank * 2)) ** 2\n        return {\"crank_deg\": round(self.crank, 1), \"position_in\": round(pos, 2), \"load_lb\": round(load, 0), \"running\": self.running}\n\n    def measure(self, true):\n        r = self.w.measure()\n        r[\"running\"] = 1 if true[\"running\"] else 0\n        return r\n", "twin_calc": "\"\"\"The sucker-rod pumping system twin's expectations (RP-2901, beam pumping unit + rod string + insert pump + RPC).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nThe rod pump controller (RPC) measures the surface card (polished rod load against position) every stroke and solves the\ndamped wave equation of the rod string (Gibbs) to get the pump card at the plunger. It reports features of both cards:\npeak and minimum polished rod load (PPRL, MPRL), the plunger gross and net stroke, the fillage (net / gross) and the fluid\nload on the pump card. Monitor stays stateless: every expression below works on one reading.\n\nExpected loads (conventional unit, API TR 11L notation, Mills acceleration factor):\n    Wr  = sum(weight per ft x length) of the rod sections         (rods in air)\n    Wrf = Wr x (1 - 0.128 G)                                       (rods in fluid: steel 490 lb/ft3)\n    Fo  = Ap x (Pt + 0.433 G L - PIP),  Ap = pi/4 D^2              (fluid load on the plunger = 0.340 G D^2 H)\n    a   = S N^2 / 70,500                                           (acceleration factor, S in in, N in strokes/min)\n    PPRL expected = Wrf + Fo + a Wr        MPRL expected = Wrf - a Wr\nGearbox torque, simple conventional-unit form (torque factor taken as S/2 at the peak):\n    T_up = (PPRL - CBE) S/2     T_down = (CBE - MPRL) S/2         gearbox loading = max / API rating\nRod stress at the top rod against the modified Goodman diagram (API RP 11BR):\n    Smax = PPRL / A_top,  Smin = MPRL / A_top,  Sa = (T/4 + 0.5625 Smin) x SF,   rod loading = Smax / Sa\nProduction:\n    gross stroke expected = S - Fo x sum(12 L / (A E))             (rod stretch, anchored tubing, overtravel neglected)\n    pump displacement PD  = 0.1166 x net stroke x N x D^2 x run time    (bbl/d)\n    volumetric efficiency = measured liquid rate / PD\n    submergence = (PIP - casing pressure) / (0.433 G)              (liquid above the pump intake)\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    u, r, p, f, o = d[\"unit\"], d[\"rods\"], d[\"pump\"], d[\"fluid\"], d[\"operation\"]\n    secs = r[\"sections\"]\n    wr = sum(s[\"weight_lb_ft\"] * s[\"length_ft\"] for s in secs)\n    g = f[\"sg\"]\n    grad = f[\"gradient_psi_ft\"] * g\n    dp = p[\"plunger_in\"]\n    return dict(wr=wr, wrf=wr * (1 - 0.128 * g), g=g, grad=grad, ap=math.pi / 4 * dp ** 2, d2=dp ** 2, depth=p[\"depth_ft\"],\n                er=sum(12 * s[\"length_ft\"] / (s[\"area_in2\"] * r[\"modulus_psi\"]) for s in secs), atop=secs[0][\"area_in2\"],\n                tmin=r[\"tensile_min_psi\"], sf=r[\"service_factor\"], cbe=u[\"cbe_lb\"], gb=u[\"gearbox_rating_inlb\"],\n                st=u[\"structure_rating_lb\"], stroke=u[\"stroke_in\"], fill_sp=o[\"pumpoff_fillage_pct\"], ve=o[\"ve_expected\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    SUB = f\"((df['PIP_PSI'] - df['CASING_PRESSURE_PSI']) / {k['grad']:.6g})\"\n    FO = f\"({k['ap']:.6g} * (df['TUBING_PRESSURE_PSI'] + {k['grad'] * k['depth']:.6g} - df['PIP_PSI']))\"\n    FLR = f\"(df['PUMP_FLUID_LOAD_LB'] / {FO})\"\n    ACC = \"(df['SURFACE_STROKE_IN'] * df['SPM'] ** 2 / 70500)\"\n    PE = f\"({k['wrf']:.6g} + {FO} + {k['wr']:.6g} * {ACC})\"\n    ME = f\"({k['wrf']:.6g} - {k['wr']:.6g} * {ACC})\"\n    TU = f\"((df['PPRL_LB'] - {k['cbe']:.6g}) * df['SURFACE_STROKE_IN'] / 2000)\"\n    TD = f\"(({k['cbe']:.6g} - df['MPRL_LB']) * df['SURFACE_STROKE_IN'] / 2000)\"\n    GB = f\"(np.maximum({TU}, {TD}) / {k['gb'] / 1000:.6g} * 100)\"\n    RL = f\"(df['PPRL_LB'] / {k['atop']:.6g} / (({k['tmin'] / 4:.6g} + 0.5625 * df['MPRL_LB'] / {k['atop']:.6g}) * {k['sf']:.6g}) * 100)\"\n    PD = f\"({0.1166 * k['d2']:.6g} * df['PUMP_NET_STROKE_IN'] * df['SPM'] * df['RUNTIME_PCT'] / 100)\"\n    VE = f\"(df['FLOW_BPD'] / np.maximum({PD}, 1))\"\n    BAL = \"(df['CURRENT_DOWN_A'] / np.maximum(df['CURRENT_UP_A'], 0.1))\"\n    return dict(k=k, SUB=SUB, FO=FO, FLR=FLR, ACC=ACC, PE=PE, ME=ME, TU=TU, TD=TD, GB=GB, RL=RL, PD=PD, VE=VE, BAL=BAL)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"SUBMERGENCE_FT\", p[\"SUB\"]),\n        (\"FO_EXPECTED_LB\", p[\"FO\"]),\n        (\"FLUID_LOAD_RATIO\", p[\"FLR\"]),\n        (\"ACCEL_FACTOR\", p[\"ACC\"]),\n        (\"PPRL_EXPECTED_LB\", p[\"PE\"]),\n        (\"MPRL_EXPECTED_LB\", p[\"ME\"]),\n        (\"PPRL_RATIO\", f\"df['PPRL_LB'] / {p['PE']}\"),\n        (\"MPRL_RATIO\", f\"df['MPRL_LB'] / {p['ME']}\"),\n        (\"STRUCTURE_LOAD_PCT\", f\"df['PPRL_LB'] / {k['st']:.6g} * 100\"),\n        (\"ROD_LOADING_PCT\", p[\"RL\"]),\n        (\"TORQUE_UP_KINLB\", p[\"TU\"]),\n        (\"TORQUE_DOWN_KINLB\", p[\"TD\"]),\n        (\"GEARBOX_LOAD_PCT\", p[\"GB\"]),\n        (\"CBE_IDEAL_LB\", \"((df['PPRL_LB'] + df['MPRL_LB']) / 2)\"),\n        (\"BALANCE_RATIO\", p[\"BAL\"]),\n        (\"GROSS_STROKE_EXPECTED_IN\", f\"(df['SURFACE_STROKE_IN'] - {p['FO']} * {k['er']:.6g})\"),\n        (\"PUMP_DISPLACEMENT_BPD\", p[\"PD\"]),\n        (\"VOL_EFF\", p[\"VE\"]),\n        (\"ENERGY_KWH_PER_BBL\", \"(df['MOTOR_KW'] * 24 * df['RUNTIME_PCT'] / 100 / np.maximum(df['FLOW_BPD'], 1))\"),\n    ]\n\n\ndef _r6(x):\n    \"\"\"The constants exactly as they are written into the Monitor expressions (6 significant digits).\"\"\"\n    return float(f\"{x:.6g}\")\n\n\ndef evaluate(twin, r):\n    k = {a: (_r6(b) if isinstance(b, float) else b) for a, b in _k(twin).items()}\n    grad_l = _r6(k[\"grad\"] * k[\"depth\"])\n    sub = (r[\"pip_psi\"] - r[\"casing_pressure_psi\"]) / k[\"grad\"]\n    fo = k[\"ap\"] * (r[\"tubing_pressure_psi\"] + grad_l - r[\"pip_psi\"])\n    acc = r[\"surface_stroke_in\"] * r[\"spm\"] ** 2 / 70500\n    pe = k[\"wrf\"] + fo + k[\"wr\"] * acc\n    me = k[\"wrf\"] - k[\"wr\"] * acc\n    tu = (r[\"pprl_lb\"] - k[\"cbe\"]) * r[\"surface_stroke_in\"] / 2000\n    td = (k[\"cbe\"] - r[\"mprl_lb\"]) * r[\"surface_stroke_in\"] / 2000\n    sa = (_r6(k[\"tmin\"] / 4) + 0.5625 * r[\"mprl_lb\"] / k[\"atop\"]) * k[\"sf\"]\n    pd = _r6(0.1166 * k[\"d2\"]) * r[\"pump_net_stroke_in\"] * r[\"spm\"] * r[\"runtime_pct\"] / 100\n    return {\n        \"submergence_ft\": sub, \"fo_expected_lb\": fo, \"fluid_load_ratio\": r[\"pump_fluid_load_lb\"] / fo, \"accel_factor\": acc,\n        \"pprl_expected_lb\": pe, \"mprl_expected_lb\": me, \"pprl_ratio\": r[\"pprl_lb\"] / pe, \"mprl_ratio\": r[\"mprl_lb\"] / me,\n        \"structure_load_pct\": r[\"pprl_lb\"] / k[\"st\"] * 100, \"rod_loading_pct\": r[\"pprl_lb\"] / k[\"atop\"] / sa * 100,\n        \"torque_up_kinlb\": tu, \"torque_down_kinlb\": td, \"gearbox_load_pct\": max(tu, td) / _r6(k[\"gb\"] / 1000) * 100,\n        \"cbe_ideal_lb\": (r[\"pprl_lb\"] + r[\"mprl_lb\"]) / 2, \"balance_ratio\": r[\"current_down_a\"] / max(r[\"current_up_a\"], 0.1),\n        \"gross_stroke_expected_in\": r[\"surface_stroke_in\"] - fo * k[\"er\"], \"pump_displacement_bpd\": pd,\n        \"vol_eff\": r[\"flow_bpd\"] / max(pd, 1),\n        \"energy_kwh_per_bbl\": r[\"motor_kw\"] * 24 * r[\"runtime_pct\"] / 100 / max(r[\"flow_bpd\"], 1),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    FLR, VE, SUB, GB = p[\"FLR\"], p[\"VE\"], p[\"SUB\"], p[\"GB\"]\n    card = f\"({FLR} >= {L['fluid_load_lost_ratio']})\"\n    fill = \"df['PUMP_FILLAGE_PCT']\"\n    return [\n        (\"RP_ROD_PART\", f\"{FLR} < {L['fluid_load_lost_ratio']}\", \"Critical\", \"rod_part\"),\n        (\"RP_GEARBOX_OVERLOAD\", f\"{GB} >= {L['gearbox_limit_pct']}\", \"High\", \"paraffin_drag\"),\n        (\"RP_STRUCTURE_OVERLOAD\", f\"df['PPRL_LB'] > {k['st']:.6g}\", \"High\", None),\n        (\"RP_ROD_OVERSTRESS\", f\"{p['RL']} > {L['rod_loading_limit_pct']}\", \"High\", \"paraffin_drag\"),\n        (\"RP_FLUID_POUND\", f\"({fill} < {k['fill_sp']}) & ({SUB} < {L['submergence_low_ft']}) & (df['RUNTIME_PCT'] > {L['runtime_poc_pct']}) & {card}\",\n         \"High\", \"fluid_pound\"),\n        (\"RP_PUMP_LEAK\", f\"(df['TV_LOAD_LOSS_PCT'] > {L['tv_loss_alert_pct']}) & {card}\", \"High\", \"worn_pump\"),\n        (\"RP_TUBING_LEAK\", f\"({VE} < {L['ve_alert']}) & (df['TV_LOAD_LOSS_PCT'] <= {L['tv_loss_alert_pct']}) & ({fill} >= {k['fill_sp']}) & {card}\",\n         \"High\", \"tubing_leak\"),\n        (\"RP_GAS_INTERFERENCE\", f\"({fill} < {k['fill_sp']}) & ({SUB} >= {L['submergence_gas_ft']}) & {card}\", \"Medium\", \"gas_interference\"),\n        (\"RP_PRODUCTION_LOW\", f\"({VE} < {L['ve_alert']}) & {card}\", \"Medium\", \"tubing_leak\"),\n        (\"RP_PPRL_HIGH\", f\"df['PPRL_LB'] / {p['PE']} > {L['pprl_ratio_alert']}\", \"Medium\", \"paraffin_drag\"),\n        (\"RP_MPRL_LOW\", f\"(df['MPRL_LB'] / {p['ME']} < {L['mprl_ratio_alert']}) & {card}\", \"Medium\", \"paraffin_drag\"),\n        (\"RP_GEARBOX_HIGH\", f\"({GB} >= {L['gearbox_warn_pct']}) & ({GB} < {L['gearbox_limit_pct']})\", \"Medium\", None),\n        (\"RP_OUT_OF_BALANCE\", f\"({p['BAL']} < {L['balance_low']}) | ({p['BAL']} > {L['balance_high']})\", \"Medium\", \"counterbalance_shift\"),\n        (\"RP_UNDERPUMPED\", f\"({SUB} > {L['submergence_high_ft']}) & ({fill} >= {L['full_fillage_pct']}) & (df['RUNTIME_PCT'] >= {L['runtime_poc_pct']})\",\n         \"Low\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    flr, ve, sub, gb, fill = t[\"fluid_load_ratio\"], t[\"vol_eff\"], t[\"submergence_ft\"], t[\"gearbox_load_pct\"], r[\"pump_fillage_pct\"]\n    card = flr >= L[\"fluid_load_lost_ratio\"]\n    add(flr < L[\"fluid_load_lost_ratio\"], \"RP_ROD_PART\", \"Critical\",\n        f\"Fluid load on the pump card only {flr * 100:.0f} % of the {t['fo_expected_lb']:.0f} lb expected: the rods are not lifting the fluid (parted rods or unseated pump)\",\n        \"rods\", \"rod_part\")\n    add(gb >= L[\"gearbox_limit_pct\"], \"RP_GEARBOX_OVERLOAD\", \"High\", f\"Gearbox peak torque {max(t['torque_up_kinlb'], t['torque_down_kinlb']):.0f} kin-lb, {gb:.0f} % of the API rating\",\n        \"pumping unit\", \"paraffin_drag\")\n    add(r[\"pprl_lb\"] > k[\"st\"], \"RP_STRUCTURE_OVERLOAD\", \"High\", f\"PPRL {r['pprl_lb']:.0f} lb above the {k['st']:.0f} lb structure rating\", \"pumping unit\")\n    add(t[\"rod_loading_pct\"] > L[\"rod_loading_limit_pct\"], \"RP_ROD_OVERSTRESS\", \"High\",\n        f\"Top rod at {t['rod_loading_pct']:.0f} % of the modified Goodman allowable stress\", \"rods\", \"paraffin_drag\")\n    add(fill < k[\"fill_sp\"] and sub < L[\"submergence_low_ft\"] and r[\"runtime_pct\"] > L[\"runtime_poc_pct\"] and card, \"RP_FLUID_POUND\", \"High\",\n        f\"Fillage {fill:.0f} % with only {sub:.0f} ft of liquid over the pump and {r['runtime_pct']:.0f} % run time: fluid pound, pump-off control not stopping\",\n        \"pump\", \"fluid_pound\")\n    add(r[\"tv_load_loss_pct\"] > L[\"tv_loss_alert_pct\"] and card, \"RP_PUMP_LEAK\", \"High\",\n        f\"Traveling valve check lost {r['tv_load_loss_pct']:.0f} % of the fluid load in 5 s: worn plunger / barrel or leaking traveling valve\", \"pump\", \"worn_pump\")\n    add(ve < L[\"ve_alert\"] and r[\"tv_load_loss_pct\"] <= L[\"tv_loss_alert_pct\"] and fill >= k[\"fill_sp\"] and card, \"RP_TUBING_LEAK\", \"High\",\n        f\"Full pump ({fill:.0f} %) and tight valves, but only {ve * 100:.0f} % of the pumped volume reaches the surface: hole in the tubing\", \"tubing\", \"tubing_leak\")\n    add(fill < k[\"fill_sp\"] and sub >= L[\"submergence_gas_ft\"] and card, \"RP_GAS_INTERFERENCE\", \"Medium\",\n        f\"Fillage {fill:.0f} % although {sub:.0f} ft of liquid stands over the pump: free gas in the pump\", \"pump\", \"gas_interference\")\n    add(ve < L[\"ve_alert\"] and card, \"RP_PRODUCTION_LOW\", \"Medium\",\n        f\"Liquid rate {r['flow_bpd']:.0f} bbl/d is {ve * 100:.0f} % of the pump displacement {t['pump_displacement_bpd']:.0f} bbl/d\", \"well\", \"tubing_leak\")\n    add(t[\"pprl_ratio\"] > L[\"pprl_ratio_alert\"], \"RP_PPRL_HIGH\", \"Medium\", f\"PPRL {r['pprl_lb']:.0f} lb, {t['pprl_ratio']:.2f} x expected\", \"rods\", \"paraffin_drag\")\n    add(t[\"mprl_ratio\"] < L[\"mprl_ratio_alert\"] and card, \"RP_MPRL_LOW\", \"Medium\", f\"MPRL {r['mprl_lb']:.0f} lb, {t['mprl_ratio']:.2f} x expected\", \"rods\", \"paraffin_drag\")\n    add(L[\"gearbox_warn_pct\"] <= gb < L[\"gearbox_limit_pct\"], \"RP_GEARBOX_HIGH\", \"Medium\", f\"Gearbox at {gb:.0f} % of its rating\", \"pumping unit\")\n    add(t[\"balance_ratio\"] < L[\"balance_low\"] or t[\"balance_ratio\"] > L[\"balance_high\"], \"RP_OUT_OF_BALANCE\", \"Medium\",\n        f\"Peak current down / up = {t['balance_ratio']:.2f}: unit out of counterbalance\", \"pumping unit\", \"counterbalance_shift\")\n    add(sub > L[\"submergence_high_ft\"] and fill >= L[\"full_fillage_pct\"] and r[\"runtime_pct\"] >= L[\"runtime_poc_pct\"], \"RP_UNDERPUMPED\", \"Low\",\n        f\"{sub:.0f} ft of liquid over a full pump running all day: the well can give more\", \"well\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "RP-2901 sucker-rod pumping system twin. Expected loads, torque and production in Maximo Monitor from the pumping unit rating, the rod string and the well data; the rod pump controller sends only what it measures and the features of its pump card.", "twin": {"id": "RP-2901", "name": "Sucker-rod pumping system RP-2901", "version": "1.0.0", "folder": "rodpump-twin"}, "identification": {"asset": "RP-2901", "assetnum": "RP-2901", "manufacturer": "Lufkin (pumping unit)", "model": "C-320D-256-120 conventional crank-balanced pumping unit", "description": "Rod-lifted oil well: beam pumping unit, tapered steel rod string, insert pump at 6,000 ft, rod pump controller", "unit": "Conventional crank-balanced beam pumping unit, API Spec 11E size C-320D-256-120", "rods": "API Spec 11B grade D steel sucker rods, 7/8 in over 3/4 in taper", "pump": "API Spec 11AX insert (rod) pump, 1.50 in bore, in 2-7/8 in anchored tubing", "controller": "Rod pump controller (RPC) with polished-rod load cell and position sensor; computes the downhole pump card (wave equation) every stroke and stops the unit at pump-off"}, "design": {"unit": {"make": "Lufkin", "model": "C-320D-256-120", "gearbox_rating_inlb": 320000.0, "structure_rating_lb": 25600.0, "max_stroke_in": 120.0, "gear_ratio": 30.12, "stroke_in": 120.0, "spm": 8.5, "cbe_lb": 11600.0, "source": "Lufkin pumping unit catalog 2007: designation C-320D-256-120 (gear reducer 320,000 in-lb, structure 25,600 lb, maximum stroke 120 in) and 320D gear ratio 30.12:1. Stroke set on the longest crank hole and 8.5 strokes per minute; counterbalance effect (CBE) at the polished rod from the last balance survey: assumption: typical value, replace with your well file / last dynamometer survey"}, "rods": {"sections": [{"size_in": 0.875, "length_ft": 1800.0, "weight_lb_ft": 2.224, "area_in2": 0.6013}, {"size_in": 0.75, "length_ft": 4200.0, "weight_lb_ft": 1.634, "area_in2": 0.4418}], "grade": "D", "tensile_min_psi": 115000.0, "service_factor": 0.9, "modulus_psi": 30500000.0, "source": "Areas from the nominal diameters; weight per foot with couplings, taper lengths (an API 76-type taper), grade D minimum tensile strength and service factor for a mildly corrosive well: assumption: typical value, replace with your well file / last dynamometer survey. Steel modulus 30.5e6 psi (textbook value)."}, "pump": {"plunger_in": 1.5, "depth_ft": 6000.0, "tubing_anchored": true, "source": "Pump setting depth and bore from the well file: assumption: typical value, replace with your well file / last dynamometer survey. Tubing anchored, so tubing stretch is neglected."}, "fluid": {"sg": 1.0, "water_cut_pct": 85.0, "gradient_psi_ft": 0.433, "source": "Produced fluid specific gravity (85 % water cut): assumption: typical value, replace with your well file / last dynamometer survey. Fresh-water gradient 0.433 psi/ft."}, "operation": {"pumpoff_fillage_pct": 80.0, "ve_expected": 0.88, "tubing_pressure_psi": 100.0, "casing_pressure_psi": 50.0, "pip_psi": 250.0, "runtime_pct": 88.0, "source": "Pump-off set point of the RPC (stop when the pump card fillage falls below it), expected volumetric efficiency (measured flow / pump displacement at the net stroke: slippage and shrinkage), normal wellhead pressures and pump intake pressure: assumption: typical value, replace with your well file / last dynamometer survey"}, "demo": {"time_scale": 60, "note": "Demo only: the unit strokes at its real speed for the 3D view; faults ramp in over one to two minutes of real time."}}, "telemetry": {"event": "rodpump", "publish_every_s": 60, "device_type": "ROD_PUMP_SYSTEM", "groups": {"Unit": "Pumping unit and pump-off control", "Surface": "Surface dynamometer card (polished rod)", "Pump": "Downhole pump card computed by the RPC", "Valve": "Last valve check", "Well": "Wellhead, downhole gauge and flow", "Motor": "Prime mover"}, "points": [{"metric": "running", "path": "Unit.Running", "label": "Unit running (1) or idle on pump-off (0)", "unit": "code"}, {"metric": "spm", "path": "Unit.SPM", "label": "Pumping speed", "unit": "strokes/min"}, {"metric": "surface_stroke_in", "path": "Unit.StrokeLength", "label": "Polished rod stroke length", "unit": "in"}, {"metric": "runtime_pct", "path": "Unit.Runtime24h", "label": "Run time, last 24 h", "unit": "%"}, {"metric": "pumpoff_cycles_24h", "path": "Unit.PumpOffCycles24h", "label": "Pump-off stops, last 24 h", "unit": "count"}, {"metric": "pprl_lb", "path": "Surface.PPRL", "label": "Peak polished rod load", "unit": "lb"}, {"metric": "mprl_lb", "path": "Surface.MPRL", "label": "Minimum polished rod load", "unit": "lb"}, {"metric": "pump_fillage_pct", "path": "Pump.Fillage", "label": "Pump fillage (net stroke / gross stroke)", "unit": "%"}, {"metric": "pump_gross_stroke_in", "path": "Pump.GrossStroke", "label": "Plunger gross stroke", "unit": "in"}, {"metric": "pump_net_stroke_in", "path": "Pump.NetStroke", "label": "Plunger net (liquid) stroke", "unit": "in"}, {"metric": "pump_fluid_load_lb", "path": "Pump.FluidLoad", "label": "Fluid load on the pump card (upstroke minus downstroke load)", "unit": "lb"}, {"metric": "tv_load_loss_pct", "path": "Valve.TVLoadLoss", "label": "Traveling valve check: fluid load lost in 5 s", "unit": "%"}, {"metric": "tubing_pressure_psi", "path": "Well.TubingPressure", "label": "Tubing head pressure", "unit": "psi g"}, {"metric": "casing_pressure_psi", "path": "Well.CasingPressure", "label": "Casing head pressure", "unit": "psi g"}, {"metric": "pip_psi", "path": "Well.PumpIntakePressure", "label": "Pump intake pressure (downhole gauge)", "unit": "psi g"}, {"metric": "flow_bpd", "path": "Well.FlowRate", "label": "Liquid rate at the wellhead meter", "unit": "bbl/d"}, {"metric": "motor_kw", "path": "Motor.Power", "label": "Motor input power, average while running", "unit": "kW"}, {"metric": "current_up_a", "path": "Motor.PeakCurrentUp", "label": "Motor peak current on the upstroke", "unit": "A"}, {"metric": "current_down_a", "path": "Motor.PeakCurrentDown", "label": "Motor peak current on the downstroke", "unit": "A"}]}, "twin_model": {"limits": {"fluid_load_lost_ratio": 0.3, "submergence_low_ft": 150.0, "submergence_gas_ft": 300.0, "submergence_high_ft": 1000.0, "runtime_poc_pct": 95.0, "ve_alert": 0.7, "tv_loss_alert_pct": 10.0, "pprl_ratio_alert": 1.15, "mprl_ratio_alert": 0.75, "gearbox_warn_pct": 90.0, "gearbox_limit_pct": 100.0, "rod_loading_limit_pct": 100.0, "balance_low": 0.75, "balance_high": 1.33, "full_fillage_pct": 95.0}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "fluid_pound": {"name": "Fluid pound: well pumped off, pump-off control not stopping", "part": "pump / controller", "symptoms": "fillage low, pump intake pressure near zero, run time 100 %, plunger hits liquid on the downstroke", "rules": ["RP_FLUID_POUND"], "default_ramp_min": 1}, "gas_interference": {"name": "Gas interference: free gas in the pump", "part": "pump", "symptoms": "fillage low although the pump is well submerged, rounded load release on the card", "rules": ["RP_GAS_INTERFERENCE"], "default_ramp_min": 1}, "tubing_leak": {"name": "Tubing leak (hole in the tubing)", "part": "tubing", "symptoms": "full pump card, valves hold, but less liquid reaches the surface; tubing pressure falls", "rules": ["RP_PRODUCTION_LOW", "RP_TUBING_LEAK"], "default_ramp_min": 1.5}, "worn_pump": {"name": "Worn pump: plunger / barrel wear, leaking traveling valve", "part": "pump", "symptoms": "fluid load leaks off during the traveling valve check, less liquid at the surface", "rules": ["RP_PRODUCTION_LOW", "RP_PUMP_LEAK"], "default_ramp_min": 1.5}, "rod_part": {"name": "Rod part (parted rod string)", "part": "rods", "symptoms": "loads fall to the weight of the rods above the break, no fluid load, no production, counterweights now drive the gearbox", "rules": ["RP_ROD_PART", "RP_OUT_OF_BALANCE", "RP_GEARBOX_OVERLOAD"], "default_ramp_min": 0.5}, "paraffin_drag": {"name": "Paraffin / rod-tubing friction", "part": "rods / tubing", "symptoms": "peak load up, minimum load down, card gets taller, gearbox torque and top-rod stress over their limits", "rules": ["RP_PPRL_HIGH", "RP_MPRL_LOW", "RP_GEARBOX_OVERLOAD", "RP_ROD_OVERSTRESS"], "default_ramp_min": 1.5}, "counterbalance_shift": {"name": "Counterbalance out of balance (counterweights moved)", "part": "pumping unit", "symptoms": "motor current much higher on one half of the stroke; loads unchanged", "rules": ["RP_OUT_OF_BALANCE"], "default_ramp_min": 1}}, "presentation": {"title": "RP-2901 sucker-rod pumping system", "dashboard": "ROD_PUMP_SYSTEM", "kpis": [{"metric": "pump_fillage_pct"}, {"metric": "pprl_lb"}]}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const num = (v, d = 0) => (v == null || isNaN(v)) ? '–' : Number(v).toLocaleString('en-US', { maximumFractionDigits: d, minimumFractionDigits: d });
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(9, 6.5, 14); ctl.target.set(0, 2.6, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(6, 12, 8); scene.add(sun);
+const grid = new THREE.GridHelper(30, 30, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), paint = M(0x56718f, { m: .35 }), dark = M(0x3d4249), red = M(0xb3262d, { m: .3 }), yellow = M(0xd8a31a, { m: .2, r: .5 });
+const cyl = (r1, r2, h, m, s = 28) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// geometry of the unit (metres): beam pivot, arms, crank
+const PIV = { x: 0, y: 5.2 }, A = 3.6, C = 3.0, CR = { x: -3.3, y: 1.7 }, R = 1.0, LP = 3.5;
+// base and samson post
+scene.add(at(box(9.5, .3, 1.6, dark), -1, .15, 0));
+[-.55, .55].forEach(z => {
+  const leg1 = box(.18, 5.4, .18, paint); leg1.rotation.z = -.12; scene.add(at(leg1, -.35, 2.65, z));
+  const leg2 = box(.18, 5.4, .18, paint); leg2.rotation.z = .12; scene.add(at(leg2, .35, 2.65, z));
+});
+scene.add(at(box(.5, .3, 1.4, dark), 0, 5.2, 0));
+// walking beam group (rotates about the pivot)
+const beam = new THREE.Group(); at(beam, PIV.x, PIV.y, 0); scene.add(beam);
+beam.add(at(box(A + C + .4, .45, .3, paint), (A - C) / 2, .35, 0));
+// horsehead: an arc of radius A centred on the pivot
+const hhShape = new THREE.Shape(), a0 = -.36, a1 = .12;
+hhShape.moveTo(A * Math.cos(a0), A * Math.sin(a0)); hhShape.absarc(0, 0, A, a0, a1, false);
+hhShape.lineTo((A - .55) * Math.cos(a1), (A - .55) * Math.sin(a1)); hhShape.absarc(0, 0, A - .55, a1, a0, true);
+const hh = new THREE.Mesh(new THREE.ExtrudeGeometry(hhShape, { depth: .5, bevelEnabled: false, curveSegments: 24 }), paint);
+hh.position.z = -.25; beam.add(hh);
+// equalizer at the tail
+beam.add(at(box(.3, .3, 1.3, dark), -C, .2, 0));
+// gearbox, cranks, counterweights, motor
+scene.add(at(box(1.4, 1.3, 1.0, M(0x8a96a3, { m: .4 })), CR.x, 1.0, 0));
+const crankG = new THREE.Group(); at(crankG, CR.x, CR.y, 0); scene.add(crankG);
+[-.65, .65].forEach(z => {
+  crankG.add(at(box(.25, R + .9, .12, dark), 0, -(R + .9) / 2 + .45, z));
+  crankG.add(at(box(1.0, .7, .2, M(0x2f3338)), 0, -R - .1, z));
+  crankG.add(at(cyl(.08, .08, .2, steel), 0, R, z).rotateX(Math.PI / 2));
+});
+crankG.add(at(cyl(.12, .12, 1.5, steel), 0, 0, 0).rotateX(Math.PI / 2));
+scene.add(at(box(.9, .6, .7, M(0x0f62fe, { m: .3 })), -4.6, .7, .6));
+scene.add(at(box(.05, .9, .9, dark), -4.0, 1.2, .6));
+// pitman arms (oriented each frame)
+const pitmen = [-.75, .75].map(z => { const p = cyl(.07, .07, 1, paint); scene.add(p); return { m: p, z }; });
+// bridle, carrier bar, load cell, polished rod, wellhead
+const bridle = [-.12, .12].map(z => { const b = cyl(.02, .02, 1, M(0x222222)); scene.add(b); return { m: b, z }; });
+const carrier = box(.5, .1, .3, dark); scene.add(carrier);
+const cell = box(.22, .12, .22, M(0x8a3ffc, { m: .2 })); scene.add(cell);
+const prod = cyl(.04, .04, 1, steel); scene.add(prod);
+scene.add(at(cyl(.18, .22, .9, M(0x8d8d8d)), A, .45, 0));
+scene.add(at(box(.3, .3, .3, dark), A, 1.0, 0));
+const flow = cyl(.07, .07, 3, M(0x8d8d8d)); flow.rotation.z = Math.PI / 2; scene.add(at(flow, A + 1.6, .55, 0));
+// RPC panel
+scene.add(at(box(.6, .9, .25, M(0x8a3ffc, { m: .2 })), A + 1.2, 1.3, -1.2));
+scene.add(at(box(.06, 1.3, .06, dark), A + 1.2, .45, -1.2));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(beacon, A + 1.2, 1.9, -1.2));
+// the well below ground (shown in cutaway): casing, tubing, rods and the pump, vertical scale compressed
+const well = new THREE.Group(); scene.add(well); well.visible = false;
+const WD = -9;  // depth of the pump in the drawing
+well.add(at(cyl(.32, .32, -WD, M(0x6f6f6f, { t: .35, ds: true })), A, WD / 2, 0));
+well.add(at(cyl(.18, .18, -WD, M(0x9fb3c8, { t: .45, ds: true })), A, WD / 2, 0));
+const liquid = cyl(.31, .31, 1, M(0x4589ff, { t: .35 })); well.add(liquid);
+const barrel = cyl(.16, .16, 1.6, M(0xc6c6c6, { t: .5, ds: true })); well.add(at(barrel, A, WD + .8, 0));
+const plunger = cyl(.13, .13, .5, yellow); well.add(plunger);
+const rodsDown = cyl(.03, .03, 1, steel); well.add(rodsDown);
+well.add(at(new THREE.Mesh(new THREE.SphereGeometry(.07, 12, 10), red), A, WD + .08, 0));
+well.add(at(box(.5, .15, .5, M(0x24a148)), A, WD + 2.2, 0));
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(30, 30), M(0x2a2e35, { t: 1, ds: true })); ground.rotation.x = -Math.PI / 2; ground.position.y = -.01; scene.add(ground);
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('loads', [A + .2, 3.2, .3]); lbl('gb', [CR.x, 2.2, .8]); lbl('motor', [-4.6, 1.2, .9]); lbl('struct', [0, 6.0, 0]);
+lbl('pump', [A + .9, 1.9, -1.2]); lbl('flow', [A + 3, .8, 0]); lbl('pip', [A - .4, -2.5, .4]); lbl('tv', [A + .4, -6.5, .4]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) {
+    const L = LBL[k], v = L.pos.clone().project(cam);
+    const hidden = (k === 'pip' || k === 'tv') && !cut;
+    L.el.style.display = (v.z < 1 && !hidden) ? '' : 'none';
+    L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px';
+  }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let spm = 8.5, running = true, fill = 0.92, subm = 400;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  spm = r.spm; running = !!r.running; fill = Math.max(0, Math.min(1, r.pump_fillage_pct / 100)); subm = t.submergence_ft;
+  setLbl('loads', `PPRL · MPRL (expected ${num(t.pprl_expected_lb)} · ${num(t.mprl_expected_lb)})`, `${num(r.pprl_lb)} · ${num(r.mprl_lb)} lb`,
+    st(names.has('RP_PPRL_HIGH') || names.has('RP_MPRL_LOW') || names.has('RP_ROD_OVERSTRESS') || names.has('RP_ROD_PART'), t.pprl_ratio > 1.08));
+  setLbl('gb', `gearbox up / down kin-lb · CBE ${num(d.unit.cbe_lb)} lb`, `${fmt(t.gearbox_load_pct, 0)} % · ${fmt(t.torque_up_kinlb, 0)} / ${fmt(t.torque_down_kinlb, 0)}`,
+    st(names.has('RP_GEARBOX_OVERLOAD'), names.has('RP_GEARBOX_HIGH')));
+  setLbl('motor', 'motor · peak current up / down', `${fmt(r.motor_kw, 1)} kW · ${fmt(r.current_up_a, 0)} / ${fmt(r.current_down_a, 0)} A`, st(names.has('RP_OUT_OF_BALANCE')));
+  setLbl('struct', `structure · ${fmt(r.spm, 2)} spm · ${fmt(r.surface_stroke_in, 0)} in`, `${fmt(t.structure_load_pct, 0)} % of ${num(d.unit.structure_rating_lb)} lb`, st(names.has('RP_STRUCTURE_OVERLOAD')));
+  setLbl('pump', `pump card · run ${fmt(r.runtime_pct, 0)} % · ${r.pumpoff_cycles_24h} stops/24 h`, `fill ${fmt(r.pump_fillage_pct, 0)} % · Fo ${num(r.pump_fluid_load_lb)} lb (${fmt(t.fluid_load_ratio)})`,
+    st(names.has('RP_FLUID_POUND') || names.has('RP_ROD_PART'), names.has('RP_GAS_INTERFERENCE') || r.pump_fillage_pct < d.operation.pumpoff_fillage_pct));
+  setLbl('flow', `meter · pump displacement ${fmt(t.pump_displacement_bpd, 0)} bbl/d`, `${fmt(r.flow_bpd, 0)} bbl/d · VE ${fmt(t.vol_eff)}`, st(names.has('RP_PRODUCTION_LOW') || names.has('RP_TUBING_LEAK')));
+  setLbl('pip', `pump intake ${fmt(r.pip_psi, 0)} psi · casing ${fmt(r.casing_pressure_psi, 0)} psi`, `${fmt(t.submergence_ft, 0)} ft over the pump`,
+    st(t.submergence_ft < L.submergence_low_ft, names.has('RP_UNDERPUMPED')));
+  setLbl('tv', 'traveling valve check', `${fmt(r.tv_load_loss_pct, 1)} % load lost`, st(names.has('RP_PUMP_LEAK')));
+  $('k-health').textContent = ST.health; $('k-fill').textContent = fmt(r.pump_fillage_pct, 0) + ' %'; $('k-gb').textContent = fmt(t.gearbox_load_pct, 0) + ' %';
+  $('c-run-t').textContent = running ? `pumping ${fmt(r.spm, 1)} spm` : 'idle (pump-off)'; $('c-run').className = 'chip ' + (running ? 'ok' : 'warn');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('PPRL (lb)', num(r.pprl_lb), num(t.pprl_expected_lb), names.has('RP_PPRL_HIGH')) +
+    row('MPRL (lb)', num(r.mprl_lb), num(t.mprl_expected_lb), names.has('RP_MPRL_LOW')) +
+    row('Fluid load on pump card (lb)', num(r.pump_fluid_load_lb), num(t.fo_expected_lb), names.has('RP_ROD_PART')) +
+    row('Gross stroke (in)', fmt(r.pump_gross_stroke_in, 1), fmt(t.gross_stroke_expected_in, 1)) +
+    row('Fillage (%)', fmt(r.pump_fillage_pct, 0), '≥ ' + d.operation.pumpoff_fillage_pct, r.pump_fillage_pct < d.operation.pumpoff_fillage_pct) +
+    row('Volumetric efficiency', fmt(t.vol_eff), fmt(d.operation.ve_expected), t.vol_eff < L.ve_alert) +
+    row('Gearbox loading (%)', fmt(t.gearbox_load_pct, 0), '< ' + L.gearbox_limit_pct, t.gearbox_load_pct >= L.gearbox_limit_pct) +
+    row('Top rod, % of Goodman', fmt(t.rod_loading_pct, 0), '< ' + L.rod_loading_limit_pct, t.rod_loading_pct > L.rod_loading_limit_pct) +
+    row('Balance (I down / up)', fmt(t.balance_ratio), '≈ 1.00', names.has('RP_OUT_OF_BALANCE')) +
+    row('Ideal CBE (lb)', num(t.cbe_ideal_lb), num(d.unit.cbe_lb)) +
+    row('Liquid over the pump (ft)', fmt(t.submergence_ft, 0), '–') +
+    row('TV check load lost (%)', fmt(r.tv_load_loss_pct, 1), '≤ ' + L.tv_loss_alert_pct, names.has('RP_PUMP_LEAK'));
+  const order = ['Critical', 'High', 'Medium', 'Low'];
+  const al = (ST.conditions || []).slice().sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the well behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut); well.visible = cut;
+  ground.material.transparent = true; ground.material.opacity = cut ? .25 : 1; ground.material.depthWrite = !cut;
+  if (cut) { cam.position.set(15, 0, 21); ctl.target.set(1.5, -3, 0); ctl.update(); } else home();
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+const up = new THREE.Vector3(0, 1, 0);
+function link(mesh, a, b) {   // stretch a unit-height cylinder between two points
+  const v = new THREE.Vector3().subVectors(b, a), len = v.length();
+  mesh.scale.set(1, len, 1); mesh.position.copy(a).addScaledVector(v, .5); mesh.quaternion.setFromUnitVectors(up, v.normalize());
+}
+let theta = 0, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (running) theta = (theta + dt * spm / 60 * 2 * Math.PI) % (2 * Math.PI);
+  crankG.rotation.z = -theta;
+  // crank pin (theta = 0: pin at the top, beam tail up, horsehead at the bottom of the stroke)
+  const pin = { x: CR.x + R * Math.sin(theta), y: CR.y + R * Math.cos(theta) };
+  const sinPhi = Math.max(-.6, Math.min(.6, (pin.y + LP - PIV.y) / C));
+  const phi = Math.asin(sinPhi);                      // tail up -> beam rotates so the horsehead goes down
+  beam.rotation.z = -phi;
+  const tail = new THREE.Vector3(PIV.x - C * Math.cos(phi), PIV.y + C * Math.sin(phi) + .2, 0);
+  pitmen.forEach(p => link(p.m, new THREE.Vector3(pin.x, pin.y, p.z), new THREE.Vector3(tail.x, tail.y, p.z)));
+  const rodTop = PIV.y - A * Math.sin(phi) - 1.2;     // polished rod clamp height, follows the horsehead
+  bridle.forEach(b => link(b.m, new THREE.Vector3(A, rodTop + 1.0 + .05, b.z), new THREE.Vector3(A, rodTop, b.z)));
+  carrier.position.set(A, rodTop, 0); cell.position.set(A, rodTop - .1, 0);
+  link(prod, new THREE.Vector3(A, rodTop, 0), new THREE.Vector3(A, 1.05, 0));
+  // downhole: plunger follows the stroke (shorter: rod stretch), liquid level from the submergence
+  const s01 = (1 - Math.cos(theta + Math.PI)) / 2;    // 0 at the bottom of the stroke
+  const py = WD + .35 + s01 * .9;
+  plunger.position.set(A, py, 0); link(rodsDown, new THREE.Vector3(A, -.05, 0), new THREE.Vector3(A, py + .25, 0));
+  const lev = Math.min(-.3, WD + 1.6 + Math.min(1, subm / 1500) * 6);
+  liquid.scale.set(1, lev - WD, 1); liquid.position.set(A, (lev + WD) / 2, 0);
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

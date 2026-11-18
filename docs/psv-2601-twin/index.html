@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PSV-2601 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>PSV-2601</b><span class="g">Pressure relief valve · API 526 J orifice · drum D-2601</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-cap"><span class="dot"></span><span id="c-cap-t">capacity –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Capacity, lifts and bench tests →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the valve model…</div>
+<div class="credit">Conventional direct spring-loaded relief valve, size 3J4 (3 in inlet, 4 in outlet), on top of a vapour drum, discharging to the flare header; wireless acoustic transmitter on the outlet pipe. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-lift">Show a lift</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The spring holds the disc on the nozzle; at set pressure the disc lifts and the vapour goes to the flare. The acoustic transmitter hears both a lift and a leaking seat.</div>
+<aside>
+  <section>
+    <h2>PSV-2601 twin</h2>
+    <p class="sub" id="sub">relief valve on drum D-2601</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Operating / set<b id="k-op">–</b></div><div>Capacity used<b id="k-cap">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The gateway sends only what is measured or recorded: drum pressure and temperature, vapour feed, acoustic level, pipe temperatures, the last lift and the last bench test. The required relieving rate, the capacity of the J orifice, the inlet loss, the back pressure and the safe test interval are computed from the twin file.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for PSV-2601: the protected drum, the relief valve, its acoustic transmitter and its bench-test record, with\ninjectable faults.\n\nThe real gateway sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings, lift\nevents and fault fingerprints for the tests and the figures.\n\"\"\"\nimport math\nimport random\n\n\nclass Valve:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.v, self.rl, self.ac, self.rb = d[\"vessel\"], d[\"relief\"], d[\"acoustic\"], d[\"rbi\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def operating_barg(self):\n        return self.v[\"operating_barg\"] + 2.5 * self.faults[\"operating_near_set\"]\n\n    def open_ratio(self):\n        \"\"\"Opening pressure / set: a clean valve pops at set; deposits and corrosion hold the disc down.\"\"\"\n        return 1.004 + 0.12 * self.faults[\"valve_sticking\"]\n\n    def peak_ratio(self):\n        \"\"\"Peak drum pressure / MAWP during a lift: overpressure needed for full lift, plus the late opening.\"\"\"\n        return 1.045 + 0.10 * self.faults[\"valve_sticking\"]\n\n    # one published message ------------------------------------------------------------------------------------------\n    def measure(self):\n        f = self.faults\n        s, mawp = self.v[\"set_barg\"], self.v[\"mawp_barg\"]\n        p = self.operating_barg() + self.n(0.06)\n        op = p / s * 100\n        amb = 30.0 + self.n(0.3)\n        simmer = max(0.0, op - 92.0) * 4.0\n        lift_vessel = s * 1.07 + self.n(0.03)\n        return {\n            \"vessel_pressure_barg\": round(p, 3), \"vessel_temp_c\": round(self.v[\"temp_c\"] + self.n(0.4), 2),\n            \"vapour_feed_kgh\": round(self.rl[\"design_feed_kgh\"] * (1 + 0.35 * f[\"relief_load_increase\"]) + self.n(80), 1),\n            \"acoustic_level\": round(min(255.0, self.ac[\"background_counts\"] + self.n(2.5) + 45 * f[\"seat_passing\"] + simmer), 1),\n            \"outlet_temp_c\": round(amb + self.n(0.8) - 9.0 * f[\"seat_passing\"], 2), \"ambient_temp_c\": round(amb, 2),\n            \"header_pressure_barg\": round(0.15 + 0.3 * f[\"high_backpressure\"] + abs(self.n(0.02)), 3),\n            \"lift_active\": 0,\n            \"lift_open_barg\": round(s * self.open_ratio() + self.n(0.03), 3),\n            \"lift_peak_barg\": round(mawp * self.peak_ratio() + self.n(0.03), 3),\n            \"lift_vessel_barg\": round(lift_vessel, 3),\n            \"lift_inlet_barg\": round(lift_vessel - s * (0.016 + 0.042 * f[\"inlet_restriction\"]) + self.n(0.012), 3),\n            \"lift_outlet_barg\": round(s * (0.05 + 0.11 * f[\"high_backpressure\"]) + self.n(0.02), 3),\n            \"lift_duration_s\": round(max(2.0, 95 - 90 * f[\"inlet_restriction\"] + self.n(3 * (1 - f[\"inlet_restriction\"]) + 0.6)), 1),\n            \"lift_count_30d\": int(round(9 * f[\"inlet_restriction\"])), \"lift_count_365d\": 2 + int(round(30 * f[\"inlet_restriction\"])),\n            \"test_asfound_barg\": round(s * (1.006 + 0.064 * f[\"set_pressure_drift\"]) + self.n(0.02), 3),\n            \"test_prev_asleft_barg\": round(s + self.n(0.01), 3), \"test_interval_h\": 34800.0,\n            \"test_seat_bpm\": round(4 + 41 * f[\"set_pressure_drift\"] + abs(self.n(1.0)), 1),\n            \"test_hours_since\": round(17500 + 22000 * f[\"test_overdue\"] + abs(self.n(100)), 1),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The drum runs at its operating pressure. Every `demo.lift_every_s` real seconds a short process upset pushes the drum to\n    set: the valve lifts for `demo.lift_s` seconds (acoustic level high, drum pressure up to its peak and back), and at the\n    end the lift values (opening, peak, inlet and outlet pressure, duration) are stored, as the acoustic event log does.\n    \"\"\"\n    LIFT_COUNTS = 205.0\n\n    def __init__(self, twin, seed=2601):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.every = float(demo.get(\"lift_every_s\", 75))\n        self.lift_s = float(demo.get(\"lift_s\", 8))\n        self.v = Valve(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.timer, self.lift = 0.0, None\n        self.last = self.v.measure()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.timer, self.lift = 0.0, None\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.v.faults[k] = f.sev\n        self.t += dt * self.scale\n        p = self.v.operating_barg()\n        if self.lift is None:\n            self.timer += dt\n            if self.timer >= self.every:\n                self.timer, self.lift = 0.0, 0.0\n        else:\n            self.lift += dt\n            if self.lift >= self.lift_s:\n                self.lift, self.last = None, self.v.measure()\n        if self.lift is not None:\n            peak = self.twin[\"design\"][\"vessel\"][\"mawp_barg\"] * self.v.peak_ratio()\n            p = p + (peak - p) * math.sin(math.pi * min(1.0, self.lift / self.lift_s))\n        return {\"pressure\": p, \"lifting\": self.lift is not None}\n\n    def measure(self, true):\n        r = self.v.measure()\n        for k in (\"lift_open_barg\", \"lift_peak_barg\", \"lift_vessel_barg\", \"lift_inlet_barg\", \"lift_outlet_barg\", \"lift_duration_s\"):\n            r[k] = self.last[k]\n        r[\"vessel_pressure_barg\"] = round(true[\"pressure\"] + self.v.n(0.04), 3)\n        if true[\"lifting\"]:\n            r[\"lift_active\"] = 1\n            r[\"acoustic_level\"] = round(min(255.0, self.LIFT_COUNTS + self.v.n(6)), 1)\n        return r\n", "twin_calc": "\"\"\"The pressure relief valve twin's expectations (PSV-2601, conventional spring-loaded PRV, API 526 J orifice).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nOperating margin (spring-loaded valves simmer and leak when the operating pressure gets close to set):\n    operating ratio = drum pressure / set x 100        watch from 90 %, act from 95 %\nCapacity (API 520 Part I, vapour in critical flow, SI units: A mm2, W kg/h, P1 kPa abs, T K):\n    A_required = W / (C Kd P1 Kb Kc) x sqrt(T Z / M)\n    C = 0.03948 sqrt(k (2/(k+1))^((k+1)/(k-1)))        P1 = set x (1 + overpressure) + atmospheric\n    W = load factor x vapour feed (governing case: blocked outlet, API 521); T = live drum temperature\n    rated capacity of the installed orifice = A_eff x C Kd P1 Kb Kc / sqrt(T Z / M)       (API 526 effective area)\n    capacity utilisation = A_required / A_eff x 100\nInstallation (values recorded at full lift):\n    inlet loss = (drum - valve inlet) / set x 100          API 520 Part II: within 3 % of set\n    built-up back pressure = outlet / set x 100            API 520 Part I: within 10 % of set (conventional valve)\n    opening = open pressure / set x 100; accumulation = (peak - MAWP) / MAWP x 100 (ASME: 10 % for one valve)\nLeak (passing) detection: acoustic level above background AND outlet pipe temperature away from ambient, while the drum\n    is below the simmer zone and the valve is not lifting (gas passing usually cools the pipe, liquid warms it).\nBench test (API 576 / API 527):\n    pop deviation = (as-found - set) / set x 100          tolerance +-3 % (ASME, above 70 psig)\n    drift rate = (as-found - previous as-left) / set x 100 / years in service\n    seat leak ratio = bubbles per minute at 90 % of set / API 527 limit\nRisk-based interval (fleet + this valve):\n    fleet lambda = chi2(conf; 2n+2) / (2 x valve-years)    (upper bound of the fail-to-open rate from bench-test history)\n    POFOD(T) = 1 - (1 - exp(-lambda T)) / (lambda T)      -> T_fleet where POFOD = target\n    RBI interval = min(code maximum, T_fleet, drift allowance / |drift rate|)\n\"\"\"\nimport math\n\nATM_BAR = 1.01325\n\n\ndef chi2_ppf_even(p, dof):\n    \"\"\"Chi-square quantile for an even number of degrees of freedom (closed-form CDF, bisection).\"\"\"\n    k = dof // 2\n    cdf = lambda x: 1 - math.exp(-x / 2) * sum((x / 2) ** i / math.factorial(i) for i in range(k))\n    lo, hi = 0.0, 500.0\n    for _ in range(200):\n        mid = (lo + hi) / 2\n        lo, hi = (mid, hi) if cdf(mid) < p else (lo, mid)\n    return (lo + hi) / 2\n\n\ndef pofod(lam, t):\n    \"\"\"Average probability of failure on demand over a test interval t (years) for a constant fail-to-open rate lam (/y).\"\"\"\n    x = lam * t\n    return 1 - (1 - math.exp(-x)) / x if x > 0 else 0.0\n\n\ndef interval_for(lam, target):\n    \"\"\"Test interval (years) at which the average POFOD reaches the target.\"\"\"\n    lo, hi = 1e-6, 200.0\n    for _ in range(200):\n        mid = (lo + hi) / 2\n        lo, hi = (mid, hi) if pofod(lam, mid) < target else (lo, mid)\n    return (lo + hi) / 2\n\n\ndef api520_c(k):\n    return 0.03948 * math.sqrt(k * (2 / (k + 1)) ** ((k + 1) / (k - 1)))\n\n\ndef api520_area_mm2(w_kgh, t_k, z, mw, k, p1_kpa, kd=0.975, kb=1.0, kc=1.0):\n    return w_kgh / (api520_c(k) * kd * p1_kpa * kb * kc) * math.sqrt(t_k * z / mw)\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    v, va, fl, rl, ln, ac, bn, rb = (d[\"vessel\"], d[\"valve\"], d[\"fluid\"], d[\"relief\"], d[\"lines\"], d[\"acoustic\"],\n                                      d[\"bench\"], d[\"rbi\"])\n    c = api520_c(fl[\"k\"])\n    p1 = (v[\"set_barg\"] * (1 + v[\"overpressure_pct\"] / 100) + ATM_BAR) * 100.0\n    lam = chi2_ppf_even(rb[\"confidence\"], 2 * rb[\"fleet_failures\"] + 2) / (2 * rb[\"fleet_valve_years\"])\n    tfleet = interval_for(lam, rb[\"pofod_target\"])\n    return dict(set=v[\"set_barg\"], mawp=v[\"mawp_barg\"], acc=v[\"accumulation_limit_pct\"], c=c, p1=p1,\n                kd=va[\"kd\"], kb=va[\"kb\"], kc=va[\"kc\"], aeff=va[\"area_eff_mm2\"], mw=fl[\"mw\"], kk=fl[\"k\"], z=fl[\"z\"],\n                lf=rl[\"load_factor\"], feed=rl[\"design_feed_kgh\"], inlet_lim=ln[\"inlet_loss_limit_pct\"], bp_lim=ln[\"builtup_bp_limit_pct\"],\n                bg=ac[\"background_counts\"], tol=bn[\"set_tolerance_pct\"], bpm=bn[\"seat_leak_limit_bpm\"],\n                planned=rb[\"planned_interval_y\"], codemax=rb[\"code_max_interval_y\"], lam=lam, tfleet=tfleet,\n                cap=min(rb[\"code_max_interval_y\"], tfleet), allow=rb[\"drift_allow_pct\"], cdk=c * va[\"kd\"] * p1 * va[\"kb\"] * va[\"kc\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    s = k[\"set\"]\n    SQ = f\"np.sqrt((df['VESSEL_TEMP_C'] + 273.15) * {k['z']} / {k['mw']})\"\n    LOAD = f\"({k['lf']} * df['VAPOUR_FEED_KGH'])\"\n    AREQ = f\"({LOAD} * {SQ} / {k['cdk']!r})\"\n    OP = f\"(df['VESSEL_PRESSURE_BARG'] / {s} * 100)\"\n    DRIFT = f\"((df['TEST_ASFOUND_BARG'] - df['TEST_PREV_ASLEFT_BARG']) / {s} * 100 / (df['TEST_INTERVAL_H'] / 8760))\"\n    RBI = f\"np.minimum({k['cap']:.6g}, {k['allow']} / np.maximum(np.abs({DRIFT}), 0.05))\"\n    return dict(k=k, SQ=SQ, LOAD=LOAD, AREQ=AREQ, OP=OP, DRIFT=DRIFT, RBI=RBI,\n                UTIL=f\"({AREQ} / {k['aeff']} * 100)\", EXC=f\"(df['ACOUSTIC_LEVEL'] - {k['bg']})\", DT=\"(df['OUTLET_TEMP_C'] - df['AMBIENT_TEMP_C'])\",\n                INL=f\"((df['LIFT_VESSEL_BARG'] - df['LIFT_INLET_BARG']) / {s} * 100)\", BU=f\"(df['LIFT_OUTLET_BARG'] / {s} * 100)\",\n                OPEN=f\"(df['LIFT_OPEN_BARG'] / {s} * 100)\", ACC=f\"((df['LIFT_PEAK_BARG'] - {k['mawp']}) / {k['mawp']} * 100)\",\n                POP=f\"((df['TEST_ASFOUND_BARG'] - {s}) / {s} * 100)\")\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"OP_RATIO_PCT\", p[\"OP\"]),\n        (\"RELIEF_LOAD_KGH\", p[\"LOAD\"]),\n        (\"REQUIRED_AREA_MM2\", p[\"AREQ\"]),\n        (\"RATED_CAPACITY_KGH\", f\"{k['aeff'] * k['cdk']!r} / {p['SQ']}\"),\n        (\"CAPACITY_UTIL_PCT\", p[\"UTIL\"]),\n        (\"ACOUSTIC_EXCESS\", p[\"EXC\"]),\n        (\"OUTLET_DT_K\", p[\"DT\"]),\n        (\"INLET_LOSS_PCT\", p[\"INL\"]),\n        (\"BUILTUP_BP_PCT\", p[\"BU\"]),\n        (\"SUPERIMPOSED_BP_PCT\", f\"df['HEADER_PRESSURE_BARG'] / {k['set']} * 100\"),\n        (\"OPEN_PCT_OF_SET\", p[\"OPEN\"]),\n        (\"ACCUMULATION_PCT\", p[\"ACC\"]),\n        (\"POP_DEV_PCT\", p[\"POP\"]),\n        (\"DRIFT_RATE_PCT_Y\", p[\"DRIFT\"]),\n        (\"SEAT_LEAK_RATIO\", f\"df['TEST_SEAT_BPM'] / {k['bpm']}\"),\n        (\"RBI_INTERVAL_Y\", p[\"RBI\"]),\n        (\"TEST_DUE_RATIO\", f\"df['TEST_HOURS_SINCE'] / {k['planned'] * 8760:.6g}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    s = k[\"set\"]\n    sq = math.sqrt((r[\"vessel_temp_c\"] + 273.15) * k[\"z\"] / k[\"mw\"])\n    load = k[\"lf\"] * r[\"vapour_feed_kgh\"]\n    areq = load * sq / k[\"cdk\"]\n    drift = (r[\"test_asfound_barg\"] - r[\"test_prev_asleft_barg\"]) / s * 100 / (r[\"test_interval_h\"] / 8760)\n    return {\n        \"op_ratio_pct\": r[\"vessel_pressure_barg\"] / s * 100, \"relief_load_kgh\": load, \"required_area_mm2\": areq,\n        \"rated_capacity_kgh\": k[\"aeff\"] * k[\"cdk\"] / sq, \"capacity_util_pct\": areq / k[\"aeff\"] * 100,\n        \"acoustic_excess\": r[\"acoustic_level\"] - k[\"bg\"], \"outlet_dt_k\": r[\"outlet_temp_c\"] - r[\"ambient_temp_c\"],\n        \"inlet_loss_pct\": (r[\"lift_vessel_barg\"] - r[\"lift_inlet_barg\"]) / s * 100, \"builtup_bp_pct\": r[\"lift_outlet_barg\"] / s * 100,\n        \"superimposed_bp_pct\": r[\"header_pressure_barg\"] / s * 100, \"open_pct_of_set\": r[\"lift_open_barg\"] / s * 100,\n        \"accumulation_pct\": (r[\"lift_peak_barg\"] - k[\"mawp\"]) / k[\"mawp\"] * 100, \"pop_dev_pct\": (r[\"test_asfound_barg\"] - s) / s * 100,\n        \"drift_rate_pct_y\": drift, \"seat_leak_ratio\": r[\"test_seat_bpm\"] / k[\"bpm\"],\n        \"rbi_interval_y\": min(k[\"cap\"], k[\"allow\"] / max(abs(drift), 0.05)),\n        \"test_due_ratio\": r[\"test_hours_since\"] / (k[\"planned\"] * 8760),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    NL = \"(df['LIFT_ACTIVE'] < 0.5)\"\n    return [\n        (\"PSV_CAPACITY_SHORT\", f\"{p['UTIL']} > {L['util_limit_pct']}\", \"Critical\", \"relief_load_increase\"),\n        (\"PSV_ACCUMULATION\", f\"{p['ACC']} > {k['acc']}\", \"Critical\", \"valve_sticking\"),\n        (\"PSV_LATE_OPENING\", f\"{p['OPEN']} > {100 + k['tol']}\", \"High\", \"valve_sticking\"),\n        (\"PSV_INLET_LOSS\", f\"{p['INL']} > {k['inlet_lim']}\", \"High\", \"inlet_restriction\"),\n        (\"PSV_BACKPRESSURE_HIGH\", f\"{p['BU']} > {k['bp_lim']}\", \"High\", \"high_backpressure\"),\n        (\"PSV_PASSING\", f\"({p['EXC']} > {L['acoustic_excess_alert']}) & (np.abs({p['DT']}) > {L['outlet_dt_alert_k']}) & {NL} & ({p['OP']} < {L['simmer_pct']})\",\n         \"High\", \"seat_passing\"),\n        (\"PSV_NEAR_SET\", f\"({p['OP']} >= {L['near_set_pct']}) & {NL}\", \"High\", \"operating_near_set\"),\n        (\"PSV_TEST_OVERDUE\", f\"df['TEST_HOURS_SINCE'] > {k['planned'] * 8760:.6g}\", \"High\", \"test_overdue\"),\n        (\"PSV_SIMMER_ZONE\", f\"({p['OP']} >= {L['simmer_pct']}) & ({p['OP']} < {L['near_set_pct']}) & {NL}\", \"Medium\", \"operating_near_set\"),\n        (\"PSV_CAPACITY_MARGIN\", f\"({p['UTIL']} > {L['util_alert_pct']}) & ({p['UTIL']} <= {L['util_limit_pct']})\", \"Medium\", \"relief_load_increase\"),\n        (\"PSV_CHATTER\", f\"(df['LIFT_COUNT_30D'] >= {L['chatter_lifts_30d']}) & (df['LIFT_DURATION_S'] < {L['chatter_duration_s']})\", \"Medium\", \"inlet_restriction\"),\n        (\"PSV_POP_DRIFT\", f\"np.abs({p['POP']}) > {k['tol']}\", \"Medium\", \"set_pressure_drift\"),\n        (\"PSV_SEAT_TIGHTNESS\", f\"df['TEST_SEAT_BPM'] > {k['bpm']}\", \"Medium\", \"set_pressure_drift\"),\n        (\"PSV_RBI_INTERVAL_SHORT\", f\"{p['RBI']} < {k['planned']}\", \"Medium\", \"set_pressure_drift\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    nl = r[\"lift_active\"] < 0.5\n    op, ut = t[\"op_ratio_pct\"], t[\"capacity_util_pct\"]\n    add(ut > L[\"util_limit_pct\"], \"PSV_CAPACITY_SHORT\", \"Critical\",\n        f\"Required relieving rate {t['relief_load_kgh']:.0f} kg/h is {ut:.0f} % of what the J orifice passes ({t['rated_capacity_kgh']:.0f} kg/h)\",\n        \"process\", \"relief_load_increase\")\n    add(t[\"accumulation_pct\"] > k[\"acc\"], \"PSV_ACCUMULATION\", \"Critical\",\n        f\"Drum peaked at {r['lift_peak_barg']:.2f} barg in the last lift: {t['accumulation_pct']:.1f} % above MAWP (limit {k['acc']:.0f} %)\", \"disc\", \"valve_sticking\")\n    add(t[\"open_pct_of_set\"] > 100 + k[\"tol\"], \"PSV_LATE_OPENING\", \"High\",\n        f\"Last lift started at {r['lift_open_barg']:.2f} barg, {t['open_pct_of_set']:.1f} % of set (tolerance +{k['tol']:.0f} %)\", \"disc\", \"valve_sticking\")\n    add(t[\"inlet_loss_pct\"] > k[\"inlet_lim\"], \"PSV_INLET_LOSS\", \"High\",\n        f\"Inlet loss {t['inlet_loss_pct']:.1f} % of set at full lift (API 520 Part II: {k['inlet_lim']:.0f} %)\", \"inlet\", \"inlet_restriction\")\n    add(t[\"builtup_bp_pct\"] > k[\"bp_lim\"], \"PSV_BACKPRESSURE_HIGH\", \"High\",\n        f\"Built-up back pressure {r['lift_outlet_barg']:.2f} barg, {t['builtup_bp_pct']:.1f} % of set (conventional valve: {k['bp_lim']:.0f} %)\", \"outlet\", \"high_backpressure\")\n    add(t[\"acoustic_excess\"] > L[\"acoustic_excess_alert\"] and abs(t[\"outlet_dt_k\"]) > L[\"outlet_dt_alert_k\"] and nl and op < L[\"simmer_pct\"],\n        \"PSV_PASSING\", \"High\", f\"Valve passing: acoustic {t['acoustic_excess']:+.0f} counts over background, outlet {t['outlet_dt_k']:+.1f} K from ambient, drum at {op:.0f} % of set\",\n        \"seat\", \"seat_passing\")\n    add(op >= L[\"near_set_pct\"] and nl, \"PSV_NEAR_SET\", \"High\", f\"Drum at {op:.1f} % of set: the valve simmers and the seat wears\", \"process\", \"operating_near_set\")\n    add(r[\"test_hours_since\"] > k[\"planned\"] * 8760, \"PSV_TEST_OVERDUE\", \"High\",\n        f\"Bench test {(r['test_hours_since'] - k['planned'] * 8760):.0f} h overdue\", \"testing\", \"test_overdue\")\n    add(L[\"simmer_pct\"] <= op < L[\"near_set_pct\"] and nl, \"PSV_SIMMER_ZONE\", \"Medium\", f\"Drum at {op:.1f} % of set: inside the simmer zone\", \"process\", \"operating_near_set\")\n    add(L[\"util_alert_pct\"] < ut <= L[\"util_limit_pct\"], \"PSV_CAPACITY_MARGIN\", \"Medium\",\n        f\"Capacity utilisation {ut:.0f} %: little margin left on the J orifice\", \"process\", \"relief_load_increase\")\n    add(r[\"lift_count_30d\"] >= L[\"chatter_lifts_30d\"] and r[\"lift_duration_s\"] < L[\"chatter_duration_s\"], \"PSV_CHATTER\", \"Medium\",\n        f\"{r['lift_count_30d']:.0f} lifts in 30 days, last one {r['lift_duration_s']:.0f} s: the valve is chattering\", \"inlet\", \"inlet_restriction\")\n    add(abs(t[\"pop_dev_pct\"]) > k[\"tol\"], \"PSV_POP_DRIFT\", \"Medium\",\n        f\"As-found pop {r['test_asfound_barg']:.2f} barg, {t['pop_dev_pct']:+.1f} % from set (tolerance {k['tol']:.0f} %)\", \"spring\", \"set_pressure_drift\")\n    add(r[\"test_seat_bpm\"] > k[\"bpm\"], \"PSV_SEAT_TIGHTNESS\", \"Medium\",\n        f\"Seat leak {r['test_seat_bpm']:.0f} bubbles/min at 90 % of set (API 527: {k['bpm']:.0f})\", \"seat\", \"set_pressure_drift\")\n    add(t[\"rbi_interval_y\"] < k[\"planned\"], \"PSV_RBI_INTERVAL_SHORT\", \"Medium\",\n        f\"Drift {t['drift_rate_pct_y']:+.2f} %/year: safe test interval {t['rbi_interval_y']:.1f} y, shorter than the planned {k['planned']:.0f} y\",\n        \"spring\", \"set_pressure_drift\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "PSV-2601 spring-loaded pressure relief valve twin. Expected values in Maximo Monitor from the relief study, API 520/526 and the bench-test records; the gateway sends only what is measured or recorded.", "twin": {"id": "PSV-2601", "name": "Pressure relief valve PSV-2601", "version": "1.0.0", "folder": "psv-twin"}, "identification": {"asset": "PSV-2601", "assetnum": "PSV-2601", "manufacturer": "Emerson (Crosby)", "model": "Crosby J-Series JOS-E, size 3J4 (J orifice), conventional, metal seat", "description": "Pressure relief valve on the overhead vapour drum D-2601, discharging to the flare header", "valve": "Direct spring-loaded, full nozzle, conventional (no bellows); API 526 J orifice, 1.287 sq.in effective area; inlet ASME Class 300, outlet Class 150", "acoustic": "Rosemount 708 wireless acoustic transmitter on the outlet pipe (acoustic level 0-255 counts and pipe temperature, WirelessHART)", "protected": "Vapour drum D-2601, MAWP 15.0 barg (assumption)"}, "design": {"vessel": {"mawp_barg": 15.0, "set_barg": 15.0, "overpressure_pct": 10.0, "accumulation_limit_pct": 10.0, "operating_barg": 12.0, "temp_c": 60.0, "source": "Set pressure = MAWP; single valve, non-fire case: overpressure and accumulation 10 % of MAWP (ASME Section VIII / XIII). MAWP, operating pressure and temperature: assumption: typical value, replace with your relief study / data sheet"}, "valve": {"orifice": "J", "area_eff_mm2": 830.0, "area_eff_in2": 1.287, "kd": 0.975, "kb": 1.0, "kc": 1.0, "size": "3J4", "max_set_barg": 51.0, "max_backpressure_barg": 19.6, "source": "API 526 J orifice effective area 1.287 sq.in (830 sq.mm); Kd 0.975 with API effective areas (API 520 Part I); Kb = 1 for a conventional valve in critical flow, Kc = 1 (no rupture disc). Maximum set 740 psig (51.0 barg) and back pressure limit 285 psig (19.6 barg) for 3J4 Class 300 x 150: Crosby J-Series data sheet."}, "fluid": {"name": "light hydrocarbon vapour (propane-rich)", "mw": 44.1, "k": 1.13, "z": 0.85, "source": "Relieving vapour: molar mass, Cp/Cv and compressibility at relieving conditions: assumption: typical value, replace with your relief study / data sheet"}, "relief": {"governing_case": "blocked vapour outlet (API 521)", "load_factor": 1.0, "design_feed_kgh": 11200.0, "source": "Governing case blocked outlet: the relief load equals the vapour flow into the drum (load_factor x feed). Design vapour feed: assumption: typical value, replace with your relief study / data sheet"}, "lines": {"inlet_loss_design_pct": 1.6, "inlet_loss_limit_pct": 3.0, "builtup_bp_design_pct": 5.0, "builtup_bp_limit_pct": 10.0, "source": "Inlet loss at rated flow (non-recoverable, API 520 Part II limit 3 % of set) and built-up back pressure (conventional valve, API 520 Part I limit 10 % of set at 10 % overpressure). Design values of the line calculations: assumption: typical value, replace with your relief study / data sheet"}, "acoustic": {"background_counts": 22.0, "lift_counts": 150.0, "source": "Rosemount 708 acoustic level 0-255 counts. Background with the valve shut and the lift level: assumption: typical value, replace with your relief study / data sheet (set during commissioning)."}, "bench": {"set_tolerance_pct": 3.0, "seat_leak_limit_bpm": 20.0, "seat_test_pct_of_set": 90.0, "source": "Set pressure tolerance +-3 % above 70 psig (ASME). API 527 metal seat, air, set 15-1000 psig, orifice larger than F: 20 bubbles per minute at 90 % of set."}, "rbi": {"planned_interval_y": 4.0, "code_max_interval_y": 5.0, "pofod_target": 0.02, "fleet_failures": 3, "fleet_valve_years": 900.0, "confidence": 0.9, "drift_allow_pct": 3.0, "source": "Planned test interval = 4-year turnaround cycle (assumption). API 510 / API 576: at most 5 years in typical process service. Target POFOD 0.02 (98 % reliability on demand, a typical target for safety-critical PRVs). Fleet history: 3 fail-to-open findings at the as-found bench test in 900 valve-years of similar PSVs: assumption: typical value, replace with your relief study / data sheet. A fail-to-open here means as-found pop above set + 10 % or no pop at all (site definition)."}, "demo": {"time_scale": 60, "lift_every_s": 75, "lift_s": 8, "note": "Demo only: the plant clock runs 60 times faster and a short process upset lifts the valve every 75 s of real time so the lift tags update often; lift and test counters come from the failure modes, not from the demo clock."}}, "telemetry": {"event": "psv", "publish_every_s": 60, "device_type": "PSV_SPRING_API526", "groups": {"Process": "Protected drum", "Acoustic": "Acoustic transmitter on the outlet", "Ambient": "Weather", "Header": "Flare header", "Lift": "Last lift (from the acoustic event log)", "Test": "Last bench test (API 576 shop record)"}, "points": [{"metric": "vessel_pressure_barg", "path": "Process.Pressure", "label": "Drum pressure", "unit": "bar g"}, {"metric": "vessel_temp_c", "path": "Process.Temperature", "label": "Drum vapour temperature", "unit": "\u00b0C"}, {"metric": "vapour_feed_kgh", "path": "Process.VapourFeed", "label": "Vapour flow into the drum", "unit": "kg/h"}, {"metric": "acoustic_level", "path": "Acoustic.Level", "label": "Acoustic level on the outlet pipe", "unit": "counts"}, {"metric": "outlet_temp_c", "path": "Acoustic.Temperature", "label": "Outlet pipe temperature", "unit": "\u00b0C"}, {"metric": "ambient_temp_c", "path": "Ambient.Temperature", "label": "Ambient temperature", "unit": "\u00b0C"}, {"metric": "header_pressure_barg", "path": "Header.Pressure", "label": "Flare header pressure (superimposed back pressure)", "unit": "bar g"}, {"metric": "lift_active", "path": "Lift.Active", "label": "Valve lifting now (1 = yes)", "unit": "code"}, {"metric": "lift_open_barg", "path": "Lift.OpenPressure", "label": "Drum pressure when the last lift started", "unit": "bar g"}, {"metric": "lift_peak_barg", "path": "Lift.PeakPressure", "label": "Peak drum pressure during the last lift", "unit": "bar g"}, {"metric": "lift_vessel_barg", "path": "Lift.VesselPressure", "label": "Drum pressure at full lift", "unit": "bar g"}, {"metric": "lift_inlet_barg", "path": "Lift.InletPressure", "label": "Pressure at the valve inlet at full lift", "unit": "bar g"}, {"metric": "lift_outlet_barg", "path": "Lift.OutletPressure", "label": "Outlet pressure at full lift (built-up back pressure)", "unit": "bar g"}, {"metric": "lift_duration_s", "path": "Lift.Duration", "label": "Duration of the last lift", "unit": "s"}, {"metric": "lift_count_30d", "path": "Lift.Count30", "label": "Lifts in the last 30 days", "unit": "count"}, {"metric": "lift_count_365d", "path": "Lift.Count365", "label": "Lifts in the last 365 days", "unit": "count"}, {"metric": "test_asfound_barg", "path": "Test.AsFoundPop", "label": "As-found pop pressure at the last bench test", "unit": "bar g"}, {"metric": "test_prev_asleft_barg", "path": "Test.PrevAsLeftPop", "label": "As-left pop pressure at the test before", "unit": "bar g"}, {"metric": "test_interval_h", "path": "Test.Interval", "label": "Time in service between the two tests", "unit": "h"}, {"metric": "test_seat_bpm", "path": "Test.SeatLeak", "label": "As-found seat leakage at 90 % of set (API 527)", "unit": "bubbles/min"}, {"metric": "test_hours_since", "path": "Test.HoursSince", "label": "Hours in service since the last bench test", "unit": "h"}]}, "twin_model": {"limits": {"simmer_pct": 90.0, "near_set_pct": 95.0, "util_alert_pct": 90.0, "util_limit_pct": 100.0, "acoustic_excess_alert": 15.0, "outlet_dt_alert_k": 5.0, "chatter_lifts_30d": 6, "chatter_duration_s": 10.0}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "seat_passing": {"name": "Seat leakage (passing) in service", "part": "seat", "symptoms": "acoustic level above background and outlet pipe temperature off ambient while the drum is well below set", "rules": ["PSV_PASSING"], "default_ramp_min": 1}, "operating_near_set": {"name": "Operating pressure too close to set", "part": "process", "symptoms": "drum pressure above 90 % then 95 % of set: simmer, seat damage, product to flare", "rules": ["PSV_SIMMER_ZONE", "PSV_NEAR_SET"], "default_ramp_min": 1.5}, "set_pressure_drift": {"name": "Set pressure drift and seat wear (found at the bench test)", "part": "spring", "symptoms": "as-found pop outside tolerance, seat leak above API 527, drift rate shortens the safe interval", "rules": ["PSV_POP_DRIFT", "PSV_SEAT_TIGHTNESS", "PSV_RBI_INTERVAL_SHORT"], "default_ramp_min": 0.5}, "valve_sticking": {"name": "Valve sticking: opens late (fouling, corrosion, polymer)", "part": "disc", "symptoms": "the last lift started above set + tolerance and the drum peak passed MAWP + 10 %", "rules": ["PSV_LATE_OPENING", "PSV_ACCUMULATION"], "default_ramp_min": 1}, "inlet_restriction": {"name": "Inlet line restriction (fouling, wrong block valve, long inlet)", "part": "inlet", "symptoms": "inlet loss above 3 % of set, short repeated lifts (chatter)", "rules": ["PSV_INLET_LOSS", "PSV_CHATTER"], "default_ramp_min": 1}, "high_backpressure": {"name": "High built-up back pressure (outlet or flare header)", "part": "outlet", "symptoms": "outlet pressure during the lift above 10 % of set on a conventional valve", "rules": ["PSV_BACKPRESSURE_HIGH"], "default_ramp_min": 1}, "relief_load_increase": {"name": "Relief load above rated capacity (debottlenecked feed)", "part": "process", "symptoms": "vapour feed up: required relieving rate approaches, then exceeds, what the J orifice can pass", "rules": ["PSV_CAPACITY_MARGIN", "PSV_CAPACITY_SHORT"], "default_ramp_min": 1.5}, "test_overdue": {"name": "Bench test overdue", "part": "testing", "symptoms": "hours since the last bench test above the planned interval", "rules": ["PSV_TEST_OVERDUE"], "default_ramp_min": 0.5}}, "presentation": {"title": "PSV-2601 pressure relief valve", "dashboard": "PSV_SPRING_API526"}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(2.6, 2.4, 3.6); ctl.target.set(0.35, 1.3, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+const grid = new THREE.GridHelper(12, 24, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), yellow = M(0xd8a31a, { m: .2, r: .5 }), green = M(0x2f8a4b, { m: .5 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// drum (top half visible), on saddles
+const drumMat = M(0x8c97a3, { m: .45 });
+const drum = cyl(.75, .75, 3.2, drumMat, 48); drum.rotation.z = Math.PI / 2; scene.add(at(drum, -.2, .0, 0));
+[-1.8, 1.4].forEach(x => { const h = new THREE.Mesh(new THREE.SphereGeometry(.75, 32, 16, 0, Math.PI), drumMat); h.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2; scene.add(at(h, x, 0, 0)); });
+// inlet nozzle and inlet line (4 in pipe, 3 in valve inlet)
+scene.add(at(cyl(.06, .06, .38, steel), 0, .9, 0));
+scene.add(at(cyl(.13, .13, .04, steel), 0, 1.1, 0));
+// valve body: inlet flange, body, outlet branch, bonnet, spring housing, cap
+const bodyMat = M(0x2f6db5, { m: .35, ds: true });
+scene.add(at(cyl(.12, .12, .04, bodyMat), 0, 1.14, 0));
+const body = cyl(.13, .15, .3, bodyMat); scene.add(at(body, 0, 1.31, 0));
+const outBranch = cyl(.085, .1, .26, bodyMat); outBranch.rotation.z = Math.PI / 2; scene.add(at(outBranch, .2, 1.3, 0));
+const outFl = cyl(.15, .15, .04, bodyMat); outFl.rotation.z = Math.PI / 2; scene.add(at(outFl, .34, 1.3, 0));
+const bonnet = cyl(.075, .12, .22, bodyMat); scene.add(at(bonnet, 0, 1.57, 0));
+const housing = cyl(.08, .08, .42, bodyMat); scene.add(at(housing, 0, 1.89, 0));
+scene.add(at(cyl(.05, .07, .1, dark), 0, 2.15, 0));
+// internals: nozzle, disc, spindle, spring
+scene.add(at(cyl(.05, .055, .2, M(0x6f6f6f)), 0, 1.2, 0));
+const disc = at(cyl(.07, .07, .04, M(0xd8a31a, { m: .5 })), 0, 1.32, 0); scene.add(disc);
+const spindle = at(cyl(.015, .015, .75, steel), 0, 1.7, 0); scene.add(spindle);
+const coilPts = []; for (let i = 0; i <= 500; i++) { const t = i / 500; coilPts.push(new THREE.Vector3(Math.cos(t * 2 * Math.PI * 8) * .055, t, Math.sin(t * 2 * Math.PI * 8) * .055)); }
+const coilG = new THREE.Group(); at(coilG, 0, 1.7, 0); scene.add(coilG);
+coilG.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coilPts), 500, .011, 6, false), green));
+// outlet pipe to the flare header
+const pipeMat = M(0x8c97a3, { m: .5 });
+const outPipe = cyl(.057, .057, 1.1, pipeMat); outPipe.rotation.z = Math.PI / 2; scene.add(at(outPipe, .91, 1.3, 0));
+scene.add(at(new THREE.Mesh(new THREE.SphereGeometry(.07, 16, 12), pipeMat), 1.46, 1.3, 0));
+scene.add(at(cyl(.057, .057, .7, pipeMat), 1.46, 1.65, 0)); scene.add(at(new THREE.Mesh(new THREE.SphereGeometry(.07, 16, 12), pipeMat), 1.46, 2.0, 0));
+const header = cyl(.11, .11, 2.4, pipeMat); header.rotation.x = Math.PI / 2; scene.add(at(header, 1.46, 2.06, -1.0));
+// acoustic transmitter clamped on the outlet pipe, pressure transmitter on the drum, outlet PT
+scene.add(at(box(.1, .14, .1, M(0x0f62fe, { m: .2 })), .75, 1.44, 0));
+scene.add(at(cyl(.008, .008, .2, dark), .75, 1.6, 0));
+scene.add(at(cyl(.04, .04, .18, M(0x0f62fe)), -.8, .82, 0)); scene.add(at(new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), M(0x0f62fe)), -.8, .95, 0));
+scene.add(at(cyl(.03, .03, .12, M(0x0f62fe)), 1.15, 1.4, 0));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.035, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, .75, 1.72, 0));
+// vapour puffs in the outlet while lifting
+const puffMat = new THREE.MeshStandardMaterial({ color: 0xdfe8ff, transparent: true, opacity: .0 });
+const puffs = []; for (let i = 0; i < 14; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(.035, 10, 8), puffMat); scene.add(p); puffs.push({ m: p, s: i / 14 }); }
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('op', [-.8, 1.05, 0]); lbl('cap', [-1.4, .55, .3]); lbl('inlet', [0, 1.02, .2]); lbl('lift', [0, 2.25, 0]);
+lbl('acoustic', [.75, 1.75, 0]); lbl('outlet', [1.15, 1.52, 0]); lbl('test', [-.2, 1.95, .2]); lbl('header', [1.46, 2.2, -1.6]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let lifting = false;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  lifting = r.lift_active > 0.5;
+  setLbl('op', `drum · ${fmt(t.op_ratio_pct, 1)} % of set ${d.vessel.set_barg} barg`, `${fmt(r.vessel_pressure_barg)} barg · ${fmt(r.vessel_temp_c, 0)} °C`,
+    st(names.has('PSV_NEAR_SET'), names.has('PSV_SIMMER_ZONE') || t.op_ratio_pct >= L.simmer_pct));
+  setLbl('cap', 'required ÷ rated capacity (J orifice)', `${fmt(t.relief_load_kgh, 0)} / ${fmt(t.rated_capacity_kgh, 0)} kg/h · ${fmt(t.capacity_util_pct, 0)} %`,
+    st(names.has('PSV_CAPACITY_SHORT'), names.has('PSV_CAPACITY_MARGIN')));
+  setLbl('inlet', `inlet loss at full lift (limit ${d.lines.inlet_loss_limit_pct} %)`, `${fmt(t.inlet_loss_pct, 1)} % of set`, st(names.has('PSV_INLET_LOSS'), t.inlet_loss_pct > 2.5));
+  setLbl('lift', `last lift · ${fmt(r.lift_duration_s, 0)} s · ${r.lift_count_30d} lifts / 30 d`, lifting ? 'LIFTING' : `opened ${fmt(t.open_pct_of_set, 1)} % · peak +${fmt(t.accumulation_pct, 1)} % MAWP`,
+    st(names.has('PSV_ACCUMULATION') || names.has('PSV_LATE_OPENING'), names.has('PSV_CHATTER') || lifting));
+  setLbl('acoustic', 'acoustic over background · outlet − ambient', `${fmt(t.acoustic_excess, 0)} counts · ${t.outlet_dt_k >= 0 ? '+' : ''}${fmt(t.outlet_dt_k, 1)} K`,
+    st(names.has('PSV_PASSING'), t.acoustic_excess > L.acoustic_excess_alert / 2 && !lifting));
+  setLbl('outlet', `built-up back pressure (limit ${d.lines.builtup_bp_limit_pct} %)`, `${fmt(r.lift_outlet_barg)} barg · ${fmt(t.builtup_bp_pct, 1)} %`, st(names.has('PSV_BACKPRESSURE_HIGH'), t.builtup_bp_pct > 8));
+  setLbl('header', 'flare header (superimposed)', `${fmt(r.header_pressure_barg)} barg · ${fmt(t.superimposed_bp_pct, 1)} %`, '');
+  setLbl('test', `bench test · ${fmt(r.test_hours_since / 8760, 1)} y ago · safe interval ${fmt(t.rbi_interval_y, 1)} y`,
+    `as-found ${fmt(t.pop_dev_pct, 1)} % · ${fmt(r.test_seat_bpm, 0)} bubbles/min`,
+    st(names.has('PSV_TEST_OVERDUE') || names.has('PSV_POP_DRIFT'), names.has('PSV_SEAT_TIGHTNESS') || names.has('PSV_RBI_INTERVAL_SHORT')));
+  $('k-health').textContent = ST.health; $('k-op').textContent = fmt(t.op_ratio_pct, 0) + ' %'; $('k-cap').textContent = fmt(t.capacity_util_pct, 0) + ' %';
+  $('c-cap-t').textContent = `capacity ${fmt(t.capacity_util_pct, 0)} %`; $('c-cap').className = 'chip ' + (t.capacity_util_pct > L.util_limit_pct ? 'bad' : t.capacity_util_pct > L.util_alert_pct ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Operating / set (%)', fmt(t.op_ratio_pct, 1), '< ' + L.simmer_pct, t.op_ratio_pct >= L.simmer_pct) +
+    row('Relief load (kg/h)', fmt(t.relief_load_kgh, 0), fmt(d.relief.design_feed_kgh * d.relief.load_factor, 0), names.has('PSV_CAPACITY_SHORT')) +
+    row('Required area (mm²)', fmt(t.required_area_mm2, 0), '≤ ' + d.valve.area_eff_mm2, t.required_area_mm2 > d.valve.area_eff_mm2) +
+    row('Rated capacity (kg/h)', fmt(t.rated_capacity_kgh, 0), '–') +
+    row('Acoustic over background', fmt(t.acoustic_excess, 0), '< ' + L.acoustic_excess_alert, names.has('PSV_PASSING')) +
+    row('Inlet loss (% of set)', fmt(t.inlet_loss_pct, 2), fmt(d.lines.inlet_loss_design_pct, 1), names.has('PSV_INLET_LOSS')) +
+    row('Built-up back pressure (%)', fmt(t.builtup_bp_pct, 1), fmt(d.lines.builtup_bp_design_pct, 1), names.has('PSV_BACKPRESSURE_HIGH')) +
+    row('Last lift opened at (% set)', fmt(t.open_pct_of_set, 1), '≤ ' + (100 + d.bench.set_tolerance_pct), names.has('PSV_LATE_OPENING')) +
+    row('Accumulation (% MAWP)', fmt(t.accumulation_pct, 1), '≤ ' + d.vessel.accumulation_limit_pct, names.has('PSV_ACCUMULATION')) +
+    row('As-found pop deviation (%)', fmt(t.pop_dev_pct, 2), '± ' + d.bench.set_tolerance_pct, names.has('PSV_POP_DRIFT')) +
+    row('Seat leak (bubbles/min)', fmt(r.test_seat_bpm, 0), '≤ ' + d.bench.seat_leak_limit_bpm, names.has('PSV_SEAT_TIGHTNESS')) +
+    row('Safe test interval (y)', fmt(t.rbi_interval_y, 1), '≥ ' + d.rbi.planned_interval_y, names.has('PSV_RBI_INTERVAL_SHORT'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the valve behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+const shells = [body, outBranch, bonnet, housing];
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  shells.forEach(s => { s.material.transparent = true; s.material.opacity = cut ? .22 : 1; s.material.depthWrite = !cut; });
+};
+let localLift = 0;
+$('t-lift').onclick = () => { localLift = 4; };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shown = 0, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (localLift > 0) localLift = Math.max(0, localLift - dt);
+  const target = (lifting || localLift > 0) ? 1 : 0;
+  shown += (target - shown) * Math.min(1, dt * 8);
+  const lift = shown * .05;                                   // disc lift (about a quarter of the nozzle bore)
+  disc.position.y = 1.32 + lift; spindle.position.y = 1.7 + lift;
+  coilG.position.y = 1.62 + lift; coilG.scale.y = 1.92 - (1.62 + lift);   // spring from the spindle washer to the adjusting screw
+  puffMat.opacity = .55 * shown;
+  puffs.forEach(p => { p.s = (p.s + dt * .9) % 1; p.m.position.set(.3 + p.s * 1.1, 1.3 + Math.sin(p.s * 20) * .015, Math.cos(p.s * 17) * .015); });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

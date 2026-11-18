@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WTG-3001 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>WTG-3001</b><span class="g">Vestas V90-2.0 MW · drivetrain twin</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-pwr"><span class="dot"></span><span id="c-pwr-t">power –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Power curve and CMS →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the turbine model…</div>
+<div class="credit">Nacelle of a 2 MW geared turbine: main shaft on its main bearing, 3-stage gearbox (planetary + 2 helical), brake disc, coupling and doubly fed generator. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-blades">Hide blades</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Expected power comes from the published power curve at the density-normalised wind speed; expected temperatures and vibration bands from load and ambient.</div>
+<aside>
+  <section>
+    <h2>WTG-3001 twin</h2>
+    <p class="sub" id="sub">wind turbine drivetrain</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Power ÷ expected<b id="k-ratio">–</b></div><div>HSS bearing residual<b id="k-hss">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time (an hour of plant time). The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The turbine sends only what it measures: SCADA 10-minute means, CMS band values and oil particle counts. Every expected value is computed from the twin file: the power curve, the air density normalisation, and the load-and-ambient models of each temperature and vibration band.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for WTG-3001: rotor, drivetrain, cooling, CMS and oil particle counter, with injectable faults.\n\nThe real turbine sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable 10-minute SCADA and\nCMS readings and fault fingerprints for the tests, the figures and the live pages. Pure Python (math, random).\n\"\"\"\nimport math\nimport random\n\n\ndef interp(x, xp, fp):\n    if x < xp[0] or x > xp[-1]:\n        return 0.0\n    for i in range(len(xp) - 1):\n        if x <= xp[i + 1]:\n            return fp[i] + (x - xp[i]) * (fp[i + 1] - fp[i]) / (xp[i + 1] - xp[i])\n    return fp[-1]\n\n\nclass Turbine:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.ro, self.pc, self.dt, self.th, self.vb, self.site = (d[\"rotor\"], d[\"power_curve\"], d[\"drivetrain\"], d[\"thermal\"],\n                                                                  d[\"vibration\"], d[\"site\"])\n        self.R0 = d[\"density\"][\"R0\"]\n        dt = self.dt\n        self.ratio = (1 + dt[\"z_ring\"] / dt[\"z_sun\"]) * dt[\"z_wheel2\"] / dt[\"z_pinion2\"] * dt[\"z_wheel3\"] / dt[\"z_pinion3\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def true_state(self, wind, amb, pressure):\n        f, th, vb = self.faults, self.th, self.vb\n        rho = pressure * 100 / (self.R0 * (amb + 273.15))\n        vn = wind * (rho / self.pc[\"rho_ref\"]) ** (1 / 3)\n        yaw = 25.0 * f[\"yaw_misalignment\"]\n        veff = vn * math.cos(math.radians(yaw)) * (1 - 0.25 * f[\"rotor_performance_loss\"]) ** (1 / 3)\n        p = interp(veff, self.pc[\"wind_ms\"], self.pc[\"power_kw\"]) if wind <= self.ro[\"cut_out_ms\"] else 0.0\n        ld = p / self.ro[\"rated_kw\"]\n        rpm = self.dt[\"tsr_opt\"] * veff / (self.ro[\"diameter_m\"] / 2) * 60 / (2 * math.pi)\n        rpm = max(self.ro[\"rotor_rpm_min\"], min(self.ro[\"rotor_rpm_nominal\"], rpm))\n        oil = amb + th[\"oil_a0\"] + th[\"oil_a1\"] * ld + f[\"oil_cooler_fouling\"] * (10 + 25 * ld)\n        bump = 1 + 3.5 * max(0.0, (f[\"hss_bearing_damage\"] - 0.55) / 0.45) ** 1.5\n        dirt = 1 + 5 * f[\"oil_contamination\"] + 0.5 * f[\"hss_bearing_damage\"] + 0.5 * f[\"planet_gear_pitting\"]\n        return {\n            \"wind\": wind, \"amb\": amb, \"pressure\": pressure, \"yaw\": yaw, \"power\": p, \"load\": ld, \"rotor_rpm\": rpm,\n            \"gen_rpm\": rpm * self.ratio, \"pitch\": max(0.0, (veff - self.ro[\"rated_ms\"]) * 1.8),\n            \"oil\": oil, \"hss\": oil + th[\"hss_b0\"] + th[\"hss_b1\"] * ld + 12 * f[\"hss_bearing_damage\"],\n            \"mb\": amb + th[\"mb_m0\"] + th[\"mb_m1\"] * ld + 11 * f[\"main_bearing_wear\"],\n            \"gen_wind\": amb + 40 + 50 * ld, \"gen_brg\": amb + 25 + 15 * ld, \"nacelle\": amb + 8 + 6 * ld,\n            \"planet\": (vb[\"planet0\"] + vb[\"planet1\"] * ld) * (1 + 2.5 * f[\"planet_gear_pitting\"]),\n            \"hssmesh\": (vb[\"hssmesh0\"] + vb[\"hssmesh1\"] * ld) * (1 + 0.3 * f[\"hss_bearing_damage\"]),\n            \"hssenv\": (vb[\"hssenv0\"] + vb[\"hssenv1\"] * ld) * bump,\n            \"mbenv\": (vb[\"mbenv0\"] + vb[\"mbenv1\"] * ld) * (1 + 3 * f[\"main_bearing_wear\"]),\n            \"gbxrms\": (vb[\"gbxrms0\"] + vb[\"gbxrms1\"] * ld) * (1 + 3.5 * f[\"planet_gear_pitting\"] + 0.15 * f[\"hss_bearing_damage\"]),\n            \"pc4\": 1000 * dirt, \"pc6\": 120 * dirt, \"pc14\": 15 * dirt,\n            \"fe\": 3 + 40 * f[\"hss_bearing_damage\"] ** 1.5 + 30 * f[\"planet_gear_pitting\"] ** 1.5,\n        }\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, s):\n        n = self.n\n        return {\n            \"wind_speed_ms\": round(s[\"wind\"] * (1 + n(0.006)), 3), \"yaw_error_deg\": round(s[\"yaw\"] + n(2.0), 2),\n            \"ambient_temp_c\": round(s[\"amb\"] + n(0.1), 2), \"ambient_pressure_hpa\": round(s[\"pressure\"] + n(0.3), 1),\n            \"active_power_kw\": round(s[\"power\"] * (1 + n(0.01)), 1), \"turbine_state\": 1 if s[\"power\"] > 0 else 0,\n            \"rotor_rpm\": round(s[\"rotor_rpm\"] * (1 + n(0.002)), 3), \"gen_rpm\": round(s[\"gen_rpm\"] * (1 + n(0.002)), 1),\n            \"pitch_deg\": round(s[\"pitch\"] + abs(n(0.1)), 2),\n            \"gbx_oil_temp_c\": round(s[\"oil\"] + n(0.8), 2), \"gbx_hss_brg_temp_c\": round(s[\"hss\"] + n(0.8), 2),\n            \"main_brg_temp_c\": round(s[\"mb\"] + n(0.7), 2), \"gen_winding_temp_c\": round(s[\"gen_wind\"] + n(1.0), 2),\n            \"gen_brg_temp_c\": round(s[\"gen_brg\"] + n(0.7), 2), \"nacelle_temp_c\": round(s[\"nacelle\"] + n(0.5), 2),\n            \"vib_planet_mesh\": round(s[\"planet\"] * (1 + n(0.05)), 4), \"vib_hss_mesh\": round(s[\"hssmesh\"] * (1 + n(0.05)), 4),\n            \"vib_hss_brg_env\": round(s[\"hssenv\"] * (1 + n(0.06)), 4), \"vib_mb_env\": round(s[\"mbenv\"] * (1 + n(0.06)), 4),\n            \"vib_gbx_rms_mms\": round(s[\"gbxrms\"] * (1 + n(0.04)), 3),\n            \"pc_4um_per_ml\": round(s[\"pc4\"] * (1 + n(0.08)), 1), \"pc_6um_per_ml\": round(s[\"pc6\"] * (1 + n(0.08)), 1),\n            \"pc_14um_per_ml\": round(s[\"pc14\"] * (1 + n(0.08)), 2), \"fe_particles_24h\": max(0, round(s[\"fe\"] + n(1.0))),\n        }\n\n    def measure(self, wind=None, amb=None):\n        wind = self.rnd.uniform(4.5, 14.0) if wind is None else wind\n        amb = self.site[\"ambient_c\"] + self.n(3.0) if amb is None else amb\n        return self.reading(self.true_state(wind, amb, self.site[\"pressure_hpa\"] + self.n(5.0)))\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    One real second is `demo.time_scale` plant seconds. The wind follows a mean-reverting random walk around\n    `demo.wind_mean_ms`; temperatures follow their steady state with a short lag. Each measure() is one 10-minute message.\n    \"\"\"\n    TAU_S = 3.0\n\n    def __init__(self, twin, seed=3001):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.vmean = float(demo.get(\"wind_mean_ms\", 9.5))\n        self.amb = float(demo.get(\"ambient_c\", 20.0))\n        self.wt = Turbine(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.wind = self.vmean\n        self.temps = None\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.wt.faults[k] = f.sev\n        self.t += dt * self.scale\n        r = self.wt.rnd\n        self.wind += 0.05 * (self.vmean - self.wind) * dt + r.gauss(0, 0.25) * math.sqrt(dt)\n        self.wind = max(3.0, min(20.0, self.wind))\n        amb = self.amb + 1.5 * math.sin(2 * math.pi * self.t / 86400)\n        s = self.wt.true_state(self.wind, amb, self.wt.site[\"pressure_hpa\"])\n        keys = (\"oil\", \"hss\", \"mb\", \"gen_wind\", \"gen_brg\", \"nacelle\")\n        if self.temps is None:\n            self.temps = {k: s[k] for k in keys}\n        a = min(1.0, dt / self.TAU_S)\n        for k in keys:\n            self.temps[k] += a * (s[k] - self.temps[k])\n            s[k] = self.temps[k]\n        self.running = s[\"power\"] > 0\n        return s\n\n    def measure(self, true):\n        return self.wt.reading(true)\n", "twin_calc": "\"\"\"The wind turbine drivetrain twin's expectations (WTG-3001, Vestas V90-2.0 MW).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nPower (IEC 61400-12-1 air density normalisation, pitch-regulated turbine):\n    rho  = B x 100 / (R0 x (T + 273.15))          B in hPa, T in C, R0 = 287.05 J/(kg K)\n    Vn   = V x (rho / rho0)^(1/3)                  rho0 = 1.225 kg/m3, the density of the published power curve\n    P_expected = power curve interpolated at Vn;  residual = P - P_expected;  ratio = P / max(P_expected, 50 kW)\nTemperatures (load-and-ambient models, L = P / rated power):\n    oil expected      = T_ambient + a0 + a1 L\n    HSS bearing exp.  = T_oil (measured) + b0 + b1 L      a bearing fault raises this residual; a cooler fault does not\n    main bearing exp. = T_ambient + m0 + m1 L\nVibration (CMS band values against a load-dependent baseline, ratio = measured / (c0 + c1 L)):\n    planetary mesh frequency = Z_ring x rotor speed / 60 (ring fixed, carrier on the rotor)\n    HSS bearing outer-race defect frequency BPFO = n/2 x (1 - d/D cos phi) x generator speed / 60\nOil (ISO 4406): scale number R = ceil(log2(102.4 x N)), N = particles per mL >= 4, 6 or 14 um(c): code R covers more than\n    10 x 2^(R-11) and up to 10 x 2^(R-10) per mL (code 10: 5 to 10, code 14: 80 to 160); the printed table rounds above code 16.\nYaw: estimated power loss = 1 - cos(yaw error)^3 (the cube law; measured exponents in the literature are often lower).\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    ro, pc, de, dt, hb, th, vb, oil = (d[\"rotor\"], d[\"power_curve\"], d[\"density\"], d[\"drivetrain\"], d[\"hss_bearing\"],\n                                       d[\"thermal\"], d[\"vibration\"], d[\"oil\"])\n    ratio = (1 + dt[\"z_ring\"] / dt[\"z_sun\"]) * dt[\"z_wheel2\"] / dt[\"z_pinion2\"] * dt[\"z_wheel3\"] / dt[\"z_pinion3\"]\n    bpfo = hb[\"rollers\"] / 2 * (1 - hb[\"roller_d_mm\"] / hb[\"pitch_d_mm\"] * math.cos(math.radians(hb[\"contact_deg\"])))\n    return dict(rated=ro[\"rated_kw\"], ws=pc[\"wind_ms\"], kw=pc[\"power_kw\"], rho0=pc[\"rho_ref\"], R0=de[\"R0\"], ratio=ratio,\n                zr=dt[\"z_ring\"], bpfo=bpfo, a0=th[\"oil_a0\"], a1=th[\"oil_a1\"], b0=th[\"hss_b0\"], b1=th[\"hss_b1\"],\n                m0=th[\"mb_m0\"], m1=th[\"mb_m1\"], p0=vb[\"planet0\"], p1=vb[\"planet1\"], e0=vb[\"hssenv0\"], e1=vb[\"hssenv1\"],\n                q0=vb[\"mbenv0\"], q1=vb[\"mbenv1\"], g0=vb[\"gbxrms0\"], g1=vb[\"gbxrms1\"],\n                iso6=oil[\"iso_target\"][1], iso14=oil[\"iso_target\"][2], fe=oil[\"fe_limit_24h\"], oilmax=oil[\"oil_max_c\"])\n\n\ndef interp(x, xp, fp):\n    \"\"\"np.interp(x, xp, fp, left=0, right=0) for one value, in plain Python.\"\"\"\n    if x < xp[0] or x > xp[-1]:\n        return 0.0\n    for i in range(len(xp) - 1):\n        if x <= xp[i + 1]:\n            return fp[i] + (x - xp[i]) * (fp[i + 1] - fp[i]) / (xp[i + 1] - xp[i])\n    return fp[-1]\n\n\ndef iso_code(n):\n    return float(math.ceil(math.log2(max(n * 102.4, 1))))\n\n\ndef _parts(twin):\n    k = _k(twin)\n    RHO = f\"(df['AMBIENT_PRESSURE_HPA'] * 100 / ({k['R0']} * (df['AMBIENT_TEMP_C'] + 273.15)))\"\n    VN = f\"(df['WIND_SPEED_MS'] * ({RHO} / {k['rho0']}) ** (1 / 3))\"\n    PE = f\"np.interp({VN}, {k['ws']}, {k['kw']}, left=0, right=0)\"\n    LD = f\"(df['ACTIVE_POWER_KW'] / {k['rated']})\"\n    OE = f\"(df['AMBIENT_TEMP_C'] + {k['a0']} + {k['a1']} * {LD})\"\n    HE = f\"(df['GBX_OIL_TEMP_C'] + {k['b0']} + {k['b1']} * {LD})\"\n    ME = f\"(df['AMBIENT_TEMP_C'] + {k['m0']} + {k['m1']} * {LD})\"\n    ISO = lambda c: f\"np.ceil(np.log2(np.maximum(df['{c}'] * 102.4, 1)))\"\n    VP = f\"(df['VIB_PLANET_MESH'] / ({k['p0']} + {k['p1']} * {LD}))\"\n    VH = f\"(df['VIB_HSS_BRG_ENV'] / ({k['e0']} + {k['e1']} * {LD}))\"\n    VM = f\"(df['VIB_MB_ENV'] / ({k['q0']} + {k['q1']} * {LD}))\"\n    PR = f\"(df['ACTIVE_POWER_KW'] / np.maximum({PE}, 50))\"\n    return dict(k=k, RHO=RHO, VN=VN, PE=PE, LD=LD, OE=OE, HE=HE, ME=ME, ISO=ISO, VP=VP, VH=VH, VM=VM, PR=PR)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"AIR_DENSITY\", p[\"RHO\"]),\n        (\"WIND_NORM_MS\", p[\"VN\"]),\n        (\"POWER_EXPECTED_KW\", p[\"PE\"]),\n        (\"POWER_RESIDUAL_KW\", f\"df['ACTIVE_POWER_KW'] - {p['PE']}\"),\n        (\"POWER_RATIO\", p[\"PR\"]),\n        (\"GBX_OIL_EXPECTED_C\", p[\"OE\"]),\n        (\"GBX_OIL_RESIDUAL_C\", f\"df['GBX_OIL_TEMP_C'] - {p['OE']}\"),\n        (\"HSS_BRG_EXPECTED_C\", p[\"HE\"]),\n        (\"HSS_BRG_RESIDUAL_C\", f\"df['GBX_HSS_BRG_TEMP_C'] - {p['HE']}\"),\n        (\"MAIN_BRG_EXPECTED_C\", p[\"ME\"]),\n        (\"MAIN_BRG_RESIDUAL_C\", f\"df['MAIN_BRG_TEMP_C'] - {p['ME']}\"),\n        (\"ISO4406_4UM\", p[\"ISO\"](\"PC_4UM_PER_ML\")),\n        (\"ISO4406_6UM\", p[\"ISO\"](\"PC_6UM_PER_ML\")),\n        (\"ISO4406_14UM\", p[\"ISO\"](\"PC_14UM_PER_ML\")),\n        (\"PLANET_MESH_HZ\", f\"{k['zr']} * df['ROTOR_RPM'] / 60\"),\n        (\"HSS_BPFO_HZ\", f\"{k['bpfo']:.6g} * df['GEN_RPM'] / 60\"),\n        (\"VIB_PLANET_RATIO\", p[\"VP\"]),\n        (\"VIB_HSS_BRG_RATIO\", p[\"VH\"]),\n        (\"VIB_MB_RATIO\", p[\"VM\"]),\n        (\"YAW_LOSS_PCT\", \"(1 - np.cos(np.radians(df['YAW_ERROR_DEG'])) ** 3) * 100\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    rho = r[\"ambient_pressure_hpa\"] * 100 / (k[\"R0\"] * (r[\"ambient_temp_c\"] + 273.15))\n    vn = r[\"wind_speed_ms\"] * (rho / k[\"rho0\"]) ** (1 / 3)\n    pe = interp(vn, k[\"ws\"], k[\"kw\"])\n    ld = r[\"active_power_kw\"] / k[\"rated\"]\n    oe = r[\"ambient_temp_c\"] + k[\"a0\"] + k[\"a1\"] * ld\n    he = r[\"gbx_oil_temp_c\"] + k[\"b0\"] + k[\"b1\"] * ld\n    me = r[\"ambient_temp_c\"] + k[\"m0\"] + k[\"m1\"] * ld\n    return {\n        \"air_density\": rho, \"wind_norm_ms\": vn, \"power_expected_kw\": pe, \"power_residual_kw\": r[\"active_power_kw\"] - pe,\n        \"power_ratio\": r[\"active_power_kw\"] / max(pe, 50),\n        \"gbx_oil_expected_c\": oe, \"gbx_oil_residual_c\": r[\"gbx_oil_temp_c\"] - oe,\n        \"hss_brg_expected_c\": he, \"hss_brg_residual_c\": r[\"gbx_hss_brg_temp_c\"] - he,\n        \"main_brg_expected_c\": me, \"main_brg_residual_c\": r[\"main_brg_temp_c\"] - me,\n        \"iso4406_4um\": iso_code(r[\"pc_4um_per_ml\"]), \"iso4406_6um\": iso_code(r[\"pc_6um_per_ml\"]), \"iso4406_14um\": iso_code(r[\"pc_14um_per_ml\"]),\n        \"planet_mesh_hz\": k[\"zr\"] * r[\"rotor_rpm\"] / 60, \"hss_bpfo_hz\": float(f\"{k['bpfo']:.6g}\") * r[\"gen_rpm\"] / 60,\n        \"vib_planet_ratio\": r[\"vib_planet_mesh\"] / (k[\"p0\"] + k[\"p1\"] * ld),\n        \"vib_hss_brg_ratio\": r[\"vib_hss_brg_env\"] / (k[\"e0\"] + k[\"e1\"] * ld),\n        \"vib_mb_ratio\": r[\"vib_mb_env\"] / (k[\"q0\"] + k[\"q1\"] * ld),\n        \"yaw_loss_pct\": (1 - math.cos(math.radians(r[\"yaw_error_deg\"])) ** 3) * 100,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    RUN = \"(df['TURBINE_STATE'] > 0.5)\"\n    return [\n        (\"GBX_OIL_TEMP_HIGH\", f\"{RUN} & (df['GBX_OIL_TEMP_C'] > {k['oilmax']})\", \"High\", \"oil_cooler_fouling\"),\n        (\"GBX_HSS_BRG_VIB\", f\"{RUN} & ({p['VH']} > {L['hss_env_ratio']})\", \"High\", \"hss_bearing_damage\"),\n        (\"GBX_FERROUS_PARTICLES\", f\"df['FE_PARTICLES_24H'] > {k['fe']}\", \"High\", \"hss_bearing_damage\"),\n        (\"GBX_VIB_OVERALL\", f\"{RUN} & (df['VIB_GBX_RMS_MMS'] > {L['gbx_rms_mms']})\", \"High\", \"planet_gear_pitting\"),\n        (\"MB_VIB_ENV\", f\"{RUN} & ({p['VM']} > {L['mb_env_ratio']})\", \"High\", \"main_bearing_wear\"),\n        (\"GBX_HSS_BRG_TEMP\", f\"{RUN} & ((df['GBX_HSS_BRG_TEMP_C'] - {p['HE']}) > {L['hss_residual_c']})\", \"Medium\", \"hss_bearing_damage\"),\n        (\"GBX_OIL_TEMP_RESIDUAL\", f\"{RUN} & ((df['GBX_OIL_TEMP_C'] - {p['OE']}) > {L['oil_residual_c']})\", \"Medium\", \"oil_cooler_fouling\"),\n        (\"GBX_PLANET_MESH_VIB\", f\"{RUN} & ({p['VP']} > {L['planet_ratio']})\", \"Medium\", \"planet_gear_pitting\"),\n        (\"OIL_CLEANLINESS\", f\"({p['ISO']('PC_6UM_PER_ML')} > {k['iso6']}) | ({p['ISO']('PC_14UM_PER_ML')} > {k['iso14']})\", \"Medium\", \"oil_contamination\"),\n        (\"MB_TEMP_RESIDUAL\", f\"{RUN} & ((df['MAIN_BRG_TEMP_C'] - {p['ME']}) > {L['mb_residual_c']})\", \"Medium\", \"main_bearing_wear\"),\n        (\"WTG_YAW_MISALIGNMENT\", f\"{RUN} & (np.abs(df['YAW_ERROR_DEG']) > {L['yaw_alert_deg']})\", \"Medium\", \"yaw_misalignment\"),\n        (\"WTG_UNDERPERFORMANCE\", f\"{RUN} & ({p['VN']} >= {L['underperf_vmin_ms']}) & ({p['VN']} <= {L['underperf_vmax_ms']}) & ({p['PR']} < {L['underperf_ratio']})\",\n         \"Medium\", \"rotor_performance_loss\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    run = r[\"turbine_state\"] > 0.5\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    add(run and r[\"gbx_oil_temp_c\"] > k[\"oilmax\"], \"GBX_OIL_TEMP_HIGH\", \"High\",\n        f\"Gearbox oil {r['gbx_oil_temp_c']:.1f} \u00b0C, above the {k['oilmax']:.0f} \u00b0C limit\", \"cooling\", \"oil_cooler_fouling\")\n    add(run and t[\"vib_hss_brg_ratio\"] > L[\"hss_env_ratio\"], \"GBX_HSS_BRG_VIB\", \"High\",\n        f\"Envelope at the HSS bearing outer-race frequency ({t['hss_bpfo_hz']:.0f} Hz) {t['vib_hss_brg_ratio']:.1f} \u00d7 baseline\", \"gearbox\", \"hss_bearing_damage\")\n    add(r[\"fe_particles_24h\"] > k[\"fe\"], \"GBX_FERROUS_PARTICLES\", \"High\",\n        f\"{r['fe_particles_24h']:.0f} ferrous wear particles in 24 h (limit {k['fe']})\", \"gearbox\", \"hss_bearing_damage\")\n    add(run and r[\"vib_gbx_rms_mms\"] > L[\"gbx_rms_mms\"], \"GBX_VIB_OVERALL\", \"High\",\n        f\"Gearbox overall vibration {r['vib_gbx_rms_mms']:.1f} mm/s rms, above {L['gbx_rms_mms']}\", \"gearbox\", \"planet_gear_pitting\")\n    add(run and t[\"vib_mb_ratio\"] > L[\"mb_env_ratio\"], \"MB_VIB_ENV\", \"High\",\n        f\"Main bearing envelope {t['vib_mb_ratio']:.1f} \u00d7 baseline\", \"main bearing\", \"main_bearing_wear\")\n    add(run and t[\"hss_brg_residual_c\"] > L[\"hss_residual_c\"], \"GBX_HSS_BRG_TEMP\", \"Medium\",\n        f\"HSS bearing {t['hss_brg_residual_c']:+.1f} K above oil + load model\", \"gearbox\", \"hss_bearing_damage\")\n    add(run and t[\"gbx_oil_residual_c\"] > L[\"oil_residual_c\"], \"GBX_OIL_TEMP_RESIDUAL\", \"Medium\",\n        f\"Gearbox oil {t['gbx_oil_residual_c']:+.1f} K above ambient + load model\", \"cooling\", \"oil_cooler_fouling\")\n    add(run and t[\"vib_planet_ratio\"] > L[\"planet_ratio\"], \"GBX_PLANET_MESH_VIB\", \"Medium\",\n        f\"Planetary mesh band ({t['planet_mesh_hz']:.1f} Hz) {t['vib_planet_ratio']:.1f} \u00d7 baseline\", \"gearbox\", \"planet_gear_pitting\")\n    add(t[\"iso4406_6um\"] > k[\"iso6\"] or t[\"iso4406_14um\"] > k[\"iso14\"], \"OIL_CLEANLINESS\", \"Medium\",\n        f\"Oil cleanliness {t['iso4406_4um']:.0f}/{t['iso4406_6um']:.0f}/{t['iso4406_14um']:.0f}, target -/{k['iso6']}/{k['iso14']}\", \"lubrication\", \"oil_contamination\")\n    add(run and t[\"main_brg_residual_c\"] > L[\"mb_residual_c\"], \"MB_TEMP_RESIDUAL\", \"Medium\",\n        f\"Main bearing {t['main_brg_residual_c']:+.1f} K above ambient + load model\", \"main bearing\", \"main_bearing_wear\")\n    add(run and abs(r[\"yaw_error_deg\"]) > L[\"yaw_alert_deg\"], \"WTG_YAW_MISALIGNMENT\", \"Medium\",\n        f\"Yaw error {r['yaw_error_deg']:+.1f}\u00b0 (about {t['yaw_loss_pct']:.0f} % power lost)\", \"yaw\", \"yaw_misalignment\")\n    add(run and L[\"underperf_vmin_ms\"] <= t[\"wind_norm_ms\"] <= L[\"underperf_vmax_ms\"] and t[\"power_ratio\"] < L[\"underperf_ratio\"],\n        \"WTG_UNDERPERFORMANCE\", \"Medium\",\n        f\"Power {r['active_power_kw']:.0f} kW is {t['power_ratio'] * 100:.0f} % of the {t['power_expected_kw']:.0f} kW expected at {t['wind_norm_ms']:.1f} m/s (normalised)\",\n        \"rotor\", \"rotor_performance_loss\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "WTG-3001 wind turbine drivetrain twin. Expected power from the published power curve with the IEC 61400-12-1 air density normalisation; expected temperatures and vibration bands from load-and-ambient models; the turbine sends only what it measures.", "twin": {"id": "WTG-3001", "name": "Wind turbine WTG-3001 drivetrain", "version": "1.0.0", "folder": "windgbx-twin"}, "identification": {"asset": "WTG-3001", "assetnum": "WTG-3001", "manufacturer": "Vestas", "model": "V90-2.0 MW (50 Hz)", "description": "Onshore wind turbine, drivetrain twin: main bearing, three-stage gearbox and doubly fed generator", "rotor": "3 blades, 90 m diameter, pitch regulated with variable speed", "gearbox": "3-stage: 1 planetary stage + 2 helical stages", "generator": "4-pole doubly fed (wound-rotor) asynchronous generator, 50 Hz, with a rotor-side converter", "cms": "Drivetrain condition monitoring system (accelerometers on main bearing, gearbox and generator) + inline oil particle counter", "site": "An onshore wind farm, hub height 80 m (generic)"}, "design": {"rotor": {"rated_kw": 2000.0, "cut_in_ms": 4.0, "rated_ms": 12.0, "cut_out_ms": 25.0, "diameter_m": 90.0, "swept_m2": 6362.0, "rotor_rpm_nominal": 14.5, "rotor_rpm_min": 9.3, "rotor_rpm_max": 16.6, "hub_height_m": 80.0, "source": "Vestas V90-1.8/2.0 MW brochure (06/2009-EN), technical data. IEC wind class IIA at 80 m hub height."}, "power_curve": {"wind_ms": [3.0, 3.5, 4.0, 4.5, 5.0, 5.5, 6.0, 6.5, 7.0, 7.5, 8.0, 8.5, 9.0, 9.5, 10.0, 10.5, 11.0, 11.5, 12.0, 12.5, 13.0, 13.5, 14.0, 14.5, 15.0, 15.5, 16.0, 16.5, 25.0], "power_kw": [0.0, 42.2, 93.3, 145.2, 211.3, 284.2, 390.9, 491.5, 601.1, 731.8, 884.5, 1087.6, 1247.1, 1429.6, 1594.3, 1742.9, 1861.2, 1948.1, 1993.3, 2003.5, 2007.0, 2007.7, 2007.3, 2007.4, 2007.0, 2006.8, 2006.7, 2006.5, 2006.5], "rho_ref": 1.225, "source": "OEDB wind turbine library, turbine type V90/2000 (windpowerlib power_curves.csv), 3.5 to 16.5 m/s; held flat to the 25 m/s cut-out as in the brochure chart. Reference density 1.225 kg/m3: assumption: typical value, replace with the warranted power curve of your contract"}, "density": {"R0": 287.05, "exponent": 0.3333333333333333, "source": "IEC 61400-12-1 air density from 10-min pressure and temperature, normalisation of wind speed for active power control turbines"}, "drivetrain": {"z_ring": 99, "z_sun": 21, "n_planets": 3, "z_wheel2": 85, "z_pinion2": 23, "z_wheel3": 96, "z_pinion3": 18, "poles": 4, "grid_hz": 50.0, "tsr_opt": 8.0, "source": "Gearbox type and generator from the Vestas V90-1.8/2.0 MW brochure (06/2009-EN), technical data. Tooth counts (ratio about 1:113) and the optimum tip speed ratio: assumption: typical value, replace with the gearbox data sheet (tooth counts are needed for the mesh frequencies)"}, "hss_bearing": {"rollers": 14, "roller_d_mm": 32.0, "pitch_d_mm": 150.0, "contact_deg": 0.0, "source": "High-speed shaft bearing (cylindrical roller, generator side): assumption: typical value, replace with the bearing maker's geometry or its published defect frequency factors"}, "thermal": {"oil_a0": 32.0, "oil_a1": 18.0, "hss_b0": 4.0, "hss_b1": 10.0, "mb_m0": 8.0, "mb_m1": 14.0, "source": "Expected temperature = ambient (or oil) + c0 + c1 x load fraction. assumption: typical value, replace with a least-squares fit on 3 months of healthy SCADA data of this turbine"}, "vibration": {"planet0": 0.6, "planet1": 1.2, "hssmesh0": 2.0, "hssmesh1": 5.0, "hssenv0": 0.8, "hssenv1": 0.6, "mbenv0": 0.15, "mbenv1": 0.15, "gbxrms0": 1.2, "gbxrms1": 1.6, "source": "CMS band values (m/s2) and gearbox overall velocity (mm/s, 10-1000 Hz) = b0 + b1 x load fraction. assumption: typical value, replace with the CMS baseline learnt on this turbine"}, "oil": {"iso_target": [null, 15, 12], "fe_limit_24h": 15, "oil_max_c": 80.0, "source": "Oil cleanliness target -/15/12 (ISO 4406), ferrous particles per 24 h and maximum sump temperature: assumption: typical value, replace with the gearbox maker's lubrication specification"}, "site": {"pressure_hpa": 980.0, "ambient_c": 15.0, "source": "Site about 300 m above sea level: assumption: typical value, replace with the met mast or nacelle barometer of the site"}, "demo": {"time_scale": 60, "wind_mean_ms": 9.5, "ambient_c": 25.0, "note": "Demo only: one real second is one plant minute, so one 10-minute SCADA record is published every 10 real seconds; wind follows a random walk around 9.5 m/s on a warm day so every rule can show."}}, "telemetry": {"event": "wtg", "publish_every_s": 10, "device_type": "WIND_TURBINE_DFIG", "groups": {"Wind": "Nacelle anemometer and vane (10-min means)", "Ambient": "Ambient conditions", "Grid": "Active power and state", "Rotor": "Rotor, pitch and speeds", "Gearbox": "Gearbox temperatures", "MainBearing": "Main bearing", "Generator": "Generator temperatures", "CMS": "Condition monitoring system band values", "Oil": "Inline oil particle counter"}, "points": [{"metric": "wind_speed_ms", "path": "Wind.Speed", "label": "Nacelle wind speed, 10-min mean", "unit": "m/s"}, {"metric": "yaw_error_deg", "path": "Wind.YawError", "label": "Wind direction relative to the nacelle, 10-min mean", "unit": "\u00b0"}, {"metric": "ambient_temp_c", "path": "Ambient.Temperature", "label": "Ambient temperature", "unit": "\u00b0C"}, {"metric": "ambient_pressure_hpa", "path": "Ambient.Pressure", "label": "Ambient air pressure", "unit": "hPa"}, {"metric": "active_power_kw", "path": "Grid.ActivePower", "label": "Active power, 10-min mean", "unit": "kW"}, {"metric": "turbine_state", "path": "Grid.State", "label": "Turbine state (1 = producing)", "unit": "code"}, {"metric": "rotor_rpm", "path": "Rotor.Speed", "label": "Rotor speed", "unit": "rpm"}, {"metric": "gen_rpm", "path": "Rotor.GeneratorSpeed", "label": "Generator speed", "unit": "rpm"}, {"metric": "pitch_deg", "path": "Rotor.Pitch", "label": "Blade pitch angle", "unit": "\u00b0"}, {"metric": "gbx_oil_temp_c", "path": "Gearbox.OilSump", "label": "Gearbox oil sump temperature", "unit": "\u00b0C"}, {"metric": "gbx_hss_brg_temp_c", "path": "Gearbox.HSSBearing", "label": "Gearbox high-speed shaft bearing temperature", "unit": "\u00b0C"}, {"metric": "main_brg_temp_c", "path": "MainBearing.Temperature", "label": "Main bearing temperature", "unit": "\u00b0C"}, {"metric": "gen_winding_temp_c", "path": "Generator.Winding", "label": "Generator stator winding temperature", "unit": "\u00b0C"}, {"metric": "gen_brg_temp_c", "path": "Generator.Bearing", "label": "Generator drive-end bearing temperature", "unit": "\u00b0C"}, {"metric": "nacelle_temp_c", "path": "Ambient.Nacelle", "label": "Nacelle air temperature", "unit": "\u00b0C"}, {"metric": "vib_planet_mesh", "path": "CMS.PlanetMesh", "label": "Gearbox acceleration at the planetary gear mesh frequency", "unit": "m/s\u00b2"}, {"metric": "vib_hss_mesh", "path": "CMS.HSSMesh", "label": "Gearbox acceleration at the high-speed gear mesh frequency", "unit": "m/s\u00b2"}, {"metric": "vib_hss_brg_env", "path": "CMS.HSSBearingEnv", "label": "Envelope acceleration at the HSS bearing outer-race frequency", "unit": "m/s\u00b2"}, {"metric": "vib_mb_env", "path": "CMS.MainBearingEnv", "label": "Envelope acceleration at the main bearing", "unit": "m/s\u00b2"}, {"metric": "vib_gbx_rms_mms", "path": "CMS.GearboxOverall", "label": "Gearbox overall vibration velocity, 10-1000 Hz rms", "unit": "mm/s"}, {"metric": "pc_4um_per_ml", "path": "Oil.Count4", "label": "Particles >= 4 um(c) per mL", "unit": "/mL"}, {"metric": "pc_6um_per_ml", "path": "Oil.Count6", "label": "Particles >= 6 um(c) per mL", "unit": "/mL"}, {"metric": "pc_14um_per_ml", "path": "Oil.Count14", "label": "Particles >= 14 um(c) per mL", "unit": "/mL"}, {"metric": "fe_particles_24h", "path": "Oil.Ferrous24h", "label": "Ferrous wear particles counted, last 24 h", "unit": "count"}]}, "twin_model": {"limits": {"underperf_ratio": 0.88, "underperf_vmin_ms": 5.0, "underperf_vmax_ms": 11.0, "yaw_alert_deg": 8.0, "oil_residual_c": 6.0, "hss_residual_c": 5.0, "mb_residual_c": 6.0, "planet_ratio": 2.0, "hss_env_ratio": 2.5, "mb_env_ratio": 2.5, "gbx_rms_mms": 4.5, "source": "Alarm limits: assumption: typical value, replace with your fleet statistics. The gearbox overall velocity limit stands for the zone boundary of ISO 10816-21 Annex A at your measurement position (that standard's zones are for acceptance, not for early fault detection)."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "hss_bearing_damage": {"name": "Gearbox HSS bearing damage (axial cracks, spalling)", "part": "gearbox", "symptoms": "bearing runs hotter than oil + load predict, ferrous particles appear, later the envelope at BPFO grows", "rules": ["GBX_HSS_BRG_TEMP", "GBX_FERROUS_PARTICLES", "GBX_HSS_BRG_VIB"], "default_ramp_min": 1.5}, "planet_gear_pitting": {"name": "Planetary gear tooth pitting", "part": "gearbox", "symptoms": "band at the planetary mesh frequency grows, overall vibration and ferrous particles follow, temperatures normal", "rules": ["GBX_PLANET_MESH_VIB", "GBX_VIB_OVERALL", "GBX_FERROUS_PARTICLES"], "default_ramp_min": 1.5}, "oil_cooler_fouling": {"name": "Gearbox oil cooler fouled or fan failed", "part": "cooling", "symptoms": "oil hotter than ambient + load predict, the bearing follows the oil (its own residual stays normal)", "rules": ["GBX_OIL_TEMP_RESIDUAL", "GBX_OIL_TEMP_HIGH"], "default_ramp_min": 1}, "oil_contamination": {"name": "Oil contamination (filter bypass, ingress)", "part": "lubrication", "symptoms": "ISO 4406 codes rise above the target, no ferrous particles, temperatures normal", "rules": ["OIL_CLEANLINESS"], "default_ramp_min": 1}, "main_bearing_wear": {"name": "Main bearing wear", "part": "main bearing", "symptoms": "main bearing hotter than the model, envelope at the main bearing grows", "rules": ["MB_TEMP_RESIDUAL", "MB_VIB_ENV"], "default_ramp_min": 1.5}, "yaw_misalignment": {"name": "Yaw misalignment (vane offset or yaw control fault)", "part": "yaw", "symptoms": "10-min mean wind direction off the rotor axis, power below the curve", "rules": ["WTG_YAW_MISALIGNMENT", "WTG_UNDERPERFORMANCE"], "default_ramp_min": 0.5}, "rotor_performance_loss": {"name": "Rotor performance loss (blade erosion, pitch offset)", "part": "rotor", "symptoms": "power below the density-corrected curve at partial load, yaw normal", "rules": ["WTG_UNDERPERFORMANCE"], "default_ramp_min": 1}}, "presentation": {"title": "WTG-3001 wind turbine drivetrain", "dashboard": "WIND_TURBINE_DFIG"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, blades = true;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const sg = (v, d = 1) => (v == null || isNaN(v)) ? '–' : (v >= 0 ? '+' : '') + Number(v).toFixed(d);
+
+// ---------- scene (metres) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(9, 9, 25); ctl.target.set(-0.8, 1.6, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(20, 30, 15); scene.add(sun);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), white = M(0xe8ebee, { m: .1, r: .6 }), dark = M(0x3d4249), gbxMat = M(0x56718f, { m: .4 }), genMat = M(0x2f6db5, { m: .35 }), red = M(0xb3262d, { m: .3 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const alongX = o => { o.rotation.z = Math.PI / 2; return o; };
+// tower top (tower axis at x = 0, yaw bearing at y = 0)
+scene.add(at(cyl(1.15, 1.3, 14, white, 40), 0, -7.2, 0));
+scene.add(at(cyl(1.25, 1.25, .25, dark), 0, -.1, 0));
+// the yawing nacelle group: rotor upwind at +x
+const yawG = new THREE.Group(); scene.add(yawG);
+yawG.add(at(box(9.6, .35, 3.0, dark), -.6, .2, 0));                         // bedplate
+const coverMat = M(0xdfe3e8, { m: .1, r: .55, ds: true });
+const cover = at(box(10.4, 3.4, 3.4, coverMat), -.8, 2.05, 0); yawG.add(cover);
+const coolerTop = at(box(2.4, .8, 3.0, M(0x9aa3ad, { m: .3 })), -4.2, 4.2, 0); yawG.add(coolerTop);
+// main shaft, main bearing housing, gearbox, brake, coupling, generator
+const shaft = alongX(cyl(.32, .32, 3.6, steel)); yawG.add(at(shaft, 3.0, 1.55, 0));
+const mbG = at(alongX(cyl(.75, .75, .7, M(0x8a3ffc, { m: .3 }))), 3.4, 1.55, 0); yawG.add(mbG);
+yawG.add(at(box(.9, .9, 1.7, dark), 3.4, .8, 0));
+const ring = alongX(cyl(1.15, 1.15, 1.3, gbxMat, 40)); yawG.add(at(ring, 0.6, 1.55, 0));    // planetary stage
+const helical = at(box(1.6, 2.2, 1.9, gbxMat), -.85, 1.55, 0); yawG.add(helical);          // two helical stages
+[-1, 1].forEach(s => yawG.add(at(box(.5, .4, .6, dark), .6, .85, s * 1.25)));               // torque arms
+const hssG = at(alongX(cyl(.28, .28, .4, M(0xd8a31a, { m: .2 }))), -1.75, 1.1, 0); yawG.add(hssG);  // HSS bearing cap
+const hss = alongX(cyl(.09, .09, 1.6, steel)); yawG.add(at(hss, -2.5, 1.1, 0));
+const brake = alongX(cyl(.5, .5, .06, red)); yawG.add(at(brake, -2.1, 1.1, 0));
+yawG.add(at(alongX(cyl(.18, .18, .5, dark)), -2.9, 1.1, 0));                                 // coupling
+const gen = alongX(cyl(.8, .8, 2.4, genMat, 40)); yawG.add(at(gen, -4.4, 1.1, 0));
+yawG.add(at(box(1.4, 1.0, 1.0, M(0x6f6f6f)), -4.4, 2.3, -1.0));                              // converter cabinet
+// oil cooler pipes and particle counter
+const tube = (pts, c = 0x9fb3c8) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, .05, 6, false); yawG.add(new THREE.Mesh(g, M(c, { m: .7 }))); };
+tube([[-.85, .5, .9], [-2.5, .5, 1.2], [-4.2, 3.7, 1.2]], 0xc8a24a); tube([[-.85, .5, -.9], [-2.5, .5, -1.2], [-4.2, 3.7, -1.2]], 0xc8a24a);
+const pcount = at(box(.3, .3, .3, M(0x24a148)), -1.6, .55, 1.15); yawG.add(pcount);
+// hub, spinner, blades (rotating group)
+const rotG = at(new THREE.Group(), 5.3, 1.55, 0); yawG.add(rotG);
+const hub = new THREE.Mesh(new THREE.SphereGeometry(1.35, 32, 20), white); hub.scale.set(1.4, 1, 1); rotG.add(hub);
+const bladeG = new THREE.Group(); rotG.add(bladeG);
+for (let i = 0; i < 3; i++) {
+  const b = new THREE.Group(); b.rotation.x = i * 2 * Math.PI / 3; bladeG.add(b);
+  const shape = new THREE.Shape(); shape.moveTo(-.45, 0); shape.lineTo(-1.2, 8); shape.lineTo(-.25, 44); shape.lineTo(.15, 44); shape.lineTo(.9, 8); shape.lineTo(.45, 0);
+  const bl = new THREE.Mesh(new THREE.ExtrudeGeometry(shape, { depth: .35, bevelEnabled: false }), white);
+  bl.rotation.y = Math.PI / 2; bl.position.set(.1, 1.1, 0); b.add(bl);
+  b.add(at(cyl(.55, .55, 1.2, white), 0, 1.0, 0));
+}
+// wind vane and anemometer on the roof
+yawG.add(at(cyl(.04, .04, 1.2, steel), -4.8, 4.4, .9)); const vane = at(box(.6, .25, .03, dark), -5.0, 5.0, .9); yawG.add(vane);
+yawG.add(at(cyl(.04, .04, 1.2, steel), -4.8, 4.4, -.9)); const anem = at(cyl(.25, .25, .1, dark), -4.8, 5.0, -.9); yawG.add(anem);
+// wind arrow (fixed, from +x)
+const arrow = new THREE.ArrowHelper(new THREE.Vector3(-1, 0, 0), new THREE.Vector3(16, 6, 0), 5, 0x78a9ff, 1.2, .6); scene.add(arrow);
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos), local: true }; }
+lbl('wind', [-4.8, 6.6, -.9]); lbl('power', [-4.4, 3.4, -1.0]); lbl('yaw', [-2.0, 5.4, .9]); lbl('mb', [3.4, 3.2, 1.0]);
+lbl('oil', [-.85, 2.8, 1.0]); lbl('hss', [-1.75, 1.4, 1.2]); lbl('planet', [1.2, 4.0, 0]); lbl('part', [-1.6, .6, 1.4]); lbl('gen', [-5.6, 1.9, 1.0]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  yawG.updateMatrixWorld();
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().applyMatrix4(yawG.matrixWorld).project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 0, yaw = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.rotor_rpm; yaw = r.yaw_error_deg;
+  setLbl('wind', `wind · normalised (ρ ${fmt(t.air_density, 3)})`, `${fmt(r.wind_speed_ms, 1)} · ${fmt(t.wind_norm_ms, 1)} m/s`, '');
+  setLbl('yaw', 'yaw error · est. loss', `${sg(r.yaw_error_deg)}° · ${fmt(t.yaw_loss_pct, 1)} %`, st(names.has('WTG_YAW_MISALIGNMENT'), Math.abs(r.yaw_error_deg) > L.yaw_alert_deg * .6));
+  setLbl('power', 'power · expected', `${fmt(r.active_power_kw, 0)} · ${fmt(t.power_expected_kw, 0)} kW`, st(names.has('WTG_UNDERPERFORMANCE'), t.power_ratio < .94));
+  setLbl('mb', 'main bearing · residual', `${fmt(r.main_brg_temp_c, 1)} °C · ${sg(t.main_brg_residual_c)} K · env ${fmt(t.vib_mb_ratio, 1)}×`, st(names.has('MB_TEMP_RESIDUAL') || names.has('MB_VIB_ENV')));
+  setLbl('oil', 'gearbox oil · residual', `${fmt(r.gbx_oil_temp_c, 1)} °C · ${sg(t.gbx_oil_residual_c)} K`, st(names.has('GBX_OIL_TEMP_HIGH') || names.has('GBX_OIL_TEMP_RESIDUAL'), t.gbx_oil_residual_c > L.oil_residual_c * .6));
+  setLbl('hss', `HSS bearing · BPFO ${fmt(t.hss_bpfo_hz, 0)} Hz`, `${fmt(r.gbx_hss_brg_temp_c, 1)} °C · ${sg(t.hss_brg_residual_c)} K · env ${fmt(t.vib_hss_brg_ratio, 1)}×`,
+    st(names.has('GBX_HSS_BRG_TEMP') || names.has('GBX_HSS_BRG_VIB'), t.hss_brg_residual_c > L.hss_residual_c * .6));
+  setLbl('planet', `planet mesh ${fmt(t.planet_mesh_hz, 1)} Hz · overall`, `${fmt(t.vib_planet_ratio, 1)}× · ${fmt(r.vib_gbx_rms_mms, 1)} mm/s`, st(names.has('GBX_PLANET_MESH_VIB') || names.has('GBX_VIB_OVERALL')));
+  setLbl('part', 'oil ISO 4406 · Fe / 24 h', `${fmt(t.iso4406_4um, 0)}/${fmt(t.iso4406_6um, 0)}/${fmt(t.iso4406_14um, 0)} · ${r.fe_particles_24h}`, st(names.has('OIL_CLEANLINESS') || names.has('GBX_FERROUS_PARTICLES'), r.fe_particles_24h > d.oil.fe_limit_24h * .6));
+  setLbl('gen', 'generator · winding', `${fmt(r.gen_rpm, 0)} rpm · ${fmt(r.gen_winding_temp_c, 0)} °C`, '');
+  $('k-health').textContent = ST.health; $('k-ratio').textContent = fmt(t.power_ratio); $('k-hss').textContent = sg(t.hss_brg_residual_c) + ' K';
+  $('c-pwr-t').textContent = `${fmt(r.active_power_kw, 0)} kW at ${fmt(r.wind_speed_ms, 1)} m/s`; $('c-pwr').className = 'chip ' + (names.has('WTG_UNDERPERFORMANCE') ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Active power (kW)', fmt(r.active_power_kw, 0), fmt(t.power_expected_kw, 0), names.has('WTG_UNDERPERFORMANCE')) +
+    row('Power ÷ expected', fmt(t.power_ratio), '≥ ' + L.underperf_ratio, t.power_ratio < L.underperf_ratio) +
+    row('Yaw error (°)', sg(r.yaw_error_deg), '± ' + L.yaw_alert_deg, names.has('WTG_YAW_MISALIGNMENT')) +
+    row('Gearbox oil (°C)', fmt(r.gbx_oil_temp_c, 1), fmt(t.gbx_oil_expected_c, 1), names.has('GBX_OIL_TEMP_RESIDUAL') || names.has('GBX_OIL_TEMP_HIGH')) +
+    row('HSS bearing (°C)', fmt(r.gbx_hss_brg_temp_c, 1), fmt(t.hss_brg_expected_c, 1), names.has('GBX_HSS_BRG_TEMP')) +
+    row('Main bearing (°C)', fmt(r.main_brg_temp_c, 1), fmt(t.main_brg_expected_c, 1), names.has('MB_TEMP_RESIDUAL')) +
+    row('Planet mesh band (×)', fmt(t.vib_planet_ratio), '≤ ' + L.planet_ratio, names.has('GBX_PLANET_MESH_VIB')) +
+    row('HSS bearing envelope (×)', fmt(t.vib_hss_brg_ratio), '≤ ' + L.hss_env_ratio, names.has('GBX_HSS_BRG_VIB')) +
+    row('Gearbox overall (mm/s)', fmt(r.vib_gbx_rms_mms), '≤ ' + L.gbx_rms_mms, names.has('GBX_VIB_OVERALL')) +
+    row('ISO 4406 code', `${fmt(t.iso4406_4um, 0)}/${fmt(t.iso4406_6um, 0)}/${fmt(t.iso4406_14um, 0)}`, '-/' + d.oil.iso_target[1] + '/' + d.oil.iso_target[2], names.has('OIL_CLEANLINESS')) +
+    row('Ferrous particles / 24 h', r.fe_particles_24h, '≤ ' + d.oil.fe_limit_24h, names.has('GBX_FERROUS_PARTICLES'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the turbine behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  const tint = (m, bad) => m.color.setHex(bad ? 0xda1e28 : m.userData.base);
+  [[ring.material, names.has('GBX_PLANET_MESH_VIB') || names.has('GBX_VIB_OVERALL')], [hssG.material, names.has('GBX_HSS_BRG_TEMP') || names.has('GBX_HSS_BRG_VIB')],
+   [mbG.material, names.has('MB_TEMP_RESIDUAL') || names.has('MB_VIB_ENV')], [coolerTop.material, names.has('GBX_OIL_TEMP_RESIDUAL') || names.has('GBX_OIL_TEMP_HIGH')],
+   [pcount.material, names.has('OIL_CLEANLINESS') || names.has('GBX_FERROUS_PARTICLES')]].forEach(([m, bad]) => tint(m, bad));
+}
+[ring, hssG, mbG, coolerTop, pcount].forEach(o => { o.material = o.material.clone(); o.material.userData.base = o.material.color.getHex(); });
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = `${TW.identification.manufacturer} ${TW.identification.model} · ${TW.identification.gearbox}`;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  coverMat.transparent = true; coverMat.opacity = cut ? .12 : 1; coverMat.depthWrite = !cut;
+};
+$('t-blades').onclick = () => { blades = !blades; bladeG.visible = blades; $('t-blades').classList.toggle('on', !blades); $('t-blades').textContent = blades ? 'Hide blades' : 'Show blades'; };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), shownYaw = 0;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  rotG.rotation.x -= rpm / 60 * 2 * Math.PI * dt;          // real rotor speed
+  hss.rotation.x -= rpm / 60 * 2 * Math.PI * dt * 20;       // shown slower than the real 1:113 so it stays visible
+  brake.rotation.x = hss.rotation.x;
+  anem.rotation.y += dt * 6;
+  shownYaw += ((yaw || 0) - shownYaw) * Math.min(1, dt * 2);
+  yawG.rotation.y = -shownYaw * Math.PI / 180;               // nacelle off the wind by the yaw error
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

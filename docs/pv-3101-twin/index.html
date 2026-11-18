@@ -1,0 +1,364 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PV-3101 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>PV-3101</b><span class="g">Utility PV block · 375.84 kWp / 330 kVA · 24 strings</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-clock"><span class="dot"></span><span id="c-clock-t">–</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Power, efficiency and strings →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the PV block…</div>
+<div class="credit">One inverter block: 24 tables of 27 bifacial modules (2 in portrait, fixed tilt), a string inverter at the row end and the weather station. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-strings">String map</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Tables turn yellow or red when their string current is low; modules turn brown as dust builds up. One row of four tables = one MPPT.</div>
+<aside>
+  <section>
+    <h2>PV-3101 twin</h2>
+    <p class="sub" id="sub">inverter block</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>PR (25 °C)<b id="k-pr">–</b></div><div>Soiling loss<b id="k-soil">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor. Most rules only run in daylight (above 300 W/m²).</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The block sends only what it measures. Every expected value is computed from the twin file: the module and inverter data sheets, the array design and IEC 61724-1.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for PV-3101: weather, 24 strings, the string inverter and the weather station, with injectable faults.\n\nThe real block sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings over a\nday and the fingerprints of the failure modes, for the tests, the figures and the live pages.\n\nWeather: a clear-sky bell for the plane-of-array irradiance (sunrise 06:00, sunset 18:00), ambient 18 to 36 C.\nModule temperature: Sandia module model T_m = G x exp(a + b x wind) + T_amb, open rack glass/glass a = -3.47, b = -0.0594\n(King et al. 2004). Inverter: PVWatts v5 part-load efficiency, clipping at its own limit (derating curve, setpoint).\nPure Python (math, random) so it also runs in the browser.\n\"\"\"\nimport math\nimport random\n\nSAPM_A, SAPM_B = -3.47, -0.0594\nOPEN_STRING, BYPASS_STRING = 7, 15            # which string the string faults hit\n\n\ndef _interp(x, xs, ys):\n    if x <= xs[0]:\n        return ys[0]\n    if x >= xs[-1]:\n        return ys[-1]\n    for i in range(1, len(xs)):\n        if x <= xs[i]:\n            return ys[i - 1] + (ys[i] - ys[i - 1]) * (x - xs[i - 1]) / (xs[i] - xs[i - 1])\n    return ys[-1]\n\n\nclass Block:\n    \"\"\"The physical block: true state at an hour of the day, and one published reading.\"\"\"\n\n    def __init__(self, twin, seed=1):\n        d = twin[\"design\"]\n        self.m, self.a, self.inv, self.ec = d[\"module\"], d[\"array\"], d[\"inverter\"], d[\"efficiency_curve\"]\n        self.dr, self.ins, self.w = d[\"derating\"], d[\"insulation\"], d[\"weather\"]\n        self.age = d[\"plant\"][\"years_in_service\"]\n        self.ns = self.a[\"strings\"]\n        self.rnd = random.Random(seed)\n        mm = [1 + self.rnd.gauss(0, 0.012) for _ in range(self.ns)]\n        s = sum(mm) / self.ns\n        self.mm = [x / s for x in mm]                  # fixed module / string mismatch, mean 1\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.setpoint = 100.0\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        \"\"\"Gaussian measurement noise.\"\"\"\n        return self.rnd.gauss(0, s)\n\n    # weather -------------------------------------------------------------------------------------------------------\n    @staticmethod\n    def weather(h):\n        g = 1040.0 * max(0.0, math.sin(math.pi * (h - 6) / 12)) ** 1.2 if 6 < h < 18 else 0.0\n        ta = 27 + 9 * math.sin(math.pi * (h - 9) / 12)\n        ws = 2.5 + 0.9 * math.sin(math.pi * (h - 8) / 12)\n        return g, ta, max(0.5, ws)\n\n    def eta(self, p_dc):\n        pdc0 = self.inv[\"p_ac_max_kw\"] / self.ec[\"eta_nom\"]\n        z = max(p_dc, 1) / pdc0\n        e = self.ec[\"eta_nom\"] / self.ec[\"eta_ref\"] * (-0.0162 * z - 0.0059 / z + 0.9858)\n        return max(e, 0) * (1 - 0.03 * self.faults[\"inverter_efficiency\"])\n\n    # true state ----------------------------------------------------------------------------------------------------\n    def state(self, h):\n        f, m, a = self.faults, self.m, self.a\n        g, ta, ws = self.weather(h)\n        tm = g * math.exp(SAPM_A + SAPM_B * ws) + ta\n        tc = tm + g / 1000 * self.w[\"cell_delta_t_c\"]\n        sr = 0.99 - 0.13 * f[\"soiling\"]\n        warranty = 1 - m[\"degradation_first_year_pct\"] / 100 * min(self.age, 1) - m[\"degradation_annual_pct\"] / 100 * max(self.age - 1, 0)\n        p_str = (a[\"modules_per_string\"] * m[\"pmax_w\"] / 1000 * g / 1000 * (1 + m[\"gamma_pmax_pct_per_c\"] / 100 * (tc - 25))\n                 * (1 + a[\"rear_irradiance_ratio\"] * m[\"bifaciality\"]) * (1 - a[\"dc_loss_frac\"]) * warranty * 0.995)\n        fac = []\n        for i in range(self.ns):\n            x = self.mm[i] * sr * (1 - 0.12 * f[\"module_degradation\"])\n            if i + 1 == OPEN_STRING:\n                x *= max(0.0, 1 - 1.25 * f[\"string_open\"])\n            if i + 1 == BYPASS_STRING:\n                x *= 1 - 0.30 * f[\"string_bypass\"]\n            fac.append(x)\n        p_avail = p_str * sum(fac)\n        dew = 0.6 if h < 8.5 else 1.0\n        riso = math.exp(math.log(self.ins[\"riso_typical_kohm\"] * dew) * (1 - f[\"ground_fault\"]) + math.log(20.0) * f[\"ground_fault\"])\n        running = riso >= self.ins[\"riso_limit_kohm\"] and g > 15\n        p_max = min(_interp(ta + 25 * f[\"inverter_cooling\"], self.dr[\"temp_c\"], self.dr[\"p_kw\"]), self.inv[\"p_ac_max_kw\"] * self.setpoint / 100)\n        vmp = a[\"modules_per_string\"] * m[\"vmp_v\"] * (1 + m[\"beta_voc_pct_per_c\"] / 100 * (tc - 25))\n        voc = a[\"modules_per_string\"] * m[\"voc_v\"] * (1 + m[\"beta_voc_pct_per_c\"] / 100 * (tc - 25))\n        if running:\n            p_dc = p_avail\n            if self.eta(p_dc) * p_dc > p_max:            # clipping: the inverter moves off the MPP until AC = its limit\n                for _ in range(6):\n                    p_dc = p_max / max(self.eta(p_dc), 0.5)\n            p_ac = self.eta(p_dc) * p_dc\n            scale = p_dc / p_avail if p_avail > 0 else 0.0\n            v = vmp * (1 + 0.04 * (1 - scale))\n            cur = [p_str * x * scale * 1000 / v for x in fac]\n        else:\n            p_dc = p_ac = 0.0\n            v = voc if g > 15 else 0.0\n            cur = [0.0] * self.ns\n        t_inv = ta + self.dr[\"heat_rise_full_load_k\"] * p_ac / self.inv[\"p_ac_max_kw\"] + 25 * f[\"inverter_cooling\"] + (0 if running else 1.5)\n        return {\"g\": g, \"ta\": ta, \"ws\": ws, \"tm\": tm, \"tc\": tc, \"sr\": sr, \"p_avail\": p_avail, \"p_dc\": p_dc, \"p_ac\": p_ac, \"v\": v,\n                \"cur\": cur, \"riso\": riso, \"running\": running, \"p_max\": p_max, \"t_inv\": t_inv, \"clipping\": running and p_dc < p_avail - 0.5}\n\n    # one published message -----------------------------------------------------------------------------------------\n    def read(self, s):\n        nz = self.n\n        g_clean = s[\"g\"] * (1 - 0.15 * self.faults[\"irradiance_sensor\"])\n        r = {\n            \"poa_wm2\": round(max(0.0, g_clean + nz(0.003 * g_clean + 0.3)), 1),\n            \"poa_soiled_wm2\": round(max(0.0, s[\"g\"] * s[\"sr\"] + nz(0.003 * s[\"g\"] + 0.3)), 1),\n            \"module_temp_c\": round(s[\"tm\"] + nz(0.3), 2), \"ambient_temp_c\": round(s[\"ta\"] + nz(0.2), 2), \"wind_ms\": round(max(0.0, s[\"ws\"] + nz(0.3)), 2),\n            \"p_dc_kw\": round(max(0.0, s[\"p_dc\"] * (1 + nz(0.0015))), 2), \"v_dc_v\": round(s[\"v\"] + (nz(2.0) if s[\"v\"] else 0), 1),\n            \"p_ac_kw\": round(max(0.0, s[\"p_ac\"] * (1 + nz(0.001))), 2) if s[\"running\"] else 0.0,\n            \"inv_running\": 1 if s[\"running\"] else 0, \"inv_temp_c\": round(s[\"t_inv\"] + nz(0.4), 2), \"p_max_kw\": round(s[\"p_max\"], 1),\n            \"riso_kohm\": round(s[\"riso\"] * (1 + nz(0.02)), 1), \"setpoint_pct\": self.setpoint, \"years_in_service\": self.age,\n        }\n        if s[\"running\"] and r[\"p_ac_kw\"] > s[\"p_max\"]:\n            r[\"p_ac_kw\"] = round(s[\"p_max\"], 2)                # the inverter never exceeds its own limit\n        for i, c in enumerate(s[\"cur\"]):\n            r[f\"i_s{i + 1:02d}_a\"] = round(max(0.0, c * (1 + nz(0.004)) + (nz(0.02) if c else 0)), 3)\n        return r\n\n    def measure(self, h=10.0):\n        return self.read(self.state(h))\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    `t` is the plant clock in seconds of the day. By day it runs `demo.time_scale` times faster than real time; by night\n    `night_speedup` times faster again, so the demo spends little time in the dark.\n    \"\"\"\n\n    def __init__(self, twin, seed=3101):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.night = float(demo.get(\"night_speedup\", 1))\n        self.start = float(demo.get(\"start_hour\", 10.0)) * 3600\n        self.b = Block(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = self.start\n        self.running, self.trip = True, 0\n        self.last = None\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.t = self.start\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def hour(self):\n        return (self.t / 3600.0) % 24\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.b.faults[k] = f.sev\n        g = self.b.weather(self.hour())[0]\n        if dt < 2.0:  # the in-browser shim warms up with 2 s steps: they must not move the clock away from the visitor's time\n            self.t += dt * self.scale * (1 if g > 0 else self.night)\n        s = self.b.state(self.hour())\n        self.running = s[\"running\"]\n        self.trip = 1 if s[\"riso\"] < self.b.ins[\"riso_limit_kohm\"] else 0\n        s[\"hour\"] = self.hour()\n        s[\"string_fault\"] = {\"open\": OPEN_STRING, \"bypass\": BYPASS_STRING}\n        self.last = s\n        return s\n\n    def measure(self, true):\n        return self.b.read(true)\n", "twin_calc": "\"\"\"The utility PV block twin's expectations (PV-3101: one string inverter, 24 strings, one weather station).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nWeather station -> what the array should give (PVWatts v5 DC model, Sandia cell temperature):\n    T_cell  = T_module(back) + G/1000 x 3 C\n    f_T     = 1 + gamma x (T_cell - 25)                     gamma = -0.29 %/C (module data sheet)\n    W(age)  = 1 - 1 % x min(age, 1) - 0.40 % x max(age - 1, 0)   (the module's linear power warranty)\n    P_dc,exp = N x Pmax,STC x G/1000 x f_T x (1 + bifacial gain) x (1 - DC losses) x W(age)      (a clean array)\nSoiling (IEC 61724-1 soiling ratio, two reference cells side by side, one washed daily, one never washed):\n    SR = G_unwashed / G_clean            soiling loss = 1 - SR\nPerformance index and its soiling-corrected value:\n    PI = P_dc / P_dc,exp                 PI_corr = PI / SR     (what is left once the dust is explained)\nInverter (PVWatts v5 part-load curve, eta_nom = European efficiency of the data sheet):\n    z = P_dc / (P_ac0 / eta_nom)         eta = eta_nom / 0.9637 x (-0.0162 z - 0.0059 / z + 0.9858)\n    AC limit = min(derating curve at the ambient temperature, setpoint x P_ac0)\n    P_ac,exp = min(eta x P_dc, AC limit)       clipping loss = max(eta(P_avail) x P_avail - AC limit, 0),  P_avail = P_dc,exp x SR\nPerformance ratio (IEC 61724-1), instantaneous:\n    PR = P_ac / (P0 x G / 1000)          PR_T = PR / f_T    (temperature-corrected to 25 C)\nStrings: mean current and the lowest string / mean (a failed string or a string with bypass diodes on stands out).\nInverter heat: T_inv,exp = T_amb + heat rise x P_ac / P_ac0.\nInsulation: the inverter measures the array's insulation resistance before it connects; IEC 62109-2 sets the floor\n    Vmax PV / 30 mA = 1500 V / 30 mA = 50 kOhm.\n\"\"\"\nimport math\n\nN_STR = 24\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    m, a, inv, ec, dr, ins, w, cl = (d[\"module\"], d[\"array\"], d[\"inverter\"], d[\"efficiency_curve\"], d[\"derating\"],\n                                     d[\"insulation\"], d[\"weather\"], d[\"cleaning\"])\n    n_mod = a[\"modules_per_string\"] * a[\"strings\"]\n    p0 = n_mod * m[\"pmax_w\"] / 1000.0\n    pac0 = inv[\"p_ac_max_kw\"]\n    cost = cl[\"cost_usd_per_module\"] * n_mod\n    e_day = p0 * cl[\"specific_yield_kwh_per_kwp_day\"]\n    trig = math.sqrt(2 * cost * cl[\"soiling_rate_per_day\"] / (e_day * cl[\"energy_price_usd_per_kwh\"]))\n    return dict(n_mod=n_mod, n_str=a[\"strings\"], p0=p0, gam=m[\"gamma_pmax_pct_per_c\"] / 100, alpha=m[\"alpha_isc_pct_per_c\"] / 100,\n                imp=m[\"imp_a\"], vmp=m[\"vmp_v\"], mps=a[\"modules_per_string\"], bif=a[\"rear_irradiance_ratio\"] * m[\"bifaciality\"],\n                dcl=a[\"dc_loss_frac\"], d1=m[\"degradation_first_year_pct\"] / 100, dn=m[\"degradation_annual_pct\"] / 100,\n                pac0=pac0, en=ec[\"eta_nom\"], ea=ec[\"eta_nom\"] / ec[\"eta_ref\"], pdc0=pac0 / ec[\"eta_nom\"],\n                dt=w[\"cell_delta_t_c\"], gmin=w[\"g_min_wm2\"], dT=dr[\"temp_c\"], dP=dr[\"p_kw\"], rise=dr[\"heat_rise_full_load_k\"],\n                riso_lim=ins[\"riso_limit_kohm\"], riso_alert=ins[\"riso_alert_kohm\"],\n                clean_cost=cost, e_day=e_day, soil_rate=cl[\"soiling_rate_per_day\"], price=cl[\"energy_price_usd_per_kwh\"],\n                soil_trigger_pct=trig * 100, clean_interval_d=trig / cl[\"soiling_rate_per_day\"])\n\n\ndef interp(x, xs, ys):\n    \"\"\"np.interp for one value (flat outside the end points).\"\"\"\n    if x <= xs[0]:\n        return ys[0]\n    if x >= xs[-1]:\n        return ys[-1]\n    for i in range(1, len(xs)):\n        if x <= xs[i]:\n            return ys[i - 1] + (ys[i] - ys[i - 1]) * (x - xs[i - 1]) / (xs[i] - xs[i - 1])\n    return ys[-1]\n\n\ndef eta_curve(k, p_dc):\n    \"\"\"PVWatts v5 inverter efficiency at DC power p_dc (kW); p_dc floored at 1 kW like the Monitor expression.\"\"\"\n    z = max(p_dc, 1) / k[\"pdc0\"]\n    return max(k[\"ea\"] * (-0.0162 * z - 0.0059 / z + 0.9858), 0)\n\n\ndef warranty(k, age):\n    return 1 - k[\"d1\"] * min(age, 1) - k[\"dn\"] * max(age - 1, 0)\n\n\ndef ac_limit(k, t_amb, setpoint_pct):\n    return min(interp(t_amb, k[\"dT\"], k[\"dP\"]), k[\"pac0\"] * setpoint_pct / 100)\n\n\ndef strings(r):\n    return [r[f\"i_s{i:02d}_a\"] for i in range(1, N_STR + 1)]\n\n\ndef _parts(twin):\n    k = _k(twin)\n    R = repr\n    G, GS = \"df['POA_WM2']\", \"df['POA_SOILED_WM2']\"\n    TC = f\"(df['MODULE_TEMP_C'] + {G} / 1000 * {R(k['dt'])})\"\n    TF = f\"(1 + {R(k['gam'])} * ({TC} - 25))\"\n    W = f\"(1 - {R(k['d1'])} * np.minimum(df['YEARS_IN_SERVICE'], 1) - {R(k['dn'])} * np.maximum(df['YEARS_IN_SERVICE'] - 1, 0))\"\n    DCE = f\"({R(k['p0'])} * {G} / 1000 * {TF} * {R(1 + k['bif'])} * {R(1 - k['dcl'])} * {W})\"\n    SR = f\"({GS} / np.maximum({G}, 1))\"\n    PI = f\"(df['P_DC_KW'] / np.maximum({DCE}, 0.1))\"\n    PIC = f\"({PI} / np.maximum({SR}, 0.01))\"\n\n    def ETA(x):\n        z = f\"(np.maximum({x}, 1) / {R(k['pdc0'])})\"\n        return f\"np.maximum({R(k['ea'])} * (-0.0162 * {z} - 0.0059 / {z} + 0.9858), 0)\"\n    ETAE = ETA(\"df['P_DC_KW']\")\n    ETAM = \"(df['P_AC_KW'] / np.maximum(df['P_DC_KW'], 0.1))\"\n    LIM = f\"np.minimum(np.interp(df['AMBIENT_TEMP_C'], {k['dT']}, {k['dP']}), {R(k['pac0'])} * df['SETPOINT_PCT'] / 100)\"\n    PAV = f\"({DCE} * {SR})\"\n    S = [f\"df['I_S{i:02d}_A']\" for i in range(1, N_STR + 1)]\n    MEAN = \"((\" + \" + \".join(S) + f\") / {N_STR})\"\n    MINR = f\"(np.minimum.reduce([{', '.join(S)}]) / np.maximum({MEAN}, 0.01))\"\n    TIE = f\"(df['AMBIENT_TEMP_C'] + {R(k['rise'])} * df['P_AC_KW'] / {R(k['pac0'])})\"\n    LOSS = f\"((1 - {SR}) * 100)\"\n    return dict(k=k, TC=TC, TF=TF, W=W, DCE=DCE, SR=SR, PI=PI, PIC=PIC, ETA=ETA, ETAE=ETAE, ETAM=ETAM, LIM=LIM, PAV=PAV,\n                MEAN=MEAN, MINR=MINR, TIE=TIE, LOSS=LOSS)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    R = repr\n    return [\n        (\"CELL_TEMP_C\", p[\"TC\"]),\n        (\"TEMP_FACTOR\", p[\"TF\"]),\n        (\"DC_EXPECTED_KW\", p[\"DCE\"]),\n        (\"SOILING_RATIO\", p[\"SR\"]),\n        (\"SOILING_LOSS_PCT\", p[\"LOSS\"]),\n        (\"SOILING_LOSS_KW\", f\"{p['DCE']} * (1 - {p['SR']})\"),\n        (\"PERF_INDEX\", p[\"PI\"]),\n        (\"PERF_INDEX_CORR\", p[\"PIC\"]),\n        (\"INV_EFF_EXPECTED\", p[\"ETAE\"]),\n        (\"INV_EFF_MEASURED\", p[\"ETAM\"]),\n        (\"AC_LIMIT_KW\", p[\"LIM\"]),\n        (\"AC_EXPECTED_KW\", f\"np.minimum({p['ETAE']} * df['P_DC_KW'], {p['LIM']})\"),\n        (\"CLIPPING_LOSS_KW\", f\"np.maximum({p['ETA'](p['PAV'])} * {p['PAV']} - {p['LIM']}, 0)\"),\n        (\"PR_INST\", f\"(df['P_AC_KW'] / np.maximum({R(k['p0'])} * df['POA_WM2'] / 1000, 0.1))\"),\n        (\"PR_TEMP_CORR\", f\"(df['P_AC_KW'] / np.maximum({R(k['p0'])} * df['POA_WM2'] / 1000, 0.1)) / {p['TF']}\"),\n        (\"STRING_MEAN_A\", p[\"MEAN\"]),\n        (\"STRING_EXPECTED_A\", f\"({R(k['imp'])} * df['POA_WM2'] / 1000 * (1 + {R(k['alpha'])} * ({p['TC']} - 25)) * {R(1 + k['bif'])} * {R(1 - k['dcl'])} * {p['W']} * {p['SR']})\"),\n        (\"STRING_MIN_RATIO\", p[\"MINR\"]),\n        (\"INV_TEMP_EXPECTED_C\", p[\"TIE\"]),\n        (\"INV_TEMP_EXCESS_K\", f\"df['INV_TEMP_C'] - {p['TIE']}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    g = r[\"poa_wm2\"]\n    tc = r[\"module_temp_c\"] + g / 1000 * k[\"dt\"]\n    tf = 1 + k[\"gam\"] * (tc - 25)\n    w = warranty(k, r[\"years_in_service\"])\n    dce = k[\"p0\"] * g / 1000 * tf * (1 + k[\"bif\"]) * (1 - k[\"dcl\"]) * w\n    sr = r[\"poa_soiled_wm2\"] / max(g, 1)\n    pi = r[\"p_dc_kw\"] / max(dce, 0.1)\n    pic = pi / max(sr, 0.01)\n    etae = eta_curve(k, r[\"p_dc_kw\"])\n    etam = r[\"p_ac_kw\"] / max(r[\"p_dc_kw\"], 0.1)\n    lim = ac_limit(k, r[\"ambient_temp_c\"], r[\"setpoint_pct\"])\n    pav = dce * sr\n    s = strings(r)\n    mean = sum(s) / N_STR\n    pr = r[\"p_ac_kw\"] / max(k[\"p0\"] * g / 1000, 0.1)\n    tie = r[\"ambient_temp_c\"] + k[\"rise\"] * r[\"p_ac_kw\"] / k[\"pac0\"]\n    return {\n        \"cell_temp_c\": tc, \"temp_factor\": tf, \"dc_expected_kw\": dce, \"soiling_ratio\": sr, \"soiling_loss_pct\": (1 - sr) * 100,\n        \"soiling_loss_kw\": dce * (1 - sr), \"perf_index\": pi, \"perf_index_corr\": pic, \"inv_eff_expected\": etae,\n        \"inv_eff_measured\": etam, \"ac_limit_kw\": lim, \"ac_expected_kw\": min(etae * r[\"p_dc_kw\"], lim),\n        \"clipping_loss_kw\": max(eta_curve(k, pav) * pav - lim, 0), \"pr_inst\": pr, \"pr_temp_corr\": pr / tf,\n        \"string_mean_a\": mean,\n        \"string_expected_a\": k[\"imp\"] * g / 1000 * (1 + k[\"alpha\"] * (tc - 25)) * (1 + k[\"bif\"]) * (1 - k[\"dcl\"]) * w * sr,\n        \"string_min_ratio\": min(s) / max(mean, 0.01),\n        \"inv_temp_expected_c\": tie, \"inv_temp_excess_k\": r[\"inv_temp_c\"] - tie,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    R = repr\n    DAY = f\"(df['POA_WM2'] >= {R(k['gmin'])})\"\n    ON = \"(df['INV_RUNNING'] > 0.5)\"\n    FREE = f\"(df['P_AC_KW'] < {R(L['limited_frac'])} * df['P_MAX_KW'])\"\n    trig = R(k[\"soil_trigger_pct\"])\n    return [\n        (\"PV_RISO_TRIP\", f\"df['RISO_KOHM'] < {R(k['riso_lim'])}\", \"Critical\", \"ground_fault\"),\n        (\"PV_INVERTER_DOWN\", f\"{DAY} & (df['INV_RUNNING'] < 0.5)\", \"High\", \"ground_fault\"),\n        (\"PV_STRING_OPEN\", f\"{DAY} & {ON} & ({p['MINR']} < {R(L['string_open_ratio'])})\", \"High\", \"string_open\"),\n        (\"PV_DC_UNDERPERFORM\", f\"{DAY} & {ON} & {FREE} & ({p['PIC']} < {R(L['pi_low'])})\", \"High\", \"module_degradation\"),\n        (\"PV_CLEANING_DUE\", f\"{DAY} & ({p['LOSS']} >= {trig})\", \"Medium\", \"soiling\"),\n        (\"PV_STRING_LOW\", f\"{DAY} & {ON} & ({p['MINR']} >= {R(L['string_open_ratio'])}) & ({p['MINR']} < {R(L['string_low_ratio'])})\", \"Medium\", \"string_bypass\"),\n        (\"PV_RISO_LOW\", f\"(df['RISO_KOHM'] >= {R(k['riso_lim'])}) & (df['RISO_KOHM'] < {R(k['riso_alert'])})\", \"Medium\", \"ground_fault\"),\n        (\"PV_INV_EFF_LOW\", f\"{ON} & (df['P_DC_KW'] > {R(L['min_dc_frac'] * k['pac0'])}) & ({p['ETAM']} < {p['ETAE']} - {R(L['eff_drop'])})\", \"Medium\", \"inverter_efficiency\"),\n        (\"PV_INV_HOT\", f\"{ON} & ((df['INV_TEMP_C'] - {p['TIE']}) > {R(L['inv_temp_excess_k'])})\", \"Medium\", \"inverter_cooling\"),\n        (\"PV_DERATE_EARLY\", f\"{ON} & (df['P_MAX_KW'] < {p['LIM']} - {R(L['derate_margin_kw'])})\", \"Medium\", \"inverter_cooling\"),\n        (\"PV_IRRADIANCE_SENSOR\", f\"{DAY} & (({ON} & {FREE} & ({p['PI']} > {R(L['sensor_pi_high'])})) | ({p['SR']} > {R(L['sensor_sr_high'])}))\", \"Medium\", \"irradiance_sensor\"),\n        (\"PV_SOILING_HIGH\", f\"{DAY} & ({p['LOSS']} >= {R(L['soiling_alert_pct'])}) & ({p['LOSS']} < {trig})\", \"Low\", \"soiling\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    day = r[\"poa_wm2\"] >= k[\"gmin\"]\n    on = r[\"inv_running\"] > 0.5\n    free = r[\"p_ac_kw\"] < L[\"limited_frac\"] * r[\"p_max_kw\"]\n    minr, loss, s = t[\"string_min_ratio\"], t[\"soiling_loss_pct\"], strings(r)\n    worst = s.index(min(s)) + 1\n    add(r[\"riso_kohm\"] < k[\"riso_lim\"], \"PV_RISO_TRIP\", \"Critical\",\n        f\"Insulation resistance {r['riso_kohm']:.0f} k\u03a9, below {k['riso_lim']:.0f} k\u03a9: ground fault, the inverter must not connect\", \"cables\", \"ground_fault\")\n    add(day and r[\"inv_running\"] < 0.5, \"PV_INVERTER_DOWN\", \"High\", f\"Inverter off grid at {r['poa_wm2']:.0f} W/m\u00b2\", \"inverter\", \"ground_fault\")\n    add(day and on and minr < L[\"string_open_ratio\"], \"PV_STRING_OPEN\", \"High\",\n        f\"String S{worst:02d} at {min(s):.1f} A while the mean is {t['string_mean_a']:.1f} A: open string\", \"string\", \"string_open\")\n    add(day and on and free and t[\"perf_index_corr\"] < L[\"pi_low\"], \"PV_DC_UNDERPERFORM\", \"High\",\n        f\"DC power {t['perf_index_corr'] * 100:.1f} % of expected once soiling is removed\", \"modules\", \"module_degradation\")\n    add(day and loss >= k[\"soil_trigger_pct\"], \"PV_CLEANING_DUE\", \"Medium\",\n        f\"Soiling loss {loss:.1f} %, past the economic cleaning point {k['soil_trigger_pct']:.1f} %\", \"array\", \"soiling\")\n    add(day and on and L[\"string_open_ratio\"] <= minr < L[\"string_low_ratio\"], \"PV_STRING_LOW\", \"Medium\",\n        f\"String S{worst:02d} at {minr * 100:.0f} % of the mean\", \"string\", \"string_bypass\")\n    add(k[\"riso_lim\"] <= r[\"riso_kohm\"] < k[\"riso_alert\"], \"PV_RISO_LOW\", \"Medium\", f\"Insulation resistance {r['riso_kohm']:.0f} k\u03a9\", \"cables\", \"ground_fault\")\n    add(on and r[\"p_dc_kw\"] > L[\"min_dc_frac\"] * k[\"pac0\"] and t[\"inv_eff_measured\"] < t[\"inv_eff_expected\"] - L[\"eff_drop\"], \"PV_INV_EFF_LOW\", \"Medium\",\n        f\"Efficiency {t['inv_eff_measured'] * 100:.1f} % against {t['inv_eff_expected'] * 100:.1f} % on the curve\", \"inverter\", \"inverter_efficiency\")\n    add(on and t[\"inv_temp_excess_k\"] > L[\"inv_temp_excess_k\"], \"PV_INV_HOT\", \"Medium\",\n        f\"Inverter {r['inv_temp_c']:.0f} \u00b0C, {t['inv_temp_excess_k']:.0f} K above expected\", \"inverter\", \"inverter_cooling\")\n    add(on and r[\"p_max_kw\"] < t[\"ac_limit_kw\"] - L[\"derate_margin_kw\"], \"PV_DERATE_EARLY\", \"Medium\",\n        f\"Inverter limits itself to {r['p_max_kw']:.0f} kW; its curve allows {t['ac_limit_kw']:.0f} kW at {r['ambient_temp_c']:.0f} \u00b0C\", \"inverter\", \"inverter_cooling\")\n    add(day and ((on and free and t[\"perf_index\"] > L[\"sensor_pi_high\"]) or t[\"soiling_ratio\"] > L[\"sensor_sr_high\"]), \"PV_IRRADIANCE_SENSOR\", \"Medium\",\n        f\"Performance index {t['perf_index']:.2f} and soiling ratio {t['soiling_ratio']:.2f}: the clean reference cell reads low\", \"weather station\", \"irradiance_sensor\")\n    add(day and L[\"soiling_alert_pct\"] <= loss < k[\"soil_trigger_pct\"], \"PV_SOILING_HIGH\", \"Low\", f\"Soiling loss {loss:.1f} %\", \"array\", \"soiling\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "PV-3101 utility PV block twin. Expected values in Maximo Monitor from module and inverter data sheets and IEC 61724-1; the block sends only what it measures.", "twin": {"id": "PV-3101", "name": "Utility PV block PV-3101", "version": "1.0.0", "folder": "pv-twin"}, "identification": {"asset": "PV-3101", "assetnum": "PV-3101", "manufacturer": "Huawei SUN2000-330KTL-H1 + JinkoSolar", "model": "Tiger Neo JKM580N-72HL4-BDV (24 strings x 27)", "description": "PV block 31, inverter 01: 375.84 kWp DC / 330 kVA AC, fixed-tilt bifacial array with weather station", "inverter": "Huawei SUN2000-330KTL-H1 smart string inverter, 6 MPPT, 1500 V", "module": "JinkoSolar Tiger Neo N-type JKM580N-72HL4-BDV, 580 Wp bifacial dual glass, 144 half cells", "array": "24 strings x 27 modules = 648 modules, 4 strings per MPPT, fixed tilt, 2 modules in portrait, open rack", "weather_station": "Clean plane-of-array reference cell (washed daily), unwashed soiling reference cell, back-of-module PT100, ambient temperature, wind speed"}, "design": {"module": {"pmax_w": 580.0, "vmp_v": 42.59, "imp_a": 13.62, "voc_v": 51.47, "isc_a": 14.37, "efficiency_pct": 22.45, "pmax_noct_w": 436.0, "gamma_pmax_pct_per_c": -0.29, "beta_voc_pct_per_c": -0.25, "alpha_isc_pct_per_c": 0.045, "noct_c": 45.0, "bifaciality": 0.8, "max_system_v": 1500.0, "max_series_fuse_a": 30.0, "cells": 144, "dimensions_mm": [2278, 1134, 30], "weight_kg": 32.0, "degradation_first_year_pct": 1.0, "degradation_annual_pct": 0.4, "warranty_30y_pct": 87.4, "certification": "IEC 61215 (2016), IEC 61730 (2016) as printed on the data sheet", "source": "JinkoSolar data sheet JKM560-580N-72HL4-BDV-F6-EN (2023), column JKM580N-72HL4-BDV: STC 580 Wp, Vmp 42.59 V, Imp 13.62 A, Voc 51.47 V, Isc 14.37 A, 22.45 %; NOCT 436 Wp; temperature coefficients; NOCT 45 +/- 2 C; bifacial factor 80 +/- 5 %; 1500 V DC (IEC); 30 A fuse; linear warranty."}, "array": {"modules_per_string": 27, "strings": 24, "strings_per_mppt": 4, "mppt": 6, "rear_irradiance_ratio": 0.07, "dc_loss_frac": 0.02, "site_min_temp_c": -5.0, "tilt_deg": 25, "source": "String sizing: 27 x Voc at the site minimum temperature must stay below 1500 V (module and inverter limit). Rear/front irradiance ratio 0.07 on a fixed-tilt 2P table, DC wiring + mismatch loss 2 %, site minimum -5 C, tilt 25 deg: assumption: typical value, replace with your plant design report (PVsyst or similar)."}, "inverter": {"p_ac_max_kw": 330.0, "p_ac_nom_kw": 300.0, "eta_max": 0.99, "eta_euro": 0.988, "mppt": 6, "max_current_per_mppt_a": 65.0, "max_isc_per_mppt_a": 115.0, "inputs_per_mppt": [4, 5, 5, 4, 5, 5], "v_max": 1500.0, "mppt_v_min": 500.0, "mppt_v_max": 1500.0, "start_v": 550.0, "op_temp_c": [-25, 60], "source": "Huawei SUN2000-330KTL-H1 data sheet and product page (solar.huawei.com): 330,000 VA / 330,000 W (cos phi 1), nominal 300,000 W, max efficiency 99.0 %, European 98.8 %, 6 MPPT, 65 A / 115 A per MPPT, 4/5/5/4/5/5 inputs, 1500 V, 500-1500 V MPPT, start 550 V, -25 to 60 C."}, "efficiency_curve": {"eta_nom": 0.988, "eta_ref": 0.9637, "source": "PVWatts v5 part-load curve (Dobos 2014, NREL/TP-6A20-62641): eta = eta_nom/eta_ref x (-0.0162 z - 0.0059/z + 0.9858), z = Pdc / (Pac0/eta_nom). eta_nom set to the European efficiency 98.8 %, which puts the peak of the curve at 99.0 % (the data sheet maximum)."}, "derating": {"temp_c": [40.0, 50.0, 60.0], "p_kw": [330.0, 300.0, 165.0], "heat_rise_full_load_k": 15.0, "source": "Active power limit against ambient temperature and internal temperature rise at full load: assumption: typical value, replace with the derating curve in the SUN2000 user manual. Huawei states the operating range -25 to 60 C but the data sheet gives no curve."}, "insulation": {"riso_limit_kohm": 50.0, "riso_alert_kohm": 500.0, "riso_typical_kohm": 3000.0, "source": "Limit = 1500 V / 30 mA = 50 kOhm (IEC 62109-2:2011 clause 4.8.2: the inverter must not connect below Vmax PV / 30 mA). Alert 500 kOhm and a dry-array value of about 3 MOhm: assumption: typical value, replace with the commissioning insulation test (IEC 62446-1) of your array."}, "weather": {"g_min_wm2": 300.0, "cell_delta_t_c": 3.0, "g_stc_wm2": 1000.0, "source": "Rules run only above 300 W/m2 in the plane of array (assumption: typical value, replace with the filter in your O&M contract). Cell temperature = back-of-module temperature + G/1000 x 3 C (Sandia array performance model, open rack)."}, "plant": {"years_in_service": 3.2, "source": "Years since commercial operation, sent by the plant SCADA."}, "cleaning": {"soiling_rate_per_day": 0.003, "cost_usd_per_module": 0.15, "energy_price_usd_per_kwh": 0.04, "specific_yield_kwh_per_kwp_day": 6.0, "source": "Soiling rate 0.3 %/day, cleaning cost 0.15 USD per module (water truck + crew), energy price 0.04 USD/kWh, 6 kWh/kWp/day: assumption: typical value, replace with your soiling station history, O&M contract and power purchase agreement."}, "demo": {"time_scale": 30, "night_speedup": 10, "start_hour": 10.0, "note": "Demo only: the plant clock runs 30 times faster by day and 300 times faster by night, so a whole day passes in about 30 minutes."}}, "telemetry": {"event": "pvblock", "publish_every_s": 60, "device_type": "PV_BLOCK_STRING_INV", "groups": {"Weather": "Weather station of the block", "Inverter": "String inverter", "Plant": "Plant controller and SCADA", "Strings": "String currents measured by the inverter"}, "points": [{"metric": "poa_wm2", "path": "Weather.POA", "label": "Plane-of-array irradiance, clean reference cell", "unit": "W/m\u00b2"}, {"metric": "poa_soiled_wm2", "path": "Weather.POASoiled", "label": "Plane-of-array irradiance, unwashed reference cell", "unit": "W/m\u00b2"}, {"metric": "module_temp_c", "path": "Weather.ModuleTemp", "label": "Back-of-module temperature", "unit": "\u00b0C"}, {"metric": "ambient_temp_c", "path": "Weather.Ambient", "label": "Ambient air temperature", "unit": "\u00b0C"}, {"metric": "wind_ms", "path": "Weather.Wind", "label": "Wind speed", "unit": "m/s"}, {"metric": "p_dc_kw", "path": "Inverter.PDC", "label": "DC input power (all MPPTs)", "unit": "kW"}, {"metric": "v_dc_v", "path": "Inverter.VDC", "label": "Mean MPPT voltage", "unit": "V"}, {"metric": "p_ac_kw", "path": "Inverter.PAC", "label": "AC active power", "unit": "kW"}, {"metric": "inv_running", "path": "Inverter.State", "label": "Inverter on grid (1 = on grid)", "unit": "code"}, {"metric": "inv_temp_c", "path": "Inverter.Temperature", "label": "Inverter internal temperature", "unit": "\u00b0C"}, {"metric": "p_max_kw", "path": "Inverter.PMaxAvailable", "label": "Active power the inverter can deliver now (its own limit)", "unit": "kW"}, {"metric": "riso_kohm", "path": "Inverter.Riso", "label": "DC insulation resistance (last start-up test)", "unit": "k\u03a9"}, {"metric": "setpoint_pct", "path": "Plant.Setpoint", "label": "Active power setpoint from the plant controller", "unit": "%"}, {"metric": "years_in_service", "path": "Plant.YearsInService", "label": "Years since commercial operation", "unit": "y"}, {"metric": "i_s01_a", "path": "Strings.S01", "label": "String 01 current (MPPT 1)", "unit": "A"}, {"metric": "i_s02_a", "path": "Strings.S02", "label": "String 02 current (MPPT 1)", "unit": "A"}, {"metric": "i_s03_a", "path": "Strings.S03", "label": "String 03 current (MPPT 1)", "unit": "A"}, {"metric": "i_s04_a", "path": "Strings.S04", "label": "String 04 current (MPPT 1)", "unit": "A"}, {"metric": "i_s05_a", "path": "Strings.S05", "label": "String 05 current (MPPT 2)", "unit": "A"}, {"metric": "i_s06_a", "path": "Strings.S06", "label": "String 06 current (MPPT 2)", "unit": "A"}, {"metric": "i_s07_a", "path": "Strings.S07", "label": "String 07 current (MPPT 2)", "unit": "A"}, {"metric": "i_s08_a", "path": "Strings.S08", "label": "String 08 current (MPPT 2)", "unit": "A"}, {"metric": "i_s09_a", "path": "Strings.S09", "label": "String 09 current (MPPT 3)", "unit": "A"}, {"metric": "i_s10_a", "path": "Strings.S10", "label": "String 10 current (MPPT 3)", "unit": "A"}, {"metric": "i_s11_a", "path": "Strings.S11", "label": "String 11 current (MPPT 3)", "unit": "A"}, {"metric": "i_s12_a", "path": "Strings.S12", "label": "String 12 current (MPPT 3)", "unit": "A"}, {"metric": "i_s13_a", "path": "Strings.S13", "label": "String 13 current (MPPT 4)", "unit": "A"}, {"metric": "i_s14_a", "path": "Strings.S14", "label": "String 14 current (MPPT 4)", "unit": "A"}, {"metric": "i_s15_a", "path": "Strings.S15", "label": "String 15 current (MPPT 4)", "unit": "A"}, {"metric": "i_s16_a", "path": "Strings.S16", "label": "String 16 current (MPPT 4)", "unit": "A"}, {"metric": "i_s17_a", "path": "Strings.S17", "label": "String 17 current (MPPT 5)", "unit": "A"}, {"metric": "i_s18_a", "path": "Strings.S18", "label": "String 18 current (MPPT 5)", "unit": "A"}, {"metric": "i_s19_a", "path": "Strings.S19", "label": "String 19 current (MPPT 5)", "unit": "A"}, {"metric": "i_s20_a", "path": "Strings.S20", "label": "String 20 current (MPPT 5)", "unit": "A"}, {"metric": "i_s21_a", "path": "Strings.S21", "label": "String 21 current (MPPT 6)", "unit": "A"}, {"metric": "i_s22_a", "path": "Strings.S22", "label": "String 22 current (MPPT 6)", "unit": "A"}, {"metric": "i_s23_a", "path": "Strings.S23", "label": "String 23 current (MPPT 6)", "unit": "A"}, {"metric": "i_s24_a", "path": "Strings.S24", "label": "String 24 current (MPPT 6)", "unit": "A"}]}, "twin_model": {"limits": {"soiling_alert_pct": 3.0, "pi_low": 0.92, "string_open_ratio": 0.1, "string_low_ratio": 0.9, "eff_drop": 0.015, "inv_temp_excess_k": 10.0, "derate_margin_kw": 16.5, "limited_frac": 0.98, "min_dc_frac": 0.1, "sensor_pi_high": 1.06, "sensor_sr_high": 1.03}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "soiling": {"name": "Soiling (dust on the modules)", "part": "array", "symptoms": "unwashed reference cell falls behind the clean one; DC power falls by the same fraction; corrected performance normal", "rules": ["PV_SOILING_HIGH", "PV_CLEANING_DUE"], "default_ramp_min": 1.5}, "string_open": {"name": "String open (blown fuse, burnt connector)", "part": "string", "symptoms": "one string current at zero, the others normal", "rules": ["PV_STRING_OPEN"], "default_ramp_min": 0.5}, "string_bypass": {"name": "Cracked cells / bypass diodes on in one string", "part": "string", "symptoms": "one string 20 to 30 % below the others", "rules": ["PV_STRING_LOW"], "default_ramp_min": 1}, "module_degradation": {"name": "Module degradation faster than warranty (PID, LeTID)", "part": "modules", "symptoms": "all strings low together; soiling-corrected performance index falls", "rules": ["PV_DC_UNDERPERFORM"], "default_ramp_min": 1.5}, "ground_fault": {"name": "Insulation fault / ground fault on the DC side", "part": "cables", "symptoms": "insulation resistance falls; below 50 kOhm the inverter will not connect", "rules": ["PV_RISO_LOW", "PV_RISO_TRIP", "PV_INVERTER_DOWN"], "default_ramp_min": 1}, "inverter_cooling": {"name": "Inverter cooling degraded (fan, clogged filter)", "part": "inverter", "symptoms": "internal temperature above expected; the inverter derates below its curve", "rules": ["PV_INV_HOT", "PV_DERATE_EARLY"], "default_ramp_min": 1}, "inverter_efficiency": {"name": "Inverter power stage losses (IGBT, filter)", "part": "inverter", "symptoms": "AC / DC below the efficiency curve", "rules": ["PV_INV_EFF_LOW"], "default_ramp_min": 1}, "irradiance_sensor": {"name": "Clean reference cell dirty or drifting", "part": "weather station", "symptoms": "performance index above 1 and soiling ratio above 1: physically impossible", "rules": ["PV_IRRADIANCE_SENSOR"], "default_ramp_min": 1}}, "presentation": {"title": "PV-3101 utility PV block", "dashboard": "PV_BLOCK_STRING_INV"}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, smap = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (metres) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 600);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true; ctl.maxPolarAngle = Math.PI * 0.49;
+const home = () => { cam.position.set(-66, 38, 56); ctl.target.set(-8, 0, 0); ctl.update(); };
+home();
+const hemi = new THREE.HemisphereLight(0xdfe8ff, 0x4a4234, 0.7); scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xffffff, 0.9); sun.position.set(10, 40, 30); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(160, 120), new THREE.MeshStandardMaterial({ color: 0x8a7b62, roughness: 1 }));
+ground.rotation.x = -Math.PI / 2; ground.position.y = -0.01; scene.add(ground);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .3, roughness: o.r ?? .55, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const cyl = (r1, r2, h, m, s = 16) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const steel = M(0xb9bec4, { m: .6, r: .35 }), dark = M(0x3d4249), frameMat = M(0xc6cbd1, { m: .7, r: .3 });
+
+// module 2.278 x 1.134 m (portrait), 2 rows x 14 columns per table (27 used), tilt 25 deg facing +z (south)
+const MW = 1.134, MH = 2.278, GAP = 0.02, COLS = 14, TILT = 25 * Math.PI / 180;
+const TW_ = COLS * (MW + GAP), TD = 2 * (MH + GAP);
+const ROW_PITCH = 9.0, TABLE_GAP = 1.0;
+const tables = [];          // one per string: {group, mats:[], cell:[]}
+const cleanCol = new THREE.Color(0x1d2f5c), dustCol = new THREE.Color(0x9a845e);
+const cableMatsByMppt = [0x0f62fe, 0x8a3ffc, 0x24a148, 0xd12771, 0xff832b, 0x1192e8].map(c => M(c, { m: .2 }));
+for (let s = 0; s < 24; s++) {
+  const mppt = Math.floor(s / 4), k = s % 4;
+  const x0 = (k - 2) * (TW_ + TABLE_GAP), z0 = (mppt - 2.5) * ROW_PITCH;
+  const g = new THREE.Group(); g.position.set(x0 + TW_ / 2, 0, z0); scene.add(g);
+  // posts: short at the low (south, +z) edge, tall at the high (north) edge
+  const hiY = .8 + TD * Math.sin(TILT), zEdge = TD / 2 * Math.cos(TILT) - .3;
+  [-TW_ / 2 + .5, -TW_ / 6, TW_ / 6, TW_ / 2 - .5].forEach(px => {
+    g.add(at(box(.12, .8, .12, steel), px, .4, zEdge));
+    g.add(at(box(.12, hiY - .1, .12, steel), px, (hiY - .1) / 2, -zEdge));
+  });
+  const plane = new THREE.Group(); plane.position.set(0, .8 + TD / 2 * Math.sin(TILT), 0); plane.rotation.x = TILT; g.add(plane);
+  const mat = M(0x1d2f5c, { m: .5, r: .25, ds: true });
+  const rails = M(0x9aa1a9, { m: .6 });
+  plane.add(at(box(TW_, .05, .08, rails), 0, -.06, -TD / 4));
+  plane.add(at(box(TW_, .05, .08, rails), 0, -.06, TD / 4));
+  let n = 0;
+  for (let r = 0; r < 2; r++) for (let c = 0; c < COLS; c++) {
+    if (n++ >= 27) continue;
+    const m = box(MW, .03, MH, mat);
+    m.position.set(-TW_ / 2 + (c + .5) * (MW + GAP), 0, (r - .5) * (MH + GAP));
+    plane.add(m);
+  }
+  // string cable under the table to the inverter row end (visible in cutaway)
+  const cab = box(TW_, .04, .04, cableMatsByMppt[mppt]); cab.position.set(0, .35, 0); g.add(cab);
+  tables.push({ g, mat, cab, plane });
+}
+// combiner trunk along the west end to the inverter
+const invX = -2 * (TW_ + TABLE_GAP) - 4.5, invZ = 0;
+for (let m = 0; m < 6; m++) { const z = (m - 2.5) * ROW_PITCH; const t = box(4.2, .05, .05, cableMatsByMppt[m]); t.position.set(invX + 2.4, .3, z); scene.add(t);
+  const t2 = box(.05, .05, Math.abs(z - invZ) + .01, cableMatsByMppt[m]); t2.position.set(invX + .5 + m * .08, .3, (z + invZ) / 2); scene.add(t2); }
+// inverter on its post: 1.048 x 0.732 x 0.395 m
+scene.add(at(box(.1, 1.6, .1, steel), invX, .8, invZ - .25));
+const invMat = M(0xe8e8e8, { m: .2, r: .5 });
+const inv = at(box(1.048, .732, .395, invMat), invX, 1.5, invZ); scene.add(inv);
+const fins = at(box(.9, .6, .06, dark), invX, 1.5, invZ - .23); scene.add(fins);
+const led = new THREE.Mesh(new THREE.SphereGeometry(.05, 12, 8), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(led, invX + .35, 1.75, invZ + .21));
+const roof = at(box(1.6, .05, 1.0, M(0x6f6f6f)), invX, 2.05, invZ); scene.add(roof);
+// AC cable to the MV skid
+scene.add(at(box(.08, .08, 12, M(0x161616)), invX - .4, .1, -6));
+const skid = at(box(6, 2.6, 2.4, M(0xd0d5dd, { m: .2 })), invX - 1, 1.3, -14); scene.add(skid);
+// weather station mast with two reference cells (clean + unwashed), module temp sensor, anemometer
+const wsX = 2 * (TW_ + TABLE_GAP) + 4, wsZ = -1;
+scene.add(at(cyl(.05, .05, 3.2, steel), wsX, 1.6, wsZ));
+const refArm = at(box(1.4, .05, .05, steel), wsX, 2.4, wsZ); scene.add(refArm);
+const refClean = at(box(.22, .03, .22, M(0x1d2f5c, { m: .5, r: .2 })), wsX - .55, 2.48, wsZ); refClean.rotation.x = TILT; scene.add(refClean);
+const refSoil = at(box(.22, .03, .22, M(0x1d2f5c, { m: .5, r: .2 })), wsX + .55, 2.48, wsZ); refSoil.rotation.x = TILT; scene.add(refSoil);
+scene.add(at(cyl(.2, .2, .05, M(0xf4f4f4)), wsX, 3.25, wsZ));
+const cups = new THREE.Group(); at(cups, wsX, 3.35, wsZ); scene.add(cups);
+for (let i = 0; i < 3; i++) { const c = at(new THREE.Mesh(new THREE.SphereGeometry(.05, 8, 6), M(0x393939)), Math.cos(i * 2.09) * .18, 0, Math.sin(i * 2.09) * .18); cups.add(c); }
+scene.add(at(box(.3, .35, .15, M(0xf4f4f4)), wsX, 1.2, wsZ + .1));
+scene.add(at(box(.05, 2.2, .05, M(0x8d8d8d)), wsX - .9, 1.1, wsZ + .6));
+// sun disc
+const sunDisc = new THREE.Mesh(new THREE.SphereGeometry(2.2, 16, 12), new THREE.MeshBasicMaterial({ color: 0xffe9a8 })); scene.add(sunDisc);
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('inv', [invX, 2.4, invZ]); lbl('eta', [invX, 3.6, invZ - 2]); lbl('riso', [invX + 2, .9, invZ + 4]);
+lbl('poa', [wsX - 1, 5.2, wsZ - 2]); lbl('soil', [wsX + 2, 2.9, wsZ + 3]); lbl('tmod', [wsX + 1, 1.0, wsZ + 6]);
+lbl('dc', [0, 4.6, -2.5 * ROW_PITCH]); lbl('str', [0, 4.6, 2.5 * ROW_PITCH]); lbl('pr', [-TW_, 4.4, 0]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let hourNow = 12;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  if (ST.plant_time_h != null) hourNow = ST.plant_time_h;
+  const hh = Math.floor(hourNow), mm = Math.floor((hourNow - hh) * 60);
+  $('c-clock-t').textContent = `plant ${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')} · ${fmt(r.poa_wm2, 0)} W/m²`;
+  $('c-clock').className = 'chip ' + (r.poa_wm2 >= d.weather.g_min_wm2 ? 'ok' : 'warn');
+  const S = []; for (let i = 1; i <= 24; i++) S.push(r['i_s' + String(i).padStart(2, '0') + '_a']);
+  const worst = S.indexOf(Math.min(...S)) + 1;
+  setLbl('inv', 'AC / DC power · on grid', `${fmt(r.p_ac_kw, 1)} / ${fmt(r.p_dc_kw, 1)} kW · ${r.inv_running ? 'yes' : 'NO'}`, st(names.has('PV_INVERTER_DOWN'), t.clipping_loss_kw > 1));
+  setLbl('eta', `efficiency · limit ${fmt(r.p_max_kw, 0)} kW · ${fmt(r.inv_temp_c, 0)} °C`, `${fmt(t.inv_eff_measured * 100, 1)} % (curve ${fmt(t.inv_eff_expected * 100, 1)} %)`,
+    st(names.has('PV_INV_EFF_LOW') || names.has('PV_INV_HOT') || names.has('PV_DERATE_EARLY')));
+  setLbl('riso', 'insulation resistance', `${fmt(r.riso_kohm, 0)} kΩ`, st(names.has('PV_RISO_TRIP'), names.has('PV_RISO_LOW')));
+  setLbl('poa', 'POA clean cell · wind', `${fmt(r.poa_wm2, 0)} W/m² · ${fmt(r.wind_ms, 1)} m/s`, st(names.has('PV_IRRADIANCE_SENSOR')));
+  setLbl('soil', 'unwashed cell · soiling ratio', `${fmt(r.poa_soiled_wm2, 0)} W/m² · SR ${fmt(t.soiling_ratio, 3)}`, st(names.has('PV_CLEANING_DUE'), names.has('PV_SOILING_HIGH')));
+  setLbl('tmod', 'module back · cell · ambient', `${fmt(r.module_temp_c, 1)} · ${fmt(t.cell_temp_c, 1)} · ${fmt(r.ambient_temp_c, 1)} °C`, '');
+  setLbl('dc', 'DC power ÷ expected (corrected for soiling)', `PI ${fmt(t.perf_index, 3)} · ${fmt(t.perf_index_corr, 3)}`, st(names.has('PV_DC_UNDERPERFORM')));
+  setLbl('str', `strings · lowest S${String(worst).padStart(2, '0')}`, `mean ${fmt(t.string_mean_a, 2)} A · min ${fmt(t.string_min_ratio * 100, 0)} %`, st(names.has('PV_STRING_OPEN'), names.has('PV_STRING_LOW')));
+  setLbl('pr', 'PR · PR at 25 °C · clipping', `${fmt(t.pr_inst, 3)} · ${fmt(t.pr_temp_corr, 3)} · ${fmt(t.clipping_loss_kw, 1)} kW`, '');
+  $('k-health').textContent = ST.health; $('k-pr').textContent = r.poa_wm2 >= 50 ? fmt(t.pr_temp_corr, 3) : '–'; $('k-soil').textContent = fmt(t.soiling_loss_pct, 1) + ' %';
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('DC power (kW)', fmt(r.p_dc_kw, 1), fmt(t.dc_expected_kw * t.soiling_ratio, 1), names.has('PV_DC_UNDERPERFORM')) +
+    row('Performance index, soiling-corrected', fmt(t.perf_index_corr, 3), '≥ ' + L.pi_low, names.has('PV_DC_UNDERPERFORM')) +
+    row('Soiling loss (%)', fmt(t.soiling_loss_pct, 1), '< ' + fmt(TW._trigger, 1), names.has('PV_CLEANING_DUE')) +
+    row('AC power (kW)', fmt(r.p_ac_kw, 1), fmt(t.ac_expected_kw, 1)) +
+    row('Inverter efficiency (%)', fmt(t.inv_eff_measured * 100, 2), fmt(t.inv_eff_expected * 100, 2), names.has('PV_INV_EFF_LOW')) +
+    row('Inverter limit (kW)', fmt(r.p_max_kw, 0), fmt(t.ac_limit_kw, 0), names.has('PV_DERATE_EARLY')) +
+    row('Inverter temperature (°C)', fmt(r.inv_temp_c, 1), fmt(t.inv_temp_expected_c, 1), names.has('PV_INV_HOT')) +
+    row('Clipping loss (kW)', fmt(t.clipping_loss_kw, 1), '–') +
+    row('String mean (A)', fmt(t.string_mean_a, 2), fmt(t.string_expected_a, 2)) +
+    row('Lowest string ÷ mean', fmt(t.string_min_ratio, 3), '≥ ' + L.string_low_ratio, names.has('PV_STRING_LOW') || names.has('PV_STRING_OPEN')) +
+    row('Insulation resistance (kΩ)', fmt(r.riso_kohm, 0), '≥ ' + d.insulation.riso_alert_kohm, names.has('PV_RISO_LOW') || names.has('PV_RISO_TRIP')) +
+    row('PR, temperature-corrected', fmt(t.pr_temp_corr, 3), '–');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the block behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  led.material.color.setHex(!r.inv_running ? 0xda1e28 : al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xff832b : 0x24a148); led.material.emissive.copy(led.material.color);
+  // tables: dust colour and string state
+  const mean = Math.max(t.string_mean_a, .01), dust = Math.max(0, Math.min(1, t.soiling_loss_pct / 15));
+  tables.forEach((tb, i) => {
+    const ratio = S[i] / mean;
+    const c = cleanCol.clone().lerp(dustCol, dust);
+    if (r.poa_wm2 >= d.weather.g_min_wm2 && r.inv_running) { if (ratio < L.string_open_ratio) c.set(0xa2191f); else if (ratio < L.string_low_ratio) c.lerp(new THREE.Color(0xf1c21b), .6); }
+    if (smap) c.lerp(new THREE.Color(cableMatsByMppt[Math.floor(i / 4)].color), .55);
+    tb.mat.color.copy(c);
+  });
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  const cl = TW.design.cleaning, nmod = TW.design.array.modules_per_string * TW.design.array.strings, p0 = nmod * TW.design.module.pmax_w / 1000;
+  TW._trigger = 100 * Math.sqrt(2 * cl.cost_usd_per_module * nmod * cl.soiling_rate_per_day / (p0 * cl.specific_yield_kwh_per_kwp_day * cl.energy_price_usd_per_kwh));
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  tables.forEach(tb => { tb.mat.transparent = true; tb.mat.opacity = cut ? .18 : 1; tb.mat.depthWrite = !cut; tb.cab.scale.set(1, cut ? 3 : 1, cut ? 3 : 1); });
+};
+$('t-strings').onclick = () => { smap = !smap; $('t-strings').classList.toggle('on', smap); apply(); };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), spin = 0;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  // sun: east (-x) at 06:00, south (+z) and high at noon, west at 18:00
+  const a = Math.PI * (hourNow - 6) / 12, up = Math.sin(a);
+  const sx = -Math.cos(a) * 80, sy = Math.max(-10, up * 60), sz = 40;
+  sun.position.set(sx, sy, sz); sunDisc.position.set(sx, sy, sz); sunDisc.visible = up > 0;
+  sun.intensity = Math.max(0.05, up) * .95; hemi.intensity = .25 + Math.max(0, up) * .5;
+  scene.background.setHex(up > 0.05 ? 0x2b3a4f : 0x111418);
+  const ws = ST && ST.reading ? ST.reading.wind_ms : 2; spin += dt * ws * 2; cups.rotation.y = spin;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

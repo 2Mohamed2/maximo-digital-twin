@@ -1,6 +1,6 @@
 # Digital Twin for Maximo
 
-Code that goes with seventeen IBM Community posts on building physics-based digital twins of Maximo assets
+Code that goes with twenty-seven IBM Community posts on building physics-based digital twins of Maximo assets
 with standard Maximo Monitor and Maximo Manage features:
 
 | Asset | Twin folder | Post |
@@ -22,6 +22,16 @@ with standard Maximo Monitor and Maximo Manage features:
 | PIPE-1501, 14 km DN 1200 ductile iron water transmission main | `pipeline-twin` | Water transmission main digital twin |
 | UV-1601, TrojanUVSwiftSC D12 UV disinfection reactor | `uv-twin` | UV disinfection digital twin |
 | ESDV-2101, 12 in Class 600 ball valve with spring-return actuator, final element of a SIL 2 SIF | `esdv-twin` | Emergency shutdown valve digital twin |
+| K-2201, Hydrotreater hydrogen make-up compressor, two stages, motor driven | `recip-twin` | Reciprocating compressor digital twin in Maximo |
+| K-2301, Process gas compressor of a refinery unit, one section, six impellers, motor + VSD + | `centcomp-twin` | Process centrifugal compressor digital twin in Maximo |
+| H-2401, Crude distillation unit charge heater: cabin type, radiant + convection, natural draft, 4 | `heater-twin` | Fired heater digital twin in Maximo |
+| E-2501, Crude / kerosene product exchanger, cold end of the crude preheat train (crude in the | `hex-twin` | Shell-and-tube heat exchanger digital twin in Maximo |
+| PSV-2601, Pressure relief valve on the overhead vapour drum D-2601, discharging to the flare header | `psv-twin` | Pressure relief valve digital twin in Maximo |
+| TK-2701, Crude oil storage tank in a terminal tank farm, external floating roof, 40 m x 18 m | `tank-twin` | Storage tank digital twin in Maximo |
+| ESP-2801, Electric submersible pump in a vertical oil well, variable speed drive, downhole gauge | `esp-twin` | Electric submersible pump digital twin in Maximo |
+| RP-2901, Rod-lifted oil well: beam pumping unit, tapered steel rod string, insert pump at 6,000 | `rodpump-twin` | Sucker-rod pumping system digital twin in Maximo |
+| WTG-3001, Onshore wind turbine, drivetrain twin: main bearing, three-stage gearbox and doubly fed | `windgbx-twin` | Wind turbine digital twin in Maximo |
+| PV-3101, PV block 31, inverter 01: 375.84 kWp DC / 330 kVA AC, fixed-tilt bifacial array with | `pv-twin` | Utility PV block digital twin in Maximo |
 
 The posts are on the IBM Community (Maximo group), by Mohamed Chihaoui.
 

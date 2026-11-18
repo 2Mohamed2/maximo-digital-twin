@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>H-2401 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>H-2401</b><span class="g">Crude charge heater · cabin, 4 passes · natural draft</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-eff"><span class="dot"></span><span id="c-eff-t">efficiency –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Efficiency, TMT and creep life →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the heater model…</div>
+<div class="credit">Cabin heater: radiant firebox with four passes of horizontal 6 in 9Cr-1Mo tubes on the side walls, twelve up-fired gas burners on the floor, convection section and stack with damper on top. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-flame">Flames</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Tube colour follows the live tube metal temperature (TMT) of each pass: dark when cool, glowing as it nears the design TMT.</div>
+<aside>
+  <section>
+    <h2>H-2401 twin</h2>
+    <p class="sub" id="sub">crude charge heater</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Efficiency (flue gas)<b id="k-eff">–</b></div><div>Hottest TMT<b id="k-tmt">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The heater sends only what it measures. Every expected value (absorbed and fired duty, efficiency from the flue gas, clean-tube TMT, coke layer, creep life) is computed from the twin file: the heater data sheet, the burner data and the combustion and creep formulas.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for H-2401: the coil, the firebox, the burners, the stack and the instruments, with injectable faults.\n\nThe real heater sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and\nfault fingerprints for the tests and the figures. Pure Python (math, random): it also runs in the browser (Pyodide).\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\nPASSES = \"abcd\"\nOFFSET = {\"a\": 4.0, \"b\": -3.0, \"c\": 6.0, \"d\": -2.0}     # small built-in differences between the passes' hottest skin points\n\n\nclass Heater:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        self.k = tc._k(twin)\n        d = twin[\"design\"]\n        self.c, self.dr = d[\"combustion\"], d[\"draft\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ------------------------------------------------------------------------------------------------------\n    def true_state(self, load=1.0, ambient=None):\n        k, f = self.k, self.faults\n        amb = self.c[\"ambient_design_c\"] if ambient is None else ambient\n        imb = f[\"pass_imbalance\"]\n        flows = {p: k[\"fpass\"] * load * ((1 - 0.3 * imb) if p == \"c\" else (1 + 0.1 * imb)) for p in PASSES}\n        tin, cot = k[\"tin\"], k[\"cot\"]\n        qa = sum(flows.values()) / 3.6 * k[\"cp\"] * (cot - tin) / 1000\n        o2 = self.c[\"o2_design_pct\"] + 5.0 * f[\"excess_air_high\"] - 2.2 * f[\"air_starvation\"] - 0.8 * f[\"draft_loss\"]\n        stack = k[\"st_d\"] + k[\"st_k\"] * (qa / k[\"duty\"] - 1) + 70.0 * f[\"convection_fouling\"] + (amb - self.c[\"ambient_design_c\"]) * 0.3\n        lhv = self.c[\"lhv_mj_kg\"]\n        eff = 100 - tc.stack_loss(k, o2, stack, amb, lhv) - k[\"rad\"]\n        qf = qa / eff * 100\n        fuel = qf / lhv * 3600\n        flux = k[\"q0\"] * qa / k[\"duty\"]\n        clean = cot + flux * 1000 * k[\"rc\"]\n        tmt = {p: clean + OFFSET[p] for p in PASSES}\n        tmt[\"b\"] += 200.0 * f[\"coking\"]\n        tmt[\"c\"] += 40.0 * imb\n        tmt[\"a\"] += 70.0 * f[\"flame_impingement\"]\n        dp = {p: k[\"dp\"] * (flows[p] / k[\"fpass\"]) ** k[\"nexp\"] for p in PASSES}\n        dp[\"b\"] *= 1 + 0.6 * f[\"coking\"] ** 0.4\n        return {\n            \"flows\": flows, \"tin\": tin, \"cot\": cot, \"qa\": qa, \"qf\": qf, \"eff\": eff, \"o2\": o2, \"stack\": stack, \"amb\": amb, \"lhv\": lhv,\n            \"fuel\": fuel, \"tmt\": tmt, \"dp\": dp, \"clean\": clean,\n            \"co\": 15 + 1500 * f[\"air_starvation\"] ** 2 + 30 * f[\"flame_impingement\"],\n            \"draft\": self.dr[\"arch_design_mmh2o\"] + 4.0 * f[\"draft_loss\"],\n            \"bridgewall\": 820 + 120 * (qf / k[\"fired_d\"] - 1) + 40 * f[\"air_starvation\"],\n            \"p_burner\": (k[\"pb\"] + 1.01325) * fuel / k[\"fuel_d\"] * (1 + 0.35 * f[\"flame_impingement\"]) - 1.01325,\n            \"p_in\": self.twin[\"design\"][\"process\"][\"inlet_pressure_barg\"] * (0.97 + 0.03 * load ** 2),\n        }\n\n    # one published message ---------------------------------------------------------------------------------------------\n    def measure(self, s=None):\n        s = s or self.true_state()\n        f = self.faults\n        r = {}\n        for p in PASSES:\n            r[f\"flow_{p}_th\"] = round(s[\"flows\"][p] * (1 + self.n(0.004)), 2)\n        for p in PASSES:\n            r[f\"dp_{p}_bar\"] = round(s[\"dp\"][p] + self.n(0.04), 3)\n        for p in PASSES:\n            r[f\"tmt_{p}_c\"] = round(s[\"tmt\"][p] + self.n(1.5), 1)\n        r.update({\n            \"inlet_temp_c\": round(s[\"tin\"] + self.n(0.3), 2), \"cot_c\": round(s[\"cot\"] + self.n(0.3), 2),\n            \"inlet_pressure_barg\": round(s[\"p_in\"] + self.n(0.05), 2),\n            \"fuel_flow_kgh\": round(s[\"fuel\"] * (1 - 0.08 * f[\"fuel_meter_drift\"]) * (1 + self.n(0.004)), 1),\n            \"fuel_lhv_mjkg\": round(s[\"lhv\"] + self.n(0.05), 3), \"fuel_pressure_barg\": round(s[\"p_burner\"] + self.n(0.01), 3),\n            \"o2_pct\": round(max(0.2, s[\"o2\"] + self.n(0.08)), 2), \"co_ppm\": round(max(0.0, s[\"co\"] + self.n(5)), 0),\n            \"arch_draft_mmh2o\": round(s[\"draft\"] + self.n(0.15), 2), \"bridgewall_temp_c\": round(s[\"bridgewall\"] + self.n(3), 1),\n            \"stack_temp_c\": round(s[\"stack\"] + self.n(1.5), 1), \"ambient_temp_c\": round(s[\"amb\"] + self.n(0.3), 1),\n        })\n        return r\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The heater runs at design charge with a slow 3 % swing (demo.load_swing over demo.load_period_s real seconds) and a\n    small daily ambient swing; the COT controller holds 360 \u00b0C, so the fuel follows the load and the efficiency.\n    \"\"\"\n\n    def __init__(self, twin, seed=2401):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.swing = float(demo.get(\"load_swing\", 0.03))\n        self.period = float(demo.get(\"load_period_s\", 600))\n        self.h = Heater(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.clock = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.clock = 0.0\n        self.running, self.trip = True, 0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.h.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.clock += dt\n        load = 1 + self.swing * math.sin(2 * math.pi * self.clock / self.period)\n        amb = self.h.c[\"ambient_design_c\"] + 4 * math.sin(2 * math.pi * self.t / 86400)\n        return self.h.true_state(load, amb)\n\n    def measure(self, true):\n        return self.h.measure(true)\n", "twin_calc": "\"\"\"The fired heater twin's expectations (H-2401, crude charge heater, 4 passes, natural draft).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nProcess side (what the crude takes up):\n    absorbed duty Q_abs = m (t/h) / 3.6 x cp_eff x (COT - T_in) / 1000            [MW]\n  cp_eff = design duty / (design charge x (COT - T_in)) holds the sensible heat and the vaporisation in the coil.\nFire side (what the fuel gives):\n    fired duty Q_fired = fuel (kg/h) / 3600 x LHV (MJ/kg)                        [MW]\n    thermal efficiency  = Q_abs / Q_fired\nFlue-gas side (the same efficiency, measured another way):\n    excess air EA % = 92 x O2 / (21 - O2)                     (O2 dry, refinery fuel gas)\n    flue gas per kg fuel = 1 + A0 x (1 + EA/100)               (A0 = stoichiometric air, 17.2 kg/kg for methane)\n    stack loss % = flue gas x cp_fg x (T_stack - T_air) / (LHV x 1000) x 100\n    efficiency from the flue gas = 100 - stack loss - radiation loss\n  The two efficiencies must agree. When they do not, a meter is wrong (fuel flow, charge flow or LHV analyser).\n  Extra fuel cost against the design efficiency: Q_abs x (100/eff - 100/eff_design) x 8760 h x 3.6 GJ/MWh x price.\nTubes:\n    peak flux q = q_avg x peak factor x Q_abs / Q_design\n    clean TMT  = COT + q x (1/h_i + t/k_wall)                (hottest tube: the radiant outlet)\n    coke layer = (TMT_max - clean TMT) / q x k_coke           (extra thermal resistance, as a thickness)\n    pass pressure drop ratio = dP / (dP_design x (flow / flow_design)^1.8)\n  Coking: TMT and pressure drop of the same pass both rise at the same duty and flow.\n  Flame impingement: TMT of one pass rises, its pressure drop and flow stay normal, burner pressure rises.\nCreep (API 530 idea, Larson-Miller):\n    hoop stress = P x (Do - t) / (2 t);  LMP = a - b x log10(stress)\n    rupture time t_r = 10^(1000 x LMP / T_K - C);  remaining life = (1 - life used) x t_r / 8760   [years at today's TMT, capped at 100]\n\"\"\"\nimport math\n\nC2K = 273.15\nCAP_Y = 100.0     # creep life is shown up to 100 years (\"more than 100 years\" above)\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    p, c, b, dr, t, cr, ec = d[\"process\"], d[\"combustion\"], d[\"burners\"], d[\"draft\"], d[\"tubes\"], d[\"creep\"], d[\"economics\"]\n    cp = p[\"duty_mw\"] * 1000 / (p[\"charge_th\"] / 3.6 * (p[\"cot_c\"] - p[\"inlet_c\"]))\n    ea_d = c[\"ea_k\"] * c[\"o2_design_pct\"] / (21 - c[\"o2_design_pct\"])\n    loss_d = (1 + c[\"air_stoich_kg_kg\"] * (1 + ea_d / 100)) * c[\"cp_fluegas_kj_kgk\"] * (c[\"stack_design_c\"] - c[\"ambient_design_c\"]) / (c[\"lhv_mj_kg\"] * 1000) * 100\n    eff_d = 100 - loss_d - c[\"radiation_loss_pct\"]\n    fired_d = p[\"duty_mw\"] / eff_d * 100\n    fuel_d = fired_d / c[\"lhv_mj_kg\"] * 3600\n    q0 = t[\"flux_avg_kw_m2\"] * t[\"peak_factor\"]\n    rc = 1 / t[\"h_inside_w_m2k\"] + t[\"wall_nominal_mm\"] / 1000 / t[\"k_wall_w_mk\"]\n    return dict(cp=cp, tin=p[\"inlet_c\"], cot=p[\"cot_c\"], duty=p[\"duty_mw\"], fpass=p[\"charge_th\"] / p[\"passes\"], dp=p[\"pass_dp_bar\"],\n                nexp=p[\"dp_flow_exponent\"], ek=c[\"ea_k\"], a0=c[\"air_stoich_kg_kg\"], cpg=c[\"cp_fluegas_kj_kgk\"], rad=c[\"radiation_loss_pct\"],\n                st_d=c[\"stack_design_c\"], st_k=c[\"stack_per_duty_c\"], ea_d=ea_d, eff_d=eff_d, fired_d=fired_d, fuel_d=fuel_d,\n                pb=b[\"fuel_pressure_design_barg\"], q0=q0, rc=rc, kc=t[\"k_coke_w_mk\"], tmt_d=t[\"tmt_design_c\"], do=t[\"od_mm\"],\n                tw=t[\"wall_inspected_mm\"], lc=cr[\"lmp_c\"], la=cr[\"lmp_a\"], lb=cr[\"lmp_b\"], used=cr[\"life_used_at_inspection\"],\n                yrs=cr[\"years_alert\"], price=ec[\"fuel_price_usd_gj\"], co2=ec[\"co2_kg_gj\"], hy=ec[\"hours_per_year\"],\n                h_fb=dr[\"firebox_height_m\"], dpm=dr[\"draft_per_m_mmh2o\"])\n\n\ndef excess_air(k, o2):\n    return k[\"ek\"] * o2 / (21 - o2)\n\n\ndef stack_loss(k, o2, t_stack, t_air, lhv):\n    return (1 + k[\"a0\"] * (1 + excess_air(k, o2) / 100)) * k[\"cpg\"] * (t_stack - t_air) / (lhv * 1000) * 100\n\n\ndef creep_years(k, tmt_c, p_barg):\n    s = p_barg / 10 * (k[\"do\"] - k[\"tw\"]) / (2 * k[\"tw\"])\n    lmp = k[\"la\"] - k[\"lb\"] * math.log10(s)\n    return (1 - k[\"used\"]) * 10 ** (1000 * lmp / (tmt_c + C2K) - k[\"lc\"]) / 8760\n\n\ndef _parts(twin):\n    k = _k(twin)\n    P = [\"A\", \"B\", \"C\", \"D\"]\n    TOT = \"(\" + \" + \".join(f\"df['FLOW_{p}_TH']\" for p in P) + \")\"\n    QA = f\"({TOT} / 3.6 * {k['cp']} * (df['COT_C'] - df['INLET_TEMP_C']) / 1000)\"\n    QF = \"(df['FUEL_FLOW_KGH'] / 3600 * df['FUEL_LHV_MJKG'])\"\n    EA = f\"({k['ek']} * df['O2_PCT'] / (21 - df['O2_PCT']))\"\n    SL = f\"((1 + {k['a0']} * (1 + {EA} / 100)) * {k['cpg']} * (df['STACK_TEMP_C'] - df['AMBIENT_TEMP_C']) / (df['FUEL_LHV_MJKG'] * 1000) * 100)\"\n    EF = f\"(100 - {SL} - {k['rad']})\"\n    TE = f\"({QA} / {QF} * 100)\"\n    mx = lambda cols: f\"np.maximum(np.maximum({cols[0]}, {cols[1]}), np.maximum({cols[2]}, {cols[3]}))\"\n    mn = lambda cols: f\"np.minimum(np.minimum({cols[0]}, {cols[1]}), np.minimum({cols[2]}, {cols[3]}))\"\n    flows = [f\"df['FLOW_{p}_TH']\" for p in P]\n    tmts = [f\"df['TMT_{p}_C']\" for p in P]\n    IMB = f\"(({mx(flows)} - {mn(flows)}) / ({TOT} / 4) * 100)\"\n    DPR = mx([f\"(df['DP_{p}_BAR'] / ({k['dp']} * (df['FLOW_{p}_TH'] / {k['fpass']}) ** {k['nexp']}))\" for p in P])\n    TMX = f\"({mx(tmts)})\"\n    SPR = f\"({mx(tmts)} - {mn(tmts)})\"\n    FLX = f\"({k['q0']} * {QA} / {k['duty']})\"\n    TCL = f\"(df['COT_C'] + {FLX} * 1000 * {k['rc']})\"\n    COK = f\"(({TMX} - {TCL}) / ({FLX} * 1000) * {k['kc']} * 1000)\"\n    BPR = f\"((df['FUEL_PRESSURE_BARG'] + 1.01325) / ({k['pb'] + 1.01325} * df['FUEL_FLOW_KGH'] / {k['fuel_d']}))\"\n    SIG = f\"(df['INLET_PRESSURE_BARG'] / 10 * {(k['do'] - k['tw']) / (2 * k['tw'])})\"\n    CRL = (f\"np.minimum({1 - k['used']} * 10 ** (1000 * ({k['la']} - {k['lb']} * np.log10({SIG})) / ({TMX} + {C2K}) - {k['lc']}) / 8760, {CAP_Y})\")\n    SR = f\"(df['STACK_TEMP_C'] - ({k['st_d']} + {k['st_k']} * ({QA} / {k['duty']} - 1)))\"\n    COST = f\"({QA} * (100 / {EF} - {100 / k['eff_d']}) * {k['hy'] * 3.6 * k['price'] / 1000})\"\n    return dict(k=k, TOT=TOT, QA=QA, QF=QF, EA=EA, SL=SL, EF=EF, TE=TE, IMB=IMB, DPR=DPR, TMX=TMX, SPR=SPR, FLX=FLX, TCL=TCL,\n                COK=COK, BPR=BPR, SIG=SIG, CRL=CRL, SR=SR, COST=COST)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    return [\n        (\"CHARGE_TH\", p[\"TOT\"]),\n        (\"ABSORBED_DUTY_MW\", p[\"QA\"]),\n        (\"FIRED_DUTY_MW\", p[\"QF\"]),\n        (\"THERMAL_EFF_PCT\", p[\"TE\"]),\n        (\"EXCESS_AIR_PCT\", p[\"EA\"]),\n        (\"STACK_LOSS_PCT\", p[\"SL\"]),\n        (\"EFF_FLUEGAS_PCT\", p[\"EF\"]),\n        (\"EFF_RESIDUAL_PCT\", f\"{p['TE']} - {p['EF']}\"),\n        (\"STACK_RISE_C\", p[\"SR\"]),\n        (\"FUEL_COST_EXCESS_KUSD_Y\", p[\"COST\"]),\n        (\"FLOW_IMBALANCE_PCT\", p[\"IMB\"]),\n        (\"DP_RATIO_MAX\", p[\"DPR\"]),\n        (\"TMT_MAX_C\", p[\"TMX\"]),\n        (\"TMT_SPREAD_C\", p[\"SPR\"]),\n        (\"PEAK_FLUX_KWM2\", p[\"FLX\"]),\n        (\"TMT_CLEAN_C\", p[\"TCL\"]),\n        (\"COKE_MM\", p[\"COK\"]),\n        (\"BURNER_P_RATIO\", p[\"BPR\"]),\n        (\"HOOP_STRESS_MPA\", p[\"SIG\"]),\n        (\"CREEP_LIFE_Y\", p[\"CRL\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    P = \"abcd\"\n    flows = [r[f\"flow_{p}_th\"] for p in P]\n    tmts = [r[f\"tmt_{p}_c\"] for p in P]\n    tot = sum(flows)\n    qa = tot / 3.6 * k[\"cp\"] * (r[\"cot_c\"] - r[\"inlet_temp_c\"]) / 1000\n    qf = r[\"fuel_flow_kgh\"] / 3600 * r[\"fuel_lhv_mjkg\"]\n    ea = excess_air(k, r[\"o2_pct\"])\n    sl = stack_loss(k, r[\"o2_pct\"], r[\"stack_temp_c\"], r[\"ambient_temp_c\"], r[\"fuel_lhv_mjkg\"])\n    ef = 100 - sl - k[\"rad\"]\n    te = qa / qf * 100\n    flx = k[\"q0\"] * qa / k[\"duty\"]\n    tcl = r[\"cot_c\"] + flx * 1000 * k[\"rc\"]\n    tmx = max(tmts)\n    sig = r[\"inlet_pressure_barg\"] / 10 * (k[\"do\"] - k[\"tw\"]) / (2 * k[\"tw\"])\n    return {\n        \"charge_th\": tot, \"absorbed_duty_mw\": qa, \"fired_duty_mw\": qf, \"thermal_eff_pct\": te, \"excess_air_pct\": ea,\n        \"stack_loss_pct\": sl, \"eff_fluegas_pct\": ef, \"eff_residual_pct\": te - ef,\n        \"stack_rise_c\": r[\"stack_temp_c\"] - (k[\"st_d\"] + k[\"st_k\"] * (qa / k[\"duty\"] - 1)),\n        \"fuel_cost_excess_kusd_y\": qa * (100 / ef - 100 / k[\"eff_d\"]) * k[\"hy\"] * 3.6 * k[\"price\"] / 1000,\n        \"flow_imbalance_pct\": (max(flows) - min(flows)) / (tot / 4) * 100,\n        \"dp_ratio_max\": max(r[f\"dp_{p}_bar\"] / (k[\"dp\"] * (r[f\"flow_{p}_th\"] / k[\"fpass\"]) ** k[\"nexp\"]) for p in P),\n        \"tmt_max_c\": tmx, \"tmt_spread_c\": tmx - min(tmts), \"peak_flux_kwm2\": flx, \"tmt_clean_c\": tcl,\n        \"coke_mm\": (tmx - tcl) / (flx * 1000) * k[\"kc\"] * 1000,\n        \"burner_p_ratio\": (r[\"fuel_pressure_barg\"] + 1.01325) / ((k[\"pb\"] + 1.01325) * r[\"fuel_flow_kgh\"] / k[\"fuel_d\"]),\n        \"hoop_stress_mpa\": sig,\n        \"creep_life_y\": min((1 - k[\"used\"]) * 10 ** (1000 * (k[\"la\"] - k[\"lb\"] * math.log10(sig)) / (tmx + C2K) - k[\"lc\"]) / 8760, CAP_Y),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"HTR_TMT_LIMIT\", f\"{p['TMX']} > {k['tmt_d']}\", \"Critical\", \"coking\"),\n        (\"HTR_COKE_BUILDUP\", f\"{p['COK']} > {L['coke_alert_mm']}\", \"High\", \"coking\"),\n        (\"HTR_CREEP_LIFE_LOW\", f\"{p['CRL']} < {k['yrs']}\", \"High\", \"coking\"),\n        (\"HTR_DRAFT_LOW\", f\"df['ARCH_DRAFT_MMH2O'] > {L['draft_alert_mmh2o']}\", \"High\", \"draft_loss\"),\n        (\"HTR_O2_LOW\", f\"df['O2_PCT'] < {L['o2_low_pct']}\", \"High\", \"air_starvation\"),\n        (\"HTR_TMT_ALERT\", f\"({p['TMX']} > {L['tmt_alert_c']}) & ({p['TMX']} <= {k['tmt_d']})\", \"Medium\", \"coking\"),\n        (\"HTR_PASS_DP_HIGH\", f\"{p['DPR']} > {L['dp_ratio_alert']}\", \"Medium\", \"coking\"),\n        (\"HTR_PASS_IMBALANCE\", f\"{p['IMB']} > {L['imbalance_alert_pct']}\", \"Medium\", \"pass_imbalance\"),\n        (\"HTR_FLAME_IMPINGEMENT\", f\"({p['SPR']} > {L['tmt_spread_alert_c']}) & ({p['DPR']} <= {L['dp_ratio_alert']}) & ({p['IMB']} <= {L['imbalance_alert_pct']})\",\n         \"Medium\", \"flame_impingement\"),\n        (\"HTR_BURNER_DP_HIGH\", f\"{p['BPR']} > {L['burner_p_ratio_alert']}\", \"Medium\", \"flame_impingement\"),\n        (\"HTR_CO_HIGH\", f\"df['CO_PPM'] > {L['co_alert_ppm']}\", \"Medium\", \"air_starvation\"),\n        (\"HTR_EXCESS_AIR_HIGH\", f\"{p['EA']} > {L['excess_air_alert_pct']}\", \"Medium\", \"excess_air_high\"),\n        (\"HTR_EFF_LOW\", f\"{p['EF']} < {k['eff_d'] - L['eff_drop_alert_pts']}\", \"Medium\", \"convection_fouling\"),\n        (\"HTR_STACK_HIGH\", f\"{p['SR']} > {L['stack_rise_alert_c']}\", \"Medium\", \"convection_fouling\"),\n        (\"HTR_EFF_MISMATCH\", f\"np.abs({p['TE']} - {p['EF']}) > {L['eff_mismatch_alert_pts']}\", \"Medium\", \"fuel_meter_drift\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    tmx, dpr, imb = t[\"tmt_max_c\"], t[\"dp_ratio_max\"], t[\"flow_imbalance_pct\"]\n    hot = \"ABCD\"[max(range(4), key=lambda i: r[f\"tmt_{'abcd'[i]}_c\"])]\n    add(tmx > k[\"tmt_d\"], \"HTR_TMT_LIMIT\", \"Critical\", f\"Pass {hot} tube skin at {tmx:.0f} \u00b0C, above the design TMT of {k['tmt_d']:.0f} \u00b0C\", \"coil\", \"coking\")\n    add(t[\"coke_mm\"] > L[\"coke_alert_mm\"], \"HTR_COKE_BUILDUP\", \"High\",\n        f\"Skin {tmx - t['tmt_clean_c']:.0f} K hotter than a clean tube: about {t['coke_mm']:.1f} mm of coke\", \"coil\", \"coking\")\n    add(t[\"creep_life_y\"] < k[\"yrs\"], \"HTR_CREEP_LIFE_LOW\", \"High\",\n        f\"At {tmx:.0f} \u00b0C the tubes have {t['creep_life_y']:.1f} years of creep life left\", \"coil\", \"coking\")\n    add(r[\"arch_draft_mmh2o\"] > L[\"draft_alert_mmh2o\"], \"HTR_DRAFT_LOW\", \"High\",\n        f\"Arch pressure {r['arch_draft_mmh2o']:+.1f} mm H2O: not enough draft, flue gas may leak out\", \"draft\", \"draft_loss\")\n    add(r[\"o2_pct\"] < L[\"o2_low_pct\"], \"HTR_O2_LOW\", \"High\", f\"O2 {r['o2_pct']:.1f} %: firing short of air\", \"air\", \"air_starvation\")\n    add(L[\"tmt_alert_c\"] < tmx <= k[\"tmt_d\"], \"HTR_TMT_ALERT\", \"Medium\", f\"Pass {hot} tube skin at {tmx:.0f} \u00b0C, close to the design TMT\", \"coil\", \"coking\")\n    add(dpr > L[\"dp_ratio_alert\"], \"HTR_PASS_DP_HIGH\", \"Medium\", f\"Pass pressure drop {dpr:.2f} x expected at its flow\", \"coil\", \"coking\")\n    add(imb > L[\"imbalance_alert_pct\"], \"HTR_PASS_IMBALANCE\", \"Medium\", f\"Pass flows differ by {imb:.0f} % of the mean\", \"coil\", \"pass_imbalance\")\n    add(t[\"tmt_spread_c\"] > L[\"tmt_spread_alert_c\"] and dpr <= L[\"dp_ratio_alert\"] and imb <= L[\"imbalance_alert_pct\"], \"HTR_FLAME_IMPINGEMENT\", \"Medium\",\n        f\"Pass {hot} skin {t['tmt_spread_c']:.0f} K above the coolest pass with normal flow and pressure drop: flame on the tubes\", \"burners\", \"flame_impingement\")\n    add(t[\"burner_p_ratio\"] > L[\"burner_p_ratio_alert\"], \"HTR_BURNER_DP_HIGH\", \"Medium\",\n        f\"Burner gas pressure {t['burner_p_ratio']:.2f} x expected for the fuel flow: tips plugging\", \"burners\", \"flame_impingement\")\n    add(r[\"co_ppm\"] > L[\"co_alert_ppm\"], \"HTR_CO_HIGH\", \"Medium\", f\"CO {r['co_ppm']:.0f} ppm: incomplete combustion\", \"air\", \"air_starvation\")\n    add(t[\"excess_air_pct\"] > L[\"excess_air_alert_pct\"], \"HTR_EXCESS_AIR_HIGH\", \"Medium\",\n        f\"Excess air {t['excess_air_pct']:.0f} % (O2 {r['o2_pct']:.1f} %)\", \"air\", \"excess_air_high\")\n    add(t[\"eff_fluegas_pct\"] < k[\"eff_d\"] - L[\"eff_drop_alert_pts\"], \"HTR_EFF_LOW\", \"Medium\",\n        f\"Efficiency {t['eff_fluegas_pct']:.1f} % against {k['eff_d']:.1f} % design: {t['fuel_cost_excess_kusd_y']:.0f} k$ a year of extra fuel\", \"convection\", \"convection_fouling\")\n    add(t[\"stack_rise_c\"] > L[\"stack_rise_alert_c\"], \"HTR_STACK_HIGH\", \"Medium\", f\"Stack {t['stack_rise_c']:.0f} K hotter than expected at this duty\", \"convection\", \"convection_fouling\")\n    add(abs(t[\"eff_residual_pct\"]) > L[\"eff_mismatch_alert_pts\"], \"HTR_EFF_MISMATCH\", \"Medium\",\n        f\"Efficiency from the meters {t['thermal_eff_pct']:.1f} % vs from the flue gas {t['eff_fluegas_pct']:.1f} %: check the fuel meter\", \"instrument\", \"fuel_meter_drift\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "H-2401 fired heater twin. Expected values in Maximo Monitor from the heater data sheet, the burner data and combustion and creep formulas; the device sends only what it measures.", "twin": {"id": "H-2401", "name": "Crude charge heater H-2401", "version": "1.0.0", "folder": "heater-twin"}, "identification": {"asset": "H-2401", "assetnum": "H-2401", "manufacturer": "Cabin heater, 4 passes, 12 x Zeeco", "model": "GLSF Min-Emissions burners (natural draft)", "description": "Crude distillation unit charge heater: cabin type, radiant + convection, natural draft, 4 passes", "heater": "Cabin (box) heater, horizontal radiant tubes on the side walls, convection section and stack on top, natural draft (API 560 type)", "burners": "12 x Zeeco GLSF Min-Emissions round-flame gas burners, up-fired from the floor", "coil": "4 parallel passes, 6 in (168.3 mm OD) ASTM A335 P9 (9Cr-1Mo) tubes", "service": "Atmospheric crude charge: preheated crude from the preheat train to the flash zone of the crude column"}, "design": {"process": {"passes": 4, "charge_th": 285.0, "inlet_c": 250.0, "cot_c": 360.0, "duty_mw": 40.0, "inlet_pressure_barg": 14.0, "pass_dp_bar": 8.0, "dp_flow_exponent": 1.8, "source": "Heater data sheet: charge, inlet and coil outlet temperature (COT), absorbed duty, coil inlet pressure and pass pressure drop at design. assumption: typical value, replace with your heater data sheet. The effective heat capacity (sensible heat plus the part of the crude that vaporises in the coil) is design duty / (charge x (COT - inlet)). Pass pressure drop scales with flow^1.8 (turbulent flow; assumption)."}, "combustion": {"fuel": "refinery fuel gas, treated as methane", "lhv_mj_kg": 50.0, "air_stoich_kg_kg": 17.12, "cp_fluegas_kj_kgk": 1.15, "radiation_loss_pct": 1.5, "o2_design_pct": 3.0, "stack_design_c": 300.0, "stack_per_duty_c": 110.0, "ambient_design_c": 25.0, "ea_k": 92.0, "source": "Methane stoichiometry and LHV (textbook). Mean flue-gas heat capacity 1.15 kJ/kg K between ambient and the stack: assumption. Radiation loss 1.5 % of heat release (usual allowance without air preheat, API 560 efficiency method). Design O2 3 % dry (about 15 % excess air: API 535 practice, inside the burner's typical 10 to 25 %). EA % = 92 x O2 / (21 - O2): PTQ 2023. Stack temperature at design duty 300 C and its rise with duty (110 K from zero to design duty): assumption: typical value, replace with your heater data sheet. Replace methane with your fuel gas analysis."}, "burners": {"count": 12, "model": "Zeeco GLSF Min-Emissions", "nd_min_mw": 0.293, "nd_max_mw": 5.86, "turndown": 5, "excess_air_typ_pct": [10, 25], "fuel_pressure_design_barg": 1.4, "source": "Zeeco GLSF Min-Emissions burner brochure: natural draft heat release 1 to 20 MMBtu/h (0.293 to 5.860 MW), turndown 5:1, typical excess air 10 to 25 %. Fuel gas pressure at the burners at design firing 1.4 bar g: assumption: typical value, replace with your heater data sheet (from the burner data sheet). Gas tips run near choked flow, so the absolute tip pressure is taken proportional to the fuel flow."}, "draft": {"arch_design_mmh2o": -2.5, "firebox_height_m": 14.0, "draft_per_m_mmh2o": 0.833, "source": "Arch (firebox exit) pressure -2.5 mm H2O, i.e. 0.1 in H2O of draft, inside the usual 0.05 to 0.15 in H2O; draft gain 0.01 in H2O per ft = 0.833 mm H2O per m (PTQ 2023). Firebox height: assumption: typical value, replace with your heater data sheet"}, "tubes": {"material": "ASTM A335 P9 (9Cr-1Mo)", "od_mm": 168.3, "wall_nominal_mm": 7.11, "wall_inspected_mm": 6.2, "k_wall_w_mk": 26.0, "h_inside_w_m2k": 1400.0, "flux_avg_kw_m2": 32.0, "peak_factor": 1.8, "tmt_design_c": 600.0, "k_coke_w_mk": 1.0, "source": "6 in NPS schedule 40 (168.3 x 7.11 mm, ASME B36.10). Wall at the last inspection (UT), thermal conductivity of 9Cr-1Mo, inside film coefficient, average radiant flux, peak-to-average flux factor, design tube metal temperature (TMT) and coke thermal conductivity: assumption: typical value, replace with your heater data sheet. 9Cr-1Mo coils are commonly designed up to 704 C (1300 F) (AFPM Q&A 2016); API 530 gives the limiting design metal temperature of each material."}, "creep": {"lmp_c": 20.0, "lmp_a": 28.19, "lmp_b": 3.85, "life_used_at_inspection": 0.2, "years_alert": 10.0, "source": "Larson-Miller: LMP = T(K) x (20 + log10 t_r) / 1000 (Larson and Miller, 1952). Rupture line LMP = 28.19 - 3.85 x log10(stress MPa): ASSUMPTION, an illustrative fit (about 45 MPa for 100 000 h at 600 C); replace it with the API 530 minimum rupture data of your tube material. Life fraction used at the last inspection (API 579-1 creep assessment of the turnaround): assumption. Stress from the coil inlet pressure on the inspected wall (conservative: the hottest tube near the outlet sees less pressure)."}, "economics": {"fuel_price_usd_gj": 6.0, "co2_kg_gj": 56.1, "hours_per_year": 8760, "source": "Fuel price: assumption, replace with your site's fuel gas value. CO2 factor of natural gas 56.1 kg/GJ (IPCC 2006 Guidelines, Vol. 2, Table 1.4)."}, "demo": {"time_scale": 60, "load_swing": 0.03, "load_period_s": 600, "note": "Demo only: the plant clock runs 60 times faster and the charge swings 3 % over 10 minutes so the curves move; faults ramp in over minutes, where real coking takes months."}}, "telemetry": {"event": "heater", "publish_every_s": 60, "device_type": "FIRED_HEATER_PROCESS", "groups": {"Pass": "Pass flows, pressure drops and tube metal temperatures", "Process": "Coil inlet and outlet", "Fuel": "Fuel gas to the burners", "Flue": "Firebox and flue gas", "Ambient": "Combustion air"}, "points": [{"metric": "flow_a_th", "path": "Pass.FlowA", "label": "Pass A charge flow", "unit": "t/h"}, {"metric": "flow_b_th", "path": "Pass.FlowB", "label": "Pass B charge flow", "unit": "t/h"}, {"metric": "flow_c_th", "path": "Pass.FlowC", "label": "Pass C charge flow", "unit": "t/h"}, {"metric": "flow_d_th", "path": "Pass.FlowD", "label": "Pass D charge flow", "unit": "t/h"}, {"metric": "dp_a_bar", "path": "Pass.DPA", "label": "Pass A pressure drop", "unit": "bar"}, {"metric": "dp_b_bar", "path": "Pass.DPB", "label": "Pass B pressure drop", "unit": "bar"}, {"metric": "dp_c_bar", "path": "Pass.DPC", "label": "Pass C pressure drop", "unit": "bar"}, {"metric": "dp_d_bar", "path": "Pass.DPD", "label": "Pass D pressure drop", "unit": "bar"}, {"metric": "tmt_a_c", "path": "Pass.TMTA", "label": "Pass A highest tube skin temperature", "unit": "\u00b0C"}, {"metric": "tmt_b_c", "path": "Pass.TMTB", "label": "Pass B highest tube skin temperature", "unit": "\u00b0C"}, {"metric": "tmt_c_c", "path": "Pass.TMTC", "label": "Pass C highest tube skin temperature", "unit": "\u00b0C"}, {"metric": "tmt_d_c", "path": "Pass.TMTD", "label": "Pass D highest tube skin temperature", "unit": "\u00b0C"}, {"metric": "inlet_temp_c", "path": "Process.InletTemp", "label": "Coil inlet temperature", "unit": "\u00b0C"}, {"metric": "cot_c", "path": "Process.COT", "label": "Combined coil outlet temperature (COT)", "unit": "\u00b0C"}, {"metric": "inlet_pressure_barg", "path": "Process.InletPressure", "label": "Coil inlet pressure", "unit": "bar g"}, {"metric": "fuel_flow_kgh", "path": "Fuel.Flow", "label": "Fuel gas mass flow", "unit": "kg/h"}, {"metric": "fuel_lhv_mjkg", "path": "Fuel.LHV", "label": "Fuel gas lower heating value (analyser)", "unit": "MJ/kg"}, {"metric": "fuel_pressure_barg", "path": "Fuel.BurnerPressure", "label": "Fuel gas pressure at the burners", "unit": "bar g"}, {"metric": "o2_pct", "path": "Flue.O2", "label": "Flue gas O2 at the arch (dry)", "unit": "%"}, {"metric": "co_ppm", "path": "Flue.CO", "label": "Flue gas CO at the arch", "unit": "ppm"}, {"metric": "arch_draft_mmh2o", "path": "Flue.ArchPressure", "label": "Firebox pressure at the arch (negative = draft)", "unit": "mm H2O"}, {"metric": "bridgewall_temp_c", "path": "Flue.BridgewallTemp", "label": "Bridgewall (firebox exit) flue gas temperature", "unit": "\u00b0C"}, {"metric": "stack_temp_c", "path": "Flue.StackTemp", "label": "Stack flue gas temperature", "unit": "\u00b0C"}, {"metric": "ambient_temp_c", "path": "Ambient.AirTemp", "label": "Combustion air (ambient) temperature", "unit": "\u00b0C"}]}, "twin_model": {"limits": {"tmt_alert_c": 575.0, "coke_alert_mm": 1.5, "dp_ratio_alert": 1.3, "imbalance_alert_pct": 10.0, "tmt_spread_alert_c": 50.0, "excess_air_alert_pct": 35.0, "o2_low_pct": 1.5, "co_alert_ppm": 400.0, "draft_alert_mmh2o": -1.0, "stack_rise_alert_c": 35.0, "eff_drop_alert_pts": 2.0, "eff_mismatch_alert_pts": 4.0, "burner_p_ratio_alert": 1.15}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "coking": {"name": "Coking inside the tubes of one pass", "part": "coil", "symptoms": "TMT of the pass rises at the same duty, its pressure drop rises at the same flow", "rules": ["HTR_COKE_BUILDUP", "HTR_PASS_DP_HIGH", "HTR_TMT_ALERT", "HTR_TMT_LIMIT", "HTR_CREEP_LIFE_LOW"], "default_ramp_min": 1.5}, "pass_imbalance": {"name": "Pass flow maldistribution", "part": "coil", "symptoms": "one pass gets less flow, its outlet and skin run hotter", "rules": ["HTR_PASS_IMBALANCE"], "default_ramp_min": 1}, "flame_impingement": {"name": "Burner tip plugging and flame impingement", "part": "burners", "symptoms": "fuel pressure up at the same firing, long flames lick one pass: one TMT up with flow and pressure drop normal", "rules": ["HTR_FLAME_IMPINGEMENT", "HTR_BURNER_DP_HIGH"], "default_ramp_min": 1}, "excess_air_high": {"name": "Too much excess air (registers or damper too open)", "part": "air", "symptoms": "O2 high, more flue gas carries heat up the stack, efficiency down", "rules": ["HTR_EXCESS_AIR_HIGH", "HTR_EFF_LOW"], "default_ramp_min": 1}, "air_starvation": {"name": "Air starvation (registers closed, fuel-rich firing)", "part": "air", "symptoms": "O2 low, CO rises: unburnt fuel, risk of afterburning", "rules": ["HTR_O2_LOW", "HTR_CO_HIGH"], "default_ramp_min": 1}, "draft_loss": {"name": "Loss of draft (stack damper stuck closed)", "part": "draft", "symptoms": "arch pressure goes positive: hot gas leaks out of peepholes and the casing", "rules": ["HTR_DRAFT_LOW"], "default_ramp_min": 0.5}, "convection_fouling": {"name": "Convection section fouling (soot on the finned tubes)", "part": "convection", "symptoms": "stack temperature up at the same duty, efficiency down", "rules": ["HTR_STACK_HIGH", "HTR_EFF_LOW"], "default_ramp_min": 1.5}, "fuel_meter_drift": {"name": "Fuel gas meter drift", "part": "instrument", "symptoms": "efficiency from the meters disagrees with efficiency from the flue gas", "rules": ["HTR_EFF_MISMATCH"], "default_ramp_min": 1}}, "presentation": {"title": "H-2401 crude charge heater", "dashboard": "FIRED_HEATER_PROCESS"}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, flames = true;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (1 unit = 5 m) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(5.2, 3.6, 5.6); ctl.target.set(0, 1.9, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(4, 8, 5); scene.add(sun);
+const fire = new THREE.PointLight(0xff8a3d, 1.2, 4); fire.position.set(0, 1.0, 0); scene.add(fire);
+scene.add(new THREE.GridHelper(14, 28, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .5, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide, emissive: o.e ?? 0x000000 });
+const cyl = (r1, r2, h, m, s = 24) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const W = 1.4, H = 2.8, LZ = 2.6, Y0 = 0.5;   // firebox 7 m wide, 14 m high, 13 m long, floor 2.5 m above grade
+// legs and floor
+[-1, 1].forEach(sx => [-1, 1].forEach(sz => scene.add(at(box(.1, Y0, .1, M(0x3d4249)), sx * (W / 2 - .05), Y0 / 2, sz * (LZ / 2 - .05)))));
+scene.add(at(box(W, .06, LZ, M(0x8a5a44, { r: .9 })), 0, Y0, 0));
+// casing (steel shell lined with refractory), shown as an outer shell + a light inner lining
+const caseMat = M(0x6f7f8f, { m: .5, ds: true, t: 1 }), lineMat = M(0xe8dcc8, { r: .95, ds: true, t: 1 });
+const casing = at(box(W + .08, H, LZ + .08, caseMat), 0, Y0 + H / 2, 0); scene.add(casing);
+const lining = at(box(W - .02, H - .02, LZ - .02, lineMat), 0, Y0 + H / 2, 0); lining.material.side = THREE.BackSide; scene.add(lining);
+// convection section, breeching and stack with damper
+const convMat = M(0x5b6b7b, { m: .5, t: 1, ds: true });
+const conv = at(box(.9, .9, LZ * .8, convMat), 0, Y0 + H + .45, 0); scene.add(conv);
+const hood = new THREE.Mesh(new THREE.CylinderGeometry(.22, .55, .5, 4), M(0x5b6b7b, { m: .5 })); hood.rotation.y = Math.PI / 4; scene.add(at(hood, 0, Y0 + H + 1.15, 0));
+const stack = at(cyl(.18, .2, 2.6, M(0x7d8792, { m: .6 })), 0, Y0 + H + 2.7, 0); scene.add(stack);
+const damper = at(box(.34, .02, .3, M(0xc0392b)), 0, Y0 + H + 1.6, 0); scene.add(damper);
+// convection tubes (finned look: thicker, dark)
+const convTubes = new THREE.Group(); scene.add(convTubes);
+for (let r = 0; r < 6; r++) for (let i = 0; i < 4; i++) { const t = cyl(.035, .035, LZ * .78, M(0x4a4f55, { m: .3, r: .8 }), 10); t.rotation.x = Math.PI / 2; convTubes.add(at(t, -.3 + i * .2 + (r % 2) * .1, Y0 + H + .12 + r * .13, 0)); }
+// radiant tubes: four passes, horizontal along z on the side walls (A lower west, B upper west, C lower east, D upper east)
+const PASS = { a: [-1, 0], b: [-1, 1], c: [1, 0], d: [1, 1] }, tubeMats = {}, passGroups = {};
+Object.entries(PASS).forEach(([p, [side, up]]) => {
+  const mat = M(0x3a3f45, { m: .6, r: .45 }); tubeMats[p] = mat; const g = new THREE.Group(); passGroups[p] = g; scene.add(g);
+  for (let i = 0; i < 9; i++) {
+    const y = Y0 + .25 + up * 1.25 + i * .135, x = side * (W / 2 - .09);
+    const t = cyl(.034, .034, LZ - .2, mat, 14); t.rotation.x = Math.PI / 2; g.add(at(t, x, y, 0));
+    if (i < 8) { const rb = new THREE.Mesh(new THREE.TorusGeometry(.0675, .034, 8, 16, Math.PI), mat); rb.rotation.y = Math.PI / 2 * side; rb.rotation.z = Math.PI / 2;
+      g.add(at(rb, x, y + .0675, (i % 2 ? -1 : 1) * (LZ / 2 - .1))); }
+  }
+  // crossover / outlet piping to the transfer line
+  const o = cyl(.04, .04, .5, M(0x8c97a3, { m: .5 })); g.add(at(o, side * (W / 2 + .25), Y0 + .25 + up * 1.25, -LZ / 2 + .25));
+});
+// burners: 12 on the floor, two rows of six; flames as emissive cones
+const flameMat = new THREE.MeshStandardMaterial({ color: 0xffa040, emissive: 0xff6a00, emissiveIntensity: 1.2, transparent: true, opacity: .7 });
+const burners = [];
+for (let i = 0; i < 6; i++) for (const sx of [-.22, .22]) {
+  const z = -LZ / 2 + .25 + i * (LZ - .5) / 5;
+  scene.add(at(cyl(.08, .1, .25, M(0x2f3439)), sx, Y0 - .12, z));
+  const f = new THREE.Mesh(new THREE.ConeGeometry(.09, 1, 16), flameMat); scene.add(f); burners.push({ f, sx, z });
+}
+// fuel header, O2 analyser at the arch, stack thermocouple
+const hdr = cyl(.04, .04, LZ, M(0xd8a31a, { m: .3 })); hdr.rotation.x = Math.PI / 2; scene.add(at(hdr, 0, Y0 - .32, 0));
+scene.add(at(box(.14, .14, .14, M(0x8a3ffc, { m: .2 })), W / 2 + .1, Y0 + H - .15, LZ / 2 - .3));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.07, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, 0, Y0 + H + 4.1, 0));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('a', [-W / 2 - .05, Y0 + .6, .6]); lbl('b', [-W / 2 - .05, Y0 + 1.9, .2]); lbl('c', [W / 2 + .05, Y0 + .6, .6]); lbl('d', [W / 2 + .05, Y0 + 1.9, .2]);
+lbl('flue', [W / 2 + .1, Y0 + H + .05, LZ / 2 - .3]); lbl('stack', [0, Y0 + H + 4.0, 0]); lbl('fuel', [0, Y0 - .35, LZ / 2]); lbl('cot', [-W / 2 - .3, Y0 + 1.3, -LZ / 2 + .2]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); L.el.style.display = v.z < 1 ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let flameLen = 1, impinge = 0, o2 = 3;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design, tmtD = d.tubes.tmt_design_c;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  ['a', 'b', 'c', 'd'].forEach(p => {
+    const tm = r[`tmt_${p}_c`], P = p.toUpperCase(), ratio = r[`dp_${p}_bar`] / (d.process.pass_dp_bar * Math.pow(r[`flow_${p}_th`] / (d.process.charge_th / 4), d.process.dp_flow_exponent));
+    setLbl(p, `pass ${P}: TMT · flow · ΔP`, `${fmt(tm, 0)} °C · ${fmt(r[`flow_${p}_th`], 1)} t/h · ${fmt(r[`dp_${p}_bar`], 1)} bar`,
+      st(tm > tmtD || ratio > L.dp_ratio_alert, tm > L.tmt_alert_c || (names.has('HTR_FLAME_IMPINGEMENT') && tm === t.tmt_max_c) || (names.has('HTR_PASS_IMBALANCE') && r[`flow_${p}_th`] < t.charge_th / 4 * .95)));
+    const k = Math.max(0, Math.min(1, (tm - 380) / (tmtD + 40 - 380)));
+    tubeMats[p].color.setRGB(.23 + .6 * k, .25 - .1 * k, .27 - .2 * k); tubeMats[p].emissive.setRGB(.55 * k * k, .12 * k * k, 0);
+  });
+  setLbl('flue', 'arch: O2 · CO · draft', `${fmt(r.o2_pct, 1)} % · ${fmt(r.co_ppm, 0)} ppm · ${fmt(r.arch_draft_mmh2o, 1)} mm`,
+    st(names.has('HTR_O2_LOW') || names.has('HTR_DRAFT_LOW'), names.has('HTR_CO_HIGH') || names.has('HTR_EXCESS_AIR_HIGH')));
+  setLbl('stack', `stack · ${fmt(t.stack_rise_c, 0)} K vs expected`, `${fmt(r.stack_temp_c, 0)} °C · loss ${fmt(t.stack_loss_pct, 1)} %`, st(false, names.has('HTR_STACK_HIGH')));
+  setLbl('fuel', 'fuel gas · burner pressure', `${fmt(r.fuel_flow_kgh, 0)} kg/h · ${fmt(r.fuel_pressure_barg, 2)} bar g`, st(false, names.has('HTR_BURNER_DP_HIGH') || names.has('HTR_EFF_MISMATCH')));
+  setLbl('cot', 'coil inlet → outlet', `${fmt(r.inlet_temp_c, 0)} → ${fmt(r.cot_c, 0)} °C · ${fmt(t.absorbed_duty_mw, 1)} MW`, '');
+  flameLen = Math.max(.5, Math.min(1.4, t.fired_duty_mw / 46.85)) * (r.o2_pct < 1.5 ? 1.35 : 1);
+  impinge = names.has('HTR_FLAME_IMPINGEMENT') || names.has('HTR_BURNER_DP_HIGH') ? 1 : 0; o2 = r.o2_pct;
+  $('k-health').textContent = ST.health; $('k-eff').textContent = fmt(t.eff_fluegas_pct, 1) + ' %'; $('k-tmt').textContent = fmt(t.tmt_max_c, 0) + ' °C';
+  const effD = 100 - ((1 + d.combustion.air_stoich_kg_kg * (1 + d.combustion.ea_k * d.combustion.o2_design_pct / (21 - d.combustion.o2_design_pct) / 100)) * d.combustion.cp_fluegas_kj_kgk * (d.combustion.stack_design_c - d.combustion.ambient_design_c) / (d.combustion.lhv_mj_kg * 1000) * 100) - d.combustion.radiation_loss_pct;
+  $('c-eff-t').textContent = `efficiency ${fmt(t.eff_fluegas_pct, 1)} % (design ${fmt(effD, 1)})`; $('c-eff').className = 'chip ' + (names.has('HTR_EFF_LOW') ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Absorbed duty (MW)', fmt(t.absorbed_duty_mw, 1), fmt(d.process.duty_mw, 1)) +
+    row('Fired duty (MW)', fmt(t.fired_duty_mw, 1), fmt(t.absorbed_duty_mw / effD * 100, 1)) +
+    row('Efficiency, meters (%)', fmt(t.thermal_eff_pct, 1), fmt(t.eff_fluegas_pct, 1), names.has('HTR_EFF_MISMATCH')) +
+    row('Efficiency, flue gas (%)', fmt(t.eff_fluegas_pct, 1), fmt(effD, 1), names.has('HTR_EFF_LOW')) +
+    row('Excess air (%)', fmt(t.excess_air_pct, 0), '10 – 25', names.has('HTR_EXCESS_AIR_HIGH') || names.has('HTR_O2_LOW')) +
+    row('Stack vs expected (K)', fmt(t.stack_rise_c, 0), '< ' + L.stack_rise_alert_c, names.has('HTR_STACK_HIGH')) +
+    row('Hottest TMT (°C)', fmt(t.tmt_max_c, 0), fmt(t.tmt_clean_c, 0) + ' clean', t.tmt_max_c > tmtD) +
+    row('Coke layer (mm)', fmt(t.coke_mm, 1), '< ' + L.coke_alert_mm, names.has('HTR_COKE_BUILDUP')) +
+    row('Pass ΔP ÷ expected', fmt(t.dp_ratio_max), '< ' + L.dp_ratio_alert, names.has('HTR_PASS_DP_HIGH')) +
+    row('Pass flow imbalance (%)', fmt(t.flow_imbalance_pct, 1), '< ' + L.imbalance_alert_pct, names.has('HTR_PASS_IMBALANCE')) +
+    row('Burner gas pressure ratio', fmt(t.burner_p_ratio), '< ' + L.burner_p_ratio_alert, names.has('HTR_BURNER_DP_HIGH')) +
+    row('Creep life at this TMT (y)', t.creep_life_y >= 100 ? '> 100' : fmt(t.creep_life_y, 1), '> ' + d.creep.years_alert, names.has('HTR_CREEP_LIFE_LOW')) +
+    row('Extra fuel vs design (k$/y)', fmt(t.fuel_cost_excess_kusd_y, 0), '≤ 0');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the heater behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  damper.rotation.x = names.has('HTR_DRAFT_LOW') ? 0 : -0.7;
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [caseMat, lineMat, convMat].forEach(m => { m.transparent = true; m.opacity = cut ? .12 : 1; m.depthWrite = !cut; });
+};
+$('t-cut').click();
+$('t-flame').onclick = () => { flames = !flames; $('t-flame').classList.toggle('on', flames); };
+$('t-flame').classList.add('on');
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shownLen = 1, shownImp = 0;
+function tick(now) {
+  shownLen += (flameLen - shownLen) * .05; shownImp += (impinge - shownImp) * .05;
+  burners.forEach((b, i) => {
+    const flick = 1 + .06 * Math.sin(now / 90 + i * 1.7), len = shownLen * flick * (o2 < 1.5 ? 1.2 : 1);
+    const lean = b.sx < 0 ? shownImp * .55 : 0;                      // plugged tips: west-row flames lean onto pass A
+    b.f.visible = flames; b.f.scale.set(1, len, 1); b.f.rotation.z = lean;
+    b.f.position.set(b.sx - Math.sin(lean) * len / 2, Y0 + .02 + Math.cos(lean) * len / 2, b.z);
+  });
+  fire.intensity = flames ? 1.0 + .2 * Math.sin(now / 130) : 0;
+  flameMat.color.setHex(o2 < 1.5 ? 0xffd27a : 0xffa040);
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

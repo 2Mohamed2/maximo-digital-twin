@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESP-2801 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>ESP-2801</b><span class="g">Electric submersible pump · oil well · VSD</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-range"><span class="dot"></span><span id="c-range-t">range –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Pump curve and intake →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the ESP string…</div>
+<div class="credit">Wellhead, VSD and the downhole string: 400-series pump (two tandem sections), intake with gas separator, seal, 375-series motor and gauge in 5½ in casing. Typical proportions, not vendor CAD; the 6,500 ft between surface and pump is cut out. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button><button id="t-pump">Look at the pump</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Rising dots are the well fluid (speed follows the flow); white dots are free gas at the intake.</div>
+<aside>
+  <section>
+    <h2>ESP-2801 twin</h2>
+    <p class="sub" id="sub">Centrilift 400FLEXPump17.5 stages</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Head ratio<b id="k-hr">–</b></div><div>Flow bbl/d<b id="k-q">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or two of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures. Every expected value is computed from the twin file: the published stage curve scaled to the VSD frequency with the affinity laws, the well design and the fluid data.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for ESP-2801: the well, the pump on its VSD, the motor and the downhole gauge, with injectable faults.\n\nThe real device sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages.\n\nOperating point: the flow Q where the pump's pressure rise equals what the well asks for,\n    N x k x H(Q, f) x 0.433 SG = Pd(Q) - PIP(Q)\n    Pd(Q)  = wellhead pressure + 0.433 SG x (pump depth + tubing friction(Q))      (Hazen-Williams friction)\n    PIP(Q) = reservoir pressure - Q / PI - 0.433 SG x (perforations - pump depth)  (straight-line inflow)\nk is 1 for a healthy pump; wear, scale, free gas and a broken shaft lower it. Solved by bisection every step.\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\nclass ESP:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        d = twin[\"design\"]\n        self.k = tc._k(twin)\n        self.w, self.fl, self.m, self.op = d[\"well\"], d[\"fluid\"], d[\"motor\"], d[\"operation\"]\n        self.L = twin[\"twin_model\"][\"limits\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.freq = self.op[\"freq_hz\"]\n        self.run_days = self.op[\"run_days_at_start\"]\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state -------------------------------------------------------------------------------------------------------\n    def friction_ft(self, q):\n        w = self.w\n        gpm = max(q, 0.0) * 0.02917\n        return w[\"pump_depth_ft\"] * 0.2083 * (100 / w[\"hazen_c\"]) ** 1.852 * gpm ** 1.852 / w[\"tubing_id_in\"] ** 4.8655 / 100\n\n    def state(self):\n        k, w, fl, m, f = self.k, self.w, self.fl, self.m, self.faults\n        fr = self.freq / 60\n        wc = fl[\"water_cut_pct\"]\n        sg = wc / 100 * fl[\"sg_water\"] + (1 - wc / 100) * fl[\"sg_oil\"]\n        grad = tc.GRAD * sg\n        pi = w[\"pi_bpd_psi\"] * (1 - 0.88 * f[\"inflow_decline\"])\n        gor = fl[\"rsb_scf_stb\"] + 3000 * f[\"gas_interference\"]\n        lock = max(0.0, (f[\"gas_interference\"] - 0.75) / 0.25)\n        kmech = (1 - 0.30 * f[\"stage_wear\"]) * (1 - 0.14 * f[\"scale_deposits\"]) * (1 - 0.98 * f[\"broken_shaft\"])\n        tin = w[\"bht_f\"]\n        pd_of = lambda q: w[\"whp_psi\"] + grad * (w[\"pump_depth_ft\"] + self.friction_ft(q))\n        pip_of = lambda q: max(20.0, w[\"reservoir_psi\"] - q / pi - grad * (w[\"perf_depth_ft\"] - w[\"pump_depth_ft\"]))\n        gvf, q = 0.0, 0.0\n        for _ in range(6):                                   # free gas depends on PIP, PIP on the flow: fixed point\n            kgas = 1 / (1 + (max(0.0, gvf - 10) / 12) ** 2) * (1 - 0.9 * lock)\n            kk = kmech * kgas\n            g = lambda qq: kk * tc.pump_head(k, qq, self.freq) * grad - (pd_of(qq) - pip_of(qq))\n            lo, hi = 0.0, 3100 * fr\n            if g(lo) <= 0:\n                q = 0.0\n            else:\n                for _ in range(50):\n                    mid = (lo + hi) / 2\n                    lo, hi = (mid, hi) if g(mid) > 0 else (lo, mid)\n                q = (lo + hi) / 2\n            gvf_new = tc.gvf_pct(k, pip_of(q), gor, wc, tin)\n            gvf = 0.5 * gvf + 0.5 * gvf_new\n        pip, pd = pip_of(q), pd_of(q)\n        q60 = q / fr\n        bhp = k[\"N\"] * tc.stage_bhp(k, q60) * fr ** 3 * sg * (1 - gvf / 100) * (1 + 0.25 * f[\"scale_deposits\"]) * (1 - 0.8 * lock)\n        bhp = (1 - f[\"broken_shaft\"]) * bhp + f[\"broken_shaft\"] * 0.12 * k[\"hp\"] * fr\n        kw = bhp * tc.KW / (k[\"eff\"] * k[\"ceff\"])\n        load = kw * (k[\"eff\"] * k[\"ceff\"] / tc.KW) / (k[\"hp\"] * fr) * 100\n        v = q * tc.BBL_FT3 / 86400 / k[\"area\"]\n        rise = tc.motor_rise(k, load, v) * (1 + 3.0 * f[\"motor_cooling\"])\n        tm = tin + rise\n        leak = self.L[\"leak_base_ua\"] * 2 ** ((tm - self.L[\"leak_ref_f\"]) / 18) * (1 + 30 * f[\"motor_insulation\"])\n        return {\n            \"q\": q, \"pip\": pip, \"pd\": pd, \"sg\": sg, \"gor\": gor, \"wc\": wc, \"gvf\": gvf, \"kw\": kw, \"load\": load, \"tin\": tin, \"tm\": tm,\n            \"leak\": leak, \"vib\": 0.3 + 1.3 * f[\"stage_wear\"] + 0.15 * lock,\n            \"cv\": 1.0 + 0.8 * max(0.0, gvf - 10) + 14 * lock,\n            \"starts\": self.op[\"starts_30d_normal\"] + round(10 * max(0.0, (f[\"gas_interference\"] - 0.6) / 0.4)),\n            \"amps\": m[\"rated_a\"] * (0.3 + 0.7 * load / 100), \"freq\": self.freq,\n        }\n\n    # one published message ----------------------------------------------------------------------------------------------\n    def reading(self, s):\n        n = self.n\n        return {\n            \"running\": 1, \"vsd_freq_hz\": round(s[\"freq\"] + n(0.02), 2), \"vsd_kw\": round(max(0.5, s[\"kw\"] * (1 + n(0.006))), 2),\n            \"motor_current_a\": round(s[\"amps\"] * (1 + n(0.006)), 2), \"current_cv_pct\": round(max(0.2, s[\"cv\"] + n(0.15)), 2),\n            \"pip_psi\": round(s[\"pip\"] + n(2.0), 1), \"pd_psi\": round(s[\"pd\"] + n(2.0), 1),\n            \"intake_temp_f\": round(s[\"tin\"] + n(0.3), 1), \"motor_temp_f\": round(s[\"tm\"] + n(0.5), 1),\n            \"vibration_g\": round(max(0.02, s[\"vib\"] + n(0.03)), 3), \"leakage_ua\": round(max(0.05, s[\"leak\"] * (1 + n(0.03))), 2),\n            \"whp_psi\": round(self.w[\"whp_psi\"] + n(1.5), 1), \"casing_psi\": round(self.w[\"casing_psi\"] + n(1.0), 1),\n            \"flow_bpd\": round(max(0.0, s[\"q\"] * (1 + n(0.008))), 1), \"water_cut_pct\": round(s[\"wc\"], 1), \"gor_scf_stb\": round(s[\"gor\"]),\n            \"run_days\": round(self.run_days, 2), \"starts_30d\": s[\"starts\"],\n        }\n\n    def measure(self):\n        return self.reading(self.state())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The ESP runs at its frequency set point. Every step solves the operating point with the faults as they ramp; the run\n    days follow the demo clock.\n    \"\"\"\n\n    def __init__(self, twin, seed=2801):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.e = ESP(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.base_days = self.e.run_days\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.e.freq = self.twin[\"design\"][\"operation\"][\"freq_hz\"]\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.e.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.e.run_days = self.base_days + self.t / 86400\n        return self.e.state()\n\n    def measure(self, true):\n        return self.e.reading(true)\n", "twin_calc": "\"\"\"The electric submersible pump twin's expectations (ESP-2801, Centrilift 400FLEXPump17.5 stages on a VSD).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nPump curve at the VSD frequency (affinity laws, f = VSD frequency, fr = f / 60 Hz):\n    Q60 = Q / fr                                  the flow the same impeller speed-ratio gives at 60 Hz\n    H(Q, f) = N x fr^2 x (a + b Q60 + c Q60^2)    published stage curve, N stages\n    P(Q, f) = N x fr^3 x (p0 + p1 Q60) x SG       brake horsepower\n  Recommended range scales with fr too: 500 x fr to 2,600 x fr bbl/d; BEP ratio = Q60 / 1,750.\nMeasured head from the gauge: H = (Pd - PIP) / (0.433 x SG), SG of the oil-water mix from the water cut.\n  head ratio = measured / expected: wear and scale lower it at the same flow; gas lowers it too, but makes the current erratic.\nPower: expected VSD output kW = P x 0.7457 / (motor efficiency x cable efficiency); power ratio = measured / expected.\nIntake: fluid over pump = (PIP - casing pressure) / (0.433 x SG oil);\n  free gas at the intake (GVF): Rs = Rsb x min(PIP / Pb, 1), free gas = (GOR - Rs) x (1 - WC) scf per bbl liquid,\n  Bg = 0.00504 z T / p bbl/scf, a gas separator removes a fraction; GVF = Vg / (Vg + 1).\nMotor cooling: fluid velocity past the motor v = Q / annulus area (casing ID, motor OD);\n  expected rise above intake = rise_ref x (load / load_ref) x sqrt(v_ref / max(v, v_min)).\nInsulation: leakage corrected to a reference temperature, halving per 18 \u00b0F (10 \u00b0C): leak / 2^((T - Tref) / 18).\nEach expression works on one reading (Monitor keeps no state for the twin); counters (run days, starts) come from the VSD.\n\"\"\"\nimport math\n\nGRAD = 0.433        # psi per ft of fresh water\nHHP = 135770.0      # Q[bbl/d] x H[ft] x SG / 135,770 = hydraulic hp\nKW = 0.7457         # kW per hp\nBBL_FT3 = 5.615\n\n\ndef _g(x):\n    \"\"\"A constant as written into the Monitor expression (8 significant digits), so Python and pandas use the same number.\"\"\"\n    return float(f\"{x:.8g}\")\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    p, m, w, fl = d[\"pump\"], d[\"motor\"], d[\"well\"], d[\"fluid\"]\n    area = math.pi / 4 * (w[\"casing_id_in\"] ** 2 - m[\"od_in\"] ** 2) / 144.0\n    return dict(N=p[\"stages\"], qmin=p[\"q_min_bpd\"], qmax=p[\"q_max_bpd\"], qbep=p[\"q_bep_bpd\"], a=p[\"head_coef\"][0], b=p[\"head_coef\"][1],\n                c=p[\"head_coef\"][2], p0=p[\"power_coef\"][0], p1=p[\"power_coef\"][1], hp=m[\"rated_hp_60hz\"], eff=m[\"eff\"], ceff=m[\"cable_eff\"],\n                tlim=m[\"temp_limit_f\"], rref=m[\"rise_ref_f\"], lref=m[\"load_ref\"], vref=m[\"v_ref_fts\"], vmin=m[\"v_min_fts\"],\n                depth=w[\"pump_depth_ft\"], perf=w[\"perf_depth_ft\"], pr=w[\"reservoir_psi\"], area=area,\n                sgo=fl[\"sg_oil\"], sgw=fl[\"sg_water\"], rsb=fl[\"rsb_scf_stb\"], pb=fl[\"pb_psi\"], z=fl[\"z\"], sep=fl[\"gas_sep_eff\"],\n                gvf=fl[\"gvf_limit_pct\"])\n\n\n# shared pure-Python helpers (physics.py and the figures use them too) -------------------------------------------------\ndef stage_head(k, q60):\n    return k[\"a\"] + k[\"b\"] * q60 + k[\"c\"] * q60 * q60\n\n\ndef stage_bhp(k, q60):\n    return k[\"p0\"] + k[\"p1\"] * q60\n\n\ndef pump_head(k, q, f):\n    fr = max(f, 1.0) / 60.0\n    return k[\"N\"] * fr * fr * stage_head(k, q / fr)\n\n\ndef gvf_pct(k, pip, gor, wc, tin):\n    rs = k[\"rsb\"] * min(pip / k[\"pb\"], 1.0)\n    vg = (1 - k[\"sep\"]) * (1 - wc / 100) * max(gor - rs, 0.0) * 0.00504 * k[\"z\"] * (tin + 460) / (pip + 14.7)\n    return 100 * vg / (vg + 1)\n\n\ndef motor_rise(k, load_pct, v):\n    return k[\"rref\"] * (load_pct / 100 / k[\"lref\"]) * math.sqrt(k[\"vref\"] / max(v, k[\"vmin\"]))\n\n\ndef _parts(twin):\n    k = _k(twin)\n    F = \"np.maximum(df['VSD_FREQ_HZ'], 1)\"\n    FR = f\"({F} / 60)\"\n    Q60 = f\"(df['FLOW_BPD'] / {FR})\"\n    SG = f\"(df['WATER_CUT_PCT'] / 100 * {k['sgw']} + (1 - df['WATER_CUT_PCT'] / 100) * {k['sgo']})\"\n    HM = f\"((df['PD_PSI'] - df['PIP_PSI']) / ({GRAD} * {SG}))\"\n    HE = f\"np.maximum({k['N']} * {FR} ** 2 * ({k['a']} + {k['b']} * {Q60} + {k['c']} * {Q60} ** 2), 1)\"\n    HR = f\"({HM} / {HE})\"\n    BR = f\"({Q60} / {k['qbep']})\"\n    PE = f\"({k['N']} * ({k['p0']} + {k['p1']} * {Q60}) * {FR} ** 3 * {SG} * {KW / (k['eff'] * k['ceff']):.8g})\"\n    SHAFT = f\"(np.maximum(df['VSD_KW'], 0.1) * {k['eff'] * k['ceff'] / KW:.8g})\"\n    LOAD = f\"(df['VSD_KW'] * {k['eff'] * k['ceff'] / KW:.8g} / ({k['hp']} * {FR}) * 100)\"\n    VG = (f\"({(1 - k['sep']) * 0.00504 * k['z']:.8g} * (1 - df['WATER_CUT_PCT'] / 100) * np.maximum(df['GOR_SCF_STB'] - {k['rsb']} * \"\n          f\"np.minimum(df['PIP_PSI'] / {k['pb']}, 1), 0) * (df['INTAKE_TEMP_F'] + 460) / (df['PIP_PSI'] + 14.7))\")\n    V = f\"(df['FLOW_BPD'] * {BBL_FT3 / 86400 / k['area']:.8g})\"\n    RISE = \"(df['MOTOR_TEMP_F'] - df['INTAKE_TEMP_F'])\"\n    REXP = f\"({k['rref'] / k['lref']:.8g} * {LOAD} / 100 * np.sqrt({k['vref']} / np.maximum({V}, {k['vmin']})))\"\n    LC = f\"(df['LEAKAGE_UA'] / np.power(2, (df['MOTOR_TEMP_F'] - {twin['twin_model']['limits']['leak_ref_f']}) / 18))\"\n    PWF = f\"(df['PIP_PSI'] + {GRAD} * {SG} * {k['perf'] - k['depth']})\"\n    return dict(k=k, FR=FR, Q60=Q60, SG=SG, HM=HM, HE=HE, HR=HR, BR=BR, PE=PE, SHAFT=SHAFT, LOAD=LOAD, VG=VG, V=V, RISE=RISE, REXP=REXP, LC=LC, PWF=PWF)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"FLOW_60HZ_BPD\", p[\"Q60\"]),\n        (\"SG_MIX\", p[\"SG\"]),\n        (\"HEAD_MEASURED_FT\", p[\"HM\"]),\n        (\"HEAD_EXPECTED_FT\", p[\"HE\"]),\n        (\"HEAD_RATIO\", p[\"HR\"]),\n        (\"BEP_RATIO\", p[\"BR\"]),\n        (\"POWER_EXPECTED_KW\", p[\"PE\"]),\n        (\"POWER_RATIO\", f\"df['VSD_KW'] / {p['PE']}\"),\n        (\"LOAD_PCT\", p[\"LOAD\"]),\n        (\"PUMP_EFF_PCT\", f\"df['FLOW_BPD'] * {p['HM']} * {p['SG']} / {HHP} / {p['SHAFT']} * 100\"),\n        (\"FLUID_OVER_PUMP_FT\", f\"(df['PIP_PSI'] - df['CASING_PSI']) / ({GRAD} * {k['sgo']})\"),\n        (\"PI_BPD_PSI\", f\"df['FLOW_BPD'] / np.maximum({k['pr']} - {p['PWF']}, 1)\"),\n        (\"INTAKE_GVF_PCT\", f\"100 * {p['VG']} / ({p['VG']} + 1)\"),\n        (\"MOTOR_VELOCITY_FTS\", p[\"V\"]),\n        (\"MOTOR_RISE_F\", p[\"RISE\"]),\n        (\"MOTOR_RISE_EXPECTED_F\", p[\"REXP\"]),\n        (\"MOTOR_RISE_RATIO\", f\"{p['RISE']} / np.maximum({p['REXP']}, 1)\"),\n        (\"LEAKAGE_CORR_UA\", p[\"LC\"]),\n        (\"RUN_LIFE_YEARS\", \"df['RUN_DAYS'] / 365.25\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    L = twin[\"twin_model\"][\"limits\"]\n    fr = max(r[\"vsd_freq_hz\"], 1) / 60\n    q, wc = r[\"flow_bpd\"], r[\"water_cut_pct\"]\n    q60 = q / fr\n    sg = wc / 100 * k[\"sgw\"] + (1 - wc / 100) * k[\"sgo\"]\n    hm = (r[\"pd_psi\"] - r[\"pip_psi\"]) / (GRAD * sg)\n    he = max(k[\"N\"] * fr ** 2 * (k[\"a\"] + k[\"b\"] * q60 + k[\"c\"] * q60 ** 2), 1)\n    pe = k[\"N\"] * (k[\"p0\"] + k[\"p1\"] * q60) * fr ** 3 * sg * _g(KW / (k[\"eff\"] * k[\"ceff\"]))\n    shaft = max(r[\"vsd_kw\"], 0.1) * _g(k[\"eff\"] * k[\"ceff\"] / KW)\n    load = r[\"vsd_kw\"] * _g(k[\"eff\"] * k[\"ceff\"] / KW) / (k[\"hp\"] * fr) * 100\n    vg = (_g((1 - k[\"sep\"]) * 0.00504 * k[\"z\"]) * (1 - wc / 100) * max(r[\"gor_scf_stb\"] - k[\"rsb\"] * min(r[\"pip_psi\"] / k[\"pb\"], 1), 0)\n          * (r[\"intake_temp_f\"] + 460) / (r[\"pip_psi\"] + 14.7))\n    v = q * _g(BBL_FT3 / 86400 / k[\"area\"])\n    rise = r[\"motor_temp_f\"] - r[\"intake_temp_f\"]\n    rexp = _g(k[\"rref\"] / k[\"lref\"]) * load / 100 * math.sqrt(k[\"vref\"] / max(v, k[\"vmin\"]))\n    pwf = r[\"pip_psi\"] + GRAD * sg * (k[\"perf\"] - k[\"depth\"])\n    return {\n        \"flow_60hz_bpd\": q60, \"sg_mix\": sg, \"head_measured_ft\": hm, \"head_expected_ft\": he, \"head_ratio\": hm / he,\n        \"bep_ratio\": q60 / k[\"qbep\"], \"power_expected_kw\": pe, \"power_ratio\": r[\"vsd_kw\"] / pe, \"load_pct\": load,\n        \"pump_eff_pct\": q * hm * sg / HHP / shaft * 100,\n        \"fluid_over_pump_ft\": (r[\"pip_psi\"] - r[\"casing_psi\"]) / (GRAD * k[\"sgo\"]),\n        \"pi_bpd_psi\": q / max(k[\"pr\"] - pwf, 1),\n        \"intake_gvf_pct\": 100 * vg / (vg + 1), \"motor_velocity_fts\": v, \"motor_rise_f\": rise, \"motor_rise_expected_f\": rexp,\n        \"motor_rise_ratio\": rise / max(rexp, 1),\n        \"leakage_corr_ua\": r[\"leakage_ua\"] / 2 ** ((r[\"motor_temp_f\"] - L[\"leak_ref_f\"]) / 18),\n        \"run_life_years\": r[\"run_days\"] / 365.25,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    HR, BR, CV, RUN = p[\"HR\"], p[\"BR\"], \"df['CURRENT_CV_PCT']\", \"(df['RUNNING'] > 0.5)\"\n    LC = p[\"LC\"]\n    lo = k[\"qmin\"] / k[\"qbep\"]\n    return [\n        (\"ESP_SHAFT_BROKEN\", f\"{RUN} & ({HR} < {L['head_broken']}) & ({p['LOAD']} < {L['load_broken_pct']}) & ({CV} <= {L['cv_pct']})\", \"Critical\", \"broken_shaft\"),\n        (\"ESP_GAS_LOCK\", f\"{RUN} & ({BR} < {lo:.8g}) & ({CV} > {L['cv_pct']})\", \"High\", \"gas_interference\"),\n        (\"ESP_HEAD_LOSS_HIGH\", f\"{RUN} & ({HR} >= {L['head_broken']}) & ({HR} < {L['head_loss']}) & ({CV} <= {L['cv_pct']})\", \"High\", \"stage_wear\"),\n        (\"ESP_INSULATION_LOW\", f\"{LC} > {L['leak_limit_ua']}\", \"High\", \"motor_insulation\"),\n        (\"ESP_MOTOR_TEMP_LIMIT\", f\"df['MOTOR_TEMP_F'] > {k['tlim']}\", \"High\", \"motor_cooling\"),\n        (\"ESP_HEAD_LOW\", f\"{RUN} & ({HR} >= {L['head_loss']}) & ({HR} < {L['head_low']}) & ({CV} <= {L['cv_pct']})\", \"Medium\", \"scale_deposits\"),\n        (\"ESP_POWER_HIGH\", f\"{RUN} & ((df['VSD_KW'] / {p['PE']}) > {L['power_high']})\", \"Medium\", \"scale_deposits\"),\n        (\"ESP_VIBRATION_HIGH\", f\"df['VIBRATION_G'] > {L['vibration_g']}\", \"Medium\", \"stage_wear\"),\n        (\"ESP_CURRENT_UNSTABLE\", f\"{RUN} & ({CV} > {L['cv_pct']})\", \"Medium\", \"gas_interference\"),\n        (\"ESP_GAS_HIGH\", f\"(100 * {p['VG']} / ({p['VG']} + 1)) > {k['gvf']}\", \"Medium\", \"gas_interference\"),\n        (\"ESP_DOWNTHRUST\", f\"{RUN} & ({BR} < {lo:.8g}) & ({CV} <= {L['cv_pct']}) & ({HR} >= {L['head_broken']})\", \"Medium\", \"inflow_decline\"),\n        (\"ESP_LOW_SUBMERGENCE\", f\"((df['PIP_PSI'] - df['CASING_PSI']) / ({GRAD} * {k['sgo']})) < {L['submergence_ft']}\", \"Medium\", \"inflow_decline\"),\n        (\"ESP_MOTOR_COOLING\", f\"{RUN} & (({p['RISE']} / np.maximum({p['REXP']}, 1)) > {L['motor_rise_ratio']})\", \"Medium\", \"motor_cooling\"),\n        (\"ESP_LEAKAGE_RISING\", f\"({LC} > {L['leak_rising_x'] * L['leak_base_ua']:.8g}) & ({LC} <= {L['leak_limit_ua']})\", \"Medium\", \"motor_insulation\"),\n        (\"ESP_RESTARTS_HIGH\", f\"df['STARTS_30D'] > {L['starts_30d']}\", \"Medium\", \"gas_interference\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    run = r[\"running\"] > 0.5\n    hr, br, cv, lc = t[\"head_ratio\"], t[\"bep_ratio\"], r[\"current_cv_pct\"], t[\"leakage_corr_ua\"]\n    lo = _g(k[\"qmin\"] / k[\"qbep\"])\n    steady = cv <= L[\"cv_pct\"]\n    add(run and hr < L[\"head_broken\"] and t[\"load_pct\"] < L[\"load_broken_pct\"] and steady, \"ESP_SHAFT_BROKEN\", \"Critical\",\n        f\"Head {hr * 100:.0f} % of expected with the motor at {t['load_pct']:.0f} % load and a steady current: shaft or coupling broken\", \"pump\", \"broken_shaft\")\n    add(run and br < lo and cv > L[\"cv_pct\"], \"ESP_GAS_LOCK\", \"High\",\n        f\"Flow {r['flow_bpd']:.0f} bbl/d, below the range at {r['vsd_freq_hz']:.0f} Hz, with the current fluctuating {cv:.1f} %: gas lock\", \"intake\", \"gas_interference\")\n    add(run and L[\"head_broken\"] <= hr < L[\"head_loss\"] and steady, \"ESP_HEAD_LOSS_HIGH\", \"High\",\n        f\"Pump head {hr * 100:.0f} % of the curve at {r['flow_bpd']:.0f} bbl/d and {r['vsd_freq_hz']:.1f} Hz\", \"pump\", \"stage_wear\")\n    add(lc > L[\"leak_limit_ua\"], \"ESP_INSULATION_LOW\", \"High\", f\"Current leakage {lc:.1f} \u00b5A at {L['leak_ref_f']:.0f} \u00b0F, above {L['leak_limit_ua']:.0f} \u00b5A\", \"motor\", \"motor_insulation\")\n    add(r[\"motor_temp_f\"] > k[\"tlim\"], \"ESP_MOTOR_TEMP_LIMIT\", \"High\", f\"Motor at {r['motor_temp_f']:.0f} \u00b0F, above {k['tlim']:.0f} \u00b0F\", \"motor\", \"motor_cooling\")\n    add(run and L[\"head_loss\"] <= hr < L[\"head_low\"] and steady, \"ESP_HEAD_LOW\", \"Medium\",\n        f\"Pump head {hr * 100:.0f} % of the curve at {r['flow_bpd']:.0f} bbl/d and {r['vsd_freq_hz']:.1f} Hz\", \"pump\", \"scale_deposits\")\n    add(run and t[\"power_ratio\"] > L[\"power_high\"], \"ESP_POWER_HIGH\", \"Medium\",\n        f\"VSD power {r['vsd_kw']:.1f} kW, {t['power_ratio']:.2f} \u00d7 the curve at this flow\", \"pump\", \"scale_deposits\")\n    add(r[\"vibration_g\"] > L[\"vibration_g\"], \"ESP_VIBRATION_HIGH\", \"Medium\", f\"Gauge vibration {r['vibration_g']:.2f} g\", \"pump\", \"stage_wear\")\n    add(run and cv > L[\"cv_pct\"], \"ESP_CURRENT_UNSTABLE\", \"Medium\", f\"Motor current fluctuates {cv:.1f} % (std / mean over a minute)\", \"motor\", \"gas_interference\")\n    add(t[\"intake_gvf_pct\"] > k[\"gvf\"], \"ESP_GAS_HIGH\", \"Medium\",\n        f\"Free gas at the intake {t['intake_gvf_pct']:.1f} %, above {k['gvf']:.0f} % (PIP {r['pip_psi']:.0f} psi, GOR {r['gor_scf_stb']:.0f})\", \"intake\", \"gas_interference\")\n    add(run and br < lo and steady and hr >= L[\"head_broken\"], \"ESP_DOWNTHRUST\", \"Medium\",\n        f\"Flow {r['flow_bpd']:.0f} bbl/d is {br * 100:.0f} % of BEP, below the recommended range: downthrust\", \"pump\", \"inflow_decline\")\n    add(t[\"fluid_over_pump_ft\"] < L[\"submergence_ft\"], \"ESP_LOW_SUBMERGENCE\", \"Medium\",\n        f\"Only {t['fluid_over_pump_ft']:.0f} ft of fluid over the pump (PIP {r['pip_psi']:.0f} psi)\", \"well\", \"inflow_decline\")\n    add(run and t[\"motor_rise_ratio\"] > L[\"motor_rise_ratio\"], \"ESP_MOTOR_COOLING\", \"Medium\",\n        f\"Motor {t['motor_rise_f']:.0f} \u00b0F above the well fluid, {t['motor_rise_ratio']:.1f} \u00d7 the {t['motor_rise_expected_f']:.0f} \u00b0F expected\", \"motor\", \"motor_cooling\")\n    add(_g(L[\"leak_rising_x\"] * L[\"leak_base_ua\"]) < lc <= L[\"leak_limit_ua\"], \"ESP_LEAKAGE_RISING\", \"Medium\",\n        f\"Current leakage {lc:.1f} \u00b5A at {L['leak_ref_f']:.0f} \u00b0F, {lc / L['leak_base_ua']:.1f} \u00d7 commissioning\", \"motor\", \"motor_insulation\")\n    add(r[\"starts_30d\"] > L[\"starts_30d\"], \"ESP_RESTARTS_HIGH\", \"Medium\", f\"{r['starts_30d']:.0f} starts in 30 days\", \"drive\", \"gas_interference\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "ESP-2801 electric submersible pump twin. Expected values in Maximo Monitor from the pump stage curve, the affinity laws and the well design; the device sends only what it measures.", "twin": {"id": "ESP-2801", "name": "Electric submersible pump ESP-2801", "version": "1.0.0", "folder": "esp-twin"}, "identification": {"asset": "ESP-2801", "assetnum": "ESP-2801", "manufacturer": "Baker Hughes", "model": "Centrilift 400FLEXPump17.5 stages (pump); generic 375-series motor, seal and gauge", "description": "Electric submersible pump in a vertical oil well, variable speed drive, downhole gauge", "pump": "Centrilift 400FLEXPump17.5, mixed-flow stages, series 400 (4.00 in OD)", "motor": "3-phase induction motor, 375 series (3.75 in OD), oil filled (generic, assumption)", "seal": "Seal chamber section (protector) between pump and motor", "gauge": "Downhole gauge under the motor: intake and discharge pressure, temperatures, vibration, current leakage", "drive": "Variable speed drive (VSD) at the wellsite, frequency set point from the production engineer"}, "design": {"pump": {"stages": 266, "base_hz": 60.0, "base_rpm": 3500, "q_min_bpd": 500.0, "q_max_bpd": 2600.0, "q_bep_bpd": 1750.0, "h_bep_ft": 18.6, "p_bep_bhp": 0.34, "eff_bep": 0.71, "head_coef": [29.0, -0.0015206, -2.527e-06], "power_coef": [0.305, 2e-05], "source": "Baker Hughes Centrilift 400FLEXPump17.5 pump data sheet (2023), https://dam.bakerhughes.com/m/3998f10b727fc547/original/Centrilift-400FLEXPump17_5-pump-slsh.pdf. Flow range, head, power and efficiency at BEP: from the data sheet. BEP flow 1,750 bbl/d, shut-off head 29 ft and zero-head flow about 3,100 bbl/d: read from the published curve (1,750 x 18.6 / 135,770 / 0.34 = 0.70, consistent with the 71 % stated). head_coef: H = a + b Q + c Q^2 per stage at 60 Hz (ft, bbl/d), fitted through those three points; power_coef: bhp per stage = p0 + p1 Q, fitted to the published power curve (within a few %). Stage count: assumption from the design of this well, replace with your ESP design report."}, "motor": {"rated_hp_60hz": 100.0, "rated_v": 2300.0, "rated_a": 27.0, "eff": 0.86, "cable_eff": 0.96, "od_in": 3.75, "temp_limit_f": 300.0, "rise_ref_f": 30.0, "load_ref": 0.75, "v_ref_fts": 2.0, "v_min_fts": 0.2, "rise_exp": 0.5, "source": "assumption: typical value, replace with the motor nameplate and the vendor's motor temperature-rise data. Rated power scales with frequency (constant V/Hz); rise above intake temperature = rise_ref x (load / load_ref) x (v_ref / v)^0.5, a simple stand-in for the vendor's heat-transfer model. Alarm on the winding temperature well below the insulation rating."}, "well": {"pump_depth_ft": 6500.0, "perf_depth_ft": 7000.0, "casing_id_in": 4.892, "tubing_id_in": 2.992, "hazen_c": 120.0, "reservoir_psi": 2700.0, "pi_bpd_psi": 1.2, "whp_psi": 150.0, "casing_psi": 80.0, "bht_f": 190.0, "source": "assumption: typical value, replace with the well file (5 1/2 in 17 lb/ft casing, 3 1/2 in tubing, depths), the last build-up test (reservoir pressure, productivity index) and the flowline back-pressure."}, "fluid": {"sg_oil": 0.86, "sg_water": 1.05, "water_cut_pct": 60.0, "rsb_scf_stb": 200.0, "pb_psi": 800.0, "z": 0.9, "gas_sep_eff": 0.8, "gvf_limit_pct": 15.0, "source": "assumption: typical value, replace with the PVT report (bubble point, solution gas-oil ratio, linear Rs below Pb) and the gas separator / gas handler rating of your string. 15 % free gas at the intake is used as the limit for these mixed-flow stages; ask the vendor for the rating of your stages."}, "operation": {"freq_hz": 55.0, "run_days_at_start": 420.0, "starts_30d_normal": 1, "source": "assumption: typical value, replace with the production engineer's frequency set point and the VSD run log."}, "demo": {"time_scale": 60, "note": "Demo only: the plant clock runs 60 times faster; counters (run days, starts) follow it."}}, "telemetry": {"event": "esp", "publish_every_s": 60, "device_type": "ESP_WELL_VSD", "groups": {"VSD": "Variable speed drive at the wellsite", "Gauge": "Downhole gauge under the motor", "Well": "Wellhead and flow", "Test": "Last well test", "Run": "Run history"}, "points": [{"metric": "running", "path": "VSD.Running", "label": "ESP running (1 = yes)", "unit": "code"}, {"metric": "vsd_freq_hz", "path": "VSD.Frequency", "label": "VSD output frequency", "unit": "Hz"}, {"metric": "vsd_kw", "path": "VSD.OutputPower", "label": "VSD output power", "unit": "kW"}, {"metric": "motor_current_a", "path": "VSD.MotorCurrent", "label": "Motor current", "unit": "A"}, {"metric": "current_cv_pct", "path": "VSD.CurrentFluctuation", "label": "Motor current fluctuation over the last minute (std / mean)", "unit": "%"}, {"metric": "pip_psi", "path": "Gauge.IntakePressure", "label": "Pump intake pressure (PIP)", "unit": "psi"}, {"metric": "pd_psi", "path": "Gauge.DischargePressure", "label": "Pump discharge pressure", "unit": "psi"}, {"metric": "intake_temp_f", "path": "Gauge.IntakeTemperature", "label": "Intake (well fluid) temperature", "unit": "\u00b0F"}, {"metric": "motor_temp_f", "path": "Gauge.MotorTemperature", "label": "Motor winding temperature", "unit": "\u00b0F"}, {"metric": "vibration_g", "path": "Gauge.Vibration", "label": "Gauge vibration (radial)", "unit": "g"}, {"metric": "leakage_ua", "path": "Gauge.CurrentLeakage", "label": "Current leakage to ground (insulation)", "unit": "\u00b5A"}, {"metric": "whp_psi", "path": "Well.TubingPressure", "label": "Wellhead tubing pressure", "unit": "psi"}, {"metric": "casing_psi", "path": "Well.CasingPressure", "label": "Casing head pressure", "unit": "psi"}, {"metric": "flow_bpd", "path": "Well.LiquidRate", "label": "Liquid rate (oil + water)", "unit": "bbl/d"}, {"metric": "water_cut_pct", "path": "Test.WaterCut", "label": "Water cut, last well test", "unit": "%"}, {"metric": "gor_scf_stb", "path": "Test.GOR", "label": "Producing gas-oil ratio, last well test", "unit": "scf/stb"}, {"metric": "run_days", "path": "Run.Days", "label": "Days since the ESP was installed", "unit": "d"}, {"metric": "starts_30d", "path": "Run.Starts30d", "label": "Starts in the last 30 days", "unit": "count"}]}, "twin_model": {"limits": {"head_low": 0.92, "head_loss": 0.8, "head_broken": 0.3, "load_broken_pct": 40.0, "power_high": 1.15, "vibration_g": 1.0, "cv_pct": 5.0, "submergence_ft": 1000.0, "motor_rise_ratio": 1.5, "leak_ref_f": 220.0, "leak_base_ua": 1.5, "leak_rising_x": 3.0, "leak_limit_ua": 20.0, "starts_30d": 3, "source": "assumption: typical value, replace with your own operating practice. Head ratio 0.92 / 0.80, power ratio 1.15, current fluctuation 5 %, 1,000 ft of fluid over the pump, 1.0 g, leakage 3 x the commissioning value (corrected to 220 \u00b0F, halving per 18 \u00b0F / 10 \u00b0C) or 20 \u00b5A."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "stage_wear": {"name": "Stage wear (sand, abrasion, radial bearings)", "part": "pump", "symptoms": "head down at the same flow, efficiency down, power about the same, vibration up", "rules": ["ESP_HEAD_LOW", "ESP_HEAD_LOSS_HIGH", "ESP_VIBRATION_HIGH"], "default_ramp_min": 1.5}, "scale_deposits": {"name": "Scale in the stages", "part": "pump", "symptoms": "head down at the same flow, power up (friction in narrowed passages)", "rules": ["ESP_HEAD_LOW", "ESP_POWER_HIGH"], "default_ramp_min": 1.5}, "gas_interference": {"name": "Gas interference, then gas lock", "part": "intake", "symptoms": "free gas at the intake up, current erratic, flow down, then underload cycling", "rules": ["ESP_HEAD_LOW", "ESP_GAS_HIGH", "ESP_CURRENT_UNSTABLE", "ESP_GAS_LOCK", "ESP_RESTARTS_HIGH"], "default_ramp_min": 1.5}, "inflow_decline": {"name": "Inflow decline (pump-off)", "part": "well", "symptoms": "intake pressure and fluid level fall, flow below the recommended range", "rules": ["ESP_LOW_SUBMERGENCE", "ESP_DOWNTHRUST"], "default_ramp_min": 1.5}, "motor_cooling": {"name": "Motor cooling loss (deposits on the housing, emulsion)", "part": "motor", "symptoms": "motor temperature rise higher than expected for the load and the fluid velocity", "rules": ["ESP_MOTOR_COOLING", "ESP_MOTOR_TEMP_LIMIT"], "default_ramp_min": 1}, "motor_insulation": {"name": "Motor or cable insulation breakdown", "part": "motor", "symptoms": "current leakage rising faster than temperature explains", "rules": ["ESP_LEAKAGE_RISING", "ESP_INSULATION_LOW"], "default_ramp_min": 1}, "broken_shaft": {"name": "Broken shaft or coupling", "part": "pump", "symptoms": "no head, motor near no-load, current steady", "rules": ["ESP_SHAFT_BROKEN"], "default_ramp_min": 0.5}}, "presentation": {"title": "ESP-2801 electric submersible pump", "dashboard": "ESP_WELL_VSD"}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(10, 11, 15); ctl.target.set(1.2, 5.6, 0); ctl.update(); };
+const pumpView = () => { cam.position.set(2.2, 3.6, 3.2); ctl.target.set(0, 3.0, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 9, 6); scene.add(sun);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), red = M(0xb3262d, { m: .3 }), green = M(0x2f8a4b);
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+
+// ground with the surface equipment (y = 10 .. ) -- the well is cut: surface at the top, downhole string below
+const SURF = 9.6;
+const groundMat = M(0x4a4436, { r: .95, m: 0, t: .45 }); groundMat.depthWrite = false; scene.add(at(box(9, .08, 5, groundMat), 2, SURF, 0));
+// wellhead / christmas tree
+const tree = new THREE.Group(); at(tree, 0, SURF, 0); scene.add(tree);
+tree.add(at(cyl(.32, .32, .3, steel), 0, .15, 0));
+tree.add(at(cyl(.12, .12, 1.1, M(0xc0392b, { m: .4 })), 0, .85, 0));
+[.55, .95].forEach(y => tree.add(at(new THREE.Mesh(new THREE.TorusGeometry(.17, .05, 10, 24), M(0xd8a31a, { m: .3 })), 0, y, 0)));
+const wing = cyl(.08, .08, 1.4, steel); wing.rotation.z = Math.PI / 2; tree.add(at(wing, .75, .75, 0));
+tree.add(at(box(.12, .2, .12, M(0x0f62fe)), 1.25, .95, 0));            // pressure transmitter
+const flow = cyl(.1, .1, 1.6, M(0x6f7a85)); flow.rotation.z = Math.PI / 2; tree.add(at(flow, 2.2, .75, 0));
+// junction box and VSD cabinet
+scene.add(at(box(.4, .7, .3, M(0x8d8d8d)), 2.4, SURF + .35, 1.4));
+const vsd = at(box(1.3, 1.9, .8, M(0x4f6f8f, { m: .3 })), 4.1, SURF + .95, 1.4); scene.add(vsd);
+scene.add(at(box(.5, .3, .02, M(0x111111, { r: .3 })), 4.1, SURF + 1.4, 1.81));
+const vsdLamp = new THREE.Mesh(new THREE.SphereGeometry(.07, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(vsdLamp, 4.6, SURF + 1.65, 1.82));
+const tube = (pts, c = 0x9fb3c8, r = .025) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, r, 6, false); scene.add(new THREE.Mesh(g, M(c, { m: .6 }))); };
+tube([[3.6, SURF + .2, 1.4], [3, SURF + .1, 1.4], [2.6, SURF + .2, 1.4]], 0x222222, .035);
+tube([[2.25, SURF + .2, 1.4], [1, SURF + .05, .8], [.25, SURF + .05, .2]], 0x222222, .035);
+// short casing stub at surface and the "depth cut"
+scene.add(at(cyl(.3, .3, .9, M(0x7d8794, { m: .5 })), 0, SURF - .45, 0));
+const cutTxt = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#c6c6c6'; g.font = '28px Arial'; g.fillText('≈ 6,500 ft not shown', 10, 42); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true })); s.scale.set(2.4, .3, 1); return s; })();
+scene.add(at(cutTxt, 1.5, SURF - 1.3, 0));
+for (let i = 0; i < 3; i++) scene.add(at(new THREE.Mesh(new THREE.SphereGeometry(.04, 8, 6), M(0xc6c6c6)), 0, SURF - 1.1 - i * .25, 0));
+
+// downhole string: y from 0 (gauge bottom) to 8.3 (tubing top). casing ID 4.892 in -> r .245
+const casingMat = M(0x7d8794, { m: .5, t: .28, ds: true }); casingMat.depthWrite = false;
+const casing = cyl(.26, .26, 9.0, casingMat, 40); scene.add(at(casing, 0, 4.2, 0));
+const string = new THREE.Group(); scene.add(string);
+const S = (o, y) => { o.position.y = y; string.add(o); return o; };
+S(cyl(.06, .06, .3, dark), .15);                                  // gauge nose
+const gauge = S(cyl(.16, .16, .45, M(0x8a3ffc, { m: .3 })), .5);  // gauge
+const motorMat = M(0x2f6db5, { m: .4, t: 1 });
+const motor = S(cyl(.1875, .1875, 2.6, motorMat), 2.05);           // 375 series motor
+const seal = S(cyl(.18, .18, .9, M(0x5a7f9e, { m: .4 })), 3.8);     // seal / protector
+const intakeG = new THREE.Group(); S(intakeG, 4.5);
+intakeG.add(cyl(.2, .2, .5, M(0x6f7a85, { m: .5 })));
+for (let i = 0; i < 8; i++) { const a = i / 8 * Math.PI * 2; const s = box(.06, .22, .02, dark); s.position.set(Math.cos(a) * .2, 0, Math.sin(a) * .2); s.rotation.y = -a; intakeG.add(s); }
+const pumpMat = M(0x3a7d5c, { m: .45, t: 1 });
+const pumps = [S(cyl(.2, .2, 1.6, pumpMat), 5.6), S(cyl(.2, .2, 1.6, pumpMat), 7.25)];
+[6.43].forEach(y => S(cyl(.22, .22, .08, steel), y));
+S(cyl(.13, .2, .25, steel), 8.17);                                 // discharge head
+S(cyl(.075, .075, 1.3, steel), 8.9);                               // tubing
+// flat power cable (MLE) along the string
+tube([[.27, 8.4, 0], [.235, 7, 0], [.235, 4.6, 0], [.22, 3.5, 0], [.2, 3.3, 0]], 0x222222, .02);
+// impellers inside the pump (visible in cutaway), one ring per "stage" drawn every 0.1
+const impG = new THREE.Group(); string.add(impG);
+const impMat = M(0xd9a441, { m: .7, r: .25 });
+[[4.85, 6.35], [6.5, 8.0]].forEach(([a, b]) => { for (let y = a; y < b; y += .1) { const d = new THREE.Mesh(new THREE.CylinderGeometry(.17, .17, .025, 16), impMat); impG.add(at(d, 0, y, 0)); const v = box(.3, .04, .015, M(0x9c6b12)); impG.add(at(v, 0, y + .03, 0)); } });
+const shaft = S(cyl(.03, .03, 3.4, steel), 6.4); shaft.visible = false;
+// fluid and gas particles in the annulus / pump
+const N = 140, parts = [], gas = [];
+const pm = new THREE.MeshBasicMaterial({ color: 0x4589ff }), gm = new THREE.MeshBasicMaterial({ color: 0xffffff });
+for (let i = 0; i < N; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(.022, 6, 4), pm); s.userData = { a: Math.random() * 6.28, y: Math.random() * 8.3 }; scene.add(s); parts.push(s); }
+for (let i = 0; i < 50; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(.035, 8, 6), gm); s.userData = { a: Math.random() * 6.28, y: 4.3 + Math.random() * 3.9 }; s.visible = false; scene.add(s); gas.push(s); }
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('vsd', [4.1, SURF + 1.0, 1.9]); lbl('wh', [1.4, SURF + 1.3, 0]); lbl('pd', [.3, 8.2, .2]); lbl('pump', [.3, 6.6, .2]);
+lbl('intake', [.3, 4.65, .2]); lbl('motor', [.3, 2.6, .2]); lbl('gauge', [.3, .6, .2]); lbl('op', [-.3, 7.4, -.2]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let flowNow = 1600, freqNow = 55, gvfNow = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design, P = d.pump;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  flowNow = r.flow_bpd; freqNow = r.vsd_freq_hz; gvfNow = t.intake_gvf_pct;
+  const fr = r.vsd_freq_hz / 60, lo = P.q_min_bpd * fr, hi = P.q_max_bpd * fr;
+  setLbl('vsd', 'VSD · power · current fluctuation', `${fmt(r.vsd_freq_hz, 1)} Hz · ${fmt(r.vsd_kw, 1)} kW · ${fmt(r.current_cv_pct, 1)} %`, st(names.has('ESP_CURRENT_UNSTABLE') || names.has('ESP_POWER_HIGH'), r.current_cv_pct > L.cv_pct * .6));
+  setLbl('wh', `wellhead · starts / 30 d: ${r.starts_30d}`, `${fmt(r.flow_bpd, 0)} bbl/d · WHP ${fmt(r.whp_psi, 0)} psi`, st(names.has('ESP_RESTARTS_HIGH')));
+  setLbl('pd', 'discharge pressure', `${fmt(r.pd_psi, 0)} psi`, '');
+  setLbl('pump', 'pump head measured / expected', `${fmt(t.head_measured_ft, 0)} / ${fmt(t.head_expected_ft, 0)} ft · ${fmt(t.head_ratio * 100, 0)} %`,
+    st(names.has('ESP_HEAD_LOSS_HIGH') || names.has('ESP_SHAFT_BROKEN'), names.has('ESP_HEAD_LOW')));
+  setLbl('op', `recommended ${fmt(lo, 0)}–${fmt(hi, 0)} bbl/d at ${fmt(r.vsd_freq_hz, 0)} Hz`, `BEP ratio ${fmt(t.bep_ratio, 2)}`, st(names.has('ESP_DOWNTHRUST') || names.has('ESP_GAS_LOCK'), t.bep_ratio < .45 || t.bep_ratio > 1.4));
+  setLbl('intake', `intake · fluid over pump ${fmt(t.fluid_over_pump_ft, 0)} ft`, `PIP ${fmt(r.pip_psi, 0)} psi · gas ${fmt(t.intake_gvf_pct, 1)} %`,
+    st(names.has('ESP_GAS_HIGH') || names.has('ESP_LOW_SUBMERGENCE') || names.has('ESP_GAS_LOCK'), t.intake_gvf_pct > d.fluid.gvf_limit_pct * .6));
+  setLbl('motor', `motor · rise ${fmt(t.motor_rise_f, 0)} °F (expected ${fmt(t.motor_rise_expected_f, 0)}) · ${fmt(t.motor_velocity_fts, 2)} ft/s past it`,
+    `${fmt(r.motor_temp_f, 0)} °F · load ${fmt(t.load_pct, 0)} %`, st(names.has('ESP_MOTOR_TEMP_LIMIT') || names.has('ESP_MOTOR_COOLING'), t.motor_rise_ratio > 1.25));
+  setLbl('gauge', 'gauge · vibration · leakage at 220 °F', `${fmt(r.vibration_g, 2)} g · ${fmt(t.leakage_corr_ua, 1)} µA`,
+    st(names.has('ESP_INSULATION_LOW') || names.has('ESP_VIBRATION_HIGH'), names.has('ESP_LEAKAGE_RISING')));
+  $('k-health').textContent = ST.health; $('k-hr').textContent = fmt(t.head_ratio, 2); $('k-q').textContent = fmt(r.flow_bpd, 0);
+  const inR = r.flow_bpd >= lo && r.flow_bpd <= hi;
+  $('c-range-t').textContent = inR ? 'in recommended range' : r.flow_bpd < lo ? 'below range (downthrust)' : 'above range (upthrust)'; $('c-range').className = 'chip ' + (inR ? 'ok' : 'bad');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Pump head (ft)', fmt(t.head_measured_ft, 0), fmt(t.head_expected_ft, 0), t.head_ratio < L.head_low) +
+    row('Flow (bbl/d)', fmt(r.flow_bpd, 0), `${fmt(lo, 0)}–${fmt(hi, 0)}`, !inR) +
+    row('Flow ÷ BEP flow at this Hz', fmt(t.bep_ratio, 2), '1.00') +
+    row('VSD power (kW)', fmt(r.vsd_kw, 1), fmt(t.power_expected_kw, 1), t.power_ratio > L.power_high) +
+    row('Pump efficiency (%)', fmt(t.pump_eff_pct, 0), fmt(P.eff_bep * 100, 0) + ' at BEP') +
+    row('Intake pressure (psi)', fmt(r.pip_psi, 0), '–') +
+    row('Fluid over pump (ft)', fmt(t.fluid_over_pump_ft, 0), '≥ ' + L.submergence_ft, t.fluid_over_pump_ft < L.submergence_ft) +
+    row('Free gas at intake (%)', fmt(t.intake_gvf_pct, 1), '≤ ' + d.fluid.gvf_limit_pct, t.intake_gvf_pct > d.fluid.gvf_limit_pct) +
+    row('Motor rise (°F)', fmt(t.motor_rise_f, 0), fmt(t.motor_rise_expected_f, 0), t.motor_rise_ratio > L.motor_rise_ratio) +
+    row('Velocity past motor (ft/s)', fmt(t.motor_velocity_fts, 2), '≥ 1.00', t.motor_velocity_fts < 1) +
+    row('Leakage at 220 °F (µA)', fmt(t.leakage_corr_ua, 1), fmt(L.leak_base_ua, 1), t.leakage_corr_ua > L.leak_rising_x * L.leak_base_ua) +
+    row('Vibration (g)', fmt(r.vibration_g, 2), '≤ ' + L.vibration_g, r.vibration_g > L.vibration_g) +
+    row('Productivity index', fmt(t.pi_bpd_psi, 2), fmt(d.well.pi_bpd_psi, 2)) +
+    row('Run life (years)', fmt(t.run_life_years, 2), '–');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the ESP behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  vsdLamp.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  vsdLamp.material.emissive.copy(vsdLamp.material.color);
+  motorMat.color.setHex(names.has('ESP_MOTOR_TEMP_LIMIT') ? 0xb3262d : names.has('ESP_MOTOR_COOLING') ? 0xc77d1e : 0x2f6db5);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = `${TW.identification.pump}, ${TW.design.pump.stages} stages`;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-pump').onclick = pumpView;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [pumpMat, motorMat].forEach(m => { m.transparent = true; m.opacity = cut ? .22 : 1; m.depthWrite = !cut; }); casingMat.opacity = cut ? .08 : .28;
+  shaft.visible = cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  impG.rotation.y += dt * freqNow / 60 * 6;                       // slowed-down rotation, proportional to frequency
+  const vy = flowNow / 1600 * .9;
+  parts.forEach((p, i) => {
+    const u = p.userData; u.y += vy * dt; if (u.y > 8.3) u.y = 0;
+    const inPump = u.y > 4.5, r = inPump ? .1 + (i % 3) * .03 : .2 + (i % 2) * .025; u.a += dt * (inPump ? freqNow / 60 * 3 : .2);
+    p.position.set(Math.cos(u.a) * r, u.y, Math.sin(u.a) * r); p.visible = !inPump || cut;
+  });
+  const ng = Math.round(Math.min(1, gvfNow / 25) * gas.length);
+  gas.forEach((g, i) => { const u = g.userData; g.visible = i < ng; u.y += (vy * .7 + .15) * dt; if (u.y > 8.2) u.y = 4.3; u.a += dt * 2; g.position.set(Math.cos(u.a) * .15, u.y, Math.sin(u.a) * .15); });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

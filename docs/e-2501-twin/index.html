@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>E-2501 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>E-2501</b><span class="g">Crude / kerosene exchanger · TEMA AES · cold preheat train</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-u"><span class="dot"></span><span id="c-u-t">U –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Duty, fouling and pressure drop →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the exchanger model…</div>
+<div class="credit">TEMA AES shell-and-tube exchanger: channel with removable cover (A), one-pass shell (E), floating head (S); 158 tubes, 4 passes. Typical proportions, not vendor CAD; only some tubes and baffles are drawn. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-pull">Pull bundle</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Crude (cold) in the tubes, kerosene (hot) in the shell. In the cutaway the tubes darken as the fouling resistance grows.</div>
+<aside>
+  <section>
+    <h2>E-2501 twin</h2>
+    <p class="sub" id="sub">crude / kerosene exchanger</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Fouling allowance used<b id="k-rf">–</b></div><div>Fuel penalty<b id="k-fuel">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over about a minute of real time (real fouling takes months). The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures: four temperatures, two flows, two pressure drops, two pressures and the kerosene colour. The clean U, the fouling resistance, the expected pressure drops and the fuel penalty are computed from the twin file: the exchanger data sheet.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for E-2501: the crude / kerosene exchanger with its transmitters and the kerosene colour analyser, with\ninjectable faults.\n\nThe real exchanger sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages. Pure Python (math, random) so it also runs in the browser.\n\nPhysics of the stand-in (same 1-2 shell-and-tube relations as the twin, plus what the twin does not know):\n  U = 1 / (1/hio(Wc_tubes) + 1/ho(Wk) + R_wall + Rf_tube + Rf_shell); duty from effectiveness-NTU.\n  Tube fouling: deposit of thickness Rf x k_dep (k_dep = 0.35 W/m K, assumption) narrows the tube, and the rough deposit\n  adds friction: dP ratio = (ID / (ID - 2 thickness))^5 x (1 + 250 Rf).\n  Pass partition leak: a fraction b of the crude short-cuts the passes and mixes at the outlet.\n  Tube leak: crude (higher pressure) leaks into the shell and leaves with the kerosene, colder and dark.\n\"\"\"\nimport math\nimport random\n\ntry:\n    from twin_calc import _k, u_clean, duty\nexcept ImportError:  # pragma: no cover\n    raise\n\n\nclass Exchanger:\n    RF_T0, RF_S0 = 0.00006, 0.00003      # residual fouling a few weeks after cleaning (assumption)\n    K_DEP = 0.35                         # deposit thermal conductivity, W/m K (assumption)\n\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        self.k = _k(twin)\n        d = twin[\"design\"]\n        self.p, self.g, self.hy = d[\"process\"], d[\"geometry\"], d[\"hydraulics\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.load, self.kload, self.dtc, self.dtk = 1.0, 1.0, 0.0, 0.0\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def vary(self):\n        \"\"\"A random but plausible operating point (throughput 92-105 %, inlet temperatures +-3 K).\"\"\"\n        self.load = self.rnd.uniform(0.92, 1.05)\n        self.kload = self.load * self.rnd.uniform(0.97, 1.03)\n        self.dtc, self.dtk = self.rnd.uniform(-3, 3), self.rnd.uniform(-3, 3)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def true(self):\n        f, k, p = self.faults, self.k, self.p\n        turn = 1 - 0.45 * f[\"low_throughput\"]\n        wc = p[\"crude_flow_t_h\"] * self.load * turn\n        wk = p[\"kero_flow_t_h\"] * self.kload * (1 - 0.4 * f[\"low_throughput\"])\n        tci, tki = p[\"crude_in_c\"] + self.dtc, p[\"kero_in_c\"] + self.dtk\n        rft = self.RF_T0 + 0.00114 * f[\"tube_fouling\"]\n        rfs = self.RF_S0 + 0.00077 * f[\"shell_fouling\"]\n        b = 0.30 * f[\"partition_leak\"]\n        leak = 0.06 * f[\"tube_leak\"]\n        wct = wc * (1 - b)\n        u = 1 / (1 / u_clean(k, wct, wk) + rft + rfs)\n        q = duty(k, u, wct, wk, tki, tci)\n        cc, ch = wc / 3.6 * k[\"cpc\"], wk / 3.6 * k[\"cpk\"]\n        tco = tci + q / cc                                   # bypassed crude mixes back at the outlet\n        tk_mid = tki - q / ch\n        cl = leak * cc\n        tko = (ch * tk_mid + cl * tco) / (ch + cl)           # leaked crude leaves with the kerosene\n        idm = self.g[\"tube_id_mm\"]\n        th = rft * self.K_DEP * 1000                         # deposit thickness, mm\n        dpt = k[\"dpt0\"] * (wct / k[\"wc0\"]) ** k[\"ed\"] * (idm / (idm - 2 * th)) ** 5 * (1 + 250 * rft)\n        dps = k[\"dps0\"] * (wk / k[\"wk0\"]) ** k[\"ed\"] * (1 + 600 * (rfs - self.RF_S0))\n        return {\"wc\": wc, \"wk\": wk, \"tci\": tci, \"tco\": tco, \"tki\": tki, \"tko\": tko, \"q\": q, \"u\": u, \"rf\": rft + rfs,\n                \"dpt\": dpt, \"dps\": dps, \"leak\": leak, \"bypass\": b}\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, s):\n        f, k, hy = self.faults, self.k, self.hy\n        return {\n            \"crude_flow_t_h\": round(s[\"wc\"] * (1 + self.n(0.003)), 3),\n            \"crude_in_c\": round(s[\"tci\"] + self.n(0.08), 2),\n            \"crude_out_c\": round(s[\"tco\"] + 6.0 * f[\"ti_drift\"] + self.n(0.08), 2),\n            \"dp_tube_bar\": round(s[\"dpt\"] * (1 + self.n(0.01)), 4),\n            \"crude_pressure_barg\": round(hy[\"crude_pressure_barg\"] + self.n(0.05), 2),\n            \"kero_flow_t_h\": round(s[\"wk\"] * (1 + self.n(0.003)), 3),\n            \"kero_in_c\": round(s[\"tki\"] + self.n(0.08), 2),\n            \"kero_out_c\": round(s[\"tko\"] + self.n(0.08), 2),\n            \"dp_shell_bar\": round(s[\"dps\"] * (1 + self.n(0.01)), 4),\n            \"kero_pressure_barg\": round(hy[\"kero_pressure_barg\"] + self.n(0.05), 2),\n            \"kero_saybolt\": round(max(-16.0, k[\"sayn\"] - 333 * s[\"leak\"] + self.n(0.3)), 1),\n        }\n\n    def measure(self):\n        self.vary()\n        return self.reading(self.true())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The plant clock runs `demo.time_scale` times faster than real time. Over a plant day the crude throughput swings\n    +-4 % and the tank and column temperatures drift a little, so the twin's expected values move with the operating point.\n    \"\"\"\n\n    def __init__(self, twin, seed=2501):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.x = Exchanger(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        \"\"\"Back to a just-cleaned exchanger at once (all faults to zero).\"\"\"\n        for f in self.faults.values():\n            f.sev = f.target = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.x.faults[k] = f.sev\n        self.t += dt * self.scale\n        ph = 2 * math.pi * (self.t % 86400) / 86400\n        self.x.load = 1.0 + 0.04 * math.sin(ph)\n        self.x.kload = self.x.load * (1 + 0.01 * math.sin(2 * ph))\n        self.x.dtc = 2.0 * math.sin(ph - 0.8)\n        self.x.dtk = 1.5 * math.cos(ph)\n        return self.x.true()\n\n    def measure(self, true):\n        return self.x.reading(true)\n", "twin_calc": "\"\"\"The shell-and-tube heat exchanger twin's expectations (E-2501, crude / kerosene, TEMA AES, 1 shell pass, 4 tube passes).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nDuty from each side (W in t/h, so W/3.6 is kg/s; cp in kJ/kg K; Q in kW):\n    Q_hot = W_kero/3.6 x cp_kero x (Tk_in - Tk_out)      Q_cold = W_crude/3.6 x cp_crude x (Tc_out - Tc_in)\n    balance = (Q_hot - Q_cold) / Q x 100 %, with Q = (Q_hot + Q_cold) / 2\nRating (LMTD with the F correction for one shell pass and an even number of tube passes):\n    dT1 = Tk_in - Tc_out, dT2 = Tk_out - Tc_in, LMTD = (dT1 - dT2) / ln(dT1 / dT2)\n    R = (Tk_in - Tk_out) / (Tc_out - Tc_in), P = (Tc_out - Tc_in) / (Tk_in - Tc_in), S = sqrt(R^2 + 1)\n    F = S ln((1 - P) / (1 - R P)) / ((R - 1) ln((2 - P (R + 1 - S)) / (2 - P (R + 1 + S))))\n    U_actual = Q x 1000 / (A x F x LMTD)                       (W/m2 K)\nClean U at the actual flows (film coefficients from the data sheet, scaled with flow):\n    U_clean = 1 / (1 / (hio x (Wc/Wc0)^0.8) + 1 / (ho x (Wk/Wk0)^0.55) + R_wall)\n    Rf = 1/U_actual - 1/U_clean, compared with the design fouling allowance (Kern / TEMA dirt factor)\nEffectiveness-NTU (same arrangement): Cmin = min(C_hot, C_cold), Cr = Cmin / Cmax, NTU = U A / Cmin,\n    eps = 2 / (1 + Cr + S' (1 + e) / (1 - e)), S' = sqrt(1 + Cr^2), e = exp(-NTU S')\n    Q_clean = eps(U_clean) x Cmin x (Tk_in - Tc_in): the duty the exchanger would give today if it were clean.\nLost duty and money: lost = Q_clean - Q; extra furnace fuel = lost x carry-through / furnace efficiency.\nPressure drop: ratio = dP / (dP_clean x (W/W0)^1.8). Fouling raises it; a pass partition leak (bypass) lowers it.\n\"\"\"\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    p, g, th, hy, ec = d[\"process\"], d[\"geometry\"], d[\"thermal\"], d[\"hydraulics\"], d[\"economics\"]\n    return dict(wc0=p[\"crude_flow_t_h\"], wk0=p[\"kero_flow_t_h\"], cpc=p[\"crude_cp_kj_kgk\"], cpk=p[\"kero_cp_kj_kgk\"],\n                rho=p[\"crude_density_kg_m3\"], area=g[\"area_m2\"], at=g[\"tube_flow_area_m2\"],\n                hio=th[\"hio_w_m2k\"], ho=th[\"ho_w_m2k\"], rw=th[\"r_wall_m2k_w\"], et=th[\"exp_tube\"], es=th[\"exp_shell\"],\n                rfd=th[\"rf_design_m2k_w\"], dpt0=hy[\"dp_tube_clean_bar\"], dps0=hy[\"dp_shell_clean_bar\"], dpa=hy[\"dp_allow_bar\"],\n                ed=hy[\"dp_exp\"], eff=ec[\"furnace_efficiency\"], carry=ec[\"carry_through\"], price=ec[\"fuel_price_usd_gj\"],\n                co2=ec[\"co2_kg_gj\"], sayn=d[\"product\"][\"saybolt_normal\"])\n\n\n# ---- plain-Python building blocks (also used by physics.py and the figures) ---------------------------------------------\ndef f_corr(R, P):\n    \"\"\"F correction factor, one shell pass, even number of tube passes (clipped as in the Monitor expression).\"\"\"\n    import math\n    S = math.sqrt(R * R + 1)\n    a = math.log(max((1 - P) / max(1 - R * P, 1e-6), 1e-6))\n    b = math.log(max((2 - P * (R + 1 - S)) / max(2 - P * (R + 1 + S), 1e-6), 1e-6))\n    return min(max(S * a / ((R - 1) * b), 0.3), 1.0)\n\n\ndef eps_12(ntu, cr):\n    \"\"\"Effectiveness, one shell pass, even number of tube passes.\"\"\"\n    import math\n    s = math.sqrt(1 + cr * cr)\n    e = math.exp(-ntu * s)\n    return 2 / (1 + cr + s * (1 + e) / (1 - e))\n\n\ndef u_clean(k, wc, wk):\n    return 1 / (1 / (k[\"hio\"] * (wc / k[\"wc0\"]) ** k[\"et\"]) + 1 / (k[\"ho\"] * (wk / k[\"wk0\"]) ** k[\"es\"]) + k[\"rw\"])\n\n\ndef duty(k, u, wc, wk, tki, tci):\n    \"\"\"Duty (kW) of the exchanger with overall coefficient u (W/m2 K) at flows wc, wk (t/h) and inlet temperatures.\"\"\"\n    ch, cc = wk / 3.6 * k[\"cpk\"], wc / 3.6 * k[\"cpc\"]\n    cmin, cmax = min(ch, cc), max(ch, cc)\n    return eps_12(u * k[\"area\"] / (cmin * 1000), cmin / cmax) * cmin * (tki - tci)\n\n\n# ---- Monitor expressions ----------------------------------------------------------------------------------------------\ndef _parts(twin):\n    k = _k(twin)\n    WC, WK = \"df['CRUDE_FLOW_T_H']\", \"df['KERO_FLOW_T_H']\"\n    TCI, TCO, TKI, TKO = \"df['CRUDE_IN_C']\", \"df['CRUDE_OUT_C']\", \"df['KERO_IN_C']\", \"df['KERO_OUT_C']\"\n    CH, CC = f\"({WK} / 3.6 * {k['cpk']})\", f\"({WC} / 3.6 * {k['cpc']})\"\n    QH = f\"({CH} * ({TKI} - {TKO}))\"\n    QC = f\"({CC} * ({TCO} - {TCI}))\"\n    Q = f\"(({QH} + {QC}) / 2)\"\n    D1, D2 = f\"np.maximum({TKI} - {TCO}, 0.1)\", f\"np.maximum({TKO} - {TCI}, 0.1)\"\n    LM = f\"np.where(np.abs({D1} - {D2}) < 1e-9, {D1}, ({D1} - {D2}) / np.log({D1} / {D2}))\"\n    R = f\"(({TKI} - {TKO}) / ({TCO} - {TCI}))\"\n    P = f\"(({TCO} - {TCI}) / ({TKI} - {TCI}))\"\n    S = f\"np.sqrt({R} ** 2 + 1)\"\n    FA = f\"np.log(np.maximum((1 - {P}) / np.maximum(1 - {R} * {P}, 1e-6), 1e-6))\"\n    FB = f\"np.log(np.maximum((2 - {P} * ({R} + 1 - {S})) / np.maximum(2 - {P} * ({R} + 1 + {S}), 1e-6), 1e-6))\"\n    F = f\"np.clip({S} * {FA} / (({R} - 1) * {FB}), 0.3, 1.0)\"\n    UA = f\"({Q} * 1000 / ({k['area']} * {F} * {LM}))\"\n    UC = (f\"(1 / (1 / ({k['hio']} * ({WC} / {k['wc0']}) ** {k['et']}) + 1 / ({k['ho']} * ({WK} / {k['wk0']}) ** {k['es']})\"\n          f\" + {k['rw']}))\")\n    RF = f\"(1 / {UA} - 1 / {UC})\"\n    CMIN, CMAX = f\"np.minimum({CH}, {CC})\", f\"np.maximum({CH}, {CC})\"\n    CR = f\"({CMIN} / {CMAX})\"\n    SS = f\"np.sqrt(1 + {CR} ** 2)\"\n    EX = f\"np.exp(-({UC} * {k['area']} / ({CMIN} * 1000)) * {SS})\"\n    QCL = f\"(2 / (1 + {CR} + {SS} * (1 + {EX}) / (1 - {EX})) * {CMIN} * ({TKI} - {TCI}))\"\n    LOST = f\"({QCL} - {Q})\"\n    FUEL_GJ = f\"(np.maximum({LOST}, 0) * {k['carry']} / {k['eff']} * 0.0864)\"\n    DPTR = f\"(df['DP_TUBE_BAR'] / ({k['dpt0']} * ({WC} / {k['wc0']}) ** {k['ed']}))\"\n    DPSR = f\"(df['DP_SHELL_BAR'] / ({k['dps0']} * ({WK} / {k['wk0']}) ** {k['ed']}))\"\n    BAL = f\"(({QH} - {QC}) / {Q} * 100)\"\n    VEL = f\"({WC} / 3.6 / {k['rho']} / {k['at']})\"\n    return dict(k=k, QH=QH, QC=QC, Q=Q, LM=LM, F=F, UA=UA, UC=UC, RF=RF, QCL=QCL, LOST=LOST, FUEL_GJ=FUEL_GJ,\n                DPTR=DPTR, DPSR=DPSR, BAL=BAL, VEL=VEL, CMIN=CMIN, WC=WC)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"Q_HOT_KW\", p[\"QH\"]),\n        (\"Q_COLD_KW\", p[\"QC\"]),\n        (\"Q_KW\", p[\"Q\"]),\n        (\"BALANCE_PCT\", p[\"BAL\"]),\n        (\"LMTD_K\", p[\"LM\"]),\n        (\"F_CORR\", p[\"F\"]),\n        (\"U_ACTUAL_W_M2K\", p[\"UA\"]),\n        (\"U_CLEAN_W_M2K\", p[\"UC\"]),\n        (\"U_RATIO\", f\"{p['UA']} / {p['UC']}\"),\n        (\"RF_M2K_W\", p[\"RF\"]),\n        (\"RF_USED_PCT\", f\"{p['RF']} / {k['rfd']} * 100\"),\n        (\"EFFECTIVENESS\", f\"{p['QH']} / ({p['CMIN']} * (df['KERO_IN_C'] - df['CRUDE_IN_C']))\"),\n        (\"Q_CLEAN_KW\", p[\"QCL\"]),\n        (\"LOST_DUTY_KW\", p[\"LOST\"]),\n        (\"FUEL_PENALTY_USD_DAY\", f\"{p['FUEL_GJ']} * {k['price']}\"),\n        (\"CO2_T_DAY\", f\"{p['FUEL_GJ']} * {k['co2']} / 1000\"),\n        (\"DP_TUBE_RATIO\", p[\"DPTR\"]),\n        (\"DP_SHELL_RATIO\", p[\"DPSR\"]),\n        (\"DP_TUBE_AT_DESIGN_BAR\", f\"df['DP_TUBE_BAR'] * ({k['wc0']} / {p['WC']}) ** {k['ed']}\"),\n        (\"TUBE_VELOCITY_M_S\", p[\"VEL\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    import math\n    k = _k(twin)\n    wc, wk = r[\"crude_flow_t_h\"], r[\"kero_flow_t_h\"]\n    tci, tco, tki, tko = r[\"crude_in_c\"], r[\"crude_out_c\"], r[\"kero_in_c\"], r[\"kero_out_c\"]\n    ch, cc = wk / 3.6 * k[\"cpk\"], wc / 3.6 * k[\"cpc\"]\n    qh, qc = ch * (tki - tko), cc * (tco - tci)\n    q = (qh + qc) / 2\n    d1, d2 = max(tki - tco, 0.1), max(tko - tci, 0.1)\n    lm = d1 if abs(d1 - d2) < 1e-9 else (d1 - d2) / math.log(d1 / d2)\n    R, P = (tki - tko) / (tco - tci), (tco - tci) / (tki - tci)\n    F = f_corr(R, P)\n    ua = q * 1000 / (k[\"area\"] * F * lm)\n    uc = u_clean(k, wc, wk)\n    rf = 1 / ua - 1 / uc\n    cmin, cmax = min(ch, cc), max(ch, cc)\n    qcl = eps_12(uc * k[\"area\"] / (cmin * 1000), cmin / cmax) * cmin * (tki - tci)\n    lost = qcl - q\n    fuel_gj = max(lost, 0) * k[\"carry\"] / k[\"eff\"] * 0.0864\n    return {\n        \"q_hot_kw\": qh, \"q_cold_kw\": qc, \"q_kw\": q, \"balance_pct\": (qh - qc) / q * 100, \"lmtd_k\": lm, \"f_corr\": F,\n        \"u_actual_w_m2k\": ua, \"u_clean_w_m2k\": uc, \"u_ratio\": ua / uc, \"rf_m2k_w\": rf, \"rf_used_pct\": rf / k[\"rfd\"] * 100,\n        \"effectiveness\": qh / (cmin * (tki - tci)), \"q_clean_kw\": qcl, \"lost_duty_kw\": lost,\n        \"fuel_penalty_usd_day\": fuel_gj * k[\"price\"], \"co2_t_day\": fuel_gj * k[\"co2\"] / 1000,\n        \"dp_tube_ratio\": r[\"dp_tube_bar\"] / (k[\"dpt0\"] * (wc / k[\"wc0\"]) ** k[\"ed\"]),\n        \"dp_shell_ratio\": r[\"dp_shell_bar\"] / (k[\"dps0\"] * (wk / k[\"wk0\"]) ** k[\"ed\"]),\n        \"dp_tube_at_design_bar\": r[\"dp_tube_bar\"] * (k[\"wc0\"] / wc) ** k[\"ed\"],\n        \"tube_velocity_m_s\": wc / 3.6 / k[\"rho\"] / k[\"at\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    USED = f\"({p['RF']} / {k['rfd']} * 100)\"\n    UR = f\"({p['UA']} / {p['UC']})\"\n    DPAD = f\"(df['DP_TUBE_BAR'] * ({k['wc0']} / {p['WC']}) ** {k['ed']})\"\n    NOBYP = f\"({p['DPTR']} >= {L['dp_ratio_low']})\"\n    return [\n        (\"HEX_TUBE_LEAK\", f\"(df['KERO_SAYBOLT'] < {L['saybolt_alert']}) & (df['CRUDE_PRESSURE_BARG'] - df['KERO_PRESSURE_BARG'] > {L['leak_dp_min_bar']})\", \"Critical\", \"tube_leak\"),\n        (\"HEX_FOULING_LIMIT\", f\"({USED} > {L['rf_limit_pct']}) & {NOBYP}\", \"High\", \"tube_fouling\"),\n        (\"HEX_DP_TUBE_LIMIT\", f\"{DPAD} > {k['dpa']}\", \"High\", \"tube_fouling\"),\n        (\"HEX_BYPASS_SUSPECT\", f\"({UR} < {L['u_ratio_bypass']}) & ({p['DPTR']} < {L['dp_ratio_low']})\", \"High\", \"partition_leak\"),\n                (\"HEX_FOULING_WARN\", f\"({USED} > {L['rf_warn_pct']}) & ({USED} <= {L['rf_limit_pct']}) & {NOBYP}\", \"Medium\", \"tube_fouling\"),\n        (\"HEX_PRODUCT_COLOUR\", f\"df['KERO_SAYBOLT'] < {L['saybolt_warn']}\", \"Medium\", \"tube_leak\"),\n        (\"HEX_DP_TUBE_HIGH\", f\"{p['DPTR']} > {L['dp_ratio_high']}\", \"Medium\", \"tube_fouling\"),\n        (\"HEX_DP_SHELL_HIGH\", f\"{p['DPSR']} > {L['dp_ratio_high']}\", \"Medium\", \"shell_fouling\"),\n        (\"HEX_DP_TUBE_LOW\", f\"{p['DPTR']} < {L['dp_ratio_low']}\", \"Medium\", \"partition_leak\"),\n        (\"HEX_HOT_DUTY_EXCESS\", f\"{p['BAL']} > {L['balance_alert_pct']}\", \"Medium\", None),\n        (\"HEX_COLD_DUTY_EXCESS\", f\"{p['BAL']} < {-L['balance_alert_pct']}\", \"Medium\", \"ti_drift\"),\n        (\"HEX_VELOCITY_LOW\", f\"{p['VEL']} < {L['velocity_min_m_s']}\", \"Medium\", \"low_throughput\"),\n        (\"HEX_FUEL_PENALTY\", f\"{p['FUEL_GJ']} * {k['price']} > {L['fuel_penalty_alert_usd_day']}\", \"Medium\", \"tube_fouling\"),\n        (\"HEX_RF_NEGATIVE\", f\"{p['RF']} < {L['rf_negative_m2k_w']}\", \"Low\", \"ti_drift\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    used, bal, dptr, dpsr = t[\"rf_used_pct\"], t[\"balance_pct\"], t[\"dp_tube_ratio\"], t[\"dp_shell_ratio\"]\n    nobyp = dptr >= L[\"dp_ratio_low\"]\n    dpl = r[\"crude_pressure_barg\"] - r[\"kero_pressure_barg\"]\n    add(r[\"kero_saybolt\"] < L[\"saybolt_alert\"] and dpl > L[\"leak_dp_min_bar\"], \"HEX_TUBE_LEAK\", \"Critical\",\n        f\"Kerosene colour {r['kero_saybolt']:+.0f} Saybolt with the crude side {dpl:.1f} bar higher: crude is leaking into the kerosene\",\n        \"tubes\", \"tube_leak\")\n    add(used > L[\"rf_limit_pct\"] and nobyp, \"HEX_FOULING_LIMIT\", \"High\",\n        f\"Fouling resistance {t['rf_m2k_w'] * 1e4:.2f} \u00d7 10\u207b\u2074 m\u00b2K/W: {used:.0f} % of the design allowance used\", \"bundle\", \"tube_fouling\")\n    add(t[\"dp_tube_at_design_bar\"] > k[\"dpa\"], \"HEX_DP_TUBE_LIMIT\", \"High\",\n        f\"Tube-side pressure drop {t['dp_tube_at_design_bar']:.2f} bar at design flow, above the {k['dpa']:.2f} bar allowed\", \"tubes\", \"tube_fouling\")\n    add(t[\"u_ratio\"] < L[\"u_ratio_bypass\"] and dptr < L[\"dp_ratio_low\"], \"HEX_BYPASS_SUSPECT\", \"High\",\n        f\"U only {t['u_ratio'] * 100:.0f} % of clean while the tube-side pressure drop fell to {dptr:.2f} \u00d7 expected: crude is bypassing passes\",\n        \"channel\", \"partition_leak\")\n    add(L[\"rf_warn_pct\"] < used <= L[\"rf_limit_pct\"] and nobyp, \"HEX_FOULING_WARN\", \"Medium\",\n        f\"{used:.0f} % of the fouling allowance used\", \"bundle\", \"tube_fouling\")\n    add(r[\"kero_saybolt\"] < L[\"saybolt_warn\"], \"HEX_PRODUCT_COLOUR\", \"Medium\",\n        f\"Kerosene colour {r['kero_saybolt']:+.0f} Saybolt, below {L['saybolt_warn']:+.0f}\", \"product\", \"tube_leak\")\n    add(dptr > L[\"dp_ratio_high\"], \"HEX_DP_TUBE_HIGH\", \"Medium\", f\"Tube-side pressure drop {dptr:.2f} \u00d7 expected at this flow\", \"tubes\", \"tube_fouling\")\n    add(dpsr > L[\"dp_ratio_high\"], \"HEX_DP_SHELL_HIGH\", \"Medium\", f\"Shell-side pressure drop {dpsr:.2f} \u00d7 expected at this flow\", \"shell\", \"shell_fouling\")\n    add(dptr < L[\"dp_ratio_low\"], \"HEX_DP_TUBE_LOW\", \"Medium\", f\"Tube-side pressure drop only {dptr:.2f} \u00d7 expected at this flow\", \"channel\", \"partition_leak\")\n    add(bal > L[\"balance_alert_pct\"], \"HEX_HOT_DUTY_EXCESS\", \"Medium\", f\"Kerosene gives {bal:.1f} % more heat than the crude takes: check the instruments\", \"instrument\")\n    add(bal < -L[\"balance_alert_pct\"], \"HEX_COLD_DUTY_EXCESS\", \"Medium\", f\"Crude takes {-bal:.1f} % more heat than the kerosene gives: check the instruments\", \"instrument\", \"ti_drift\")\n    add(t[\"tube_velocity_m_s\"] < L[\"velocity_min_m_s\"], \"HEX_VELOCITY_LOW\", \"Medium\",\n        f\"Crude velocity {t['tube_velocity_m_s']:.2f} m/s, below {L['velocity_min_m_s']} m/s: fouling speeds up\", \"operation\", \"low_throughput\")\n    add(t[\"fuel_penalty_usd_day\"] > L[\"fuel_penalty_alert_usd_day\"], \"HEX_FUEL_PENALTY\", \"Medium\",\n        f\"Lost duty {t['lost_duty_kw']:.0f} kW costs {t['fuel_penalty_usd_day']:.0f} $/day of furnace fuel\", \"economics\", \"tube_fouling\")\n    add(t[\"rf_m2k_w\"] < L[\"rf_negative_m2k_w\"], \"HEX_RF_NEGATIVE\", \"Low\",\n        f\"Rated cleaner than clean (Rf {t['rf_m2k_w'] * 1e4:.2f} \u00d7 10\u207b\u2074 m\u00b2K/W): an instrument reads wrong\", \"instrument\", \"ti_drift\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n\n\n# ---- cleaning economics (plain Python, for the post and the figures; not a Monitor function) ----------------------------\ndef penalty_usd_day(twin, rf):\n    \"\"\"Extra furnace fuel ($/day) at design flows and inlet temperatures when the fouling resistance is rf (m2 K/W).\"\"\"\n    k = _k(twin)\n    p = twin[\"design\"][\"process\"]\n    wc, wk, tki, tci = p[\"crude_flow_t_h\"], p[\"kero_flow_t_h\"], p[\"kero_in_c\"], p[\"crude_in_c\"]\n    uc = u_clean(k, wc, wk)\n    lost = duty(k, uc, wc, wk, tki, tci) - duty(k, 1 / (1 / uc + rf), wc, wk, tki, tci)\n    return max(lost, 0) * k[\"carry\"] / k[\"eff\"] * 0.0864 * k[\"price\"]\n\n\ndef cleaning_cycle(twin, days):\n    \"\"\"Average cost per day ($/day) of cleaning every `days` days: (cleaning cost + fuel penalty over the cycle) / days.\n    Fouling grows linearly from zero after each cleaning and reaches the design allowance after fouling_days_to_allowance.\"\"\"\n    ec = twin[\"design\"][\"economics\"]\n    rate = twin[\"design\"][\"thermal\"][\"rf_design_m2k_w\"] / ec[\"fouling_days_to_allowance\"]\n    n = max(1, int(days))\n    fuel = sum(penalty_usd_day(twin, rate * (i + 0.5) * days / n) for i in range(n)) * days / n\n    return (ec[\"cleaning_cost_usd\"] + fuel) / days, fuel\n\n\ndef best_interval(twin, lo=60, hi=3000):\n    \"\"\"Cleaning interval (days) with the lowest average cost per day.\"\"\"\n    best = min(range(lo, hi + 1, 5), key=lambda d: cleaning_cycle(twin, d)[0])\n    return best, cleaning_cycle(twin, best)[0]\n"}, TWIN = {"$comment": "E-2501 crude / kerosene exchanger twin. Expected values in Maximo Monitor from the exchanger data sheet; the device sends only what it measures.", "twin": {"id": "E-2501", "name": "Crude / kerosene exchanger E-2501", "version": "1.0.0", "folder": "hex-twin"}, "identification": {"asset": "E-2501", "assetnum": "E-2501", "manufacturer": "Shell-and-tube exchanger built to TEMA class R and API 660,", "model": "TEMA size 21-192 type AES (21 1/4 in shell, 16 ft tubes, 4 tube passes)", "description": "Crude / kerosene product exchanger, cold end of the crude preheat train (crude in the tubes, kerosene in the shell)", "front_head": "A: channel with removable cover (tube side can be cleaned without breaking the piping)", "shell": "E: one-pass shell, single segmental baffles", "rear_head": "S: floating head with backing device (bundle can be pulled for cleaning)", "service": "Tube side: crude oil from the tank farm to the desalter. Shell side: kerosene product from the crude column side stripper to rundown."}, "design": {"process": {"crude_flow_t_h": 67.585, "crude_in_c": 37.78, "crude_out_c": 76.67, "crude_cp_kj_kgk": 2.0515, "crude_api": 34, "kero_flow_t_h": 19.867, "kero_in_c": 198.89, "kero_out_c": 93.33, "kero_cp_kj_kgk": 2.533, "kero_api": 42, "crude_density_kg_m3": 830.0, "source": "Kern, Process Heat Transfer, Example 7.3 (kerosene-crude oil exchanger), converted to SI. Crude density at the mean tube-side temperature: assumption: typical value, replace with your exchanger data sheet / rating run"}, "geometry": {"tema_type": "AES", "tema_size": "21-192", "shell_id_mm": 539.8, "n_tubes": 158, "tube_od_mm": 25.4, "tube_id_mm": 20.57, "tube_length_m": 4.877, "pitch_mm": 31.75, "layout": "square", "tube_passes": 4, "shell_passes": 1, "baffle_spacing_mm": 127.0, "area_m2": 61.49, "tube_flow_area_m2": 0.013132, "source": "Kern, Process Heat Transfer, Example 7.3 (kerosene-crude oil exchanger), converted to SI. Outside area = tubes x pi x OD x length; tube-side flow area = tubes / passes x pi/4 x ID^2."}, "thermal": {"hio_w_m2k": 640.0, "ho_w_m2k": 1100.0, "r_wall_m2k_w": 5e-05, "exp_tube": 0.8, "exp_shell": 0.55, "rf_design_m2k_w": 0.000528, "source": "Clean film coefficients at design flows (tube side referred to the outside area) and wall resistance: assumption: typical value, replace with your exchanger data sheet / rating run. Flow exponents: turbulent tube side h ~ Re^0.8 (Dittus-Boelter / Sieder-Tate); shell side h ~ Re^0.55 (Kern). Fouling allowance: the combined dirt factor 0.003 h ft2 F/Btu of Kern, Process Heat Transfer, Example 7.3 (kerosene-crude oil exchanger), converted to SI"}, "hydraulics": {"dp_tube_clean_bar": 0.45, "dp_shell_clean_bar": 0.24, "dp_allow_bar": 0.689, "dp_exp": 1.8, "crude_pressure_barg": 18.0, "kero_pressure_barg": 7.0, "source": "Allowed pressure drop 10 psi per side: Kern, Process Heat Transfer, Example 7.3 (kerosene-crude oil exchanger), converted to SI. Clean pressure drops at design flow and line pressures: assumption: typical value, replace with your exchanger data sheet / rating run. Pressure drop ~ flow^1.8 for turbulent flow (friction factor ~ Re^-0.2)."}, "product": {"saybolt_normal": 25.0, "source": "Kerosene Saybolt colour (ASTM D156 scale, -16 darkest to +30 lightest) of clean product: assumption: typical value, replace with your exchanger data sheet / rating run"}, "economics": {"furnace_efficiency": 0.85, "carry_through": 0.7, "fuel_price_usd_gj": 6.0, "co2_kg_gj": 56.1, "cleaning_cost_usd": 40000.0, "fouling_days_to_allowance": 365.0, "source": "Furnace efficiency, fraction of the lost duty that reaches the furnace (the exchangers downstream recover part of it), fuel price, cost of one bundle cleaning and fouling rate: assumption: typical value, replace with your exchanger data sheet / rating run. CO2 factor for natural gas 56.1 kg/GJ: IPCC 2006 Guidelines, Vol. 2, Ch. 2, Table 2.2 (net calorific basis)."}, "demo": {"time_scale": 60, "note": "Demo only: the plant clock runs 60 times faster, so the daily swing of throughput and inlet temperatures shows in minutes. Fouling in a real exchanger takes months; in the demo the failure modes ramp in over about a minute."}}, "telemetry": {"event": "hex", "publish_every_s": 60, "device_type": "SHELL_TUBE_HEX", "groups": {"Crude": "Tube side: crude oil", "Kero": "Shell side: kerosene product", "Product": "Kerosene product quality"}, "points": [{"metric": "crude_flow_t_h", "path": "Crude.Flow", "label": "Crude flow (tube side)", "unit": "t/h"}, {"metric": "crude_in_c", "path": "Crude.InletTemp", "label": "Crude inlet temperature", "unit": "\u00b0C"}, {"metric": "crude_out_c", "path": "Crude.OutletTemp", "label": "Crude outlet temperature", "unit": "\u00b0C"}, {"metric": "dp_tube_bar", "path": "Crude.DP", "label": "Tube-side pressure drop", "unit": "bar"}, {"metric": "crude_pressure_barg", "path": "Crude.Pressure", "label": "Crude inlet pressure", "unit": "bar g"}, {"metric": "kero_flow_t_h", "path": "Kero.Flow", "label": "Kerosene flow (shell side)", "unit": "t/h"}, {"metric": "kero_in_c", "path": "Kero.InletTemp", "label": "Kerosene inlet temperature", "unit": "\u00b0C"}, {"metric": "kero_out_c", "path": "Kero.OutletTemp", "label": "Kerosene outlet temperature", "unit": "\u00b0C"}, {"metric": "dp_shell_bar", "path": "Kero.DP", "label": "Shell-side pressure drop", "unit": "bar"}, {"metric": "kero_pressure_barg", "path": "Kero.Pressure", "label": "Kerosene inlet pressure", "unit": "bar g"}, {"metric": "kero_saybolt", "path": "Product.SayboltColour", "label": "Kerosene colour, online analyser (Saybolt)", "unit": "Saybolt"}]}, "twin_model": {"limits": {"rf_warn_pct": 60.0, "rf_limit_pct": 100.0, "rf_negative_m2k_w": -5e-05, "dp_ratio_high": 1.3, "dp_ratio_low": 0.8, "u_ratio_bypass": 0.85, "balance_alert_pct": 5.0, "saybolt_warn": 22.0, "saybolt_alert": 18.0, "leak_dp_min_bar": 1.0, "velocity_min_m_s": 1.0, "fuel_penalty_alert_usd_day": 50.0}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "tube_fouling": {"name": "Crude-side fouling (salts, sediment, asphaltenes in the tubes)", "part": "tubes", "symptoms": "Rf up, tube-side pressure drop up at the same flow, duty down, furnace fuel up", "rules": ["HEX_FOULING_LIMIT", "HEX_DP_TUBE_HIGH", "HEX_DP_TUBE_LIMIT", "HEX_FUEL_PENALTY"], "default_ramp_min": 1.5}, "shell_fouling": {"name": "Kerosene-side fouling (corrosion products on the bundle)", "part": "shell", "symptoms": "Rf up, shell-side pressure drop up, tube-side pressure drop normal", "rules": ["HEX_FOULING_LIMIT", "HEX_DP_SHELL_HIGH", "HEX_FUEL_PENALTY"], "default_ramp_min": 1.5}, "partition_leak": {"name": "Pass partition gasket leak (crude bypasses tube passes)", "part": "channel", "symptoms": "U down but tube-side pressure drop down: looks like fouling, is not", "rules": ["HEX_BYPASS_SUSPECT", "HEX_DP_TUBE_LOW", "HEX_FUEL_PENALTY"], "default_ramp_min": 1}, "tube_leak": {"name": "Tube leak (crude into the kerosene)", "part": "tubes", "symptoms": "kerosene colour drops while the crude side is at the higher pressure; the heat balance hardly moves at this cold end", "rules": ["HEX_TUBE_LEAK", "HEX_PRODUCT_COLOUR"], "default_ramp_min": 1}, "ti_drift": {"name": "Crude outlet temperature transmitter drift", "part": "instrument", "symptoms": "cold-side duty exceeds hot-side duty; the exchanger looks cleaner than clean", "rules": ["HEX_COLD_DUTY_EXCESS", "HEX_RF_NEGATIVE"], "default_ramp_min": 1}, "low_throughput": {"name": "Long run at low throughput (low tube velocity)", "part": "operation", "symptoms": "crude velocity below the threshold where crude fouling speeds up; U clean expected falls with flow, no false fouling", "rules": ["HEX_VELOCITY_LOW"], "default_ramp_min": 0.5}}, "presentation": {"title": "E-2501 crude / kerosene exchanger", "dashboard": "SHELL_TUBE_HEX"}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, pull = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(3.6, 4.2, 9.6); ctl.target.set(-.3, 1.0, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+const grid = new THREE.GridHelper(14, 28, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), paint = M(0x6d7f93, { m: .35, ds: true }), red = M(0xb3262d, { m: .3 });
+const cyl = (r1, r2, h, m, s = 40) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s, 1, false), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const hx = (o) => { o.rotation.z = Math.PI / 2; return o; };   // cylinder along x
+const Y = 1.15, RS = .29;                                         // axis height, shell radius (21 1/4 in ID shell, ~0.56 m OD)
+// shell (E) and shell flanges
+const shellMat = M(0x6d7f93, { m: .35, ds: true });
+const shell = hx(cyl(RS, RS, 4.9, shellMat)); scene.add(at(shell, 0, Y, 0));
+[-2.47, 2.47].forEach(x => scene.add(at(hx(cyl(.36, .36, .07, steel)), x, Y, 0)));
+// front head A: channel, flanges, flat removable cover
+const chanG = new THREE.Group(); scene.add(chanG);
+const chanMat = M(0x6d7f93, { m: .35, ds: true });
+chanG.add(at(hx(cyl(RS, RS, .5, chanMat)), -2.78, Y, 0));
+chanG.add(at(hx(cyl(.36, .36, .07, steel)), -3.06, Y, 0));
+chanG.add(at(hx(cyl(.37, .37, .06, paint)), -3.12, Y, 0));
+for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; chanG.add(at(hx(cyl(.015, .015, .16, dark, 8)), -3.08, Y + Math.cos(a) * .33, Math.sin(a) * .33)); }
+// pass partitions (4 passes: one horizontal plate + one half vertical plate), visible in the cutaway
+const partMat = M(0xd8a31a, { m: .2, r: .5, ds: true });
+const partH = box(.48, .015, .56, partMat); chanG.add(at(partH, -2.78, Y, 0));
+const partV = box(.48, .27, .015, partMat); chanG.add(at(partV, -2.78, Y - .14, 0));
+// crude nozzles on the channel: in at the bottom, out at the top
+const nozz = (x, y0, up, m = steel) => { const g = new THREE.Group(); g.add(at(cyl(.08, .08, .34, m), x, y0 + (up ? .17 : -.17), 0)); g.add(at(cyl(.13, .13, .04, steel), x, y0 + (up ? .34 : -.34), 0)); return g; };
+chanG.add(nozz(-2.78, Y + RS - .05, true)); chanG.add(nozz(-2.78, Y - RS + .05, false));
+// rear head S: shell cover (larger) with dished end; floating head inside
+const coverMat = M(0x6d7f93, { m: .35, ds: true });
+scene.add(at(hx(cyl(.36, .36, .55, coverMat)), 2.78, Y, 0));
+const dish = new THREE.Mesh(new THREE.SphereGeometry(.36, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), coverMat); dish.scale.set(1, .5, 1); dish.rotation.z = -Math.PI / 2; scene.add(at(dish, 3.05, Y, 0));
+scene.add(at(hx(cyl(.43, .43, .07, steel)), 2.5, Y, 0));
+// shell nozzles: kerosene in at the top near the rear, out at the bottom near the front
+scene.add(nozz(1.9, Y + RS - .05, true)); scene.add(nozz(-1.9, Y - RS + .05, false));
+// saddles
+[-1.6, 1.6].forEach(x => { scene.add(at(box(.22, Y - RS + .1, .62, dark), x, (Y - RS + .1) / 2, 0)); scene.add(at(box(.34, .04, .74, dark), x, .02, 0)); });
+// tube bundle: tubesheets, a sample of tubes, segmental baffles, floating head
+const bundle = new THREE.Group(); scene.add(bundle);
+bundle.add(at(hx(cyl(RS - .005, RS - .005, .06, steel)), -2.5, Y, 0));
+bundle.add(at(hx(cyl(.26, .26, .06, steel)), 2.55, Y, 0));
+const fh = new THREE.Mesh(new THREE.SphereGeometry(.26, 28, 14, 0, Math.PI * 2, 0, Math.PI / 2), M(0x8d99a6, { m: .5 })); fh.scale.set(1, .45, 1); fh.rotation.z = -Math.PI / 2; bundle.add(at(fh, 2.58, Y, 0));
+const tubeMat = M(0xc9cdd2, { m: .7, r: .3 });
+const tubeG = new THREE.CylinderGeometry(.0127, .0127, 5.05, 8);
+for (let iy = -4; iy <= 4; iy++) for (let iz = -4; iz <= 4; iz++) {
+  const y = iy * .052, z = iz * .052; if (y * y + z * z > .22 * .22) continue;
+  const t = hx(new THREE.Mesh(tubeG, tubeMat)); bundle.add(at(t, 0, Y + y, z));
+}
+const baffleMat = M(0xa8b0b9, { m: .5, ds: true });
+// single segmental baffle with a 25 % cut: the part of the circle below the chord at y = r/2 (arc from 150° round to 390°)
+const bshape = () => { const s = new THREE.Shape(); s.absarc(0, 0, RS - .01, Math.PI * 5 / 6, Math.PI * 13 / 6, false); s.closePath(); return new THREE.ShapeGeometry(s, 32); };
+for (let i = 0; i < 9; i++) {
+  const x = -2.0 + i * .5, b = new THREE.Mesh(bshape(), baffleMat);
+  b.rotation.y = Math.PI / 2; if (i % 2) b.rotation.x = Math.PI; bundle.add(at(b, x, Y, 0));
+}
+// instruments: TT on the four nozzles, FT on the crude inlet, dPT on channel and shell, colour analyser on the kerosene outlet
+const inst = (x, y, z, c = 0x0f62fe) => { scene.add(at(cyl(.035, .035, .16, M(c)), x, y, z)); scene.add(at(new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), M(c)), x, y + .1, z)); };
+inst(-2.78, Y - .8, .16); inst(-2.78, Y + .78, .16); inst(1.9, Y + .78, .16); inst(-1.9, Y - .8, .16);
+inst(-3.3, Y - .62, 0); inst(-2.3, Y + .55, .3, 0x8a3ffc); inst(0, Y + .5, .3, 0x8a3ffc); inst(-1.5, Y - .8, .2, 0xff832b);
+const tube = (pts, c = 0x9fb3c8, r = .05) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, r, 10, false); scene.add(new THREE.Mesh(g, M(c, { m: .5 }))); };
+tube([[-2.78, Y - .66, 0], [-2.78, Y - .7, 0], [-3.4, Y - .7, 0], [-4.2, Y - .7, 0]], 0x5a4a32, .07);
+tube([[-2.78, Y + .64, 0], [-2.78, Y + .7, 0], [-3.4, Y + .7, 0], [-4.2, Y + .7, 0]], 0x5a4a32, .07);
+tube([[1.9, Y + .64, 0], [1.9, Y + .7, 0], [2.6, Y + .7, 0], [4.2, Y + .7, 0]], 0xc9a227, .06);
+tube([[-1.9, Y - .66, 0], [-1.9, Y - .7, 0], [-1.2, Y - .7, 0], [0, Y - .7, -.6], [1.0, Y - .7, -.9]], 0xc9a227, .06);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, 0, Y + RS + .1, -.15));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('cin', [-3.6, Y - .75, 0]); lbl('cout', [-3.6, Y + .8, 0]); lbl('kin', [2.9, Y + .8, 0]); lbl('kout', [.6, Y - .7, -.9]);
+lbl('dpt', [-2.3, Y + .7, .3]); lbl('dps', [.2, Y + .65, .3]); lbl('u', [.9, Y + RS + .05, 0]); lbl('col', [-1.5, .15, .6]); lbl('fuel', [2.6, Y + RS + .3, 0]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design, p = d.process;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  const cc = r.crude_flow_t_h / 3.6 * p.crude_cp_kj_kgk, ch = r.kero_flow_t_h / 3.6 * p.kero_cp_kj_kgk;
+  const tcoClean = r.crude_in_c + t.q_clean_kw / cc, tkoClean = r.kero_in_c - t.q_clean_kw / ch;
+  const dptExp = r.dp_tube_bar / t.dp_tube_ratio, dpsExp = r.dp_shell_bar / t.dp_shell_ratio;
+  setLbl('cin', `crude in · ${fmt(t.tube_velocity_m_s)} m/s`, `${fmt(r.crude_flow_t_h, 1)} t/h · ${fmt(r.crude_in_c, 1)} °C`, st(false, names.has('HEX_VELOCITY_LOW')));
+  setLbl('cout', `crude out (clean would give ${fmt(tcoClean, 1)})`, `${fmt(r.crude_out_c, 1)} °C`, st(names.has('HEX_COLD_DUTY_EXCESS') || names.has('HEX_RF_NEGATIVE'), r.crude_out_c < tcoClean - 3));
+  setLbl('kin', 'kerosene in', `${fmt(r.kero_flow_t_h, 1)} t/h · ${fmt(r.kero_in_c, 1)} °C`, '');
+  setLbl('kout', `kerosene out (clean ${fmt(tkoClean, 1)}) · balance ${fmt(t.balance_pct, 1)} %`, `${fmt(r.kero_out_c, 1)} °C`, st(names.has('HEX_HOT_DUTY_EXCESS') || names.has('HEX_COLD_DUTY_EXCESS')));
+  setLbl('dpt', `tube ΔP (expected ${fmt(dptExp)})`, `${fmt(r.dp_tube_bar)} bar · ${fmt(t.dp_tube_ratio)} ×`, st(names.has('HEX_DP_TUBE_LIMIT') || names.has('HEX_BYPASS_SUSPECT'), names.has('HEX_DP_TUBE_HIGH') || names.has('HEX_DP_TUBE_LOW')));
+  setLbl('dps', `shell ΔP (expected ${fmt(dpsExp)})`, `${fmt(r.dp_shell_bar)} bar · ${fmt(t.dp_shell_ratio)} ×`, st(false, names.has('HEX_DP_SHELL_HIGH')));
+  setLbl('u', `U actual / clean · Rf ×1e-4 m²K/W`, `${fmt(t.u_actual_w_m2k, 0)} / ${fmt(t.u_clean_w_m2k, 0)} · Rf ${fmt(t.rf_m2k_w * 1e4)}`, st(names.has('HEX_FOULING_LIMIT') || names.has('HEX_BYPASS_SUSPECT'), names.has('HEX_FOULING_WARN') || names.has('HEX_RF_NEGATIVE')));
+  setLbl('col', `kerosene colour (Saybolt) · crude ${fmt(r.crude_pressure_barg, 1)} / kero ${fmt(r.kero_pressure_barg, 1)} bar g`, `${r.kero_saybolt > 0 ? '+' : ''}${fmt(r.kero_saybolt, 0)}`, st(names.has('HEX_TUBE_LEAK'), names.has('HEX_PRODUCT_COLOUR')));
+  setLbl('fuel', 'lost duty · extra furnace fuel', `${fmt(t.lost_duty_kw, 0)} kW · ${fmt(t.fuel_penalty_usd_day, 0)} $/day`, st(false, names.has('HEX_FUEL_PENALTY')));
+  $('k-health').textContent = ST.health; $('k-rf').textContent = fmt(t.rf_used_pct, 0) + ' %'; $('k-fuel').textContent = fmt(t.fuel_penalty_usd_day, 0) + ' $/d';
+  $('c-u-t').textContent = `U ${fmt(t.u_ratio * 100, 0)} % of clean`; $('c-u').className = 'chip ' + (t.u_ratio < L.u_ratio_bypass ? 'bad' : t.rf_used_pct > L.rf_warn_pct ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Duty (kW)', fmt(t.q_kw, 0), fmt(t.q_clean_kw, 0) + ' clean', names.has('HEX_FUEL_PENALTY')) +
+    row('Crude outlet (°C)', fmt(r.crude_out_c, 1), fmt(tcoClean, 1), names.has('HEX_COLD_DUTY_EXCESS')) +
+    row('Kerosene outlet (°C)', fmt(r.kero_out_c, 1), fmt(tkoClean, 1)) +
+    row('U (W/m²K)', fmt(t.u_actual_w_m2k, 0), fmt(t.u_clean_w_m2k, 0) + ' clean', names.has('HEX_BYPASS_SUSPECT')) +
+    row('Rf (×1e-4 m²K/W)', fmt(t.rf_m2k_w * 1e4), '≤ ' + fmt(d.thermal.rf_design_m2k_w * 1e4), names.has('HEX_FOULING_LIMIT')) +
+    row('LMTD · F', fmt(t.lmtd_k, 1) + ' · ' + fmt(t.f_corr), '–') +
+    row('Effectiveness', fmt(t.effectiveness, 3), '–') +
+    row('Heat balance (%)', fmt(t.balance_pct, 1), '± ' + L.balance_alert_pct, names.has('HEX_HOT_DUTY_EXCESS') || names.has('HEX_COLD_DUTY_EXCESS')) +
+    row('Tube ΔP (bar)', fmt(r.dp_tube_bar), fmt(dptExp), names.has('HEX_DP_TUBE_HIGH') || names.has('HEX_DP_TUBE_LOW')) +
+    row('Shell ΔP (bar)', fmt(r.dp_shell_bar), fmt(dpsExp), names.has('HEX_DP_SHELL_HIGH')) +
+    row('Crude velocity (m/s)', fmt(t.tube_velocity_m_s), '≥ ' + L.velocity_min_m_s, names.has('HEX_VELOCITY_LOW')) +
+    row('Kerosene colour', fmt(r.kero_saybolt, 0), '≥ ' + L.saybolt_warn, names.has('HEX_PRODUCT_COLOUR')) +
+    row('Fuel penalty ($/day)', fmt(t.fuel_penalty_usd_day, 0), '≤ ' + L.fuel_penalty_alert_usd_day, names.has('HEX_FUEL_PENALTY'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the exchanger behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  // fouling shows on the tubes (tube side) and on the baffles (shell side); a pass partition leak shows on the partition plates
+  const ft = Math.min(1, (fs.tube_fouling || 0)), fsh = Math.min(1, (fs.shell_fouling || 0));
+  tubeMat.color.setRGB(.79 - .45 * ft, .80 - .52 * ft, .82 - .62 * ft);
+  baffleMat.color.setRGB(.66 - .3 * fsh, .69 - .38 * fsh, .73 - .5 * fsh);
+  partMat.color.setHex((fs.partition_leak || 0) > .05 ? 0xda1e28 : 0xd8a31a);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [shellMat, chanMat, coverMat].forEach(m => { m.transparent = true; m.opacity = cut ? .18 : 1; m.depthWrite = !cut; });
+};
+$('t-pull').onclick = () => { pull = !pull; $('t-pull').classList.toggle('on', pull); };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let pullX = 0, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  // pulling the bundle of an AES exchanger: remove the channel (A) first, then draw the bundle out through the front
+  const target = pull ? 1 : 0; pullX += (target - pullX) * Math.min(1, dt * 1.5);
+  chanG.position.set(-Math.min(1, pullX * 2) * .9, 0, Math.min(1, pullX * 2) * 1.2);
+  bundle.position.x = -Math.max(0, pullX * 2 - 1) * 4.2;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

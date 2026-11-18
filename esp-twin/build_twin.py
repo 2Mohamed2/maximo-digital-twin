@@ -1,0 +1,143 @@
+"""Write twin/esp-2801.twin.json: the electric submersible pump twin (ESP-2801).
+
+    python build_twin.py
+
+ESP-2801 lifts oil and water from a vertical oil well. A multistage centrifugal pump (Baker Hughes Centrilift
+400FLEXPump17.5 stages, mixed flow) hangs on the tubing above a seal (protector) and a 3-phase induction motor, with a
+downhole gauge under the motor. A variable speed drive (VSD) at the surface sets the frequency. The gauge sends intake and
+discharge pressure, intake and motor temperature, vibration and current leakage up the power cable.
+
+Sources and assumptions (every number below is either published or labelled as an assumption in "source"):
+  Pump stage: Baker Hughes Centrilift 400FLEXPump17.5 data sheet (2023): series 400, OD 4.00 in, 500 to 2,600 bbl/d at 60 Hz,
+    18.6 ft and 0.34 bhp per stage at BEP, 71 % efficiency at BEP, 3,500 rpm at 60 Hz, curve for one stage in fluid of SG 1.00.
+    The BEP flow (about 1,750 bbl/d), the shut-off head and the zero-head flow are READ from the published curve; the
+    quadratic head curve and the linear power curve are FITTED to it (labelled below).
+  Affinity laws (flow ~ f, head ~ f^2, power ~ f^3), hydraulic horsepower = Q[bbl/d] x H[ft] x SG / 135,770,
+    gas formation volume factor Bg = 0.00504 z T[degR] / p[psia] bbl/scf: textbook formulas.
+  Well, fluid, motor, gauge limits: ASSUMPTIONS of a typical onshore well, to be replaced by the well file, the PVT report,
+    the motor nameplate and the ESP design report (API RP 11S4 sizing) of your own well.
+"""
+import json
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with "
+DS = ("Baker Hughes Centrilift 400FLEXPump17.5 pump data sheet (2023), "
+      "https://dam.bakerhughes.com/m/3998f10b727fc547/original/Centrilift-400FLEXPump17_5-pump-slsh.pdf")
+
+twin = {
+    "$comment": "ESP-2801 electric submersible pump twin. Expected values in Maximo Monitor from the pump stage curve, the affinity laws and the well design; the device sends only what it measures.",
+    "twin": {"id": "ESP-2801", "name": "Electric submersible pump ESP-2801", "version": "1.0.0", "folder": "esp-twin"},
+    "identification": {
+        "asset": "ESP-2801", "assetnum": "ESP-2801", "manufacturer": "Baker Hughes",
+        "model": "Centrilift 400FLEXPump17.5 stages (pump); generic 375-series motor, seal and gauge",
+        "description": "Electric submersible pump in a vertical oil well, variable speed drive, downhole gauge",
+        "pump": "Centrilift 400FLEXPump17.5, mixed-flow stages, series 400 (4.00 in OD)",
+        "motor": "3-phase induction motor, 375 series (3.75 in OD), oil filled (generic, assumption)",
+        "seal": "Seal chamber section (protector) between pump and motor",
+        "gauge": "Downhole gauge under the motor: intake and discharge pressure, temperatures, vibration, current leakage",
+        "drive": "Variable speed drive (VSD) at the wellsite, frequency set point from the production engineer",
+    },
+    "design": {
+        "pump": {
+            "stages": 266, "base_hz": 60.0, "base_rpm": 3500,
+            "q_min_bpd": 500.0, "q_max_bpd": 2600.0, "q_bep_bpd": 1750.0,
+            "h_bep_ft": 18.6, "p_bep_bhp": 0.34, "eff_bep": 0.71,
+            "head_coef": [29.0, -1.5206e-3, -2.527e-6],
+            "power_coef": [0.305, 0.02e-3],
+            "source": DS + ". Flow range, head, power and efficiency at BEP: from the data sheet. BEP flow 1,750 bbl/d, shut-off head "
+                      "29 ft and zero-head flow about 3,100 bbl/d: read from the published curve (1,750 x 18.6 / 135,770 / 0.34 = 0.70, "
+                      "consistent with the 71 % stated). head_coef: H = a + b Q + c Q^2 per stage at 60 Hz (ft, bbl/d), fitted through "
+                      "those three points; power_coef: bhp per stage = p0 + p1 Q, fitted to the published power curve (within a few %). "
+                      "Stage count: assumption from the design of this well, replace with your ESP design report.",
+        },
+        "motor": {
+            "rated_hp_60hz": 100.0, "rated_v": 2300.0, "rated_a": 27.0, "eff": 0.86, "cable_eff": 0.96, "od_in": 3.75,
+            "temp_limit_f": 300.0, "rise_ref_f": 30.0, "load_ref": 0.75, "v_ref_fts": 2.0, "v_min_fts": 0.2, "rise_exp": 0.5,
+            "source": A + "the motor nameplate and the vendor's motor temperature-rise data. Rated power scales with frequency (constant "
+                      "V/Hz); rise above intake temperature = rise_ref x (load / load_ref) x (v_ref / v)^0.5, a simple stand-in for the "
+                      "vendor's heat-transfer model. Alarm on the winding temperature well below the insulation rating.",
+        },
+        "well": {
+            "pump_depth_ft": 6500.0, "perf_depth_ft": 7000.0, "casing_id_in": 4.892, "tubing_id_in": 2.992, "hazen_c": 120.0,
+            "reservoir_psi": 2700.0, "pi_bpd_psi": 1.2, "whp_psi": 150.0, "casing_psi": 80.0, "bht_f": 190.0,
+            "source": A + "the well file (5 1/2 in 17 lb/ft casing, 3 1/2 in tubing, depths), the last build-up test (reservoir pressure, "
+                      "productivity index) and the flowline back-pressure.",
+        },
+        "fluid": {
+            "sg_oil": 0.86, "sg_water": 1.05, "water_cut_pct": 60.0, "rsb_scf_stb": 200.0, "pb_psi": 800.0, "z": 0.9,
+            "gas_sep_eff": 0.8, "gvf_limit_pct": 15.0,
+            "source": A + "the PVT report (bubble point, solution gas-oil ratio, linear Rs below Pb) and the gas separator / gas handler rating "
+                          "of your string. 15 % free gas at the intake is used as the limit for these mixed-flow stages; ask the vendor "
+                          "for the rating of your stages.",
+        },
+        "operation": {"freq_hz": 55.0, "run_days_at_start": 420.0, "starts_30d_normal": 1,
+                      "source": A + "the production engineer's frequency set point and the VSD run log."},
+        "demo": {"time_scale": 60, "note": "Demo only: the plant clock runs 60 times faster; counters (run days, starts) follow it."},
+    },
+    "telemetry": {
+        "event": "esp", "publish_every_s": 60, "device_type": "ESP_WELL_VSD",
+        "groups": {"VSD": "Variable speed drive at the wellsite", "Gauge": "Downhole gauge under the motor",
+                   "Well": "Wellhead and flow", "Test": "Last well test", "Run": "Run history"},
+        "points": [
+            {"metric": "running", "path": "VSD.Running", "label": "ESP running (1 = yes)", "unit": "code"},
+            {"metric": "vsd_freq_hz", "path": "VSD.Frequency", "label": "VSD output frequency", "unit": "Hz"},
+            {"metric": "vsd_kw", "path": "VSD.OutputPower", "label": "VSD output power", "unit": "kW"},
+            {"metric": "motor_current_a", "path": "VSD.MotorCurrent", "label": "Motor current", "unit": "A"},
+            {"metric": "current_cv_pct", "path": "VSD.CurrentFluctuation", "label": "Motor current fluctuation over the last minute (std / mean)", "unit": "%"},
+            {"metric": "pip_psi", "path": "Gauge.IntakePressure", "label": "Pump intake pressure (PIP)", "unit": "psi"},
+            {"metric": "pd_psi", "path": "Gauge.DischargePressure", "label": "Pump discharge pressure", "unit": "psi"},
+            {"metric": "intake_temp_f", "path": "Gauge.IntakeTemperature", "label": "Intake (well fluid) temperature", "unit": "°F"},
+            {"metric": "motor_temp_f", "path": "Gauge.MotorTemperature", "label": "Motor winding temperature", "unit": "°F"},
+            {"metric": "vibration_g", "path": "Gauge.Vibration", "label": "Gauge vibration (radial)", "unit": "g"},
+            {"metric": "leakage_ua", "path": "Gauge.CurrentLeakage", "label": "Current leakage to ground (insulation)", "unit": "µA"},
+            {"metric": "whp_psi", "path": "Well.TubingPressure", "label": "Wellhead tubing pressure", "unit": "psi"},
+            {"metric": "casing_psi", "path": "Well.CasingPressure", "label": "Casing head pressure", "unit": "psi"},
+            {"metric": "flow_bpd", "path": "Well.LiquidRate", "label": "Liquid rate (oil + water)", "unit": "bbl/d"},
+            {"metric": "water_cut_pct", "path": "Test.WaterCut", "label": "Water cut, last well test", "unit": "%"},
+            {"metric": "gor_scf_stb", "path": "Test.GOR", "label": "Producing gas-oil ratio, last well test", "unit": "scf/stb"},
+            {"metric": "run_days", "path": "Run.Days", "label": "Days since the ESP was installed", "unit": "d"},
+            {"metric": "starts_30d", "path": "Run.Starts30d", "label": "Starts in the last 30 days", "unit": "count"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "head_low": 0.92, "head_loss": 0.80, "head_broken": 0.30, "load_broken_pct": 40.0,
+            "power_high": 1.15, "vibration_g": 1.0, "cv_pct": 5.0, "submergence_ft": 1000.0,
+            "motor_rise_ratio": 1.5, "leak_ref_f": 220.0, "leak_base_ua": 1.5, "leak_rising_x": 3.0, "leak_limit_ua": 20.0,
+            "starts_30d": 3,
+            "source": A + "your own operating practice. Head ratio 0.92 / 0.80, power ratio 1.15, current fluctuation 5 %, 1,000 ft of fluid "
+                      "over the pump, 1.0 g, leakage 3 x the commissioning value (corrected to 220 °F, halving per 18 °F / 10 °C) or 20 µA.",
+        },
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "stage_wear": {"name": "Stage wear (sand, abrasion, radial bearings)", "part": "pump",
+                       "symptoms": "head down at the same flow, efficiency down, power about the same, vibration up",
+                       "rules": ["ESP_HEAD_LOW", "ESP_HEAD_LOSS_HIGH", "ESP_VIBRATION_HIGH"], "default_ramp_min": 1.5},
+        "scale_deposits": {"name": "Scale in the stages", "part": "pump",
+                           "symptoms": "head down at the same flow, power up (friction in narrowed passages)",
+                           "rules": ["ESP_HEAD_LOW", "ESP_POWER_HIGH"], "default_ramp_min": 1.5},
+        "gas_interference": {"name": "Gas interference, then gas lock", "part": "intake",
+                             "symptoms": "free gas at the intake up, current erratic, flow down, then underload cycling",
+                             "rules": ["ESP_HEAD_LOW", "ESP_GAS_HIGH", "ESP_CURRENT_UNSTABLE", "ESP_GAS_LOCK", "ESP_RESTARTS_HIGH"], "default_ramp_min": 1.5},
+        "inflow_decline": {"name": "Inflow decline (pump-off)", "part": "well",
+                           "symptoms": "intake pressure and fluid level fall, flow below the recommended range",
+                           "rules": ["ESP_LOW_SUBMERGENCE", "ESP_DOWNTHRUST"], "default_ramp_min": 1.5},
+        "motor_cooling": {"name": "Motor cooling loss (deposits on the housing, emulsion)", "part": "motor",
+                          "symptoms": "motor temperature rise higher than expected for the load and the fluid velocity",
+                          "rules": ["ESP_MOTOR_COOLING", "ESP_MOTOR_TEMP_LIMIT"], "default_ramp_min": 1},
+        "motor_insulation": {"name": "Motor or cable insulation breakdown", "part": "motor",
+                             "symptoms": "current leakage rising faster than temperature explains",
+                             "rules": ["ESP_LEAKAGE_RISING", "ESP_INSULATION_LOW"], "default_ramp_min": 1},
+        "broken_shaft": {"name": "Broken shaft or coupling", "part": "pump",
+                         "symptoms": "no head, motor near no-load, current steady", "rules": ["ESP_SHAFT_BROKEN"], "default_ramp_min": 0.5},
+    },
+    "presentation": {"title": "ESP-2801 electric submersible pump", "dashboard": "ESP_WELL_VSD"},
+}
+
+out = HERE / "twin" / "esp-2801.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out)

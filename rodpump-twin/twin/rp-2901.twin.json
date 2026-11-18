@@ -1,0 +1,313 @@
+{
+ "$comment": "RP-2901 sucker-rod pumping system twin. Expected loads, torque and production in Maximo Monitor from the pumping unit rating, the rod string and the well data; the rod pump controller sends only what it measures and the features of its pump card.",
+ "twin": {
+  "id": "RP-2901",
+  "name": "Sucker-rod pumping system RP-2901",
+  "version": "1.0.0",
+  "folder": "rodpump-twin"
+ },
+ "identification": {
+  "asset": "RP-2901",
+  "assetnum": "RP-2901",
+  "manufacturer": "Lufkin (pumping unit)",
+  "model": "C-320D-256-120 conventional crank-balanced pumping unit",
+  "description": "Rod-lifted oil well: beam pumping unit, tapered steel rod string, insert pump at 6,000 ft, rod pump controller",
+  "unit": "Conventional crank-balanced beam pumping unit, API Spec 11E size C-320D-256-120",
+  "rods": "API Spec 11B grade D steel sucker rods, 7/8 in over 3/4 in taper",
+  "pump": "API Spec 11AX insert (rod) pump, 1.50 in bore, in 2-7/8 in anchored tubing",
+  "controller": "Rod pump controller (RPC) with polished-rod load cell and position sensor; computes the downhole pump card (wave equation) every stroke and stops the unit at pump-off"
+ },
+ "design": {
+  "unit": {
+   "make": "Lufkin",
+   "model": "C-320D-256-120",
+   "gearbox_rating_inlb": 320000.0,
+   "structure_rating_lb": 25600.0,
+   "max_stroke_in": 120.0,
+   "gear_ratio": 30.12,
+   "stroke_in": 120.0,
+   "spm": 8.5,
+   "cbe_lb": 11600.0,
+   "source": "Lufkin pumping unit catalog 2007: designation C-320D-256-120 (gear reducer 320,000 in-lb, structure 25,600 lb, maximum stroke 120 in) and 320D gear ratio 30.12:1. Stroke set on the longest crank hole and 8.5 strokes per minute; counterbalance effect (CBE) at the polished rod from the last balance survey: assumption: typical value, replace with your well file / last dynamometer survey"
+  },
+  "rods": {
+   "sections": [
+    {
+     "size_in": 0.875,
+     "length_ft": 1800.0,
+     "weight_lb_ft": 2.224,
+     "area_in2": 0.6013
+    },
+    {
+     "size_in": 0.75,
+     "length_ft": 4200.0,
+     "weight_lb_ft": 1.634,
+     "area_in2": 0.4418
+    }
+   ],
+   "grade": "D",
+   "tensile_min_psi": 115000.0,
+   "service_factor": 0.9,
+   "modulus_psi": 30500000.0,
+   "source": "Areas from the nominal diameters; weight per foot with couplings, taper lengths (an API 76-type taper), grade D minimum tensile strength and service factor for a mildly corrosive well: assumption: typical value, replace with your well file / last dynamometer survey. Steel modulus 30.5e6 psi (textbook value)."
+  },
+  "pump": {
+   "plunger_in": 1.5,
+   "depth_ft": 6000.0,
+   "tubing_anchored": true,
+   "source": "Pump setting depth and bore from the well file: assumption: typical value, replace with your well file / last dynamometer survey. Tubing anchored, so tubing stretch is neglected."
+  },
+  "fluid": {
+   "sg": 1.0,
+   "water_cut_pct": 85.0,
+   "gradient_psi_ft": 0.433,
+   "source": "Produced fluid specific gravity (85 % water cut): assumption: typical value, replace with your well file / last dynamometer survey. Fresh-water gradient 0.433 psi/ft."
+  },
+  "operation": {
+   "pumpoff_fillage_pct": 80.0,
+   "ve_expected": 0.88,
+   "tubing_pressure_psi": 100.0,
+   "casing_pressure_psi": 50.0,
+   "pip_psi": 250.0,
+   "runtime_pct": 88.0,
+   "source": "Pump-off set point of the RPC (stop when the pump card fillage falls below it), expected volumetric efficiency (measured flow / pump displacement at the net stroke: slippage and shrinkage), normal wellhead pressures and pump intake pressure: assumption: typical value, replace with your well file / last dynamometer survey"
+  },
+  "demo": {
+   "time_scale": 60,
+   "note": "Demo only: the unit strokes at its real speed for the 3D view; faults ramp in over one to two minutes of real time."
+  }
+ },
+ "telemetry": {
+  "event": "rodpump",
+  "publish_every_s": 60,
+  "device_type": "ROD_PUMP_SYSTEM",
+  "groups": {
+   "Unit": "Pumping unit and pump-off control",
+   "Surface": "Surface dynamometer card (polished rod)",
+   "Pump": "Downhole pump card computed by the RPC",
+   "Valve": "Last valve check",
+   "Well": "Wellhead, downhole gauge and flow",
+   "Motor": "Prime mover"
+  },
+  "points": [
+   {
+    "metric": "running",
+    "path": "Unit.Running",
+    "label": "Unit running (1) or idle on pump-off (0)",
+    "unit": "code"
+   },
+   {
+    "metric": "spm",
+    "path": "Unit.SPM",
+    "label": "Pumping speed",
+    "unit": "strokes/min"
+   },
+   {
+    "metric": "surface_stroke_in",
+    "path": "Unit.StrokeLength",
+    "label": "Polished rod stroke length",
+    "unit": "in"
+   },
+   {
+    "metric": "runtime_pct",
+    "path": "Unit.Runtime24h",
+    "label": "Run time, last 24 h",
+    "unit": "%"
+   },
+   {
+    "metric": "pumpoff_cycles_24h",
+    "path": "Unit.PumpOffCycles24h",
+    "label": "Pump-off stops, last 24 h",
+    "unit": "count"
+   },
+   {
+    "metric": "pprl_lb",
+    "path": "Surface.PPRL",
+    "label": "Peak polished rod load",
+    "unit": "lb"
+   },
+   {
+    "metric": "mprl_lb",
+    "path": "Surface.MPRL",
+    "label": "Minimum polished rod load",
+    "unit": "lb"
+   },
+   {
+    "metric": "pump_fillage_pct",
+    "path": "Pump.Fillage",
+    "label": "Pump fillage (net stroke / gross stroke)",
+    "unit": "%"
+   },
+   {
+    "metric": "pump_gross_stroke_in",
+    "path": "Pump.GrossStroke",
+    "label": "Plunger gross stroke",
+    "unit": "in"
+   },
+   {
+    "metric": "pump_net_stroke_in",
+    "path": "Pump.NetStroke",
+    "label": "Plunger net (liquid) stroke",
+    "unit": "in"
+   },
+   {
+    "metric": "pump_fluid_load_lb",
+    "path": "Pump.FluidLoad",
+    "label": "Fluid load on the pump card (upstroke minus downstroke load)",
+    "unit": "lb"
+   },
+   {
+    "metric": "tv_load_loss_pct",
+    "path": "Valve.TVLoadLoss",
+    "label": "Traveling valve check: fluid load lost in 5 s",
+    "unit": "%"
+   },
+   {
+    "metric": "tubing_pressure_psi",
+    "path": "Well.TubingPressure",
+    "label": "Tubing head pressure",
+    "unit": "psi g"
+   },
+   {
+    "metric": "casing_pressure_psi",
+    "path": "Well.CasingPressure",
+    "label": "Casing head pressure",
+    "unit": "psi g"
+   },
+   {
+    "metric": "pip_psi",
+    "path": "Well.PumpIntakePressure",
+    "label": "Pump intake pressure (downhole gauge)",
+    "unit": "psi g"
+   },
+   {
+    "metric": "flow_bpd",
+    "path": "Well.FlowRate",
+    "label": "Liquid rate at the wellhead meter",
+    "unit": "bbl/d"
+   },
+   {
+    "metric": "motor_kw",
+    "path": "Motor.Power",
+    "label": "Motor input power, average while running",
+    "unit": "kW"
+   },
+   {
+    "metric": "current_up_a",
+    "path": "Motor.PeakCurrentUp",
+    "label": "Motor peak current on the upstroke",
+    "unit": "A"
+   },
+   {
+    "metric": "current_down_a",
+    "path": "Motor.PeakCurrentDown",
+    "label": "Motor peak current on the downstroke",
+    "unit": "A"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "fluid_load_lost_ratio": 0.3,
+   "submergence_low_ft": 150.0,
+   "submergence_gas_ft": 300.0,
+   "submergence_high_ft": 1000.0,
+   "runtime_poc_pct": 95.0,
+   "ve_alert": 0.7,
+   "tv_loss_alert_pct": 10.0,
+   "pprl_ratio_alert": 1.15,
+   "mprl_ratio_alert": 0.75,
+   "gearbox_warn_pct": 90.0,
+   "gearbox_limit_pct": 100.0,
+   "rod_loading_limit_pct": 100.0,
+   "balance_low": 0.75,
+   "balance_high": 1.33,
+   "full_fillage_pct": 95.0
+  }
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "fluid_pound": {
+   "name": "Fluid pound: well pumped off, pump-off control not stopping",
+   "part": "pump / controller",
+   "symptoms": "fillage low, pump intake pressure near zero, run time 100 %, plunger hits liquid on the downstroke",
+   "rules": [
+    "RP_FLUID_POUND"
+   ],
+   "default_ramp_min": 1
+  },
+  "gas_interference": {
+   "name": "Gas interference: free gas in the pump",
+   "part": "pump",
+   "symptoms": "fillage low although the pump is well submerged, rounded load release on the card",
+   "rules": [
+    "RP_GAS_INTERFERENCE"
+   ],
+   "default_ramp_min": 1
+  },
+  "tubing_leak": {
+   "name": "Tubing leak (hole in the tubing)",
+   "part": "tubing",
+   "symptoms": "full pump card, valves hold, but less liquid reaches the surface; tubing pressure falls",
+   "rules": [
+    "RP_PRODUCTION_LOW",
+    "RP_TUBING_LEAK"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "worn_pump": {
+   "name": "Worn pump: plunger / barrel wear, leaking traveling valve",
+   "part": "pump",
+   "symptoms": "fluid load leaks off during the traveling valve check, less liquid at the surface",
+   "rules": [
+    "RP_PRODUCTION_LOW",
+    "RP_PUMP_LEAK"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "rod_part": {
+   "name": "Rod part (parted rod string)",
+   "part": "rods",
+   "symptoms": "loads fall to the weight of the rods above the break, no fluid load, no production, counterweights now drive the gearbox",
+   "rules": [
+    "RP_ROD_PART",
+    "RP_OUT_OF_BALANCE",
+    "RP_GEARBOX_OVERLOAD"
+   ],
+   "default_ramp_min": 0.5
+  },
+  "paraffin_drag": {
+   "name": "Paraffin / rod-tubing friction",
+   "part": "rods / tubing",
+   "symptoms": "peak load up, minimum load down, card gets taller, gearbox torque and top-rod stress over their limits",
+   "rules": [
+    "RP_PPRL_HIGH",
+    "RP_MPRL_LOW",
+    "RP_GEARBOX_OVERLOAD",
+    "RP_ROD_OVERSTRESS"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "counterbalance_shift": {
+   "name": "Counterbalance out of balance (counterweights moved)",
+   "part": "pumping unit",
+   "symptoms": "motor current much higher on one half of the stroke; loads unchanged",
+   "rules": [
+    "RP_OUT_OF_BALANCE"
+   ],
+   "default_ramp_min": 1
+  }
+ },
+ "presentation": {
+  "title": "RP-2901 sucker-rod pumping system",
+  "dashboard": "ROD_PUMP_SYSTEM",
+  "kpis": [
+   {
+    "metric": "pump_fillage_pct"
+   },
+   {
+    "metric": "pprl_lb"
+   }
+  ]
+ }
+}

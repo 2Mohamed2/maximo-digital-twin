@@ -1,0 +1,352 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-2201 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>K-2201</b><span class="g">Hydrogen make-up compressor · Ariel KBU/2 · API 618</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-rl"><span class="dot"></span><span id="c-rl-t">rod load –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Curves, rod load and valves →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the compressor model…</div>
+<div class="credit">Two-throw balanced-opposed frame, stage 1 cylinder (left), stage 2 cylinder (right), suction bottles above, discharge bottles below, motor on the drive end. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-slow">Pause crank</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Valve caps: blue = suction, purple = discharge, red = the twin sees a leak. The crank turns slowed down (the real machine runs at 720 rpm).</div>
+<aside>
+  <section>
+    <h2>K-2201 twin</h2>
+    <p class="sub" id="sub">hydrogen make-up compressor</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Capacity<b id="k-cap">–</b></div><div>Rod load max<b id="k-rl">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The compressor sends only what it measures. Every expected value (discharge temperatures, capacity, rod loads, valve covers) is computed from the twin file: Ariel's frame ratings, the cylinder data and the gas.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for K-2201: the two-stage reciprocating compressor, its valves, packing, lubricator and running gear,\nwith injectable faults.\n\nThe real unit sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and\nfault fingerprints for the tests, the figures and the live pages.\n\nHow the stand-in works: the two stages must pass the same mass flow, so the interstage pressure settles where the\nstage 1 capacity equals the stage 2 capacity (each from its volumetric efficiency, minus any leak through a valve or the\nrings). A leak heats the gas: a leaking valve heats its own cover most, worn rings heat the whole cylinder a little.\n\"\"\"\nimport math\nimport random\n\nATM = 1.01325\nIN = 0.0254\nCOOLER_DP = 0.5            # bar across the interstage cooler and separator (assumption)\n\n\nclass Compressor:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.d = d\n        self.s = d[\"stages\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        fr = d[\"frame\"]\n        self.stroke = fr[\"stroke_in\"] * IN\n        arod = math.pi / 4 * (fr[\"rod_diameter_in\"] * IN) ** 2\n        self.disp = [(2 * math.pi / 4 * (s[\"bore_in\"] * IN) ** 2 - arod) * self.stroke for s in self.s]\n        self.k = d[\"gas\"][\"k\"]\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state -------------------------------------------------------------------------------------------------------\n    def _ve(self, i, ps, pd):\n        r = (pd + ATM) / (ps + ATM)\n        return 1 - r / 100 - self.s[i][\"clearance\"] * (r ** (1 / self.k) - 1)\n\n    def _q(self, i, ps, pd, ts, leak, rpm):\n        return (self._ve(i, ps, pd) - leak) * self.disp[i] * rpm * 60 * (ps + ATM) / ATM * 273.15 / (ts + 273.15)\n\n    def _td(self, i, ps, pd, ts):\n        s = self.s[i]\n        psi, pdi = (ps + ATM) * (1 - s[\"loss_suction\"]), (pd + ATM) * (1 + s[\"loss_discharge\"])\n        re = (pdi / psi) ** ((self.k - 1) / self.k)\n        f = 0.02 + 0.002 * s[\"bore_in\"]\n        return (ts + 273.15) * (1 - f) / (1 - f * re) * re - 273.15\n\n    def state(self, ps1, ts1, ts2, pd2, rpm):\n        f = self.faults\n        leak1 = 0.10 * f[\"discharge_valve_leak\"]\n        leak2 = 0.08 * f[\"suction_valve_leak\"] + 0.06 * f[\"ring_wear\"]\n        lo, hi = ps1 + 5, pd2 - 5\n        for _ in range(60):                                     # interstage pressure: stage 1 flow = stage 2 flow\n            mid = (lo + hi) / 2\n            q1 = self._q(0, ps1, mid, ts1, leak1, rpm)\n            q2 = self._q(1, mid - COOLER_DP, pd2, ts2, leak2, rpm)\n            lo, hi = (mid, hi) if q1 > q2 else (lo, mid)\n        pd1 = (lo + hi) / 2\n        ps2 = pd1 - COOLER_DP\n        q = self._q(0, ps1, pd1, ts1, leak1, rpm)\n        res1 = 16.0 * f[\"discharge_valve_leak\"]\n        res2 = 14.0 * f[\"suction_valve_leak\"] + 12.0 * f[\"ring_wear\"]\n        return dict(ps1=ps1, pd1=pd1, ps2=ps2, pd2=pd2, ts1=ts1, ts2=ts2, q=q, rpm=rpm,\n                    tde1=self._td(0, ps1, pd1, ts1), tde2=self._td(1, ps2, pd2, ts2), res1=res1, res2=res2)\n\n    # one published message --------------------------------------------------------------------------------------------\n    def measure(self):\n        f, d = self.faults, self.d\n        st = self.state(self.s[0][\"ps_barg\"] + self.n(0.08), self.s[0][\"ts_c\"] + self.n(0.3), self.s[1][\"ts_c\"] + self.n(0.3),\n                        self.s[1][\"pd_barg\"] + 18.0 * f[\"discharge_pressure_high\"] + self.n(0.2), d[\"operation\"][\"rpm\"])\n        return self.reading(st)\n\n    def reading(self, st):\n        f, d, n = self.faults, self.d, self.n\n        rise, off = d[\"valves\"][\"suction_cover_rise_k\"], d[\"valves\"][\"discharge_cover_offset_k\"]\n        td1, td2 = st[\"tde1\"] + st[\"res1\"], st[\"tde2\"] + st[\"res2\"]\n        dvl, svl, rw = f[\"discharge_valve_leak\"], f[\"suction_valve_leak\"], f[\"ring_wear\"]\n        r = {\n            \"ps1_barg\": round(st[\"ps1\"], 3), \"ts1_c\": round(st[\"ts1\"], 2), \"pd1_barg\": round(st[\"pd1\"] + n(0.05), 3),\n            \"td1_c\": round(td1 + n(0.4), 2), \"ps2_barg\": round(st[\"ps2\"] + n(0.05), 3), \"ts2_c\": round(st[\"ts2\"], 2),\n            \"pd2_barg\": round(st[\"pd2\"], 3), \"td2_c\": round(td2 + n(0.4), 2),\n            \"flow_nm3h\": round(st[\"q\"] * (1 + n(0.004)), 1), \"speed_rpm\": round(st[\"rpm\"] + n(0.3), 1),\n            # valve covers: a leaking valve heats its own cover most\n            \"tv1_he_s_c\": round(st[\"ts1\"] + rise + n(0.6), 2),\n            \"tv1_he_d_c\": round(st[\"tde1\"] + 2 * st[\"res1\"] + off + 15 * dvl + n(0.6), 2),\n            \"tv1_ce_s_c\": round(st[\"ts1\"] + rise + n(0.6), 2),\n            \"tv1_ce_d_c\": round(st[\"tde1\"] + off + n(0.6), 2),\n            \"tv2_he_s_c\": round(st[\"ts2\"] + rise + 5 * rw + n(0.6), 2),\n            \"tv2_he_d_c\": round(st[\"tde2\"] + st[\"res2\"] + off + n(0.6), 2),\n            \"tv2_ce_s_c\": round(st[\"ts2\"] + rise + 35 * svl + 5 * rw + n(0.6), 2),\n            \"tv2_ce_d_c\": round(st[\"tde2\"] + st[\"res2\"] + off + n(0.6), 2),\n            \"packing_vent1_nm3h\": round(max(0.0, d[\"packing\"][\"vent_normal_nm3h\"] + n(0.03)), 3),\n            \"packing_vent2_nm3h\": round(max(0.0, d[\"packing\"][\"vent_normal_nm3h\"] + 3.0 * f[\"packing_leak\"] + n(0.03)), 3),\n            \"lube_cycle_s\": round(d[\"lube\"][\"design_cycle_s\"] / (1 - 0.6 * f[\"lube_starvation\"]) + n(0.2), 2),\n            \"rod_drop1_mm\": round(d[\"rod_drop\"][\"normal_mm\"] + 1.2 * f[\"rider_band_wear\"] + n(0.01), 3),\n            \"rod_drop2_mm\": round(d[\"rod_drop\"][\"normal_mm\"] + 0.05 + n(0.01), 3),\n            \"xhead_acc1_g\": round(d[\"crosshead\"][\"baseline_g\"][0] * (1 + n(0.04)), 3),\n            \"xhead_acc2_g\": round(d[\"crosshead\"][\"baseline_g\"][1] * (1 + 2.0 * f[\"crosshead_wear\"] + n(0.04)), 3),\n        }\n        return r\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The compressor runs at its operating point. Suction pressure and temperatures wander slowly (a refinery header is\n    never quite steady); the crank angle is kept for the 3D animation.\n    \"\"\"\n\n    def __init__(self, twin, seed=2201):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.c = Compressor(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.crank = 0.0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.crank = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.c.faults[k] = f.sev\n        self.t += dt * self.scale\n        d = self.twin[\"design\"]\n        rpm = d[\"operation\"][\"rpm\"]\n        self.crank = (self.crank + rpm / 60 * 360 * dt) % 360\n        h = self.t / 3600.0\n        ps1 = d[\"stages\"][0][\"ps_barg\"] + 0.4 * math.sin(2 * math.pi * h / 7.0)\n        ts1 = d[\"stages\"][0][\"ts_c\"] + 1.5 * math.sin(2 * math.pi * h / 24.0)\n        ts2 = d[\"stages\"][1][\"ts_c\"] + 1.0 * math.sin(2 * math.pi * h / 24.0 + 0.6)\n        pd2 = d[\"stages\"][1][\"pd_barg\"] + 0.6 * math.sin(2 * math.pi * h / 5.0) + 18.0 * self.faults[\"discharge_pressure_high\"].sev\n        st = self.c.state(ps1, ts1, ts2, pd2, rpm)\n        st.update(crank=self.crank, running=self.running)\n        return st\n\n    def measure(self, true):\n        c, n = self.c, self.c.n\n        st = dict(true)\n        st[\"ps1\"] = true[\"ps1\"] + n(0.03)\n        st[\"ts1\"] = true[\"ts1\"] + n(0.2)\n        st[\"ts2\"] = true[\"ts2\"] + n(0.2)\n        st[\"pd2\"] = true[\"pd2\"] + n(0.1)\n        return c.reading(st)\n", "twin_calc": "\"\"\"The reciprocating compressor twin's expectations (K-2201, Ariel KBU/2, two stages, hydrogen make-up).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nPressures in bar g, temperatures in \u00b0C, forces in kN. atm = 1.01325 bar.\n\nInternal pressures (Ariel calculation method: the valves cost a few percent of the flange pressure):\n    Psi = (Ps + atm) x (1 - loss_s)        Pdi = (Pd + atm) x (1 + loss_d)        Rint = Pdi / Psi\nExpected discharge temperature (Ariel: suction preheat, then isentropic compression with k):\n    e = (k - 1) / k,   f = 0.02 + 0.002 x bore(in)\n    Tsph = Ts x (1 - f) / (1 - f x Rint^e)         (closed form of Tsph = Ts + f (Td - Ts))\n    Td   = Tsph x Rint^e                            (kelvin)\nVolumetric efficiency and capacity (textbook form, Z ratio 1):\n    r = (Pd + atm) / (Ps + atm),   VE = 1 - r/100 - C (r^(1/k) - 1)\n    displacement = (A_he + A_ce) x stroke x rpm;   expected flow (Nm\u00b3/h) = VE x displacement x 60 x (Ps+atm)/atm x 273.15/Ts\nGas rod load at the crosshead pin (Ariel, internal gauge pressures; frame ratings are on gas load):\n    compression RLc = A_he x Pdi_g - A_ce x Psi_g      tension RLt = A_ce x Pdi_g - A_he x Psi_g\n    (kN = m\u00b2 x bar x 100), each divided by the Ariel rating (80,000 lbf compression, 75,000 lbf tension).\nValve health from the cover temperatures (a leaking valve passes hot gas back and forth and runs hot):\n    suction cover rise   = cover - suction gas of its stage (healthy: a few K)\n    discharge cover dev. = cover - expected discharge temperature of its stage\n    peer spread          = |head end - crank end| for the same valve function on the same cylinder\nCombined pin load (gas + inertia) and its reversal are computed over the crank angle by pin_load_curve() and\nreversal(): Ariel uses them for the reversal check (30 degrees, 25 %), not for the frame rating.\n\"\"\"\nimport math\n\nATM = 1.01325\nIN = 0.0254\nLBF = 4.4482216152605\n\n\ndef _r(x):\n    return float(f\"{x:.10g}\")\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    fr, g, s1, s2 = d[\"frame\"], d[\"gas\"], d[\"stages\"][0], d[\"stages\"][1]\n    stroke = fr[\"stroke_in\"] * IN\n    arod = math.pi / 4 * (fr[\"rod_diameter_in\"] * IN) ** 2\n    k = dict(atm=ATM, kg=g[\"k\"], e=_r((g[\"k\"] - 1) / g[\"k\"]), ik=_r(1 / g[\"k\"]), stroke=_r(stroke), arod=_r(arod),\n             rt=_r(fr[\"rod_load_tension_lbf\"] * LBF / 1000), rc=_r(fr[\"rod_load_compression_lbf\"] * LBF / 1000),\n             rpm=d[\"operation\"][\"rpm\"], lube=d[\"lube\"][\"design_cycle_s\"],\n             xb1=d[\"crosshead\"][\"baseline_g\"][0], xb2=d[\"crosshead\"][\"baseline_g\"][1],\n             tdlim=d[\"temperature\"][\"td_limit_c\"], tdalarm=d[\"temperature\"][\"td_alarm_c\"])\n    for i, s in ((1, s1), (2, s2)):\n        ahe = math.pi / 4 * (s[\"bore_in\"] * IN) ** 2\n        k[f\"ahe{i}\"], k[f\"ace{i}\"] = _r(ahe), _r(ahe - arod)\n        k[f\"c{i}\"], k[f\"ls{i}\"], k[f\"ld{i}\"] = s[\"clearance\"], s[\"loss_suction\"], s[\"loss_discharge\"]\n        k[f\"f{i}\"] = _r(0.02 + 0.002 * s[\"bore_in\"])\n        k[f\"disp{i}\"] = _r((2 * ahe - arod) * stroke)          # m\u00b3 per revolution, both ends\n        k[f\"m{i}\"] = s[\"recip_mass_kg\"]\n    return k\n\n\ndef _parts(twin):\n    k = _k(twin)\n    D = lambda m: f\"df['{m.upper()}']\"\n    P = {}\n    for i in (1, 2):\n        ps, pd, ts = D(f\"ps{i}_barg\"), D(f\"pd{i}_barg\"), D(f\"ts{i}_c\")\n        PSI = f\"(({ps} + {ATM}) * {1 - k[f'ls{i}']!r})\"\n        PDI = f\"(({pd} + {ATM}) * {1 + k[f'ld{i}']!r})\"\n        R = f\"({PDI} / {PSI})\"\n        RE = f\"({R} ** {k['e']!r})\"\n        f = k[f\"f{i}\"]\n        TDE = f\"(({ts} + 273.15) * {_r(1 - f)!r} / (1 - {f!r} * {RE}) * {RE} - 273.15)\"\n        RF = f\"(({pd} + {ATM}) / ({ps} + {ATM}))\"\n        VE = f\"(1 - {RF} / 100 - {k[f'c{i}']!r} * ({RF} ** {k['ik']!r} - 1))\"\n        PSG, PDG = f\"({PSI} - {ATM})\", f\"({PDI} - {ATM})\"\n        RLC = f\"(({k[f'ahe{i}']!r} * {PDG} - {k[f'ace{i}']!r} * {PSG}) * 100 / {k['rc']!r} * 100)\"\n        RLT = f\"(({k[f'ace{i}']!r} * {PDG} - {k[f'ahe{i}']!r} * {PSG}) * 100 / {k['rt']!r} * 100)\"\n        P.update({f\"R{i}\": R, f\"TDE{i}\": TDE, f\"VE{i}\": VE, f\"RLC{i}\": RLC, f\"RLT{i}\": RLT})\n    P[\"FLOWE\"] = (f\"({P['VE1']} * {k['disp1']!r} * {D('speed_rpm')} * 60 * ({D('ps1_barg')} + {ATM}) / {ATM}\"\n                  f\" * 273.15 / ({D('ts1_c')} + 273.15))\")\n    mx = lambda a, b: f\"np.maximum({a}, {b})\"\n    P[\"RLMAX\"] = mx(mx(P[\"RLC1\"], P[\"RLT1\"]), mx(P[\"RLC2\"], P[\"RLT2\"]))\n    P[\"SRISE\"] = mx(mx(f\"({D('tv1_he_s_c')} - {D('ts1_c')})\", f\"({D('tv1_ce_s_c')} - {D('ts1_c')})\"),\n                    mx(f\"({D('tv2_he_s_c')} - {D('ts2_c')})\", f\"({D('tv2_ce_s_c')} - {D('ts2_c')})\"))\n    P[\"DDEV\"] = mx(mx(f\"({D('tv1_he_d_c')} - {P['TDE1']})\", f\"({D('tv1_ce_d_c')} - {P['TDE1']})\"),\n                   mx(f\"({D('tv2_he_d_c')} - {P['TDE2']})\", f\"({D('tv2_ce_d_c')} - {P['TDE2']})\"))\n    ab = lambda a, b: f\"np.abs({D(a)} - {D(b)})\"\n    P[\"SPREAD\"] = mx(mx(ab(\"tv1_he_s_c\", \"tv1_ce_s_c\"), ab(\"tv1_he_d_c\", \"tv1_ce_d_c\")),\n                     mx(ab(\"tv2_he_s_c\", \"tv2_ce_s_c\"), ab(\"tv2_he_d_c\", \"tv2_ce_d_c\")))\n    P[\"LUBE\"] = f\"({k['lube']!r} / {D('lube_cycle_s')})\"\n    P[\"XH\"] = mx(f\"({D('xhead_acc1_g')} / {k['xb1']!r})\", f\"({D('xhead_acc2_g')} / {k['xb2']!r})\")\n    P[\"TDR1\"] = f\"({D('td1_c')} - {P['TDE1']})\"\n    P[\"TDR2\"] = f\"({D('td2_c')} - {P['TDE2']})\"\n    P[\"CAP\"] = f\"({D('flow_nm3h')} / {P['FLOWE']})\"\n    return k, P\n\n\ndef monitor_expressions(twin):\n    k, P = _parts(twin)\n    return [\n        (\"RINT_S1\", P[\"R1\"]), (\"RINT_S2\", P[\"R2\"]),\n        (\"TD_EXPECTED_S1_C\", P[\"TDE1\"]), (\"TD_EXPECTED_S2_C\", P[\"TDE2\"]),\n        (\"TD_RESIDUAL_S1_K\", P[\"TDR1\"]), (\"TD_RESIDUAL_S2_K\", P[\"TDR2\"]),\n        (\"VE_S1\", P[\"VE1\"]), (\"VE_S2\", P[\"VE2\"]),\n        (\"FLOW_EXPECTED_NM3H\", P[\"FLOWE\"]), (\"CAPACITY_RATIO\", P[\"CAP\"]),\n        (\"ROD_LOAD_C_S1_PCT\", P[\"RLC1\"]), (\"ROD_LOAD_T_S1_PCT\", P[\"RLT1\"]),\n        (\"ROD_LOAD_C_S2_PCT\", P[\"RLC2\"]), (\"ROD_LOAD_T_S2_PCT\", P[\"RLT2\"]),\n        (\"ROD_LOAD_MAX_PCT\", P[\"RLMAX\"]),\n        (\"SUCT_COVER_RISE_MAX_K\", P[\"SRISE\"]), (\"DISCH_COVER_DEV_MAX_K\", P[\"DDEV\"]), (\"VALVE_PEER_SPREAD_K\", P[\"SPREAD\"]),\n        (\"LUBE_RATE_RATIO\", P[\"LUBE\"]), (\"XHEAD_VIB_RATIO\", P[\"XH\"]),\n    ]\n\n\n# ---- the same numbers in Python ----------------------------------------------------------------------------------------\ndef stage(k, i, ps, pd, ts):\n    \"\"\"Internal ratio, expected discharge temperature, VE and gas rod loads (% of rating) of stage i.\"\"\"\n    psi = (ps + ATM) * (1 - k[f\"ls{i}\"])\n    pdi = (pd + ATM) * (1 + k[f\"ld{i}\"])\n    R = pdi / psi\n    re = R ** k[\"e\"]\n    f = k[f\"f{i}\"]\n    tde = (ts + 273.15) * _r(1 - f) / (1 - f * re) * re - 273.15\n    rf = (pd + ATM) / (ps + ATM)\n    ve = 1 - rf / 100 - k[f\"c{i}\"] * (rf ** k[\"ik\"] - 1)\n    psg, pdg = psi - ATM, pdi - ATM\n    rlc = (k[f\"ahe{i}\"] * pdg - k[f\"ace{i}\"] * psg) * 100 / k[\"rc\"] * 100\n    rlt = (k[f\"ace{i}\"] * pdg - k[f\"ahe{i}\"] * psg) * 100 / k[\"rt\"] * 100\n    return dict(R=R, tde=tde, ve=ve, rlc=rlc, rlt=rlt, rf=rf)\n\n\ndef flow_expected(k, ve1, rpm, ps1, ts1):\n    return ve1 * k[\"disp1\"] * rpm * 60 * (ps1 + ATM) / ATM * 273.15 / (ts1 + 273.15)\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    s1 = stage(k, 1, r[\"ps1_barg\"], r[\"pd1_barg\"], r[\"ts1_c\"])\n    s2 = stage(k, 2, r[\"ps2_barg\"], r[\"pd2_barg\"], r[\"ts2_c\"])\n    fe = flow_expected(k, s1[\"ve\"], r[\"speed_rpm\"], r[\"ps1_barg\"], r[\"ts1_c\"])\n    return {\n        \"rint_s1\": s1[\"R\"], \"rint_s2\": s2[\"R\"], \"td_expected_s1_c\": s1[\"tde\"], \"td_expected_s2_c\": s2[\"tde\"],\n        \"td_residual_s1_k\": r[\"td1_c\"] - s1[\"tde\"], \"td_residual_s2_k\": r[\"td2_c\"] - s2[\"tde\"],\n        \"ve_s1\": s1[\"ve\"], \"ve_s2\": s2[\"ve\"], \"flow_expected_nm3h\": fe, \"capacity_ratio\": r[\"flow_nm3h\"] / fe,\n        \"rod_load_c_s1_pct\": s1[\"rlc\"], \"rod_load_t_s1_pct\": s1[\"rlt\"], \"rod_load_c_s2_pct\": s2[\"rlc\"], \"rod_load_t_s2_pct\": s2[\"rlt\"],\n        \"rod_load_max_pct\": max(s1[\"rlc\"], s1[\"rlt\"], s2[\"rlc\"], s2[\"rlt\"]),\n        \"suct_cover_rise_max_k\": max(r[\"tv1_he_s_c\"] - r[\"ts1_c\"], r[\"tv1_ce_s_c\"] - r[\"ts1_c\"], r[\"tv2_he_s_c\"] - r[\"ts2_c\"], r[\"tv2_ce_s_c\"] - r[\"ts2_c\"]),\n        \"disch_cover_dev_max_k\": max(r[\"tv1_he_d_c\"] - s1[\"tde\"], r[\"tv1_ce_d_c\"] - s1[\"tde\"], r[\"tv2_he_d_c\"] - s2[\"tde\"], r[\"tv2_ce_d_c\"] - s2[\"tde\"]),\n        \"valve_peer_spread_k\": max(abs(r[\"tv1_he_s_c\"] - r[\"tv1_ce_s_c\"]), abs(r[\"tv1_he_d_c\"] - r[\"tv1_ce_d_c\"]),\n                                   abs(r[\"tv2_he_s_c\"] - r[\"tv2_ce_s_c\"]), abs(r[\"tv2_he_d_c\"] - r[\"tv2_ce_d_c\"])),\n        \"lube_rate_ratio\": k[\"lube\"] / r[\"lube_cycle_s\"],\n        \"xhead_vib_ratio\": max(r[\"xhead_acc1_g\"] / k[\"xb1\"], r[\"xhead_acc2_g\"] / k[\"xb2\"]),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    k, P = _parts(twin)\n    D = lambda m: f\"df['{m.upper()}']\"\n    return [\n        (\"RECIP_ROD_LOAD_LIMIT\", f\"{P['RLMAX']} > {L['rod_load_limit_pct']}\", \"Critical\", \"discharge_pressure_high\"),\n        (\"RECIP_ROD_LOAD_HIGH\", f\"({P['RLMAX']} > {L['rod_load_alert_pct']}) & ({P['RLMAX']} <= {L['rod_load_limit_pct']})\", \"High\", \"discharge_pressure_high\"),\n        (\"RECIP_TD_HIGH\", f\"np.maximum({D('td1_c')}, {D('td2_c')}) > {k['tdalarm']}\", \"High\", None),\n        (\"RECIP_PACKING_LEAK\", f\"np.maximum({D('packing_vent1_nm3h')}, {D('packing_vent2_nm3h')}) > {L['packing_vent_alert_nm3h']}\", \"High\", \"packing_leak\"),\n        (\"RECIP_LUBE_LOW\", f\"{P['LUBE']} < {L['lube_rate_ratio_alert']}\", \"High\", \"lube_starvation\"),\n        (\"RECIP_XHEAD_VIB\", f\"{P['XH']} > {L['xhead_ratio_alert']}\", \"High\", \"crosshead_wear\"),\n        (\"RECIP_SUCTION_VALVE_LEAK\", f\"{P['SRISE']} > {L['suction_cover_rise_alert_k']}\", \"Medium\", \"suction_valve_leak\"),\n        (\"RECIP_DISCHARGE_VALVE_LEAK\", f\"{P['DDEV']} > {L['discharge_cover_dev_alert_k']}\", \"Medium\", \"discharge_valve_leak\"),\n        (\"RECIP_VALVE_PEER_SPREAD\", f\"{P['SPREAD']} > {L['valve_peer_spread_alert_k']}\", \"Medium\", \"discharge_valve_leak\"),\n        (\"RECIP_TD_DEVIATION_S1\", f\"{P['TDR1']} > {L['td_residual_alert_k']}\", \"Medium\", \"discharge_valve_leak\"),\n        (\"RECIP_TD_DEVIATION_S2\", f\"{P['TDR2']} > {L['td_residual_alert_k']}\", \"Medium\", \"ring_wear\"),\n        (\"RECIP_CAPACITY_LOW\", f\"{P['CAP']} < {L['capacity_ratio_alert']}\", \"Medium\", \"discharge_valve_leak\"),\n        (\"RECIP_ROD_DROP\", f\"np.maximum({D('rod_drop1_mm')}, {D('rod_drop2_mm')}) > {L['rod_drop_alert_mm']}\", \"Medium\", \"rider_band_wear\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    rl = t[\"rod_load_max_pct\"]\n    add(rl > L[\"rod_load_limit_pct\"], \"RECIP_ROD_LOAD_LIMIT\", \"Critical\", f\"Gas rod load {rl:.0f} % of the Ariel frame rating\", \"running gear\", \"discharge_pressure_high\")\n    add(L[\"rod_load_alert_pct\"] < rl <= L[\"rod_load_limit_pct\"], \"RECIP_ROD_LOAD_HIGH\", \"High\", f\"Gas rod load {rl:.0f} % of the frame rating\", \"running gear\", \"discharge_pressure_high\")\n    tdm = max(r[\"td1_c\"], r[\"td2_c\"])\n    add(tdm > k[\"tdalarm\"], \"RECIP_TD_HIGH\", \"High\", f\"Discharge temperature {tdm:.0f} \u00b0C, above the {k['tdalarm']:.0f} \u00b0C alarm\", \"process\")\n    pv = max(r[\"packing_vent1_nm3h\"], r[\"packing_vent2_nm3h\"])\n    add(pv > L[\"packing_vent_alert_nm3h\"], \"RECIP_PACKING_LEAK\", \"High\", f\"Packing vent {pv:.2f} Nm\u00b3/h\", \"packing\", \"packing_leak\")\n    add(t[\"lube_rate_ratio\"] < L[\"lube_rate_ratio_alert\"], \"RECIP_LUBE_LOW\", \"High\",\n        f\"Divider block cycle {r['lube_cycle_s']:.0f} s: lube rate {t['lube_rate_ratio'] * 100:.0f} % of setting\", \"lube\", \"lube_starvation\")\n    add(t[\"xhead_vib_ratio\"] > L[\"xhead_ratio_alert\"], \"RECIP_XHEAD_VIB\", \"High\", f\"Crosshead acceleration {t['xhead_vib_ratio']:.1f} x baseline\", \"running gear\", \"crosshead_wear\")\n    add(t[\"suct_cover_rise_max_k\"] > L[\"suction_cover_rise_alert_k\"], \"RECIP_SUCTION_VALVE_LEAK\", \"Medium\",\n        f\"A suction valve cover is {t['suct_cover_rise_max_k']:.0f} K above its suction gas\", \"valves\", \"suction_valve_leak\")\n    add(t[\"disch_cover_dev_max_k\"] > L[\"discharge_cover_dev_alert_k\"], \"RECIP_DISCHARGE_VALVE_LEAK\", \"Medium\",\n        f\"A discharge valve cover is {t['disch_cover_dev_max_k']:.0f} K above the expected discharge temperature\", \"valves\", \"discharge_valve_leak\")\n    add(t[\"valve_peer_spread_k\"] > L[\"valve_peer_spread_alert_k\"], \"RECIP_VALVE_PEER_SPREAD\", \"Medium\",\n        f\"Head and crank end covers differ by {t['valve_peer_spread_k']:.0f} K\", \"valves\", \"discharge_valve_leak\")\n    add(t[\"td_residual_s1_k\"] > L[\"td_residual_alert_k\"], \"RECIP_TD_DEVIATION_S1\", \"Medium\",\n        f\"Stage 1 discharge {r['td1_c']:.0f} \u00b0C, {t['td_residual_s1_k']:.0f} K above expected\", \"cylinder\", \"discharge_valve_leak\")\n    add(t[\"td_residual_s2_k\"] > L[\"td_residual_alert_k\"], \"RECIP_TD_DEVIATION_S2\", \"Medium\",\n        f\"Stage 2 discharge {r['td2_c']:.0f} \u00b0C, {t['td_residual_s2_k']:.0f} K above expected\", \"cylinder\", \"ring_wear\")\n    add(t[\"capacity_ratio\"] < L[\"capacity_ratio_alert\"], \"RECIP_CAPACITY_LOW\", \"Medium\",\n        f\"Flow {t['capacity_ratio'] * 100:.0f} % of the capacity expected from clearance and ratio\", \"cylinder\", \"discharge_valve_leak\")\n    rd = max(r[\"rod_drop1_mm\"], r[\"rod_drop2_mm\"])\n    add(rd > L[\"rod_drop_alert_mm\"], \"RECIP_ROD_DROP\", \"Medium\", f\"Rod drop {rd:.2f} mm: rider bands worn\", \"cylinder\", \"rider_band_wear\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n\n\n# ---- crank-angle model: gas + inertia load at the crosshead pin and its reversal ---------------------------------------\ndef pin_load_curve(twin, i, ps, pd, rpm=None, step=2, he_active=True):\n    \"\"\"[(crank deg, gas kN, inertia kN, combined kN)] for stage i over one revolution (positive = compression).\n\n    Ideal indicator diagram per end with the stage clearance: re-expansion and compression with exponent k between the\n    internal suction and discharge pressures. 0 degrees = piston at the head-end dead centre.\n    \"\"\"\n    k = _k(twin)\n    rg = twin[\"design\"][\"running_gear\"]\n    rpm = rpm or k[\"rpm\"]\n    cr, lr, C, kg = k[\"stroke\"] / 2, rg[\"conrod_length_m\"], k[f\"c{i}\"], k[\"kg\"]\n    lam = cr / lr\n    psi = (ps + ATM) * (1 - k[f\"ls{i}\"])\n    pdi = (pd + ATM) * (1 + k[f\"ld{i}\"])\n    w = rpm * 2 * math.pi / 60\n\n    def pos(th):            # fraction of the stroke travelled from the head-end dead centre\n        return (cr * (1 - math.cos(th)) + lr * (1 - math.sqrt(1 - (lam * math.sin(th)) ** 2))) / (2 * cr)\n\n    def p_end(s, going_out):\n        \"\"\"pressure in an end whose volume fraction is C + s; going_out = volume growing.\"\"\"\n        if going_out:\n            p = pdi * (C / (C + s)) ** kg\n            return max(p, psi)\n        p = psi * ((1 + C) / (C + s)) ** kg\n        return min(p, pdi)\n    out = []\n    for deg in range(0, 360, step):\n        th = math.radians(deg)\n        s = pos(th)\n        he_out = deg < 180                       # head-end volume grows on the first half turn\n        phe = p_end(s, he_out) if he_active else psi\n        pce = p_end(1 - s, not he_out)\n        gas = ((phe - ATM) * k[f\"ahe{i}\"] - (pce - ATM) * k[f\"ace{i}\"]) * 100\n        acc = -w * w * cr * (math.cos(th) + lam * math.cos(2 * th))\n        inert = k[f\"m{i}\"] * acc / 1000\n        out.append((deg, gas, inert, gas + inert))\n    return out\n\n\ndef reversal(curve):\n    \"\"\"(degrees of the shorter load direction, magnitude % = smaller peak / larger peak) for a pin load curve.\"\"\"\n    step = curve[1][0] - curve[0][0]\n    comp = sum(step for c in curve if c[3] > 0)\n    tens = sum(step for c in curve if c[3] < 0)\n    pc = max(c[3] for c in curve)\n    pt = -min(c[3] for c in curve)\n    return min(comp, tens), (min(pc, pt) / max(pc, pt) * 100 if min(pc, pt) > 0 else 0.0)\n"}, TWIN = {"$comment": "K-2201 reciprocating hydrogen make-up compressor twin. Expected values in Maximo Monitor from the frame and cylinder data and the gas; the device sends only what it measures.", "twin": {"id": "K-2201", "name": "Hydrogen make-up compressor K-2201", "version": "1.0.0", "folder": "recip-twin"}, "identification": {"asset": "K-2201", "assetnum": "K-2201", "manufacturer": "Ariel", "model": "KBU/2 (API 618 configuration)", "description": "Hydrotreater hydrogen make-up compressor, two stages, motor driven", "frame": "Ariel KBU/2: 2 throws, horizontal balanced-opposed, separable, 5.75 in stroke", "cylinders": "Stage 1: one double-acting cylinder on throw 1; stage 2: one double-acting cylinder on throw 2", "driver": "Fixed-speed induction motor, 10 poles at 60 Hz (720 rpm)", "monitoring": "Valve cover RTDs, rod position (rod drop) probes and crosshead accelerometers to API 670; packing vent flow; lubricator divider block cycle switch"}, "design": {"frame": {"model": "KBU/2", "throws": 2, "stroke_in": 5.75, "rod_diameter_in": 2.875, "rated_bhp": 2600, "max_rpm_frame": 1200, "max_rpm_process": 750, "rod_load_tension_lbf": 75000, "rod_load_compression_lbf": 80000, "rod_load_total_lbf": 150000, "source": "Ariel KBU/KBZ product page (arielcorp.com): stroke, rod diameter, 2-throw rated power, frame speed and internal gas rod load ratings. Process speed limit 750 rpm: Ariel application manual, Process Rotative Speeds."}, "operation": {"rpm": 720.0, "source": "Ariel API 618 brochure: typical rotating speed of the KBU in process service 720 rpm (10-pole motor at 60 Hz)."}, "gas": {"k": 1.4, "mw": 2.9, "z": 1.0, "source": "Hydrogen-rich make-up gas (about 95 % H2): ratio of specific heats, molar mass and compressibility 1 (assumption: typical value, replace with the Ariel performance run / data book of your own unit, from the gas analysis)."}, "stages": [{"stage": 1, "throw": 1, "bore_in": 13.0, "clearance": 0.18, "ps_barg": 20.0, "ts_c": 38.0, "pd_barg": 46.0, "loss_suction": 0.02, "loss_discharge": 0.02, "recip_mass_kg": 180.0, "source": "Bore, average clearance (% of swept volume), reciprocating mass (piston, rod, crosshead) and the operating point: assumption: typical value, replace with the Ariel performance run / data book of your own unit. Pressure losses: Ariel typical values by flange pressure (251 to 1000 psia: 2 %)."}, {"stage": 2, "throw": 2, "bore_in": 9.0, "clearance": 0.22, "ps_barg": 45.5, "ts_c": 40.0, "pd_barg": 100.0, "loss_suction": 0.02, "loss_discharge": 0.01, "recip_mass_kg": 140.0, "source": "Bore, average clearance, reciprocating mass and the operating point: assumption: typical value, replace with the Ariel performance run / data book of your own unit. Pressure losses: Ariel typical values (suction 675 psia: 2 %; discharge above 1001 psia: 1 %)."}], "running_gear": {"conrod_length_m": 0.37, "reversal_min_deg": 30.0, "reversal_min_pct": 25.0, "source": "Connecting rod length: assumption: typical value, replace with the Ariel performance run / data book of your own unit. Pin load reversal minimum 30 degrees and 25 %: Ariel application manual, Minimum Allowable Pin Load Reversal."}, "temperature": {"td_limit_c": 135.0, "td_alarm_c": 145.0, "source": "API 618: predicted discharge temperature of lubricated cylinders in hydrogen-rich service (MW <= 12) not above 135 C (checked through SH/T 3143-2012 5.3.2, which repeats it). Alarm 10 C above the maximum predicted value (SH/T 3143-2012 5.3.3); the 135 C limit is used as the maximum predicted value here (assumption)."}, "valves": {"suction_cover_rise_k": 7.0, "discharge_cover_offset_k": -4.0, "source": "A healthy suction valve cover runs a few kelvin above the suction gas (heat from the cylinder); a discharge cover a few kelvin below the gas: assumption: typical value, replace with the Ariel performance run / data book of your own unit, learn it from the first weeks of running."}, "lube": {"design_cycle_s": 15.0, "source": "Divider block cycle time at the lubricator setting for the normal feed rate: assumption: typical value, replace with the Ariel performance run / data book of your own unit, from the Ariel lube sheet of the unit."}, "crosshead": {"baseline_g": [2.5, 2.5], "source": "Crosshead guide acceleration (peak, filtered) of each throw in good condition: assumption: typical value, replace with the Ariel performance run / data book of your own unit, set from the commissioning baseline."}, "packing": {"vent_normal_nm3h": 0.3, "source": "Packing vent flow of a healthy pressure packing: assumption: typical value, replace with the Ariel performance run / data book of your own unit"}, "rod_drop": {"normal_mm": 0.15, "source": "Rod position at installation of new rider bands: assumption: typical value, replace with the Ariel performance run / data book of your own unit"}, "demo": {"time_scale": 60, "note": "Demo only: the plant clock runs 60 times faster. The compressor runs at a steady operating point; the failure modes ramp in over a few minutes of real time."}}, "telemetry": {"event": "recip", "publish_every_s": 60, "device_type": "RECIP_COMPRESSOR_API618", "groups": {"Stage1": "Stage 1 suction and discharge", "Stage2": "Stage 2 suction and discharge", "Flow": "Make-up flow and speed", "Valves": "Valve cover temperatures", "Packing": "Packing vents", "Lube": "Cylinder lubrication", "Mech": "Rod position and crosshead vibration (API 670)"}, "points": [{"metric": "ps1_barg", "path": "Stage1.SuctionPressure", "label": "Stage 1 suction pressure", "unit": "bar g"}, {"metric": "ts1_c", "path": "Stage1.SuctionTemp", "label": "Stage 1 suction temperature", "unit": "\u00b0C"}, {"metric": "pd1_barg", "path": "Stage1.DischargePressure", "label": "Stage 1 discharge pressure", "unit": "bar g"}, {"metric": "td1_c", "path": "Stage1.DischargeTemp", "label": "Stage 1 discharge temperature", "unit": "\u00b0C"}, {"metric": "ps2_barg", "path": "Stage2.SuctionPressure", "label": "Stage 2 suction pressure (after the interstage cooler)", "unit": "bar g"}, {"metric": "ts2_c", "path": "Stage2.SuctionTemp", "label": "Stage 2 suction temperature", "unit": "\u00b0C"}, {"metric": "pd2_barg", "path": "Stage2.DischargePressure", "label": "Stage 2 discharge pressure", "unit": "bar g"}, {"metric": "td2_c", "path": "Stage2.DischargeTemp", "label": "Stage 2 discharge temperature", "unit": "\u00b0C"}, {"metric": "flow_nm3h", "path": "Flow.MakeUp", "label": "Make-up hydrogen flow", "unit": "Nm\u00b3/h"}, {"metric": "speed_rpm", "path": "Flow.Speed", "label": "Compressor speed", "unit": "rpm"}, {"metric": "tv1_he_s_c", "path": "Valves.C1HeadSuction", "label": "Cylinder 1 head end suction valve cover", "unit": "\u00b0C"}, {"metric": "tv1_he_d_c", "path": "Valves.C1HeadDischarge", "label": "Cylinder 1 head end discharge valve cover", "unit": "\u00b0C"}, {"metric": "tv1_ce_s_c", "path": "Valves.C1CrankSuction", "label": "Cylinder 1 crank end suction valve cover", "unit": "\u00b0C"}, {"metric": "tv1_ce_d_c", "path": "Valves.C1CrankDischarge", "label": "Cylinder 1 crank end discharge valve cover", "unit": "\u00b0C"}, {"metric": "tv2_he_s_c", "path": "Valves.C2HeadSuction", "label": "Cylinder 2 head end suction valve cover", "unit": "\u00b0C"}, {"metric": "tv2_he_d_c", "path": "Valves.C2HeadDischarge", "label": "Cylinder 2 head end discharge valve cover", "unit": "\u00b0C"}, {"metric": "tv2_ce_s_c", "path": "Valves.C2CrankSuction", "label": "Cylinder 2 crank end suction valve cover", "unit": "\u00b0C"}, {"metric": "tv2_ce_d_c", "path": "Valves.C2CrankDischarge", "label": "Cylinder 2 crank end discharge valve cover", "unit": "\u00b0C"}, {"metric": "packing_vent1_nm3h", "path": "Packing.Vent1", "label": "Packing vent flow, throw 1", "unit": "Nm\u00b3/h"}, {"metric": "packing_vent2_nm3h", "path": "Packing.Vent2", "label": "Packing vent flow, throw 2", "unit": "Nm\u00b3/h"}, {"metric": "lube_cycle_s", "path": "Lube.CycleTime", "label": "Cylinder lubricator divider block cycle time", "unit": "s"}, {"metric": "rod_drop1_mm", "path": "Mech.RodDrop1", "label": "Rod drop (rider band wear), throw 1", "unit": "mm"}, {"metric": "rod_drop2_mm", "path": "Mech.RodDrop2", "label": "Rod drop (rider band wear), throw 2", "unit": "mm"}, {"metric": "xhead_acc1_g", "path": "Mech.Crosshead1", "label": "Crosshead guide acceleration, throw 1 (peak)", "unit": "g"}, {"metric": "xhead_acc2_g", "path": "Mech.Crosshead2", "label": "Crosshead guide acceleration, throw 2 (peak)", "unit": "g"}]}, "twin_model": {"limits": {"rod_load_alert_pct": 85.0, "rod_load_limit_pct": 100.0, "td_residual_alert_k": 8.0, "suction_cover_rise_alert_k": 20.0, "discharge_cover_dev_alert_k": 15.0, "valve_peer_spread_alert_k": 10.0, "capacity_ratio_alert": 0.92, "packing_vent_alert_nm3h": 1.5, "lube_rate_ratio_alert": 0.75, "rod_drop_alert_mm": 1.0, "xhead_ratio_alert": 2.0, "source": "Rod load limits: Ariel ratings (100 %) with an 85 % alert (assumption). Every other threshold: assumption: typical value, replace with the Ariel performance run / data book of your own unit; rod drop alert at half of an assumed 2 mm rider band wear allowance."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "discharge_valve_leak": {"name": "Leaking discharge valve, cylinder 1 head end", "part": "valves", "symptoms": "that discharge cover runs hot, stage 1 discharge hotter than expected, capacity down", "rules": ["RECIP_DISCHARGE_VALVE_LEAK", "RECIP_VALVE_PEER_SPREAD", "RECIP_TD_DEVIATION_S1", "RECIP_CAPACITY_LOW"], "default_ramp_min": 1.5}, "suction_valve_leak": {"name": "Leaking suction valve, cylinder 2 crank end", "part": "valves", "symptoms": "that suction cover far above the suction gas, stage 2 discharge hotter, interstage pressure up", "rules": ["RECIP_SUCTION_VALVE_LEAK", "RECIP_VALVE_PEER_SPREAD", "RECIP_TD_DEVIATION_S2"], "default_ramp_min": 1.5}, "ring_wear": {"name": "Piston ring wear, stage 2", "part": "cylinder", "symptoms": "stage 2 discharge hotter than expected, every cover of the cylinder a little warmer, no single hot valve", "rules": ["RECIP_TD_DEVIATION_S2"], "default_ramp_min": 1.5}, "packing_leak": {"name": "Pressure packing leak, throw 2", "part": "packing", "symptoms": "packing vent flow up", "rules": ["RECIP_PACKING_LEAK"], "default_ramp_min": 1}, "lube_starvation": {"name": "Cylinder lubrication starved", "part": "lube", "symptoms": "divider block cycles slower than set", "rules": ["RECIP_LUBE_LOW"], "default_ramp_min": 1}, "rider_band_wear": {"name": "Rider band wear, throw 1", "part": "cylinder", "symptoms": "rod drop grows", "rules": ["RECIP_ROD_DROP"], "default_ramp_min": 1.5}, "crosshead_wear": {"name": "Crosshead pin or shoe clearance, throw 2", "part": "running gear", "symptoms": "crosshead impacts at reversal grow", "rules": ["RECIP_XHEAD_VIB"], "default_ramp_min": 1}, "discharge_pressure_high": {"name": "Discharge pressure too high (downstream restriction)", "part": "process", "symptoms": "stage 2 ratio, discharge temperature and gas rod load up together, residuals normal", "rules": ["RECIP_ROD_LOAD_HIGH"], "default_ramp_min": 1}}, "presentation": {"title": "K-2201 hydrogen make-up compressor", "dashboard": "RECIP_COMPRESSOR_API618"}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, paused = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(1.5, 4.2, 8.8); ctl.target.set(0, 1.2, 0.3); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 8, 6); scene.add(sun);
+const grid = new THREE.GridHelper(16, 32, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: true, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const CY = 1.35;                                   // cylinder centre line height (m)
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), frameM = M(0x5a6b7d, { m: .35 }), skid = M(0x4a4f57, { m: .3, r: .7 });
+const see = [];                                    // meshes made transparent by the cutaway
+// skid, frame, motor, flywheel
+scene.add(at(box(8.6, .25, 2.6, skid), 0, .125, .4));
+const frame = at(box(1.1, 1.1, 1.5, frameM), 0, CY - .25, 0); scene.add(frame); see.push(frame);
+scene.add(at(box(1.2, .12, 1.6, dark), 0, CY + .36, 0));
+const motor = cyl(.55, .55, 1.5, M(0x2f6db5, { m: .35 })); motor.rotation.x = Math.PI / 2; scene.add(at(motor, 0, CY - .2, 1.9));
+const fly = cyl(.62, .62, .14, steel); fly.rotation.x = Math.PI / 2; scene.add(at(fly, 0, CY - .2, 1.02));
+// one throw: guide, distance piece (2 compartments), cylinder, valve caps, bottles
+const THROW = {};
+function throwAt(n, side, bore) {
+  const g = {}, R = bore * 0.0254 / 2 + .14, L = .85;
+  const gx = side * 1.05, dx = side * 1.95, cx = side * (2.55 + L / 2);
+  g.guide = cyl(.28, .28, 1.0, M(0x6b7c8e, { m: .35 })); g.guide.rotation.z = Math.PI / 2; scene.add(at(g.guide, gx, CY, 0)); see.push(g.guide);
+  g.dp = cyl(.24, .24, .9, M(0x7d8b99, { m: .35 })); g.dp.rotation.z = Math.PI / 2; scene.add(at(g.dp, dx, CY, 0)); see.push(g.dp);
+  [side * 1.55, side * 1.95, side * 2.4].forEach(x => { const f = cyl(.3, .3, .05, dark); f.rotation.z = Math.PI / 2; scene.add(at(f, x, CY, 0)); });
+  g.body = cyl(R, R, L, M(0x8a5cc7, { m: .3 })); g.body.rotation.z = Math.PI / 2; scene.add(at(g.body, cx, CY, 0)); see.push(g.body);
+  const head = cyl(R + .03, R + .03, .08, dark); head.rotation.z = Math.PI / 2; scene.add(at(head, cx + side * (L / 2 + .04), CY, 0));
+  // valve caps: suction on top, discharge below; head end (outer) and crank end (inner)
+  g.caps = {};
+  [['he', cx + side * L * .28], ['ce', cx - side * L * .28]].forEach(([end, x]) => {
+    const s = cyl(.09, .09, .14, M(0x0f62fe, { m: .3 })); scene.add(at(s, x, CY + R + .05, 0)); g.caps[end + '_s'] = s;
+    const d = cyl(.09, .09, .14, M(0x8a3ffc, { m: .3 })); scene.add(at(d, x, CY - R - .05, 0)); g.caps[end + '_d'] = d;
+  });
+  // pulsation bottles across the cylinder (along z)
+  const sb = cyl(.3, .3, 1.6, M(0x9aa5b1, { m: .4 })); sb.rotation.x = Math.PI / 2; scene.add(at(sb, cx, CY + R + .55, 0));
+  const db = cyl(.26, .26, 1.6, M(0x9aa5b1, { m: .4 })); db.rotation.x = Math.PI / 2; scene.add(at(db, cx, CY - R - .5, 0));
+  [cx - L * .28, cx + L * .28].forEach(x => { scene.add(at(cyl(.07, .07, .3, steel), x, CY + R + .2, 0)); });
+  // moving parts: crosshead, piston rod, piston
+  g.xh = box(.3, .32, .3, M(0xd8a31a, { m: .4 })); scene.add(g.xh);
+  g.rod = cyl(.04, .04, 2.0, steel); g.rod.rotation.z = Math.PI / 2; scene.add(g.rod);
+  g.piston = cyl(R - .04, R - .04, .12, M(0xd9dde2, { m: .8, r: .2 })); g.piston.rotation.z = Math.PI / 2; scene.add(g.piston);
+  g.side = side; g.cx = cx; g.gx = gx; g.L = L; g.R = R;
+  THROW[n] = g;
+}
+throwAt(1, -1, 13); throwAt(2, 1, 9);
+// interstage cooler (behind) and piping
+const cooler = cyl(.35, .35, 3.2, M(0x6f8fb0, { m: .4 })); cooler.rotation.z = Math.PI / 2; scene.add(at(cooler, 0, .75, -1.25));
+const pipe = (pts, c = 0x9fb3c8, r = .07) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 60, r, 8, false); scene.add(new THREE.Mesh(g, M(c, { m: .5 }))); };
+const c1x = THROW[1].cx, c2x = THROW[2].cx;
+pipe([[c1x, CY - .9, -.8], [c1x, .75, -1.25], [-1.6, .75, -1.25]], 0xda6b6b);
+pipe([[1.6, .75, -1.25], [c2x, .75, -1.25], [c2x, CY + .8, -.8]], 0x6b9bda);
+pipe([[c1x, CY + .95, .8], [c1x, 3.2, .8]], 0x6b9bda);
+pipe([[c2x, CY - .85, .8], [c2x, .4, 1.4], [4.6, .4, 1.4]], 0xda6b6b);
+// lubricator box and status beacon
+scene.add(at(box(.4, .35, .25, M(0xd8a31a, { m: .2 })), .45, CY + .5, .65));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.08, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, 0, CY + .55, -.5));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('s1in', [c1x, 3.25, .8]); lbl('td1', [c1x - .5, CY - 1.1, .6]); lbl('v1', [c1x, CY + 1.0, -.2]);
+lbl('s2out', [c2x + .4, CY - 1.0, 1.0]); lbl('v2', [c2x, CY + .95, -.2]); lbl('inter', [0, 1.0, -1.25]);
+lbl('rl', [0, CY + .5, 0]); lbl('mech1', [-1.1, CY + .45, .2]); lbl('mech2', [1.1, CY + .45, .2]); lbl('flow', [4.4, .55, 1.4]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+function capColour(mesh, hot, base) { mesh.material.color.setHex(hot ? 0xda1e28 : base); mesh.material.emissive = new THREE.Color(hot ? 0x5a0000 : 0x000000); }
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  const rise = d.valves.suction_cover_rise_k;
+  setLbl('s1in', 'stage 1 suction', `${fmt(r.ps1_barg, 1)} bar g · ${fmt(r.ts1_c, 1)} °C`, '');
+  setLbl('td1', `stage 1 discharge · expected ${fmt(t.td_expected_s1_c, 1)} °C`, `${fmt(r.pd1_barg, 1)} bar g · ${fmt(r.td1_c, 1)} °C (${t.td_residual_s1_k >= 0 ? '+' : ''}${fmt(t.td_residual_s1_k, 1)} K)`,
+    st(names.has('RECIP_TD_DEVIATION_S1') || r.td1_c > d.temperature.td_alarm_c, t.td_residual_s1_k > L.td_residual_alert_k / 2));
+  setLbl('s2out', `stage 2 discharge · expected ${fmt(t.td_expected_s2_c, 1)} °C`, `${fmt(r.pd2_barg, 1)} bar g · ${fmt(r.td2_c, 1)} °C (${t.td_residual_s2_k >= 0 ? '+' : ''}${fmt(t.td_residual_s2_k, 1)} K)`,
+    st(names.has('RECIP_TD_DEVIATION_S2') || r.td2_c > d.temperature.td_alarm_c, t.td_residual_s2_k > L.td_residual_alert_k / 2));
+  setLbl('inter', 'interstage · stage 2 suction', `${fmt(r.ps2_barg, 1)} bar g · ${fmt(r.ts2_c, 1)} °C`, '');
+  const vtxt = n => `S ${fmt(r[`tv${n}_he_s_c`], 0)}/${fmt(r[`tv${n}_ce_s_c`], 0)} · D ${fmt(r[`tv${n}_he_d_c`], 0)}/${fmt(r[`tv${n}_ce_d_c`], 0)} °C`;
+  const valveBad = names.has('RECIP_SUCTION_VALVE_LEAK') || names.has('RECIP_DISCHARGE_VALVE_LEAK') || names.has('RECIP_VALVE_PEER_SPREAD');
+  [1, 2].forEach(n => {
+    const ts = r[`ts${n}_c`], tde = t[`td_expected_s${n}_c`];
+    const hot = { he_s: r[`tv${n}_he_s_c`] - ts > L.suction_cover_rise_alert_k, ce_s: r[`tv${n}_ce_s_c`] - ts > L.suction_cover_rise_alert_k,
+      he_d: r[`tv${n}_he_d_c`] - tde > L.discharge_cover_dev_alert_k, ce_d: r[`tv${n}_ce_d_c`] - tde > L.discharge_cover_dev_alert_k };
+    const spread = Math.max(Math.abs(r[`tv${n}_he_s_c`] - r[`tv${n}_ce_s_c`]), Math.abs(r[`tv${n}_he_d_c`] - r[`tv${n}_ce_d_c`]));
+    Object.entries(THROW[n].caps).forEach(([k, m]) => capColour(m, hot[k], k.endsWith('_s') ? 0x0f62fe : 0x8a3ffc));
+    setLbl('v' + n, `cylinder ${n} valve covers (HE/CE) · spread ${fmt(spread, 0)} K`, vtxt(n), st(Object.values(hot).some(x => x) || spread > L.valve_peer_spread_alert_k, spread > L.valve_peer_spread_alert_k / 2));
+  });
+  setLbl('rl', 'gas rod load, max of 4 · % of Ariel rating', `${fmt(t.rod_load_max_pct, 0)} %`, st(names.has('RECIP_ROD_LOAD_LIMIT') || names.has('RECIP_ROD_LOAD_HIGH'), t.rod_load_max_pct > L.rod_load_alert_pct - 10));
+  setLbl('mech1', 'throw 1: rod drop · crosshead · packing vent', `${fmt(r.rod_drop1_mm)} mm · ${fmt(r.xhead_acc1_g, 1)} g · ${fmt(r.packing_vent1_nm3h)}`,
+    st(r.rod_drop1_mm > L.rod_drop_alert_mm || r.xhead_acc1_g / d.crosshead.baseline_g[0] > L.xhead_ratio_alert || r.packing_vent1_nm3h > L.packing_vent_alert_nm3h));
+  setLbl('mech2', 'throw 2: rod drop · crosshead · packing vent', `${fmt(r.rod_drop2_mm)} mm · ${fmt(r.xhead_acc2_g, 1)} g · ${fmt(r.packing_vent2_nm3h)}`,
+    st(r.rod_drop2_mm > L.rod_drop_alert_mm || r.xhead_acc2_g / d.crosshead.baseline_g[1] > L.xhead_ratio_alert || r.packing_vent2_nm3h > L.packing_vent_alert_nm3h));
+  setLbl('flow', `make-up flow · expected ${fmt(t.flow_expected_nm3h, 0)}`, `${fmt(r.flow_nm3h, 0)} Nm³/h · ${fmt(t.capacity_ratio * 100, 1)} %`, st(names.has('RECIP_CAPACITY_LOW'), t.capacity_ratio < 0.96));
+  $('k-health').textContent = ST.health; $('k-cap').textContent = fmt(t.capacity_ratio * 100, 1) + ' %'; $('k-rl').textContent = fmt(t.rod_load_max_pct, 0) + ' %';
+  $('c-rl-t').textContent = `rod load ${fmt(t.rod_load_max_pct, 0)} % · lube ${fmt(t.lube_rate_ratio * 100, 0)} %`;
+  $('c-rl').className = 'chip ' + (t.rod_load_max_pct > L.rod_load_alert_pct || names.has('RECIP_LUBE_LOW') ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Stage 1 discharge (°C)', fmt(r.td1_c, 1), fmt(t.td_expected_s1_c, 1), names.has('RECIP_TD_DEVIATION_S1')) +
+    row('Stage 2 discharge (°C)', fmt(r.td2_c, 1), fmt(t.td_expected_s2_c, 1), names.has('RECIP_TD_DEVIATION_S2')) +
+    row('Make-up flow (Nm³/h)', fmt(r.flow_nm3h, 0), fmt(t.flow_expected_nm3h, 0), names.has('RECIP_CAPACITY_LOW')) +
+    row('Volumetric efficiency, stage 1', fmt(t.ve_s1, 3), '–') +
+    row('Internal ratio 1 / 2', fmt(t.rint_s1) + ' / ' + fmt(t.rint_s2), '–') +
+    row('Gas rod load, max (%)', fmt(t.rod_load_max_pct, 0), '≤ ' + L.rod_load_alert_pct, t.rod_load_max_pct > L.rod_load_alert_pct) +
+    row('Suction cover rise, max (K)', fmt(t.suct_cover_rise_max_k, 1), '≈ ' + rise, names.has('RECIP_SUCTION_VALVE_LEAK')) +
+    row('Discharge cover dev., max (K)', fmt(t.disch_cover_dev_max_k, 1), '≈ ' + d.valves.discharge_cover_offset_k, names.has('RECIP_DISCHARGE_VALVE_LEAK')) +
+    row('Valve peer spread (K)', fmt(t.valve_peer_spread_k, 1), '≤ ' + L.valve_peer_spread_alert_k, names.has('RECIP_VALVE_PEER_SPREAD')) +
+    row('Lube rate ÷ setting', fmt(t.lube_rate_ratio), '1.00', names.has('RECIP_LUBE_LOW')) +
+    row('Crosshead ÷ baseline', fmt(t.xhead_vib_ratio), '1.00', names.has('RECIP_XHEAD_VIB')) +
+    row('Rod drop, max (mm)', fmt(Math.max(r.rod_drop1_mm, r.rod_drop2_mm)), fmt(d.rod_drop.normal_mm), names.has('RECIP_ROD_DROP'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the compressor behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  see.forEach(m => { m.material.opacity = cut ? .22 : 1; m.material.depthWrite = !cut; });
+};
+$('t-slow').onclick = () => { paused = !paused; $('t-slow').classList.toggle('on', paused); $('t-slow').textContent = paused ? 'Turn crank' : 'Pause crank'; };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let crank = 0, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (!paused) crank = (crank + dt * Math.PI * 2 * 0.4) % (Math.PI * 2);       // 0.4 turn per second: slowed for the eye
+  const rc = .073, lr = .37, lam = rc / lr;
+  [1, 2].forEach(n => {
+    const g = THROW[n];
+    const th = crank + (n === 2 ? Math.PI : 0);                                 // opposed throws
+    const s = (rc * (1 - Math.cos(th)) + lr * (1 - Math.sqrt(1 - Math.pow(lam * Math.sin(th), 2)))) / (2 * rc);   // 0 = head-end dead centre
+    const out = g.side * (1 - s) * 2 * rc * 2.2;                                 // drawn stroke a little larger than true, for the eye
+    g.xh.position.set(g.gx + out - g.side * .1, CY, 0);
+    g.piston.position.set(g.cx + out - g.side * .2, CY, 0);
+    g.rod.position.set((g.xh.position.x + g.piston.position.x) / 2, CY, 0);
+    g.rod.scale.y = Math.abs(g.piston.position.x - g.xh.position.x) / 2.0;
+  });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

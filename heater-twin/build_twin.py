@@ -1,0 +1,165 @@
+"""Write twin/h-2401.twin.json: the refinery fired heater twin (H-2401).
+
+    python build_twin.py
+
+H-2401 is the charge heater of a crude distillation unit: a cabin (box) heater with a radiant section and a convection
+section on top, natural draft, four parallel passes of 6-inch 9Cr-1Mo tubes, fired on refinery fuel gas by twelve
+Zeeco GLSF Min-Emissions round-flame burners (up-fired from the floor).
+
+Sources and assumptions (every number below is either from a named source or labelled as an assumption in "source"):
+  Zeeco GLSF Min-Emissions burner brochure (2022): natural draft heat release 1 to 20 MMBtu/h (0.293 to 5.860 MW) per
+    burner, turndown 5:1, typical excess air 10 to 25 %, gas only, NOx 30 to 45 ppmv natural draft.
+  Excess air from flue-gas O2 (dry) for refinery fuel gas: EA % = 92 x O2 / (21 - O2) (PTQ / Digital Refining,
+    "Ten easy hacks for heater and combustion engineers", 2023), and about 15 % excess air on gas-fired heaters (API 535 practice).
+  Draft rule of thumb: about 0.01 in H2O per ft of firebox height (same article) = 0.833 mm H2O per m.
+  Stack loss from the combustion of methane (textbook stoichiometry: 17.1 kg air per kg CH4, LHV 50.0 MJ/kg).
+  Radiation (casing) loss 1.5 % of the heat release: the usual allowance for a heater without air preheat (API 560 fuel
+    efficiency method uses 1.5 % to 2.5 %).
+  Hoop stress: mean-diameter formula P x (Do - t) / (2 t), the elastic formula behind API 530's thickness equation.
+  Creep: Larson-Miller parameter LMP = T(K) x (C + log10 t_r) / 1000 with C = 20 (Larson and Miller, 1952); the stress
+    to LMP line for the tube material is an ASSUMPTION (illustrative fit), to be replaced by the API 530 minimum
+    rupture data of your own tube material.
+  9Cr-1Mo heater coils are commonly designed up to 1300 F (704 C) (AFPM Q&A 2016); the design TMT of this heater
+    is taken lower, from its data sheet (assumption).
+  CO2 factor of natural gas 56.1 kg/GJ (IPCC 2006 Guidelines, Vol. 2, Table 1.4).
+"""
+import json
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with your heater data sheet"
+
+# Methane as the stand-in for the fuel gas (textbook): CH4 + 2 (O2 + 3.76 N2) -> CO2 + 2 H2O + 7.52 N2
+AIR_STOICH = 2 * (31.999 + 3.76 * 28.013) / 16.043          # kg air per kg fuel, = 17.2
+LHV_CH4 = 50.0                                               # MJ/kg
+
+twin = {
+    "$comment": "H-2401 fired heater twin. Expected values in Maximo Monitor from the heater data sheet, the burner data and combustion and creep formulas; the device sends only what it measures.",
+    "twin": {"id": "H-2401", "name": "Crude charge heater H-2401", "version": "1.0.0", "folder": "heater-twin"},
+    "identification": {
+        "asset": "H-2401", "assetnum": "H-2401", "manufacturer": "Cabin heater, 4 passes, 12 x Zeeco",
+        "model": "GLSF Min-Emissions burners (natural draft)",
+        "description": "Crude distillation unit charge heater: cabin type, radiant + convection, natural draft, 4 passes",
+        "heater": "Cabin (box) heater, horizontal radiant tubes on the side walls, convection section and stack on top, natural draft (API 560 type)",
+        "burners": "12 x Zeeco GLSF Min-Emissions round-flame gas burners, up-fired from the floor",
+        "coil": "4 parallel passes, 6 in (168.3 mm OD) ASTM A335 P9 (9Cr-1Mo) tubes",
+        "service": "Atmospheric crude charge: preheated crude from the preheat train to the flash zone of the crude column",
+    },
+    "design": {
+        "process": {
+            "passes": 4, "charge_th": 285.0, "inlet_c": 250.0, "cot_c": 360.0, "duty_mw": 40.0,
+            "inlet_pressure_barg": 14.0, "pass_dp_bar": 8.0, "dp_flow_exponent": 1.8,
+            "source": "Heater data sheet: charge, inlet and coil outlet temperature (COT), absorbed duty, coil inlet pressure and pass pressure drop at design. " + A
+                      + ". The effective heat capacity (sensible heat plus the part of the crude that vaporises in the coil) is design duty / (charge x (COT - inlet)). Pass pressure drop scales with flow^1.8 (turbulent flow; assumption).",
+        },
+        "combustion": {
+            "fuel": "refinery fuel gas, treated as methane", "lhv_mj_kg": LHV_CH4, "air_stoich_kg_kg": round(AIR_STOICH, 3),
+            "cp_fluegas_kj_kgk": 1.15, "radiation_loss_pct": 1.5, "o2_design_pct": 3.0, "stack_design_c": 300.0,
+            "stack_per_duty_c": 110.0, "ambient_design_c": 25.0, "ea_k": 92.0,
+            "source": "Methane stoichiometry and LHV (textbook). Mean flue-gas heat capacity 1.15 kJ/kg K between ambient and the stack: assumption. "
+                      "Radiation loss 1.5 % of heat release (usual allowance without air preheat, API 560 efficiency method). Design O2 3 % dry "
+                      "(about 15 % excess air: API 535 practice, inside the burner's typical 10 to 25 %). EA % = 92 x O2 / (21 - O2): PTQ 2023. "
+                      "Stack temperature at design duty 300 C and its rise with duty (110 K from zero to design duty): " + A + ". Replace methane with your fuel gas analysis.",
+        },
+        "burners": {
+            "count": 12, "model": "Zeeco GLSF Min-Emissions", "nd_min_mw": 0.293, "nd_max_mw": 5.860, "turndown": 5,
+            "excess_air_typ_pct": [10, 25], "fuel_pressure_design_barg": 1.4,
+            "source": "Zeeco GLSF Min-Emissions burner brochure: natural draft heat release 1 to 20 MMBtu/h (0.293 to 5.860 MW), turndown 5:1, "
+                      "typical excess air 10 to 25 %. Fuel gas pressure at the burners at design firing 1.4 bar g: " + A
+                      + " (from the burner data sheet). Gas tips run near choked flow, so the absolute tip pressure is taken proportional to the fuel flow.",
+        },
+        "draft": {
+            "arch_design_mmh2o": -2.5, "firebox_height_m": 14.0, "draft_per_m_mmh2o": 0.833,
+            "source": "Arch (firebox exit) pressure -2.5 mm H2O, i.e. 0.1 in H2O of draft, inside the usual 0.05 to 0.15 in H2O; "
+                      "draft gain 0.01 in H2O per ft = 0.833 mm H2O per m (PTQ 2023). Firebox height: " + A,
+        },
+        "tubes": {
+            "material": "ASTM A335 P9 (9Cr-1Mo)", "od_mm": 168.3, "wall_nominal_mm": 7.11, "wall_inspected_mm": 6.2,
+            "k_wall_w_mk": 26.0, "h_inside_w_m2k": 1400.0, "flux_avg_kw_m2": 32.0, "peak_factor": 1.8,
+            "tmt_design_c": 600.0, "k_coke_w_mk": 1.0,
+            "source": "6 in NPS schedule 40 (168.3 x 7.11 mm, ASME B36.10). Wall at the last inspection (UT), thermal conductivity of 9Cr-1Mo, "
+                      "inside film coefficient, average radiant flux, peak-to-average flux factor, design tube metal temperature (TMT) and coke "
+                      "thermal conductivity: " + A + ". 9Cr-1Mo coils are commonly designed up to 704 C (1300 F) (AFPM Q&A 2016); API 530 gives "
+                      "the limiting design metal temperature of each material.",
+        },
+        "creep": {
+            "lmp_c": 20.0, "lmp_a": 28.19, "lmp_b": 3.85, "life_used_at_inspection": 0.20, "years_alert": 10.0,
+            "source": "Larson-Miller: LMP = T(K) x (20 + log10 t_r) / 1000 (Larson and Miller, 1952). Rupture line LMP = 28.19 - 3.85 x log10(stress MPa): "
+                      "ASSUMPTION, an illustrative fit (about 45 MPa for 100 000 h at 600 C); replace it with the API 530 minimum rupture data of your tube material. "
+                      "Life fraction used at the last inspection (API 579-1 creep assessment of the turnaround): assumption. Stress from the coil inlet pressure "
+                      "on the inspected wall (conservative: the hottest tube near the outlet sees less pressure).",
+        },
+        "economics": {
+            "fuel_price_usd_gj": 6.0, "co2_kg_gj": 56.1, "hours_per_year": 8760,
+            "source": "Fuel price: assumption, replace with your site's fuel gas value. CO2 factor of natural gas 56.1 kg/GJ (IPCC 2006 Guidelines, Vol. 2, Table 1.4).",
+        },
+        "demo": {"time_scale": 60, "load_swing": 0.03, "load_period_s": 600,
+                 "note": "Demo only: the plant clock runs 60 times faster and the charge swings 3 % over 10 minutes so the curves move; faults ramp in over minutes, where real coking takes months."},
+    },
+    "telemetry": {
+        "event": "heater", "publish_every_s": 60, "device_type": "FIRED_HEATER_PROCESS",
+        "groups": {"Pass": "Pass flows, pressure drops and tube metal temperatures", "Process": "Coil inlet and outlet",
+                   "Fuel": "Fuel gas to the burners", "Flue": "Firebox and flue gas", "Ambient": "Combustion air"},
+        "points": [
+            {"metric": "flow_a_th", "path": "Pass.FlowA", "label": "Pass A charge flow", "unit": "t/h"},
+            {"metric": "flow_b_th", "path": "Pass.FlowB", "label": "Pass B charge flow", "unit": "t/h"},
+            {"metric": "flow_c_th", "path": "Pass.FlowC", "label": "Pass C charge flow", "unit": "t/h"},
+            {"metric": "flow_d_th", "path": "Pass.FlowD", "label": "Pass D charge flow", "unit": "t/h"},
+            {"metric": "dp_a_bar", "path": "Pass.DPA", "label": "Pass A pressure drop", "unit": "bar"},
+            {"metric": "dp_b_bar", "path": "Pass.DPB", "label": "Pass B pressure drop", "unit": "bar"},
+            {"metric": "dp_c_bar", "path": "Pass.DPC", "label": "Pass C pressure drop", "unit": "bar"},
+            {"metric": "dp_d_bar", "path": "Pass.DPD", "label": "Pass D pressure drop", "unit": "bar"},
+            {"metric": "tmt_a_c", "path": "Pass.TMTA", "label": "Pass A highest tube skin temperature", "unit": "°C"},
+            {"metric": "tmt_b_c", "path": "Pass.TMTB", "label": "Pass B highest tube skin temperature", "unit": "°C"},
+            {"metric": "tmt_c_c", "path": "Pass.TMTC", "label": "Pass C highest tube skin temperature", "unit": "°C"},
+            {"metric": "tmt_d_c", "path": "Pass.TMTD", "label": "Pass D highest tube skin temperature", "unit": "°C"},
+            {"metric": "inlet_temp_c", "path": "Process.InletTemp", "label": "Coil inlet temperature", "unit": "°C"},
+            {"metric": "cot_c", "path": "Process.COT", "label": "Combined coil outlet temperature (COT)", "unit": "°C"},
+            {"metric": "inlet_pressure_barg", "path": "Process.InletPressure", "label": "Coil inlet pressure", "unit": "bar g"},
+            {"metric": "fuel_flow_kgh", "path": "Fuel.Flow", "label": "Fuel gas mass flow", "unit": "kg/h"},
+            {"metric": "fuel_lhv_mjkg", "path": "Fuel.LHV", "label": "Fuel gas lower heating value (analyser)", "unit": "MJ/kg"},
+            {"metric": "fuel_pressure_barg", "path": "Fuel.BurnerPressure", "label": "Fuel gas pressure at the burners", "unit": "bar g"},
+            {"metric": "o2_pct", "path": "Flue.O2", "label": "Flue gas O2 at the arch (dry)", "unit": "%"},
+            {"metric": "co_ppm", "path": "Flue.CO", "label": "Flue gas CO at the arch", "unit": "ppm"},
+            {"metric": "arch_draft_mmh2o", "path": "Flue.ArchPressure", "label": "Firebox pressure at the arch (negative = draft)", "unit": "mm H2O"},
+            {"metric": "bridgewall_temp_c", "path": "Flue.BridgewallTemp", "label": "Bridgewall (firebox exit) flue gas temperature", "unit": "°C"},
+            {"metric": "stack_temp_c", "path": "Flue.StackTemp", "label": "Stack flue gas temperature", "unit": "°C"},
+            {"metric": "ambient_temp_c", "path": "Ambient.AirTemp", "label": "Combustion air (ambient) temperature", "unit": "°C"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "tmt_alert_c": 575.0, "coke_alert_mm": 1.5, "dp_ratio_alert": 1.3, "imbalance_alert_pct": 10.0, "tmt_spread_alert_c": 50.0,
+            "excess_air_alert_pct": 35.0, "o2_low_pct": 1.5, "co_alert_ppm": 400.0, "draft_alert_mmh2o": -1.0, "stack_rise_alert_c": 35.0,
+            "eff_drop_alert_pts": 2.0, "eff_mismatch_alert_pts": 4.0, "burner_p_ratio_alert": 1.15,
+        },
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "coking": {"name": "Coking inside the tubes of one pass", "part": "coil",
+                   "symptoms": "TMT of the pass rises at the same duty, its pressure drop rises at the same flow",
+                   "rules": ["HTR_COKE_BUILDUP", "HTR_PASS_DP_HIGH", "HTR_TMT_ALERT", "HTR_TMT_LIMIT", "HTR_CREEP_LIFE_LOW"], "default_ramp_min": 1.5},
+        "pass_imbalance": {"name": "Pass flow maldistribution", "part": "coil", "symptoms": "one pass gets less flow, its outlet and skin run hotter",
+                           "rules": ["HTR_PASS_IMBALANCE"], "default_ramp_min": 1},
+        "flame_impingement": {"name": "Burner tip plugging and flame impingement", "part": "burners",
+                              "symptoms": "fuel pressure up at the same firing, long flames lick one pass: one TMT up with flow and pressure drop normal",
+                              "rules": ["HTR_FLAME_IMPINGEMENT", "HTR_BURNER_DP_HIGH"], "default_ramp_min": 1},
+        "excess_air_high": {"name": "Too much excess air (registers or damper too open)", "part": "air",
+                            "symptoms": "O2 high, more flue gas carries heat up the stack, efficiency down", "rules": ["HTR_EXCESS_AIR_HIGH", "HTR_EFF_LOW"], "default_ramp_min": 1},
+        "air_starvation": {"name": "Air starvation (registers closed, fuel-rich firing)", "part": "air",
+                           "symptoms": "O2 low, CO rises: unburnt fuel, risk of afterburning", "rules": ["HTR_O2_LOW", "HTR_CO_HIGH"], "default_ramp_min": 1},
+        "draft_loss": {"name": "Loss of draft (stack damper stuck closed)", "part": "draft",
+                       "symptoms": "arch pressure goes positive: hot gas leaks out of peepholes and the casing", "rules": ["HTR_DRAFT_LOW"], "default_ramp_min": 0.5},
+        "convection_fouling": {"name": "Convection section fouling (soot on the finned tubes)", "part": "convection",
+                               "symptoms": "stack temperature up at the same duty, efficiency down", "rules": ["HTR_STACK_HIGH", "HTR_EFF_LOW"], "default_ramp_min": 1.5},
+        "fuel_meter_drift": {"name": "Fuel gas meter drift", "part": "instrument",
+                             "symptoms": "efficiency from the meters disagrees with efficiency from the flue gas", "rules": ["HTR_EFF_MISMATCH"], "default_ramp_min": 1},
+    },
+    "presentation": {"title": "H-2401 crude charge heater", "dashboard": "FIRED_HEATER_PROCESS"},
+}
+
+out = HERE / "twin" / "h-2401.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out)

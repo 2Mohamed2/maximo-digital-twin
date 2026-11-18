@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>K-2301 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>K-2301</b><span class="g">Process gas compressor · API 617 barrel · motor + VSD</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-surge"><span class="dot"></span><span id="c-surge-t">surge margin –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Map and surge margin →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the compressor model…</div>
+<div class="credit">Single-shaft barrel compressor with six impellers, tandem dry gas seals, tilting-pad bearings, gearbox and VSD motor, anti-surge recycle loop. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The rotor turns at the measured speed; the recycle valve turns orange when it opens.</div>
+<aside>
+  <section>
+    <h2>K-2301 twin</h2>
+    <p class="sub" id="sub">process gas compressor</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Surge margin<b id="k-sm">–</b></div><div>Polytropic η<b id="k-eta">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over about a minute of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The machine sends only what it measures. The polytropic head and efficiency, the expected values from the map and the fan laws, and the surge margin are computed from the twin file.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for K-2301: the compressor, its process, the anti-surge loop, the dry gas seals and the bearings, with injectable faults.\n\nThe real machine sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live twin pages.\n\nHow the stand-in works: the process sets the suction pressure and temperature, the discharge header pressure and the gas\nflow it wants. The speed controller of the VSD finds the speed at which the compressor makes the head the process needs\n(bisection on the map with the fan laws). The anti-surge controller keeps the compressor flow at or right of the control\nline by opening the recycle valve. Pure Python + math/random only (it also runs in the browser under Pyodide).\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\nclass Compressor:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.k = tc._k(twin)\n        self.pr, self.se, self.br = d[\"process\"], d[\"seals\"], d[\"bearings\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.windup = 0.0          # anti-surge controller output wound up above the demand (set by Plant)\n        self.t = 0.0               # plant time, s (slow process swing)\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state -------------------------------------------------------------------------------------------------------\n    def head_req(self, t1, pr, eta):\n        k = self.k\n        m = k[\"km\"] / eta\n        return k[\"zr\"] * t1 * (pr ** m - 1) / m / 1000\n\n    def solve(self, qc, t1, pr, foul):\n        \"\"\"Speed ratio s at which the compressor makes the head the process needs at compressor flow qc.\"\"\"\n        k = self.k\n        eta_f, head_f = 1 - 0.0875 * foul, 1 - 0.08 * foul\n        lo, hi = 0.5, 1.2\n        for _ in range(48):\n            s = (lo + hi) / 2\n            x = qc / (k[\"q0\"] * s)\n            eta = tc.eta_map(k, x) * eta_f\n            made = s * s * k[\"h0\"] * tc.head_map(k, x) * head_f\n            if made < self.head_req(t1, pr, eta):\n                lo = s\n            else:\n                hi = s\n        s = (lo + hi) / 2\n        x = qc / (k[\"q0\"] * s)\n        eta = tc.eta_map(k, x) * eta_f\n        return s, eta, self.head_req(t1, pr, eta)\n\n    def true_state(self):\n        k, f = self.k, self.faults\n        swing = math.sin(2 * math.pi * self.t / 3600.0)\n        p1 = self.pr[\"suction_bara\"] * (1 + 0.004 * swing)\n        t1 = self.pr[\"suction_temp_c\"] + 1.0 * swing + 273.15\n        p2 = self.pr[\"discharge_bara\"] * (1 + 0.01 * swing)\n        q_proc = self.pr[\"flow_normal_m3h\"] * (1 + 0.02 * swing) * (1 - 0.55 * f[\"surge_approach\"]) * (1 - 0.27 * f[\"asv_stuck\"])\n        pr = p2 / p1\n        foul = f[\"impeller_fouling\"]\n        h = self.head_req(t1, pr, k[\"e0\"] * (1 - 0.0875 * foul))\n        for _ in range(3):\n            q_scl = tc.q_surge(k, h) / (1 - k[\"scl\"] / 100)\n            demand = max(0.0, (q_scl - q_proc) / k[\"asv\"] * 100)\n            stuck = f[\"asv_stuck\"] > 0.3\n            valve = 0.0 if stuck else min(100.0, demand)\n            qc = q_proc + valve / 100 * k[\"asv\"]\n            s, eta, h = self.solve(qc, t1, pr, foul)\n        out = min(100.0, demand + (self.windup if stuck else 0.0))\n        m = k[\"km\"] / eta\n        t2 = t1 * pr ** m\n        rho = p1 * 1e5 / (k[\"zr\"] * t1)\n        mf = qc / 3600 * rho\n        gas_kw = mf * k[\"zrc\"] * (t2 - t1) / 1000\n        return dict(p1=p1, t1=t1, p2=p2, t2=t2, qc=qc, q_proc=q_proc, rho=rho, speed=s * k[\"n0\"], eta=eta, head=h,\n                    gas_kw=gas_kw, valve=valve, out=out, demand=demand)\n\n    # one published message ----------------------------------------------------------------------------------------------\n    def measure(self, s=None):\n        s = s or self.true_state()\n        k, f, se, br = self.k, self.faults, self.se, self.br\n        dp_pa = s[\"rho\"] * (s[\"qc\"] / 3600 / k[\"C\"]) ** 2\n        oil = br[\"oil_supply_temp_c\"] + self.n(0.2)\n        return {\n            \"suction_pressure_bara\": round(s[\"p1\"] + self.n(0.005), 4),\n            \"suction_temp_c\": round(s[\"t1\"] - 273.15 + self.n(0.15), 3),\n            \"discharge_pressure_bara\": round(s[\"p2\"] + self.n(0.015), 4),\n            \"discharge_temp_c\": round(s[\"t2\"] - 273.15 + 10.0 * f[\"discharge_tt_drift\"] + self.n(0.15), 3),\n            \"flow_dp_mbar\": round(dp_pa / 100 * (1 + self.n(0.006)), 3),\n            \"speed_rpm\": round(s[\"speed\"] + self.n(3), 1),\n            \"driver_power_kw\": round(s[\"gas_kw\"] / k[\"eff\"] * (1 + self.n(0.006)), 1),\n            \"asc_output_pct\": round(max(0.0, s[\"out\"] + self.n(0.2)), 2),\n            \"recycle_valve_pct\": round(max(0.0, s[\"valve\"] + self.n(0.2)), 2),\n            \"seal_gas_dp_bar\": round(se[\"seal_gas_dp_normal_bar\"] * (1 - 0.8 * f[\"seal_gas_supply\"]) + self.n(0.02), 3),\n            \"vent_flow_de_nm3h\": round(se[\"vent_flow_normal_nm3h\"] + 9.0 * f[\"seal_primary_wear\"] + abs(self.n(0.1)), 3),\n            \"vent_flow_ne_nm3h\": round(se[\"vent_flow_normal_nm3h\"] * 0.9 + abs(self.n(0.1)), 3),\n            \"brg_temp_de_c\": round(br[\"journal_temp_normal_c\"] + (oil - br[\"oil_supply_temp_c\"]) + self.n(0.4), 2),\n            \"brg_temp_ne_c\": round(br[\"journal_temp_normal_c\"] - 3 + (oil - br[\"oil_supply_temp_c\"]) + self.n(0.4), 2),\n            \"thrust_temp_c\": round(br[\"thrust_temp_normal_c\"] + 38 * f[\"thrust_overload\"] + self.n(0.4), 2),\n            \"axial_pos_mm\": round(0.42 * f[\"thrust_overload\"] + self.n(0.01), 3),\n            \"vib_de_um\": round(br[\"vib_normal_um\"] + 50 * f[\"rotor_unbalance\"] + abs(self.n(0.6)), 2),\n            \"vib_ne_um\": round(br[\"vib_normal_um\"] * 0.8 + 20 * f[\"rotor_unbalance\"] + abs(self.n(0.6)), 2),\n            \"oil_supply_temp_c\": round(oil, 2),\n            \"oil_supply_bar\": round(br[\"oil_supply_bar\"] + self.n(0.02), 3),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The compressor runs continuously. The anti-surge controller output winds up (integral action) while the recycle valve\n    does not follow it, as a real PI controller does when its valve is stuck.\n    \"\"\"\n\n    def __init__(self, twin, seed=2301):\n        self.twin = twin\n        self.scale = float(twin[\"design\"].get(\"demo\", {}).get(\"time_scale\", 1))\n        self.c = Compressor(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.c.windup = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.c.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.c.t = self.t\n        s = self.c.true_state()\n        if s[\"valve\"] < s[\"demand\"] - 0.5:\n            self.c.windup = min(100.0, self.c.windup + 1.5 * dt)\n        else:\n            self.c.windup = max(0.0, self.c.windup - 5.0 * dt)\n        return self.c.true_state()\n\n    def measure(self, true):\n        return self.c.measure(true)\n", "twin_calc": "\"\"\"The process centrifugal compressor twin's expectations (K-2301, API 617 barrel compressor, motor + VSD).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nGas and flow (one reading, suction conditions P1 [bar a], T1 [K]):\n    R = 8314.46 / MW                         specific gas constant, J/(kg K)\n    rho1 = P1 x 1e5 / (Z R T1)               suction density\n    Q = 3600 C sqrt(dp / rho1)               actual inlet flow, m3/h, from the suction flow element (dp in Pa)\n    m = Q / 3600 x rho1                      mass flow, kg/s\nPolytropic head and efficiency from measured P and T (ASME PTC 10, ideal-gas form with an average Z):\n    m_p = (n - 1) / n = ln(T2 / T1) / ln(P2 / P1)      polytropic exponent of the measured path\n    eta_p = ((k - 1) / k) / m_p                          polytropic efficiency\n    H_p = Z R T1 (PR^m_p - 1) / m_p = Z R (T2 - T1) / m_p   polytropic head, J/kg\n    gas power = m H_p / eta_p = m Z R (T2 - T1) k / (k - 1)  (= m cp dT)\nMap and fan laws (one compressor, one gas, speed N):\n    x = Q / (Q0 N / N0)                                  reduced flow: 1 = rated point, flow scales with speed\n    H_expected = (N / N0)^2 H0 (c0 + c1 x + c2 x^2)      head scales with speed squared\n    eta_expected = eta0 (1 - curv (x - 1)^2)             efficiency stays on the same curve at the same x\nSurge (the surge line is the parabola H ~ Q^2 through the surge points of every speed):\n    Q_surge(H) = x_s Q0 sqrt(H / (h_s H0)),  h_s = c0 + c1 x_s + c2 x_s^2\n    surge margin = (Q - Q_surge(H_p)) / Q x 100 %, at the head the compressor makes now\nAPI 617 shop-test vibration limit, for reference: 25.4 sqrt(12000 / N) um pp, not more than 25.4 um.\n\"\"\"\nR_UNIV = 8314.46\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    g, mp, fe, a, dr = d[\"gas\"], d[\"map\"], d[\"flow_element\"], d[\"anti_surge\"], d[\"drive\"]\n    R = R_UNIV / g[\"mw_kg_kmol\"]\n    xs = mp[\"surge_x\"]\n    hs = mp[\"head_c0\"] + mp[\"head_c1\"] * xs + mp[\"head_c2\"] * xs ** 2\n    r10 = lambda v: float(f\"{v:.10g}\")\n    zr, cpf = r10(g[\"z\"] * R), g[\"k\"] / (g[\"k\"] - 1)\n    return dict(R=R, z=g[\"z\"], kap=g[\"k\"], zr=zr, cpf=cpf, zrc=r10(zr * cpf), km=r10((g[\"k\"] - 1) / g[\"k\"]),\n                qs0=r10(xs * mp[\"flow_rated_m3h\"]), hsh0=r10(hs * mp[\"head_rated_kjkg\"]),\n                n0=mp[\"speed_rated_rpm\"], q0=mp[\"flow_rated_m3h\"], h0=mp[\"head_rated_kjkg\"], e0=mp[\"eta_rated\"],\n                c0=mp[\"head_c0\"], c1=mp[\"head_c1\"], c2=mp[\"head_c2\"], curv=mp[\"eta_curv\"], xs=xs, hs=hs,\n                C=fe[\"c_m2\"], scl=a[\"control_margin_pct\"], asv=a[\"valve_capacity_m3h\"], eff=dr[\"drive_train_eff\"])\n\n\ndef head_map(k, x):\n    \"\"\"Head at rated speed as a fraction of H0, at reduced flow x.\"\"\"\n    return k[\"c0\"] + k[\"c1\"] * x + k[\"c2\"] * x * x\n\n\ndef eta_map(k, x):\n    return k[\"e0\"] * (1 - k[\"curv\"] * (x - 1) ** 2)\n\n\ndef q_surge(k, head_kjkg):\n    \"\"\"Surge flow (m3/h actual inlet) at a given polytropic head.\"\"\"\n    return k[\"qs0\"] * (head_kjkg / k[\"hsh0\"]) ** 0.5\n\n\ndef _parts(twin):\n    k = _k(twin)\n    T1 = \"(df['SUCTION_TEMP_C'] + 273.15)\"\n    T2 = \"(df['DISCHARGE_TEMP_C'] + 273.15)\"\n    RHO = f\"(df['SUCTION_PRESSURE_BARA'] * 100000 / ({k['zr']!r} * {T1}))\"\n    Q = f\"(3600 * {k['C']} * np.sqrt(df['FLOW_DP_MBAR'] * 100 / {RHO}))\"\n    MF = f\"({Q} / 3600 * {RHO})\"\n    PR = \"(df['DISCHARGE_PRESSURE_BARA'] / df['SUCTION_PRESSURE_BARA'])\"\n    MP = f\"(np.log({T2} / {T1}) / np.log({PR}))\"\n    ETA = f\"({k['km']!r} / {MP})\"\n    H = f\"({k['zr']!r} * ({T2} - {T1}) / {MP} / 1000)\"\n    SR = f\"(df['SPEED_RPM'] / {k['n0']})\"\n    X = f\"({Q} / ({k['q0']} * {SR}))\"\n    HE = f\"({SR} ** 2 * {k['h0']} * ({k['c0']} + {k['c1']} * {X} + {k['c2']} * {X} ** 2))\"\n    EE = f\"({k['e0']} * (1 - {k['curv']} * ({X} - 1) ** 2))\"\n    QS = f\"({k['qs0']!r} * np.sqrt({H} / {k['hsh0']!r}))\"\n    SM = f\"(({Q} - {QS}) / {Q} * 100)\"\n    GP = f\"({MF} * {k['zrc']!r} * ({T2} - {T1}) / 1000)\"\n    PW = f\"(df['DRIVER_POWER_KW'] * {k['eff']} / {GP})\"\n    return dict(k=k, RHO=RHO, Q=Q, MF=MF, PR=PR, MP=MP, ETA=ETA, H=H, SR=SR, X=X, HE=HE, EE=EE, QS=QS, SM=SM, GP=GP, PW=PW)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    return [\n        (\"RHO1_KG_M3\", p[\"RHO\"]),\n        (\"Q_ACT_M3H\", p[\"Q\"]),\n        (\"MASS_FLOW_KG_S\", p[\"MF\"]),\n        (\"PRESSURE_RATIO\", p[\"PR\"]),\n        (\"POLY_EXPONENT_M\", p[\"MP\"]),\n        (\"ETA_POLY\", p[\"ETA\"]),\n        (\"HEAD_POLY_KJKG\", p[\"H\"]),\n        (\"SPEED_RATIO\", p[\"SR\"]),\n        (\"FLOW_REDUCED\", p[\"X\"]),\n        (\"HEAD_EXPECTED_KJKG\", p[\"HE\"]),\n        (\"HEAD_RATIO\", f\"{p['H']} / {p['HE']}\"),\n        (\"ETA_EXPECTED\", p[\"EE\"]),\n        (\"ETA_DEV_PTS\", f\"({p['ETA']} - {p['EE']}) * 100\"),\n        (\"Q_SURGE_M3H\", p[\"QS\"]),\n        (\"SURGE_MARGIN_PCT\", p[\"SM\"]),\n        (\"GAS_POWER_KW\", p[\"GP\"]),\n        (\"POWER_RATIO\", p[\"PW\"]),\n        (\"VENT_FLOW_MAX_NM3H\", \"np.maximum(df['VENT_FLOW_DE_NM3H'], df['VENT_FLOW_NE_NM3H'])\"),\n        (\"VIB_MAX_UM\", \"np.maximum(df['VIB_DE_UM'], df['VIB_NE_UM'])\"),\n        (\"VIB_LIMIT_API617_UM\", \"np.minimum(25.4, 25.4 * np.sqrt(12000 / df['SPEED_RPM']))\"),\n    ]\n\n\ndef evaluate(twin, r):\n    import math\n    k = _k(twin)\n    t1, t2 = r[\"suction_temp_c\"] + 273.15, r[\"discharge_temp_c\"] + 273.15\n    rho = r[\"suction_pressure_bara\"] * 100000 / (k[\"zr\"] * t1)\n    q = 3600 * k[\"C\"] * math.sqrt(r[\"flow_dp_mbar\"] * 100 / rho)\n    mf = q / 3600 * rho\n    pr = r[\"discharge_pressure_bara\"] / r[\"suction_pressure_bara\"]\n    mp = math.log(t2 / t1) / math.log(pr)\n    eta = k[\"km\"] / mp\n    h = k[\"zr\"] * (t2 - t1) / mp / 1000\n    sr = r[\"speed_rpm\"] / k[\"n0\"]\n    x = q / (k[\"q0\"] * sr)\n    he = sr ** 2 * k[\"h0\"] * head_map(k, x)\n    ee = eta_map(k, x)\n    qs = q_surge(k, h)\n    gp = mf * k[\"zrc\"] * (t2 - t1) / 1000\n    return {\n        \"rho1_kg_m3\": rho, \"q_act_m3h\": q, \"mass_flow_kg_s\": mf, \"pressure_ratio\": pr, \"poly_exponent_m\": mp,\n        \"eta_poly\": eta, \"head_poly_kjkg\": h, \"speed_ratio\": sr, \"flow_reduced\": x, \"head_expected_kjkg\": he,\n        \"head_ratio\": h / he, \"eta_expected\": ee, \"eta_dev_pts\": (eta - ee) * 100, \"q_surge_m3h\": qs,\n        \"surge_margin_pct\": (q - qs) / q * 100, \"gas_power_kw\": gp, \"power_ratio\": r[\"driver_power_kw\"] * k[\"eff\"] / gp,\n        \"vent_flow_max_nm3h\": max(r[\"vent_flow_de_nm3h\"], r[\"vent_flow_ne_nm3h\"]),\n        \"vib_max_um\": max(r[\"vib_de_um\"], r[\"vib_ne_um\"]),\n        \"vib_limit_api617_um\": min(25.4, 25.4 * math.sqrt(12000 / r[\"speed_rpm\"])),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    SM = p[\"SM\"]\n    lo, hi = L[\"surge_margin_limit_pct\"], L[\"surge_margin_alert_pct\"]\n    return [\n        (\"CC_SURGE_MARGIN_LOW\", f\"{SM} < {lo}\", \"High\", \"asv_stuck\"),\n        (\"CC_ASV_DEVIATION\", f\"np.abs(df['ASC_OUTPUT_PCT'] - df['RECYCLE_VALVE_PCT']) > {L['asv_dev_alert_pct']}\", \"High\", \"asv_stuck\"),\n        (\"CC_SEAL_GAS_DP_LOW\", f\"df['SEAL_GAS_DP_BAR'] < {L['seal_gas_dp_alert_bar']}\", \"High\", \"seal_gas_supply\"),\n        (\"CC_SEAL_VENT_HIGH\", f\"np.maximum(df['VENT_FLOW_DE_NM3H'], df['VENT_FLOW_NE_NM3H']) > {L['vent_flow_alert_nm3h']}\", \"High\", \"seal_primary_wear\"),\n        (\"CC_VIBRATION_HIGH\", f\"np.maximum(df['VIB_DE_UM'], df['VIB_NE_UM']) > {L['vib_alert_um']}\", \"High\", \"rotor_unbalance\"),\n        (\"CC_THRUST_TEMP_HIGH\", f\"df['THRUST_TEMP_C'] > {L['thrust_temp_alert_c']}\", \"High\", \"thrust_overload\"),\n        (\"CC_SURGE_CONTROL_LINE\", f\"({SM} >= {lo}) & ({SM} < {hi})\", \"Medium\", \"surge_approach\"),\n        (\"CC_EFFICIENCY_LOW\", f\"({p['ETA']} - {p['EE']}) * 100 < {L['eta_dev_alert_pts']}\", \"Medium\", \"impeller_fouling\"),\n        (\"CC_HEAD_LOW\", f\"{p['H']} / {p['HE']} < {L['head_ratio_alert']}\", \"Medium\", \"impeller_fouling\"),\n        (\"CC_POWER_MISMATCH\", f\"np.abs({p['PW']} - 1) > {L['power_dev_alert']}\", \"Medium\", \"discharge_tt_drift\"),\n        (\"CC_AXIAL_POSITION\", f\"np.abs(df['AXIAL_POS_MM']) > {L['axial_alert_mm']}\", \"Medium\", \"thrust_overload\"),\n        (\"CC_BEARING_TEMP_HIGH\", f\"np.maximum(df['BRG_TEMP_DE_C'], df['BRG_TEMP_NE_C']) > {L['journal_temp_alert_c']}\", \"Medium\", None),\n        (\"CC_RECYCLE_OPEN\", f\"df['RECYCLE_VALVE_PCT'] > {L['recycle_open_alert_pct']}\", \"Low\", \"surge_approach\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    sm, lo, hi = t[\"surge_margin_pct\"], L[\"surge_margin_limit_pct\"], L[\"surge_margin_alert_pct\"]\n    dev = abs(r[\"asc_output_pct\"] - r[\"recycle_valve_pct\"])\n    add(sm < lo, \"CC_SURGE_MARGIN_LOW\", \"High\", f\"Surge margin {sm:.1f} %, below {lo:.0f} %: the compressor is past its control line\", \"anti-surge\", \"asv_stuck\")\n    add(dev > L[\"asv_dev_alert_pct\"], \"CC_ASV_DEVIATION\", \"High\",\n        f\"Recycle valve at {r['recycle_valve_pct']:.0f} % while the anti-surge controller asks {r['asc_output_pct']:.0f} %\", \"anti-surge\", \"asv_stuck\")\n    add(r[\"seal_gas_dp_bar\"] < L[\"seal_gas_dp_alert_bar\"], \"CC_SEAL_GAS_DP_LOW\", \"High\",\n        f\"Seal gas only {r['seal_gas_dp_bar']:.2f} bar over the reference pressure\", \"seal\", \"seal_gas_supply\")\n    add(t[\"vent_flow_max_nm3h\"] > L[\"vent_flow_alert_nm3h\"], \"CC_SEAL_VENT_HIGH\", \"High\",\n        f\"Primary vent flow {t['vent_flow_max_nm3h']:.1f} Nm\u00b3/h (DE {r['vent_flow_de_nm3h']:.1f}, NDE {r['vent_flow_ne_nm3h']:.1f})\", \"seal\", \"seal_primary_wear\")\n    add(t[\"vib_max_um\"] > L[\"vib_alert_um\"], \"CC_VIBRATION_HIGH\", \"High\", f\"Shaft vibration {t['vib_max_um']:.0f} \u00b5m pp\", \"rotor\", \"rotor_unbalance\")\n    add(r[\"thrust_temp_c\"] > L[\"thrust_temp_alert_c\"], \"CC_THRUST_TEMP_HIGH\", \"High\", f\"Thrust bearing at {r['thrust_temp_c']:.0f} \u00b0C\", \"bearing\", \"thrust_overload\")\n    add(lo <= sm < hi, \"CC_SURGE_CONTROL_LINE\", \"Medium\", f\"Surge margin {sm:.1f} %: running on the anti-surge control line\", \"anti-surge\", \"surge_approach\")\n    add(t[\"eta_dev_pts\"] < L[\"eta_dev_alert_pts\"], \"CC_EFFICIENCY_LOW\", \"Medium\",\n        f\"Polytropic efficiency {t['eta_poly'] * 100:.1f} %, {t['eta_dev_pts']:+.1f} points against the map\", \"aero\", \"impeller_fouling\")\n    add(t[\"head_ratio\"] < L[\"head_ratio_alert\"], \"CC_HEAD_LOW\", \"Medium\",\n        f\"Polytropic head {t['head_poly_kjkg']:.0f} kJ/kg, {t['head_ratio']:.2f} \u00d7 the map at this speed\", \"aero\", \"impeller_fouling\")\n    add(abs(t[\"power_ratio\"] - 1) > L[\"power_dev_alert\"], \"CC_POWER_MISMATCH\", \"Medium\",\n        f\"Shaft power {t['power_ratio']:.2f} \u00d7 the gas power from P and T: check the instruments\", \"instrument\", \"discharge_tt_drift\")\n    add(abs(r[\"axial_pos_mm\"]) > L[\"axial_alert_mm\"], \"CC_AXIAL_POSITION\", \"Medium\", f\"Rotor axial position {r['axial_pos_mm']:+.2f} mm\", \"bearing\", \"thrust_overload\")\n    add(max(r[\"brg_temp_de_c\"], r[\"brg_temp_ne_c\"]) > L[\"journal_temp_alert_c\"], \"CC_BEARING_TEMP_HIGH\", \"Medium\",\n        f\"Journal bearing at {max(r['brg_temp_de_c'], r['brg_temp_ne_c']):.0f} \u00b0C\", \"bearing\")\n    add(r[\"recycle_valve_pct\"] > L[\"recycle_open_alert_pct\"], \"CC_RECYCLE_OPEN\", \"Low\",\n        f\"Recycle valve {r['recycle_valve_pct']:.0f} % open: gas compressed twice\", \"anti-surge\", \"surge_approach\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "K-2301 process centrifugal compressor twin. Expected values in Maximo Monitor from the compressor map, the gas data and the protection settings; the device sends only what it measures.", "twin": {"id": "K-2301", "name": "Process gas compressor K-2301", "version": "1.0.0", "folder": "centcomp-twin"}, "identification": {"asset": "K-2301", "assetnum": "K-2301", "manufacturer": "Siemens Energy (compressor family); map of this twin assumed", "model": "Single-shaft centrifugal compressor, vertically split (barrel) casing, API 617", "description": "Process gas compressor of a refinery unit, one section, six impellers, motor + VSD + gearbox", "casing": "Vertically split (barrel) casing, one section, 6 closed impellers, balance piston", "driver": "Induction motor with variable speed drive and speed-increasing gearbox", "seals": "Tandem dry gas seals at both ends (for example John Crane Type 28XP), nitrogen separation seals", "bearings": "Tilting-pad journal bearings (drive end, non-drive end) and double-acting tilting-pad thrust bearing", "protection": "API 670 machinery protection system: X/Y proximity probes at each journal bearing, two axial position probes, bearing RTDs", "anti_surge": "Anti-surge controller with recycle valve from discharge (after the cooler) back to suction"}, "design": {"gas": {"mw_kg_kmol": 22.0, "k": 1.2, "z": 0.98, "source": "Light hydrocarbon process gas: molar mass, ratio of specific heats cp/cv and average compressibility over the compression, from the process data sheet. assumption: typical value, replace with the values of your own machine (use the gas analysis and an equation of state)."}, "map": {"speed_rated_rpm": 10500.0, "flow_rated_m3h": 15000.0, "head_rated_kjkg": 160.0, "eta_rated": 0.8, "head_c0": 0.76, "head_c1": 1.04, "head_c2": -0.8, "eta_curv": 0.9, "surge_x": 0.7, "stonewall_x": 1.25, "impellers": 6, "source": "Compressor performance map at rated speed (actual inlet flow, polytropic head, polytropic efficiency), as on the vendor's predicted performance curves, fitted as head = H0 (c0 + c1 x + c2 x^2) and efficiency = eta0 (1 - curv (x - 1)^2) with x = Q / (Q0 N/N0); surge at x = 0.70, stonewall at x = 1.25. assumption: typical value, replace with the values of your own machine. The envelope (flow, speed, impellers) is inside the Siemens Energy barrel compressor range."}, "process": {"suction_bara": 3.5, "suction_temp_c": 40.0, "discharge_bara": 11.9, "flow_normal_m3h": 14000.0, "source": "Normal operating point from the process data sheet: suction drum pressure and temperature, discharge header pressure, normal actual inlet flow. assumption: typical value, replace with the values of your own machine"}, "flow_element": {"c_m2": 0.0458, "source": "Suction flow element (venturi or orifice) constant: Q = C sqrt(dp / rho), from the flow element sizing sheet (gives 250 mbar at rated flow). assumption: typical value, replace with the values of your own machine"}, "anti_surge": {"control_margin_pct": 10.0, "valve_capacity_m3h": 21000.0, "source": "Surge control line 10 % of flow to the right of the surge line (published practice: 3 to 10 %); recycle valve sized for 2.0 times the surge flow at rated speed (published practice: 1.8 to 2.2 times). Pipeline & Gas Journal, March 2012. Values for this machine: assumption: typical value, replace with the values of your own machine"}, "drive": {"drive_train_eff": 0.97, "source": "Gas power / shaft power at the motor: bearing, seal and gearbox losses. assumption: typical value, replace with the values of your own machine"}, "seals": {"vent_flow_normal_nm3h": 1.5, "seal_gas_dp_normal_bar": 1.0, "seal_limits_pressure_bar": 180.0, "seal_limits_speed_ms": 200.0, "source": "Tandem dry gas seal; Type 28XP limits 180 bar and 200 m/s from the John Crane product page. Normal primary vent flow and seal gas differential pressure over the reference (balance line) pressure: assumption: typical value, replace with the values of your own machine (use the seal vendor's leakage data and the seal support system data sheet)."}, "bearings": {"journal_temp_normal_c": 85.0, "thrust_temp_normal_c": 80.0, "oil_supply_temp_c": 45.0, "oil_supply_bar": 2.5, "vib_normal_um": 15.0, "source": "Normal bearing metal temperatures, lube oil supply and shaft vibration (peak-to-peak) at rated speed: assumption: typical value, replace with the values of your own machine (use the commissioning baseline of your machine)."}, "demo": {"time_scale": 1, "note": "Demo only: the stand-in runs in real time; failure modes ramp in over about a minute so their fingerprints appear quickly."}}, "telemetry": {"event": "centcomp", "publish_every_s": 60, "device_type": "CENTRIFUGAL_COMPRESSOR", "groups": {"Process": "Suction and discharge conditions", "Machine": "Speed and power", "Surge": "Anti-surge controller and recycle valve", "Seal": "Dry gas seal support system", "Bearing": "Bearings and shaft (API 670 probes)", "Oil": "Lube oil supply"}, "points": [{"metric": "suction_pressure_bara", "path": "Process.SuctionPressure", "label": "Suction pressure", "unit": "bar a"}, {"metric": "suction_temp_c", "path": "Process.SuctionTemperature", "label": "Suction temperature", "unit": "\u00b0C"}, {"metric": "discharge_pressure_bara", "path": "Process.DischargePressure", "label": "Discharge pressure", "unit": "bar a"}, {"metric": "discharge_temp_c", "path": "Process.DischargeTemperature", "label": "Discharge temperature", "unit": "\u00b0C"}, {"metric": "flow_dp_mbar", "path": "Process.FlowDP", "label": "Suction flow element differential pressure", "unit": "mbar"}, {"metric": "speed_rpm", "path": "Machine.Speed", "label": "Compressor shaft speed", "unit": "rpm"}, {"metric": "driver_power_kw", "path": "Machine.DriverPower", "label": "Motor shaft power (from the VSD)", "unit": "kW"}, {"metric": "asc_output_pct", "path": "Surge.ControllerOutput", "label": "Anti-surge controller output (valve demand)", "unit": "%"}, {"metric": "recycle_valve_pct", "path": "Surge.ValvePosition", "label": "Recycle valve position feedback", "unit": "%"}, {"metric": "seal_gas_dp_bar", "path": "Seal.SealGasDP", "label": "Seal gas supply over reference pressure", "unit": "bar"}, {"metric": "vent_flow_de_nm3h", "path": "Seal.PrimaryVentDE", "label": "Primary vent flow, drive end", "unit": "Nm\u00b3/h"}, {"metric": "vent_flow_ne_nm3h", "path": "Seal.PrimaryVentNDE", "label": "Primary vent flow, non-drive end", "unit": "Nm\u00b3/h"}, {"metric": "brg_temp_de_c", "path": "Bearing.JournalTempDE", "label": "Journal bearing temperature, drive end", "unit": "\u00b0C"}, {"metric": "brg_temp_ne_c", "path": "Bearing.JournalTempNDE", "label": "Journal bearing temperature, non-drive end", "unit": "\u00b0C"}, {"metric": "thrust_temp_c", "path": "Bearing.ThrustTemp", "label": "Thrust bearing temperature, active side", "unit": "\u00b0C"}, {"metric": "axial_pos_mm", "path": "Bearing.AxialPosition", "label": "Rotor axial position (0 = commissioning)", "unit": "mm"}, {"metric": "vib_de_um", "path": "Bearing.VibrationDE", "label": "Shaft vibration, drive end (larger of X and Y)", "unit": "\u00b5m pp"}, {"metric": "vib_ne_um", "path": "Bearing.VibrationNDE", "label": "Shaft vibration, non-drive end (larger of X and Y)", "unit": "\u00b5m pp"}, {"metric": "oil_supply_temp_c", "path": "Oil.SupplyTemp", "label": "Lube oil supply temperature", "unit": "\u00b0C"}, {"metric": "oil_supply_bar", "path": "Oil.SupplyPressure", "label": "Lube oil supply pressure", "unit": "bar g"}]}, "twin_model": {"limits": {"surge_margin_alert_pct": 15.0, "surge_margin_limit_pct": 5.0, "recycle_open_alert_pct": 10.0, "asv_dev_alert_pct": 10.0, "eta_dev_alert_pts": -3.0, "head_ratio_alert": 0.95, "power_dev_alert": 0.06, "vent_flow_alert_nm3h": 6.0, "seal_gas_dp_alert_bar": 0.5, "journal_temp_alert_c": 105.0, "thrust_temp_alert_c": 110.0, "axial_alert_mm": 0.3, "vib_alert_um": 50.0, "source": "Alarm set points: assumption: typical value, replace with the values of your own machine (copy them from the anti-surge controller, the API 670 monitor and the seal panel)"}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "impeller_fouling": {"name": "Impeller and diffuser fouling", "part": "aero", "symptoms": "polytropic efficiency and head below the map at the same reduced flow; speed and power up to hold the discharge pressure", "rules": ["CC_EFFICIENCY_LOW", "CC_HEAD_LOW"], "default_ramp_min": 1.5}, "surge_approach": {"name": "Turndown towards surge (low process flow)", "part": "process", "symptoms": "process flow falls, the anti-surge controller holds the control line by recycling gas", "rules": ["CC_SURGE_CONTROL_LINE", "CC_RECYCLE_OPEN"], "default_ramp_min": 1}, "asv_stuck": {"name": "Anti-surge valve stuck closed during a turndown", "part": "anti-surge", "symptoms": "controller asks the valve to open, position stays shut, surge margin collapses", "rules": ["CC_ASV_DEVIATION", "CC_SURGE_MARGIN_LOW"], "default_ramp_min": 1}, "seal_primary_wear": {"name": "Dry gas seal primary ring wear (drive end)", "part": "seal", "symptoms": "primary vent flow of one seal rises, the other end unchanged", "rules": ["CC_SEAL_VENT_HIGH"], "default_ramp_min": 1.5}, "seal_gas_supply": {"name": "Seal gas supply low (filter blocked or booster failed)", "part": "seal", "symptoms": "seal gas pressure over the reference falls: unfiltered process gas can reach the seal faces", "rules": ["CC_SEAL_GAS_DP_LOW"], "default_ramp_min": 1}, "thrust_overload": {"name": "Thrust overload (balance piston labyrinth wear)", "part": "bearing", "symptoms": "thrust bearing temperature up, rotor moves towards the active thrust pads", "rules": ["CC_THRUST_TEMP_HIGH", "CC_AXIAL_POSITION"], "default_ramp_min": 1.5}, "rotor_unbalance": {"name": "Rotor unbalance (deposits shed from an impeller)", "part": "rotor", "symptoms": "shaft vibration up at running speed, temperatures normal", "rules": ["CC_VIBRATION_HIGH"], "default_ramp_min": 0.5}, "discharge_tt_drift": {"name": "Discharge temperature transmitter drift", "part": "instrument", "symptoms": "efficiency looks low but the motor power does not agree with the gas power", "rules": ["CC_EFFICIENCY_LOW", "CC_POWER_MISMATCH"], "default_ramp_min": 1}}, "presentation": {"title": "K-2301 process centrifugal compressor", "dashboard": "CENTRIFUGAL_COMPRESSOR"}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(3.2, 4.4, 8.6); ctl.target.set(-0.2, 1.2, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+scene.add(new THREE.GridHelper(14, 28, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), skid = M(0x4d5560, { m: .3 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const AX = 1.0;                                   // shaft centre-line height
+// baseplate
+scene.add(at(box(6.4, .18, 1.5, skid), -.2, .09, 0));
+// barrel casing (x = shaft axis), end covers, pedestals
+const caseMat = M(0x3e6e9e, { m: .4, ds: true });
+const casing = cyl(.62, .62, 1.7, caseMat, 48); casing.rotation.z = Math.PI / 2; scene.add(at(casing, .9, AX, 0));
+[0.02, 1.78].forEach(x => { const c = cyl(.68, .68, .12, M(0x34597f, { m: .4 }), 48); c.rotation.z = Math.PI / 2; scene.add(at(c, x, AX, 0)); });
+[0.25, 1.55].forEach(x => scene.add(at(box(.3, AX - .5, .9, skid), x, (AX - .5) / 2 + .18, 0)));
+// suction (top, left) and discharge (top, right) nozzles with flanges
+const noz = (x, r, lab) => { scene.add(at(cyl(r, r, .55, caseMat), x, AX + .85, 0)); scene.add(at(cyl(r + .08, r + .08, .06, steel), x, AX + 1.12, 0)); };
+noz(.45, .26); noz(1.4, .19);
+// process piping: suction header from the left, discharge to the right
+const pipeMat = M(0x8c97a3, { m: .5 });
+const pipe = (pts, r, m = pipeMat) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), false, 'catmullrom', .01), 64, r, 16, false); const o = new THREE.Mesh(g, m); scene.add(o); return o; };
+pipe([[.45, AX + 1.15, 0], [.45, AX + 1.6, 0], [-.4, AX + 1.6, 0], [-2.4, AX + 1.6, 0]], .24);
+pipe([[1.4, AX + 1.15, 0], [1.4, AX + 1.45, 0], [2.6, AX + 1.45, 0], [3.4, AX + 1.45, 0]], .17);
+// recycle (anti-surge) line: discharge -> valve -> back to suction, behind the machine
+const recMat = M(0x9aa5b1, { m: .5 });
+pipe([[2.4, AX + 1.45, 0], [2.4, AX + 1.45, -1.0], [.9, AX + 1.45, -1.0], [-.9, AX + 1.6, -1.0], [-1.6, AX + 1.6, -1.0], [-1.6, AX + 1.6, 0]], .09, recMat);
+const asvBody = at(new THREE.Mesh(new THREE.SphereGeometry(.17, 24, 16), M(0x24a148, { m: .3 })), .9, AX + 1.45, -1.0); scene.add(asvBody);
+scene.add(at(cyl(.03, .03, .35, steel), .9, AX + 1.7, -1.0));
+const asvAct = at(cyl(.16, .16, .2, M(0x2f6db5, { m: .35 })), .9, AX + 1.95, -1.0); scene.add(asvAct);
+// suction flow element
+scene.add(at(cyl(.3, .3, .08, M(0x8a3ffc, { m: .2 })), -1.6, AX + 1.6, 0).rotateZ(Math.PI / 2));
+// bearing housings (DE left towards the gearbox, NDE right) and seal cartridges
+[-.12, 1.92].forEach(x => { const h = cyl(.24, .24, .32, dark); h.rotation.z = Math.PI / 2; scene.add(at(h, x, AX, 0)); });
+const sealMat = M(0xf1c21b, { m: .3, r: .4 });
+const sealDE = cyl(.2, .2, .1, sealMat); sealDE.rotation.z = Math.PI / 2; scene.add(at(sealDE, .14, AX, 0));
+const sealNE = cyl(.2, .2, .1, sealMat); sealNE.rotation.z = Math.PI / 2; scene.add(at(sealNE, 1.66, AX, 0));
+const thrust = cyl(.27, .27, .12, M(0xc0392b, { m: .4 })); thrust.rotation.z = Math.PI / 2; scene.add(at(thrust, 2.15, AX, 0));
+// seal gas panel
+scene.add(at(box(.5, .9, .25, M(0xe0e0e0, { m: .1 })), 1.0, .65, .95));
+pipe([[1.0, 1.1, .95], [.6, 1.25, .5], [.14, AX + .2, .2]], .015, M(0xf1c21b, { m: .5 }));
+pipe([[1.0, 1.1, .95], [1.4, 1.25, .5], [1.66, AX + .2, .2]], .015, M(0xf1c21b, { m: .5 }));
+// rotor (visible in cutaway): shaft + 6 impellers + balance piston, spins
+const rotor = new THREE.Group(); at(rotor, 0, AX, 0); scene.add(rotor);
+const shaft = cyl(.07, .07, 3.4, steel); shaft.rotation.z = Math.PI / 2; at(shaft, .55, 0, 0); rotor.add(shaft);
+const impMat = M(0xd9dde2, { m: .85, r: .2 });
+for (let i = 0; i < 6; i++) {
+  const x = .38 + i * .2, disc = cyl(.42, .2, .1, impMat, 40); disc.rotation.z = -Math.PI / 2; at(disc, x, 0, 0); rotor.add(disc);
+  for (let b = 0; b < 8; b++) { const bl = box(.08, .18, .02, M(0x9aa3ad, { m: .7 })); const a = b / 8 * Math.PI * 2; bl.position.set(x + .03, Math.cos(a) * .3, Math.sin(a) * .3); bl.rotation.x = a; rotor.add(bl); }
+}
+const bp = cyl(.3, .3, .14, M(0x8d8d8d, { m: .7 })); bp.rotation.z = Math.PI / 2; at(bp, 1.62, 0, 0); rotor.add(bp);
+rotor.visible = false;
+// coupling guard, gearbox, motor + VSD cabinet
+scene.add(at(box(.5, .3, .32, M(0xd8a31a, { m: .2 })), -.6, AX, 0));
+const gb = at(box(.8, .9, .9, M(0x5a6470, { m: .4 })), -1.3, .7, 0); scene.add(gb);
+scene.add(at(box(.4, .2, .25, M(0xd8a31a, { m: .2 })), -1.9, .6, 0));
+const motor = cyl(.45, .45, 1.3, M(0x2f6db5, { m: .35 }), 40); motor.rotation.z = Math.PI / 2; scene.add(at(motor, -2.75, .6, 0));
+for (let i = 0; i < 10; i++) { const f = cyl(.47, .47, .02, M(0x285a94)); f.rotation.z = Math.PI / 2; scene.add(at(f, -3.3 + i * .12, .6, 0)); }
+scene.add(at(box(.9, 1.6, .5, M(0xc6c6c6, { m: .1 })), -2.8, .8, 1.3));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, -2.8, 1.7, 1.3));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('suc', [-1.6, AX + 1.95, 0]); lbl('dis', [2.8, AX + 1.75, 0]); lbl('perf', [.9, AX + .7, .3]); lbl('surge', [.9, AX + 2.2, -1.0]);
+lbl('power', [-2.75, 1.2, 0]); lbl('seal', [1.0, 1.25, .95]); lbl('brgde', [-.12, AX + .35, .2]); lbl('brgne', [1.95, AX + .35, .2]); lbl('thr', [2.2, AX - .35, .3]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 0, valve = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.speed_rpm; valve = r.recycle_valve_pct;
+  setLbl('suc', 'suction · actual inlet flow', `${fmt(r.suction_pressure_bara)} bar a · ${fmt(r.suction_temp_c, 1)} °C · ${fmt(t.q_act_m3h, 0)} m³/h`, '');
+  setLbl('dis', 'discharge · pressure ratio', `${fmt(r.discharge_pressure_bara)} bar a · ${fmt(r.discharge_temp_c, 1)} °C · PR ${fmt(t.pressure_ratio)}`, st(names.has('CC_POWER_MISMATCH')));
+  setLbl('perf', 'polytropic head · efficiency (map)', `${fmt(t.head_poly_kjkg, 1)} kJ/kg (${fmt(t.head_expected_kjkg, 1)}) · ${fmt(t.eta_poly * 100, 1)} % (${fmt(t.eta_expected * 100, 1)})`,
+    st(names.has('CC_HEAD_LOW') || names.has('CC_EFFICIENCY_LOW'), t.eta_dev_pts < -1.5));
+  setLbl('surge', `surge margin · recycle valve (ASC ${fmt(r.asc_output_pct, 0)} %)`, `${fmt(t.surge_margin_pct, 1)} % · ${fmt(r.recycle_valve_pct, 0)} % open`,
+    st(names.has('CC_SURGE_MARGIN_LOW') || names.has('CC_ASV_DEVIATION'), names.has('CC_SURGE_CONTROL_LINE') || names.has('CC_RECYCLE_OPEN')));
+  setLbl('power', 'speed · shaft power ÷ gas power', `${fmt(r.speed_rpm, 0)} rpm · ${fmt(r.driver_power_kw, 0)} kW · ${fmt(t.power_ratio)}`, st(names.has('CC_POWER_MISMATCH')));
+  setLbl('seal', 'seal gas dp · primary vent DE / NDE', `${fmt(r.seal_gas_dp_bar)} bar · ${fmt(r.vent_flow_de_nm3h, 1)} / ${fmt(r.vent_flow_ne_nm3h, 1)} Nm³/h`,
+    st(names.has('CC_SEAL_GAS_DP_LOW') || names.has('CC_SEAL_VENT_HIGH'), t.vent_flow_max_nm3h > L.vent_flow_alert_nm3h * .6));
+  setLbl('brgde', 'DE journal · vibration', `${fmt(r.brg_temp_de_c, 0)} °C · ${fmt(r.vib_de_um, 0)} µm`, st(r.vib_de_um > L.vib_alert_um || r.brg_temp_de_c > L.journal_temp_alert_c, r.vib_de_um > t.vib_limit_api617_um));
+  setLbl('brgne', 'NDE journal · vibration', `${fmt(r.brg_temp_ne_c, 0)} °C · ${fmt(r.vib_ne_um, 0)} µm`, st(r.vib_ne_um > L.vib_alert_um || r.brg_temp_ne_c > L.journal_temp_alert_c, r.vib_ne_um > t.vib_limit_api617_um));
+  setLbl('thr', 'thrust bearing · axial position', `${fmt(r.thrust_temp_c, 0)} °C · ${r.axial_pos_mm >= 0 ? '+' : ''}${fmt(r.axial_pos_mm)} mm`, st(names.has('CC_THRUST_TEMP_HIGH') || names.has('CC_AXIAL_POSITION')));
+  $('k-health').textContent = ST.health; $('k-sm').textContent = fmt(t.surge_margin_pct, 1) + ' %'; $('k-eta').textContent = fmt(t.eta_poly * 100, 1) + ' %';
+  $('c-surge-t').textContent = `surge margin ${fmt(t.surge_margin_pct, 1)} %`;
+  $('c-surge').className = 'chip ' + (t.surge_margin_pct < L.surge_margin_limit_pct ? 'bad' : t.surge_margin_pct < L.surge_margin_alert_pct ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Polytropic head (kJ/kg)', fmt(t.head_poly_kjkg, 1), fmt(t.head_expected_kjkg, 1), names.has('CC_HEAD_LOW')) +
+    row('Polytropic efficiency (%)', fmt(t.eta_poly * 100, 1), fmt(t.eta_expected * 100, 1), names.has('CC_EFFICIENCY_LOW')) +
+    row('Actual inlet flow (m³/h)', fmt(t.q_act_m3h, 0), '> ' + fmt(t.q_surge_m3h, 0) + ' surge') +
+    row('Surge margin (%)', fmt(t.surge_margin_pct, 1), '≥ ' + L.surge_margin_alert_pct, t.surge_margin_pct < L.surge_margin_alert_pct) +
+    row('Speed ratio N/N0 · reduced flow x', fmt(t.speed_ratio, 3) + ' · ' + fmt(t.flow_reduced, 3), 'x > ' + d.map.surge_x) +
+    row('Shaft power ÷ gas power', fmt(t.power_ratio), '1 ± ' + L.power_dev_alert, names.has('CC_POWER_MISMATCH')) +
+    row('Recycle valve / ASC output (%)', fmt(r.recycle_valve_pct, 0) + ' / ' + fmt(r.asc_output_pct, 0), 'equal', names.has('CC_ASV_DEVIATION')) +
+    row('Primary vent max (Nm³/h)', fmt(t.vent_flow_max_nm3h, 1), fmt(d.seals.vent_flow_normal_nm3h, 1), names.has('CC_SEAL_VENT_HIGH')) +
+    row('Seal gas dp (bar)', fmt(r.seal_gas_dp_bar), fmt(d.seals.seal_gas_dp_normal_bar), names.has('CC_SEAL_GAS_DP_LOW')) +
+    row('Shaft vibration max (µm pp)', fmt(t.vib_max_um, 0), '< ' + L.vib_alert_um + ' (API 617 shop ' + fmt(t.vib_limit_api617_um, 1) + ')', names.has('CC_VIBRATION_HIGH')) +
+    row('Thrust bearing (°C)', fmt(r.thrust_temp_c, 0), fmt(d.bearings.thrust_temp_normal_c, 0), names.has('CC_THRUST_TEMP_HIGH'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the compressor behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  asvBody.material.color.setHex(names.has('CC_ASV_DEVIATION') ? 0xda1e28 : valve > 1 ? 0xff832b : 0x24a148);
+  sealDE.material.color.setHex(names.has('CC_SEAL_VENT_HIGH') || names.has('CC_SEAL_GAS_DP_LOW') ? 0xda1e28 : 0xf1c21b);
+  thrust.material.color.setHex(names.has('CC_THRUST_TEMP_HIGH') ? 0xff2020 : 0xc0392b);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  caseMat.transparent = true; caseMat.opacity = cut ? .18 : 1; caseMat.depthWrite = !cut;
+  rotor.visible = cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), shownValve = 0;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  rotor.rotation.x += dt * (rpm / 10500) * 6;        // slowed down for the eye
+  shownValve += (valve - shownValve) * Math.min(1, dt * 3);
+  asvAct.rotation.y = shownValve / 100 * Math.PI / 2;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
