@@ -1,0 +1,368 @@
+{
+ "$comment": "TM-5401 traction motor twin. Expected values in Maximo Monitor from the locomotive data sheet, the motor data and the converter data; the TCMS sends only what it measures.",
+ "twin": {
+  "id": "TM-5401",
+  "name": "Traction motor TM-5401",
+  "version": "1.0.0",
+  "folder": "traction-twin"
+ },
+ "identification": {
+  "asset": "TM-5401",
+  "assetnum": "TM-5401",
+  "manufacturer": "Siemens Mobility (locomotive: Vectron AC)",
+  "model": "Asynchronous traction motor, axle 1 of a Vectron AC Bo'Bo' locomotive (motor type: see the nameplate)",
+  "description": "Traction motor 1 of locomotive 5401 with its IGBT traction inverter, blower and bearings, monitored through the TCMS",
+  "vehicle": "Siemens Vectron AC, 6.4 MW, 200 km/h, Bo'Bo', freight and passenger",
+  "motor": "Three-phase asynchronous (squirrel-cage induction) traction motor, forced ventilation from a traction-motor blower",
+  "drive": "Motor in the bogie driving the axle through a single-stage gear (assumed nose-suspended)",
+  "inverter": "IGBT traction inverter, one per motor (assumed), water-glycol cooled",
+  "position": "Bogie 1, axle 1"
+ },
+ "design": {
+  "locomotive": {
+   "power_wheel_kw": 6400,
+   "start_te_kn": 320,
+   "ebrake_kn": 240,
+   "vmax_kmh": 200,
+   "mass_t": 85,
+   "axles": 4,
+   "wheel_new_mm": 1250,
+   "wheel_worn_mm": 1160,
+   "source": "Siemens Mobility Vectron brochure (MOML-B10020-03-7600) and Vectron 230 km/h data sheet: 6,400 kW max. power at wheel, 160 / 200 km/h, approx. 85 t (max. 90 t), Bo'Bo', wheels 1,250 mm new / 1,160 mm worn, starting tractive effort 320 kN (350 kN where authorised), electric braking effort 240 kN."
+  },
+  "motor": {
+   "power_kw": 1600.0,
+   "start_te_kn": 80.0,
+   "base_speed_kmh": 72.0,
+   "gear_ratio": 4.0,
+   "gear_eff": 0.98,
+   "motor_eff": 0.955,
+   "rated_current_a": 530.0,
+   "magnetising_a": 150.0,
+   "wheel_mid_mm": 1205.0,
+   "base_rpm": 1267.96,
+   "max_rpm": 3522.1,
+   "rated_torque_knm": 12.2959,
+   "kt_a_per_knm": 41.341,
+   "source": "Power and starting effort per motor = locomotive values / 4 (published). Gear ratio 4.0, gear efficiency 0.98, motor efficiency 0.955, rated current 530 A and magnetising current 150 A: assumption: typical value, replace with the motor data sheet / type test report. Base speed, rpm, rated torque and current per torque are derived from these in build_twin.py."
+  },
+  "thermal": {
+   "air_nominal_c": 30.0,
+   "rise_rated_k": 125.0,
+   "flow_rated_pct": 100.0,
+   "flow_exponent": 0.8,
+   "hotspot_allowance_k": 10.0,
+   "insulation_class_c": 200,
+   "class_life_h": 20000.0,
+   "halving_k": 10.0,
+   "life_ref_c": 150.0,
+   "source": "Winding rise of 125 K over the cooling air at rated RMS current and full blower flow, rise proportional to current squared and to (rated flow / flow)^0.8, hot spot 10 K above the winding sensor: assumption: typical value, replace with the motor data sheet / type test report. Thermal class 200 (IEC 60085); 20 000 h at the class temperature and life halved per 10 K (Montsinger) are commonly applied approximations; reference temperature 150 C (640 000 h by that rule) chosen for the ageing rate."
+  },
+  "bearings": {
+   "de": "insulated cylindrical roller bearing (drive end, pinion side)",
+   "nde": "insulated deep groove ball bearing (non-drive end)",
+   "rise_at_max_k": 40.0,
+   "rollers": 14,
+   "roller_d_mm": 32.0,
+   "pitch_d_mm": 190.0,
+   "source": "Bearing types typical of traction motors (current-insulated to stop converter bearing currents). Temperature rise over the cooling air of 40 K at maximum speed, 14 rollers of 32 mm on a 190 mm pitch circle: assumption: typical value, replace with the motor data sheet / type test report."
+  },
+  "insulation": {
+   "ir_new_40c_mohm": 2000.0,
+   "ir_halving_k": 10.0,
+   "source": "Insulation resistance of a dry, clean winding at 40 C, and halving per 10 K for the temperature correction (the usual approximation used with IEEE 43): assumption: typical value, replace with the motor data sheet / type test report."
+  },
+  "adhesion": {
+   "mu_dry": 0.42,
+   "creep_normal_pct": 0.8,
+   "source": "Adhesion available on dry rail with sanding and normal creep of the slip control at full effort: assumption, typical values; 320 kN on 85 t needs about 0.38."
+  },
+  "converter": {
+   "coolant_nominal_c": 45.0,
+   "loss_rated_kw": 25.0,
+   "loss_linear_share": 0.4,
+   "rth_k_per_kw": 1.2,
+   "lesit_a": 302500.0,
+   "lesit_alpha": 5.039,
+   "lesit_ea_j": 9.89e-20,
+   "kb_j_per_k": 1.380649e-23,
+   "design_life_years": 30.0,
+   "cycles_per_day": 60.0,
+   "source": "Inverter losses 25 kW at rated current (40 % proportional to current, 60 % to current squared), heat-sink thermal resistance 1.2 K/kW, coolant 45 C, 60 stop-start cycles a day, 30-year design life: assumption: typical value, replace with the motor data sheet / type test report. LESIT power-cycling parameters A, alpha, Ea as commonly quoted from Held et al. (1997); kB = Boltzmann constant. LESIT describes 1990s modules: replace with the module maker's power-cycling curve."
+  },
+  "demo": {
+   "time_scale": 15,
+   "cycle_s": 160,
+   "note": "Demo only: the plant clock runs 15 times faster, so the 30-minute averages settle in 2 minutes and one 40-minute run (stand, start, climb, cruise, coast, brake) takes 160 s of real time."
+  }
+ },
+ "telemetry": {
+  "event": "traction",
+  "publish_every_s": 10,
+  "device_type": "TRACTION_MOTOR_TCMS",
+  "groups": {
+   "Run": "Train speed and driver demand",
+   "Motor": "Motor speed, torque and current",
+   "Thermal": "Winding, cooling air and blower",
+   "Bearing": "Bearing temperatures and vibration",
+   "Insulation": "Insulation test at the last stop",
+   "Wheel": "Wheel and adhesion",
+   "Inverter": "IGBT traction inverter"
+  },
+  "points": [
+   {
+    "metric": "speed_kmh",
+    "path": "Run.Speed",
+    "label": "Train speed (radar / GNSS)",
+    "unit": "km/h"
+   },
+   {
+    "metric": "demand_pct",
+    "path": "Run.Demand",
+    "label": "Driver's tractive effort demand",
+    "unit": "%"
+   },
+   {
+    "metric": "motor_rpm",
+    "path": "Motor.Speed",
+    "label": "Motor speed (speed sensor)",
+    "unit": "rpm"
+   },
+   {
+    "metric": "motor_torque_knm",
+    "path": "Motor.Torque",
+    "label": "Motor torque estimated by the inverter",
+    "unit": "kN·m"
+   },
+   {
+    "metric": "motor_current_a",
+    "path": "Motor.Current",
+    "label": "Motor phase current (RMS)",
+    "unit": "A"
+   },
+   {
+    "metric": "current_rms30_a",
+    "path": "Motor.CurrentRms30",
+    "label": "Thermal RMS current, last 30 min",
+    "unit": "A"
+   },
+   {
+    "metric": "current_rms5_a",
+    "path": "Motor.CurrentRms5",
+    "label": "Thermal RMS current, last 5 min",
+    "unit": "A"
+   },
+   {
+    "metric": "rpm_avg30",
+    "path": "Motor.SpeedAvg30",
+    "label": "Mean motor speed, last 30 min",
+    "unit": "rpm"
+   },
+   {
+    "metric": "stator_c",
+    "path": "Thermal.Stator",
+    "label": "Stator winding temperature (Pt100)",
+    "unit": "°C"
+   },
+   {
+    "metric": "air_in_c",
+    "path": "Thermal.AirIn",
+    "label": "Cooling air inlet temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "blower_flow_pct",
+    "path": "Thermal.BlowerFlow",
+    "label": "Blower air flow (from differential pressure)",
+    "unit": "%"
+   },
+   {
+    "metric": "bearing_de_c",
+    "path": "Bearing.TempDE",
+    "label": "Drive-end bearing temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "bearing_nde_c",
+    "path": "Bearing.TempNDE",
+    "label": "Non-drive-end bearing temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "env_bpfo_g",
+    "path": "Bearing.EnvelopeBPFO",
+    "label": "Envelope acceleration at the outer-race frequency (DE)",
+    "unit": "g"
+   },
+   {
+    "metric": "ir_mohm",
+    "path": "Insulation.Resistance",
+    "label": "Insulation resistance to earth, last standstill test",
+    "unit": "MΩ"
+   },
+   {
+    "metric": "ir_temp_c",
+    "path": "Insulation.WindingTemp",
+    "label": "Winding temperature during that test",
+    "unit": "°C"
+   },
+   {
+    "metric": "wheel_d_mm",
+    "path": "Wheel.Diameter",
+    "label": "Wheel diameter parameter (set at the last reprofiling)",
+    "unit": "mm"
+   },
+   {
+    "metric": "creep_coast_pct",
+    "path": "Wheel.CreepCoast",
+    "label": "Mean creep during the last coasting",
+    "unit": "%"
+   },
+   {
+    "metric": "slip_events_100km",
+    "path": "Wheel.SlipEvents",
+    "label": "Wheel slip / slide corrections, last 100 km",
+    "unit": "count"
+   },
+   {
+    "metric": "coolant_c",
+    "path": "Inverter.Coolant",
+    "label": "Inverter coolant inlet temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "igbt_baseplate_c",
+    "path": "Inverter.Baseplate",
+    "label": "IGBT module baseplate temperature (NTC)",
+    "unit": "°C"
+   },
+   {
+    "metric": "igbt_tj_swing_k",
+    "path": "Inverter.TjSwing",
+    "label": "Mean junction temperature swing per stop-start, last day",
+    "unit": "K"
+   },
+   {
+    "metric": "igbt_tj_mean_c",
+    "path": "Inverter.TjMean",
+    "label": "Mean junction temperature of those cycles",
+    "unit": "°C"
+   },
+   {
+    "metric": "igbt_cycles_day",
+    "path": "Inverter.CyclesDay",
+    "label": "Stop-start thermal cycles, last day",
+    "unit": "count"
+   },
+   {
+    "metric": "odometer_km",
+    "path": "Run.Odometer",
+    "label": "Locomotive odometer",
+    "unit": "km"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "vent_flow_alert_pct": 70.0,
+   "winding_residual_alert_k": 15.0,
+   "aging_rate_alert": 2.0,
+   "load_min_frac": 0.3,
+   "bearing_residual_alert_k": 20.0,
+   "envelope_alert_g": 1.5,
+   "ir_40c_min_mohm": 100.0,
+   "creep_alert_pct": 3.0,
+   "slip_events_alert": 5.0,
+   "creep_offset_alert_pct": 1.5,
+   "te_ratio_alert": 0.85,
+   "te_min_kn": 10.0,
+   "current_ratio_alert": 1.15,
+   "igbt_residual_alert_k": 10.0,
+   "igbt_life_alert_years": 30.0
+  }
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "blower_degraded": {
+   "name": "Traction-motor blower or air filter degraded",
+   "part": "blower",
+   "symptoms": "blower flow down, winding hotter but as the reduced flow explains, insulation ages faster",
+   "rules": [
+    "TM_VENT_FLOW_LOW",
+    "TM_AGING_FAST"
+   ],
+   "default_ramp_min": 1
+  },
+  "cooling_ducts_blocked": {
+   "name": "Motor cooling ducts blocked (dust, brake dust, oil mist)",
+   "part": "stator",
+   "symptoms": "flow normal, winding hotter than the load and the flow explain, insulation ages faster",
+   "rules": [
+    "TM_WINDING_RESIDUAL",
+    "TM_AGING_FAST"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "bearing_lubrication": {
+   "name": "Bearing grease loss or degraded grease (drive end)",
+   "part": "bearing",
+   "symptoms": "drive-end bearing hotter than speed explains, vibration still normal",
+   "rules": [
+    "TM_BEARING_HOT"
+   ],
+   "default_ramp_min": 1
+  },
+  "bearing_outer_race": {
+   "name": "Bearing outer race defect (drive end, spalling or fluting)",
+   "part": "bearing",
+   "symptoms": "envelope acceleration at the outer-race frequency up, temperature still normal",
+   "rules": [
+    "TM_BEARING_ENVELOPE"
+   ],
+   "default_ramp_min": 1
+  },
+  "insulation_moisture": {
+   "name": "Winding insulation moisture or contamination",
+   "part": "stator",
+   "symptoms": "insulation resistance at 40 C falls below the minimum",
+   "rules": [
+    "TM_INSULATION_LOW"
+   ],
+   "default_ramp_min": 0.5
+  },
+  "low_adhesion": {
+   "name": "Low adhesion: wheel slip (leaves, sanding fault)",
+   "part": "wheelset",
+   "symptoms": "creep above normal under traction, many slip corrections, effort capped by adhesion",
+   "rules": [
+    "TM_WHEEL_SLIP",
+    "TM_SLIP_EVENTS"
+   ],
+   "default_ramp_min": 0.5
+  },
+  "rotor_cage_damage": {
+   "name": "Rotor cage damage (cracked bar or end ring)",
+   "part": "rotor",
+   "symptoms": "less torque than demanded, more current per unit of torque",
+   "rules": [
+    "TM_TE_SHORTFALL",
+    "TM_CURRENT_HIGH"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "inverter_cooling": {
+   "name": "Inverter cooling degraded (pump, coolant, fouled cooler)",
+   "part": "inverter",
+   "symptoms": "IGBT baseplate hotter than the current explains, bigger and hotter junction cycles, life shortens",
+   "rules": [
+    "TM_IGBT_HOT",
+    "TM_IGBT_LIFE_SHORT"
+   ],
+   "default_ramp_min": 1
+  }
+ },
+ "presentation": {
+  "title": "TM-5401 traction motor",
+  "dashboard": "TRACTION_MOTOR_TCMS"
+ }
+}

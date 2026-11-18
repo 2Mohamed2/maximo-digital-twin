@@ -1,0 +1,145 @@
+"""Write twin/gpu-5901.twin.json: the 400 Hz ground power unit twin (GPU-5901).
+
+    python build_twin.py
+
+GPU-5901 is a fixed, solid-state 400 Hz ground power unit mounted under the passenger boarding bridge of a contact stand.
+It converts the airport's 50/60 Hz supply into 3 x 115/200 V 400 Hz and feeds a parked aircraft through a 28 m flexible
+cable and an aircraft connector, so the aircraft can switch off its auxiliary power unit (APU) at the gate.
+Reference product: ITW GSE 2400 90 kVA solid-state GPU (2400 Compact data sheet, Rev C June 2023; 2400 Power Coil data
+sheet for the 24 m / 28 m cable coil). This is not diesel: it is a static frequency converter on the grid.
+
+Sources and assumptions (every number below is either from the data sheet / a standard or labelled as an assumption):
+  ITW GSE 2400 Compact data sheet: 90 kVA, PF 0.8-1, 3 x 115/200 V, 400 Hz +/- 0.1 %, voltage regulation < 0.5 %,
+    total harmonic content < 2 % (typ. 1.5 %), overall efficiency 0.94 at 35-90 kVA PF 0.8 and 0.90 at 25 kVA PF 0.8,
+    no-load losses 2.2 kW, stand-by losses 65 W, overload 125 % for 600 s, operating -40 to +56 C.
+  UFC 3-555-01N (US DoD 400 Hz design criteria, 2004, now cancelled): MIL-STD-704 aircraft operating range 108-118 V
+    includes a 0-5 V drop inside the aircraft, so the voltage at the aircraft connector should stay between 113 and 118 V;
+    THD of the waveform supplying the aircraft not above 5 %.
+  ICAO carbon emissions methodology: 3.16 kg CO2 per kg of jet fuel burnt.
+  Cable impedance, heat-sink thermal resistance, wear lives, APU fuel flow and grid emission factor: ASSUMPTIONS.
+"""
+import json
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with "
+DS = "ITW GSE 2400 Compact data sheet (Rev C, June 2023)"
+
+twin = {
+    "$comment": "GPU-5901 400 Hz ground power unit twin. Expected values in Maximo Monitor from the data sheet, the cable data and the aircraft power limits; the device sends only what it measures.",
+    "twin": {"id": "GPU-5901", "name": "400 Hz ground power unit GPU-5901", "version": "1.0.0", "folder": "gpu-twin"},
+    "identification": {
+        "asset": "GPU-5901", "assetnum": "GPU-5901", "manufacturer": "ITW GSE",
+        "model": "2400 solid-state GPU, 90 kVA, mounted under the passenger boarding bridge",
+        "description": "400 Hz ground power for a narrow-body contact stand: 3 x 115/200 V 400 Hz through a 28 m aircraft cable",
+        "type": "Fixed solid-state static frequency converter (not a diesel GPU), 50/60 Hz in, 400 Hz out",
+        "cable": "28 m flexible 400 Hz aircraft cable on a cable coil, aircraft connector to ISO 461-1 style 6-pin plug",
+        "location": "Contact stand of a passenger terminal (generic airport)",
+    },
+    "design": {
+        "rating": {
+            "kva": 90.0, "v_ln_nom": 115.0, "f_nom_hz": 400.0, "freq_tol_pct": 0.1, "regulation_pct": 0.5,
+            "thd_typ_pct": 1.5, "thd_spec_pct": 2.0, "overload_pct_600s": 125.0, "ambient_max_c": 56.0,
+            "source": DS + ": 90 kVA PF 0.8-1, 3 x 115/200 V, 400 Hz +/- 0.1 %, voltage regulation < 0.5 % (balanced and up to 30 % "
+                      "unbalanced load), total harmonic content < 2 % (typ. 1.5 %) per ISO 1540, overload 125 % for 600 s, operating up to +56 C.",
+        },
+        "efficiency": {
+            "no_load_loss_kw": 2.2, "standby_loss_kw": 0.065, "eff_full": 0.94, "eff_full_kva": 90.0, "eff_low": 0.90, "eff_low_kva": 25.0, "pf": 0.8,
+            "source": DS + ": overall efficiency 0.94 at 35-90 kVA load PF 0.8, 0.90 at 25 kVA PF 0.8, no-load losses 2.2 kW, stand-by 65 W. "
+                      "The twin's loss model P_loss = P0 + k x S^2 is fitted to the 90 kVA point (k from 0.94) and checks the 25 kVA point.",
+        },
+        "cable": {
+            "length_m": 28.0, "r_mohm_per_m": 0.30, "x_mohm_per_m_400hz": 0.64,
+            "source": "Length: 2400 Power Coil data sheet (24 m or 28 m usable cable). Resistance: " + A + "your cable data sheet "
+                      "(IEC 60228 class 5 copper 70 mm2 is 0.272 ohm/km at 20 C, raised for a warm conductor). Reactance at 400 Hz: " + A
+                      + "the cable maker's value (about 0.08 ohm/km at 50 Hz x 8; UFC 3-555-01N notes the 400 Hz reactance drop is about seven times the 60 Hz one).",
+        },
+        "aircraft_limits": {
+            "conn_min_v": 113.0, "conn_max_v": 118.0, "aircraft_min_v": 108.0, "thd_limit_pct": 5.0,
+            "source": "UFC 3-555-01N (US DoD 400 Hz criteria, 2004, cancelled; quoted as design practice): MIL-STD-704 operating range 108-118 V "
+                      "inside the aircraft includes a 0-5 V internal drop, so the voltage at the aircraft connector should stay between 113 and 118 V; "
+                      "THD of the supply to the aircraft not above 5 %. Check the limits of your own aircraft types and of ISO 6858 / SAE ARP5015.",
+        },
+        "thermal": {
+            "rth_k_per_kw": 6.5,
+            "source": "Heat-sink temperature rise per kW of converter loss (forced air): " + A + "the rise measured on your unit at commissioning.",
+        },
+        "wear": {
+            "contactor_life_ops": 100000, "connector_life_cycles": 5000,
+            "source": "Output contactor electrical life and aircraft connector head life in mating cycles: " + A + "the contactor maker's AC-1 life "
+                      "curve and the connector maker's rated mating cycles.",
+        },
+        "apu": {
+            "fuel_kg_h": 110.0, "co2_per_kg_fuel": 3.16, "grid_kg_co2_per_kwh": 0.40, "aircraft_load_kva": 55.0, "aircraft_pf": 0.85,
+            "source": "CO2 per kg of jet fuel: ICAO carbon emissions calculator methodology (3.16). APU fuel flow of a narrow-body APU at the gate: "
+                      + A + "the airline's APU fuel flow for your fleet (sources quote about 100 to 130 kg/h). Grid emission factor: " + A
+                      + "your utility's figure. Aircraft load at the gate (air conditioning by PCA, so electrical load only): " + A + "your measured load.",
+        },
+        "demo": {"time_scale": 20, "turn_connected_min": 40, "turn_gap_min": 10,
+                 "note": "Demo only: the plant clock runs 20 times faster, so one turnaround (40 min on GPU, 10 min empty stand) takes 150 s of real time."},
+    },
+    "telemetry": {
+        "event": "gpu", "publish_every_s": 10, "device_type": "GROUND_POWER_400HZ",
+        "groups": {"Output": "400 Hz output at the GPU terminals", "Connector": "Voltage at the aircraft connector",
+                   "Input": "Grid input", "Thermal": "Cooling", "State": "Contactor and aircraft", "Counters": "Wear and use counters"},
+        "points": [
+            {"metric": "u_out_a", "path": "Output.VoltageA", "label": "Output voltage phase A (L-N)", "unit": "V"},
+            {"metric": "u_out_b", "path": "Output.VoltageB", "label": "Output voltage phase B (L-N)", "unit": "V"},
+            {"metric": "u_out_c", "path": "Output.VoltageC", "label": "Output voltage phase C (L-N)", "unit": "V"},
+            {"metric": "i_a", "path": "Output.CurrentA", "label": "Output current phase A", "unit": "A"},
+            {"metric": "i_b", "path": "Output.CurrentB", "label": "Output current phase B", "unit": "A"},
+            {"metric": "i_c", "path": "Output.CurrentC", "label": "Output current phase C", "unit": "A"},
+            {"metric": "freq_hz", "path": "Output.Frequency", "label": "Output frequency", "unit": "Hz"},
+            {"metric": "p_out_kw", "path": "Output.Power", "label": "Output active power", "unit": "kW"},
+            {"metric": "thd_v_pct", "path": "Output.THD", "label": "Output voltage total harmonic distortion", "unit": "%"},
+            {"metric": "conn_v_a", "path": "Connector.VoltageA", "label": "Voltage at the aircraft connector, phase A", "unit": "V"},
+            {"metric": "conn_v_b", "path": "Connector.VoltageB", "label": "Voltage at the aircraft connector, phase B", "unit": "V"},
+            {"metric": "conn_v_c", "path": "Connector.VoltageC", "label": "Voltage at the aircraft connector, phase C", "unit": "V"},
+            {"metric": "p_in_kw", "path": "Input.Power", "label": "Grid input active power", "unit": "kW"},
+            {"metric": "heatsink_c", "path": "Thermal.HeatSink", "label": "Power stage heat-sink temperature", "unit": "°C"},
+            {"metric": "ambient_c", "path": "Thermal.Ambient", "label": "Air inlet (ambient) temperature", "unit": "°C"},
+            {"metric": "contactor", "path": "State.Contactor", "label": "Output contactor closed (1 = aircraft on GPU)", "unit": "code"},
+            {"metric": "apu_running", "path": "State.APU", "label": "Aircraft APU running (stand APU monitor)", "unit": "code"},
+            {"metric": "contactor_ops", "path": "Counters.ContactorOps", "label": "Output contactor operations since replacement", "unit": "count"},
+            {"metric": "plug_cycles", "path": "Counters.PlugCycles", "label": "Aircraft connector matings since the head was replaced", "unit": "count"},
+            {"metric": "supply_hours_ytd", "path": "Counters.SupplyHoursYTD", "label": "Hours supplying an aircraft this year", "unit": "h"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "min_load_pct": 20.0, "regulation_err_v": 1.5, "drop_ratio_alert": 1.6, "unbalance_v": 1.5, "loss_excess_kw": 1.5,
+            "hs_residual_k": 12.0, "hs_max_c": 85.0, "contactor_life_pct": 90.0, "connector_cycles_pct": 100.0,
+        },
+        "limits_source": "Regulation error, drop ratio, unbalance, loss excess, heat-sink residual and maximum: assumption, alert levels to tune on your unit. "
+                         "Connector 113-118 V and THD 5 %: design.aircraft_limits. Frequency +/- 0.1 % and THD 2 %: design.rating (data sheet).",
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "connector_pin_wear": {"name": "Aircraft connector pin worn or burnt", "part": "connector",
+                               "symptoms": "one phase drops more than the others at the aircraft, mating cycles past the head's life",
+                               "rules": ["GPU_PHASE_UNBALANCE", "GPU_CONN_VOLTAGE_LOW", "GPU_CONNECTOR_CYCLES"], "default_ramp_min": 1.5},
+        "cable_compensation_mismatch": {"name": "Cable changed, drop compensation not updated", "part": "cable",
+                                        "symptoms": "all three phases drop more than the cable model, voltage at the aircraft low",
+                                        "rules": ["GPU_CABLE_DROP_HIGH", "GPU_CONN_VOLTAGE_LOW"], "default_ramp_min": 1},
+        "voltage_regulation_fault": {"name": "Output voltage regulation drift (sensing or control)", "part": "control",
+                                     "symptoms": "output below its setpoint, drop along the cable normal",
+                                     "rules": ["GPU_REGULATION_ERROR", "GPU_CONN_VOLTAGE_LOW"], "default_ramp_min": 1},
+        "output_filter_aging": {"name": "Output filter capacitors aged", "part": "filter", "symptoms": "voltage THD rises above the data sheet, then above 5 %",
+                                "rules": ["GPU_THD_HIGH", "GPU_THD_LIMIT"], "default_ramp_min": 1.5},
+        "power_stage_losses": {"name": "Power stage losses up (IGBT, transformer, connections)", "part": "converter",
+                               "symptoms": "input power up for the same output, efficiency below the loss model", "rules": ["GPU_EFFICIENCY_LOW"], "default_ramp_min": 1},
+        "cooling_degraded": {"name": "Cooling degraded (fan, clogged filter)", "part": "cooling",
+                             "symptoms": "heat sink hotter than the loss and the ambient explain", "rules": ["GPU_HEATSINK_FOULED", "GPU_HEATSINK_HOT"], "default_ramp_min": 1.5},
+        "contactor_wear": {"name": "Output contactor near the end of its life", "part": "contactor", "symptoms": "operations counter past 90 % of the rated life",
+                           "rules": ["GPU_CONTACTOR_LIFE"], "default_ramp_min": 0.5},
+        "apu_left_running": {"name": "APU left running while on ground power", "part": "aircraft",
+                             "symptoms": "aircraft on the GPU but its APU still runs: no fuel saved", "rules": ["GPU_APU_RUNNING"], "default_ramp_min": 0.5},
+    },
+    "presentation": {"title": "GPU-5901 400 Hz ground power unit", "dashboard": "GROUND_POWER_400HZ"},
+}
+
+out = HERE / "twin" / "gpu-5901.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out)

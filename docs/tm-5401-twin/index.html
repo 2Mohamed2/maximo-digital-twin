@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>TM-5401 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>TM-5401</b><span class="g">Traction motor 1 · Vectron AC locomotive · bogie 1, axle 1</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-phase"><span class="dot"></span><span id="c-phase-t">–</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Effort curve, thermal and life →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the bogie and motor model…</div>
+<div class="credit">One wheelset of a Bo'Bo' bogie with its asynchronous traction motor (assumed nose-suspended), gear case, blower duct and the IGBT inverter in the carbody above. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Wheels turn at the live motor speed ÷ gear ratio; the blower air in the duct dims when the flow falls.</div>
+<aside>
+  <section>
+    <h2>TM-5401 twin</h2>
+    <p class="sub" id="sub">traction motor</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Effort ÷ expected<b id="k-te">–</b></div><div>Insulation ageing<b id="k-age">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over about a minute of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The TCMS sends only what it measures. Every expected value comes from the twin file: the locomotive's tractive effort curve, the motor data, the thermal model of the winding and the inverter's power-cycling model.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for TM-5401: one traction motor of a Vectron AC locomotive with its inverter, blower, bearings and wheelset,\nand injectable faults.\n\nThe real TCMS sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the expected\nvalues are computed in Monitor from the twin file only. This model only produces believable readings and fault fingerprints\nfor the tests, the figures and the live pages.\n\nHow the stand-in works: the driver asks for a share of the available effort (the tractive effort curve); the wheel delivers\nit unless adhesion caps it, in which case the slip control lets the wheel creep more. The inverter's torque estimate, the\ncurrent, the speeds and the temperatures follow from simple physics. Temperatures use the 30-minute (winding, bearings) and\n5-minute (inverter) averages, the same averages the TCMS sends, so the stand-in and the twin agree when nothing is wrong.\nFaults change the physics only. Regenerative braking is not modelled (the motor is idle while braking here).\nPure Python (math, random): it also runs in the browser under Pyodide.\n\"\"\"\nimport math\nimport random\n\nG = 9.81\n\n# one run: (name, real seconds, demand %, target speed km/h, speed for the steady stand-in)\nPHASES = [(\"standing\", 10, 0.0, 0.0, 0.0), (\"starting\", 20, 100.0, 80.0, 40.0), (\"climbing\", 80, 100.0, 80.0, 80.0),\n          (\"cruising\", 25, 45.0, 100.0, 100.0), (\"coasting\", 10, 0.0, 95.0, 95.0), (\"braking\", 15, 0.0, 0.0, 50.0)]\n\n\nclass Motor:\n    D_TRUE = 1210.0                      # actual wheel diameter (mm), equal to the parameter when healthy\n\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.lo, self.m, self.th, self.b = d[\"locomotive\"], d[\"motor\"], d[\"thermal\"], d[\"bearings\"]\n        self.ins, self.ad, self.cv = d[\"insulation\"], d[\"adhesion\"], d[\"converter\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.air = self.th[\"air_nominal_c\"]\n        self.odo = 412650.0\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def c(self, s, lim=3.0):\n        \"\"\"Gaussian noise clamped at lim standard deviations (keeps healthy readings inside the alarm bands).\"\"\"\n        return max(-lim * s, min(lim * s, self.rnd.gauss(0, s)))\n\n    # physics ----------------------------------------------------------------------------------------------------------\n    def te_available(self, v):\n        return min(self.m[\"start_te_kn\"], self.m[\"power_kw\"] * 3.6 / max(v, 1))\n\n    def adhesion_cap(self):\n        mu = self.ad[\"mu_dry\"] - 0.18 * self.faults[\"low_adhesion\"]\n        return mu * self.lo[\"mass_t\"] * G / self.lo[\"axles\"]\n\n    def i_expected(self, torque, rpm):\n        m = self.m\n        n = max(rpm, 1)\n        return math.sqrt((m[\"magnetising_a\"] * min(1, m[\"base_rpm\"] / n)) ** 2 + (m[\"kt_a_per_knm\"] * max(1, n / m[\"base_rpm\"]) * abs(torque)) ** 2)\n\n    def rpm_for(self, v, creep):\n        return v * (1 + creep / 100) / 3.6 / (math.pi * self.D_TRUE / 1000) * 60 * self.m[\"gear_ratio\"]\n\n    def drive(self, v, demand):\n        \"\"\"Effort, torque, creep, rpm and current for a speed and a demand.\"\"\"\n        f, m = self.faults, self.m\n        f_dem = demand / 100 * self.te_available(v)\n        cap = self.adhesion_cap()\n        if demand > 0 and f_dem > cap:\n            f_wheel, creep = cap, 4.0 + 6.0 * f[\"low_adhesion\"]\n        else:\n            f_wheel, creep = f_dem, self.ad[\"creep_normal_pct\"] * demand / 100\n        r_m = self.D_TRUE / 2000\n        t_cmd = f_wheel * r_m / (m[\"gear_ratio\"] * m[\"gear_eff\"])\n        t_true = t_cmd * (1 - 0.25 * f[\"rotor_cage_damage\"])\n        rpm = self.rpm_for(v, creep if v > 0.5 else 0.0)\n        cur = self.i_expected(t_cmd, rpm) * (1 + 0.10 * f[\"rotor_cage_damage\"]) if demand > 0 else 0.0\n        return {\"f\": f_wheel, \"torque\": t_true if demand > 0 else 0.0, \"creep\": creep, \"rpm\": rpm, \"current\": cur}\n\n    def steady(self, phase=\"climbing\"):\n        \"\"\"True steady state for one phase of the run (the stand-in used by the tests): heavy freight duty averages.\"\"\"\n        name, _, demand, _, v = next(p for p in PHASES if p[0] == phase)\n        ir = self.m[\"rated_current_a\"]\n        return {\"phase\": name, \"speed\": v, \"demand\": demand, \"rms30\": 0.85 * ir, \"rms5\": 0.85 * ir, \"rpm_avg30\": self.rpm_for(70.0, 0.0)}\n\n    # one published message --------------------------------------------------------------------------------------------\n    def reading(self, s):\n        f, th, cv, ir = self.faults, self.th, self.cv, self.m[\"rated_current_a\"]\n        v, demand = s[\"speed\"], s[\"demand\"]\n        dr = self.drive(v, demand)\n        air = self.air + self.c(0.3)\n        flow = th[\"flow_rated_pct\"] * (1 - 0.65 * f[\"blower_degraded\"]) * (1 + self.c(0.01))\n        load2 = (s[\"rms30\"] / ir) ** 2\n        stator = (air + th[\"rise_rated_k\"] * load2 * (th[\"flow_rated_pct\"] / max(flow, 10)) ** th[\"flow_exponent\"]\n                  + 70.0 * f[\"cooling_ducts_blocked\"] * load2 + self.c(1.0))\n        brg = self.b[\"rise_at_max_k\"] / self.m[\"max_rpm\"] * s[\"rpm_avg30\"]\n        ir40 = self.ins[\"ir_new_40c_mohm\"] * 0.02 ** f[\"insulation_moisture\"] * (1 + self.c(0.03))\n        ir_t = 35.0 + self.c(1.0)\n        i5 = s[\"rms5\"] / ir\n        loss = cv[\"loss_rated_kw\"] * (cv[\"loss_linear_share\"] * i5 + (1 - cv[\"loss_linear_share\"]) * i5 ** 2)\n        cool = cv[\"coolant_nominal_c\"] + self.c(0.3)\n        speed_meas = max(0.0, v * (1 + self.c(0.002)))\n        r = {\n            \"speed_kmh\": round(speed_meas, 2), \"demand_pct\": round(demand, 1),\n            \"motor_rpm\": round(dr[\"rpm\"] * (1 + self.c(0.001)), 1), \"motor_torque_knm\": round(dr[\"torque\"] * (1 + self.c(0.01)), 3),\n            \"motor_current_a\": round(dr[\"current\"] * (1 + self.c(0.01)), 1),\n            \"current_rms30_a\": round(s[\"rms30\"], 1), \"current_rms5_a\": round(s[\"rms5\"], 1), \"rpm_avg30\": round(s[\"rpm_avg30\"], 1),\n            \"stator_c\": round(stator, 1), \"air_in_c\": round(air, 1), \"blower_flow_pct\": round(flow, 1),\n            \"bearing_de_c\": round(air + brg + 35.0 * f[\"bearing_lubrication\"] + self.c(1.0), 1),\n            \"bearing_nde_c\": round(air + 0.8 * brg + self.c(1.0), 1),\n            \"env_bpfo_g\": round(max(0.0, (0.35 + 3.2 * f[\"bearing_outer_race\"]) * min(1.0, dr[\"rpm\"] / 800) * (1 + self.c(0.08))), 3),\n            \"ir_mohm\": round(ir40 / 2 ** ((ir_t - 40) / self.ins[\"ir_halving_k\"]), 1), \"ir_temp_c\": round(ir_t, 1),\n            \"wheel_d_mm\": self.D_TRUE, \"creep_coast_pct\": round(self.c(0.05), 3),\n            \"slip_events_100km\": round(max(0.0, 0.5 + 14.0 * f[\"low_adhesion\"] + self.c(0.4)), 1),\n            \"coolant_c\": round(cool, 1),\n            \"igbt_baseplate_c\": round(cool + cv[\"rth_k_per_kw\"] * loss + 16.0 * f[\"inverter_cooling\"] + self.c(0.8), 1),\n            \"igbt_tj_swing_k\": round(40.0 + 18.0 * f[\"inverter_cooling\"] + self.c(0.8), 1),\n            \"igbt_tj_mean_c\": round(78.0 + 22.0 * f[\"inverter_cooling\"] + self.c(0.8), 1),\n            \"igbt_cycles_day\": round(cv[\"cycles_per_day\"] + self.c(3.0)),\n            \"odometer_km\": round(self.odo, 1),\n        }\n        return r\n\n    def measure(self, phase=\"climbing\"):\n        return self.reading(self.steady(phase))\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    A heavy freight train runs the same 40-minute section again and again: stand at a signal, start, climb a long gradient at\n    full demand (power-limited at 80 km/h), cruise, coast, brake. One run takes `demo.cycle_s` real seconds. The 30-minute and\n    5-minute averages the TCMS keeps are first-order filters on plant time.\n    \"\"\"\n\n    def __init__(self, twin, seed=5401):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.cycle = float(demo.get(\"cycle_s\", 160))\n        self.mo = Motor(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 9 * 3600.0\n        self.running, self.trip = True, 0\n        self.pos = 0.0\n        self.speed = 0.0\n        ir = twin[\"design\"][\"motor\"][\"rated_current_a\"]\n        self.ms30, self.ms5 = (0.8 * ir) ** 2, (0.6 * ir) ** 2\n        self.rpm30 = self.mo.rpm_for(60.0, 0.0)\n        self.state = None\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.pos, self.speed = 0.0, 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def phase(self):\n        total = sum(p[1] for p in PHASES)\n        x, acc = self.pos / self.cycle * total, 0.0\n        for p in PHASES:\n            if x < acc + p[1]:\n                return p, (x - acc) / p[1]\n            acc += p[1]\n        return PHASES[-1], 1.0\n\n    def step(self, dt=1.0):\n        mo = self.mo\n        for k, f in self.faults.items():\n            f.step(dt)\n            mo.faults[k] = f.sev\n        self.t += dt * self.scale\n        hour = (self.t / 3600.0) % 24\n        mo.air = 26 + 6 * math.sin(2 * math.pi * (hour - 9) / 24)\n        self.pos = (self.pos + dt) % self.cycle\n        (name, _, demand, target, _), frac = self.phase()\n        if dt > 0:\n            tau = 8.0 if target > self.speed else 5.0\n            self.speed += (target - self.speed) * (1 - math.exp(-dt / tau))\n            if target == 0 and self.speed < 0.5:\n                self.speed = 0.0\n        dr = mo.drive(self.speed, demand)\n        if dt > 0:\n            h = dt * self.scale\n            self.ms30 += (dr[\"current\"] ** 2 - self.ms30) * (1 - math.exp(-h / 1800))\n            self.ms5 += (dr[\"current\"] ** 2 - self.ms5) * (1 - math.exp(-h / 300))\n            self.rpm30 += (dr[\"rpm\"] - self.rpm30) * (1 - math.exp(-h / 1800))\n            mo.odo += self.speed * h / 3600\n        self.state = {\"phase\": name, \"speed\": self.speed, \"demand\": demand, \"rms30\": math.sqrt(self.ms30), \"rms5\": math.sqrt(self.ms5),\n                      \"rpm_avg30\": self.rpm30, \"te_kn\": dr[\"f\"], \"creep\": dr[\"creep\"], \"cycle_pos\": self.pos / self.cycle}\n        return dict(self.state)\n\n    def measure(self, true):\n        return self.mo.reading(true)\n", "twin_calc": "\"\"\"The traction motor twin's expectations (TM-5401, motor 1 of a Siemens Vectron AC locomotive, 6.4 MW, Bo'Bo').\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nTractive effort (per motor = locomotive / 4):\n    available effort   F_av = min(F_start, P x 3.6 / v)           constant effort up to the base speed, then constant power\n    expected effort    F_exp = demand / 100 x F_av                 the driver's demand is a share of what is available\n    measured effort    F_meas = torque x gear x eta_gear / r_wheel  from the torque the inverter estimates\n    wheel speed        v_w = rpm / gear x pi x D x 60 / 10^6 (km/h)  creep = (v_w - v) / max(v, 5) x 100 %\n  net creep = creep - creep measured while coasting (a wrong wheel-diameter parameter shows in both and cancels out)\nCurrent per torque (induction motor, rotor flux control):\n    I_exp = sqrt( (I_m x min(1, n_b/n))^2 + (k_t x max(1, n/n_b) x T)^2 )   field weakening above the base speed n_b\nWinding thermal model (steady state on the 30-minute thermal RMS current, so no history is needed in Monitor):\n    T_stator,exp = T_air + rise_rated x (I_rms30 / I_rated)^2 x (flow_rated / flow)^0.8\n    ageing rate  = 2 ^ ((T_stator + hot-spot allowance - T_ref) / 10)      (10 K halving rule; 1 = design ageing)\nBearings: T_DE,exp = T_air + rise_max x rpm_avg30 / rpm_max ;  BPFO = rpm/60 x z/2 x (1 - d/D_p)\nInsulation: IR at 40 C = IR x 2 ^ ((T_test - 40) / 10)\nInverter: T_baseplate,exp = T_coolant + R_th x P_loss,  P_loss = P_rated,loss x (s x i + (1 - s) x i^2),  i = I_rms5 / I_rated\n    IGBT power cycling (LESIT): N_f = A x dTj^-alpha x exp(Ea / (kB x (Tm + 273.15)));  life (years) = N_f / (cycles per day x 365)\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    m, th, b, ins, cv = d[\"motor\"], d[\"thermal\"], d[\"bearings\"], d[\"insulation\"], d[\"converter\"]\n    return dict(P=m[\"power_kw\"], F0=m[\"start_te_kn\"], g=m[\"gear_ratio\"], eg=m[\"gear_eff\"], ir=m[\"rated_current_a\"], im=m[\"magnetising_a\"],\n                nb=m[\"base_rpm\"], nmax=m[\"max_rpm\"], tr=m[\"rated_torque_knm\"], kt=m[\"kt_a_per_knm\"],\n                air=th[\"air_nominal_c\"], rise=th[\"rise_rated_k\"], fr=th[\"flow_rated_pct\"], fx=th[\"flow_exponent\"], hs=th[\"hotspot_allowance_k\"],\n                tref=th[\"life_ref_c\"], half=th[\"halving_k\"], cls=th[\"insulation_class_c\"], clife=th[\"class_life_h\"],\n                bk=b[\"rise_at_max_k\"], z=b[\"rollers\"], bd=b[\"roller_d_mm\"], bp=b[\"pitch_d_mm\"],\n                irhalf=ins[\"ir_halving_k\"], ir_new=ins[\"ir_new_40c_mohm\"],\n                lr=cv[\"loss_rated_kw\"], ls=cv[\"loss_linear_share\"], rth=cv[\"rth_k_per_kw\"], la=cv[\"lesit_a\"], lal=cv[\"lesit_alpha\"],\n                eakb=cv[\"lesit_ea_j\"] / cv[\"kb_j_per_k\"], life=cv[\"design_life_years\"])\n\n\ndef _c(k):\n    \"\"\"Constants folded once, used identically by the pandas expressions and by evaluate().\"\"\"\n    return dict(ws=math.pi * 60 / (k[\"g\"] * 1e6), te=k[\"g\"] * k[\"eg\"] * 2000, pv=k[\"P\"] * 3.6, bpfo=k[\"z\"] / 2 * (1 - k[\"bd\"] / k[\"bp\"]) / 60,\n                brg=k[\"bk\"] / k[\"nmax\"], igbt=k[\"rth\"] * k[\"lr\"])\n\n\ndef nf_lesit(k, swing, mean_c):\n    return k[\"la\"] * swing ** -k[\"lal\"] * math.exp(k[\"eakb\"] / (mean_c + 273.15))\n\n\ndef te_available(k, v):\n    return min(k[\"F0\"], k[\"P\"] * 3.6 / max(v, 1))\n\n\ndef _parts(twin):\n    k = _k(twin)\n    c = _c(k)\n    L = twin[\"twin_model\"][\"limits\"]\n    WS = f\"(df['MOTOR_RPM'] * {c['ws']!r} * df['WHEEL_D_MM'])\"\n    CR = f\"(({WS} - df['SPEED_KMH']) / np.maximum(df['SPEED_KMH'], 5) * 100)\"\n    CN = f\"({CR} - df['CREEP_COAST_PCT'])\"\n    TA = f\"np.minimum({k['F0']!r}, {c['pv']!r} / np.maximum(df['SPEED_KMH'], 1))\"\n    TE = f\"(df['DEMAND_PCT'] / 100 * {TA})\"\n    TM = f\"(df['MOTOR_TORQUE_KNM'] * {c['te']!r} / df['WHEEL_D_MM'])\"\n    N = \"np.maximum(df['MOTOR_RPM'], 1)\"\n    IE = (f\"np.sqrt(({k['im']!r} * np.minimum(1, {k['nb']!r} / {N})) ** 2 + ({k['kt']!r} * np.maximum(1, {N} / {k['nb']!r})\"\n          f\" * np.abs(df['MOTOR_TORQUE_KNM'])) ** 2)\")\n    SE = f\"(df['AIR_IN_C'] + {k['rise']!r} * (df['CURRENT_RMS30_A'] / {k['ir']!r}) ** 2 * ({k['fr']!r} / np.maximum(df['BLOWER_FLOW_PCT'], 10)) ** {k['fx']!r})\"\n    AG = f\"(2 ** ((df['STATOR_C'] + {k['hs']!r} - {k['tref']!r}) / {k['half']!r}))\"\n    BE = f\"(df['AIR_IN_C'] + {c['brg']!r} * df['RPM_AVG30'])\"\n    I5 = f\"(df['CURRENT_RMS5_A'] / {k['ir']!r})\"\n    GE = f\"(df['COOLANT_C'] + {c['igbt']!r} * ({k['ls']!r} * {I5} + {1 - k['ls']!r} * {I5} ** 2))\"\n    NF = f\"({k['la']!r} * df['IGBT_TJ_SWING_K'] ** -{k['lal']!r} * np.exp({k['eakb']!r} / (df['IGBT_TJ_MEAN_C'] + 273.15)))\"\n    LY = f\"({NF} / (np.maximum(df['IGBT_CYCLES_DAY'], 1) * 365))\"\n    return dict(k=k, c=c, L=L, WS=WS, CR=CR, CN=CN, TA=TA, TE=TE, TM=TM, IE=IE, SE=SE, AG=AG, BE=BE, GE=GE, NF=NF, LY=LY)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k, c, L = p[\"k\"], p[\"c\"], p[\"L\"]\n    return [\n        (\"WHEEL_SPEED_KMH\", p[\"WS\"]),\n        (\"CREEP_PCT\", p[\"CR\"]),\n        (\"CREEP_NET_PCT\", p[\"CN\"]),\n        (\"TE_AVAILABLE_KN\", p[\"TA\"]),\n        (\"TE_EXPECTED_KN\", p[\"TE\"]),\n        (\"TE_MEASURED_KN\", p[\"TM\"]),\n        (\"TE_RATIO\", f\"np.where({p['TE']} > {L['te_min_kn']!r}, {p['TM']} / np.maximum({p['TE']}, {L['te_min_kn']!r}), 1.0)\"),\n        (\"CURRENT_EXPECTED_A\", p[\"IE\"]),\n        (\"CURRENT_RATIO\", f\"df['MOTOR_CURRENT_A'] / {p['IE']}\"),\n        (\"STATOR_EXPECTED_C\", p[\"SE\"]),\n        (\"STATOR_RESIDUAL_K\", f\"df['STATOR_C'] - {p['SE']}\"),\n        (\"AGING_RATE\", p[\"AG\"]),\n        (\"BEARING_DE_EXPECTED_C\", p[\"BE\"]),\n        (\"BEARING_DE_RESIDUAL_K\", f\"df['BEARING_DE_C'] - {p['BE']}\"),\n        (\"BPFO_HZ\", f\"df['MOTOR_RPM'] * {c['bpfo']!r}\"),\n        (\"IR_40C_MOHM\", f\"df['IR_MOHM'] * 2 ** ((df['IR_TEMP_C'] - 40) / {k['irhalf']!r})\"),\n        (\"IGBT_BASEPLATE_EXPECTED_C\", p[\"GE\"]),\n        (\"IGBT_BASEPLATE_RESIDUAL_K\", f\"df['IGBT_BASEPLATE_C'] - {p['GE']}\"),\n        (\"IGBT_CYCLES_TO_FAILURE\", p[\"NF\"]),\n        (\"IGBT_LIFE_YEARS\", p[\"LY\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    c = _c(k)\n    L = twin[\"twin_model\"][\"limits\"]\n    ws = r[\"motor_rpm\"] * c[\"ws\"] * r[\"wheel_d_mm\"]\n    cr = (ws - r[\"speed_kmh\"]) / max(r[\"speed_kmh\"], 5) * 100\n    ta = min(k[\"F0\"], c[\"pv\"] / max(r[\"speed_kmh\"], 1))\n    te = r[\"demand_pct\"] / 100 * ta\n    tm = r[\"motor_torque_knm\"] * c[\"te\"] / r[\"wheel_d_mm\"]\n    n = max(r[\"motor_rpm\"], 1)\n    ie = math.sqrt((k[\"im\"] * min(1, k[\"nb\"] / n)) ** 2 + (k[\"kt\"] * max(1, n / k[\"nb\"]) * abs(r[\"motor_torque_knm\"])) ** 2)\n    se = r[\"air_in_c\"] + k[\"rise\"] * (r[\"current_rms30_a\"] / k[\"ir\"]) ** 2 * (k[\"fr\"] / max(r[\"blower_flow_pct\"], 10)) ** k[\"fx\"]\n    be = r[\"air_in_c\"] + c[\"brg\"] * r[\"rpm_avg30\"]\n    i5 = r[\"current_rms5_a\"] / k[\"ir\"]\n    ge = r[\"coolant_c\"] + c[\"igbt\"] * (k[\"ls\"] * i5 + (1 - k[\"ls\"]) * i5 ** 2)\n    nf = k[\"la\"] * r[\"igbt_tj_swing_k\"] ** -k[\"lal\"] * math.exp(k[\"eakb\"] / (r[\"igbt_tj_mean_c\"] + 273.15))\n    return {\n        \"wheel_speed_kmh\": ws, \"creep_pct\": cr, \"creep_net_pct\": cr - r[\"creep_coast_pct\"],\n        \"te_available_kn\": ta, \"te_expected_kn\": te, \"te_measured_kn\": tm,\n        \"te_ratio\": tm / max(te, L[\"te_min_kn\"]) if te > L[\"te_min_kn\"] else 1.0,\n        \"current_expected_a\": ie, \"current_ratio\": r[\"motor_current_a\"] / ie,\n        \"stator_expected_c\": se, \"stator_residual_k\": r[\"stator_c\"] - se,\n        \"aging_rate\": 2 ** ((r[\"stator_c\"] + k[\"hs\"] - k[\"tref\"]) / k[\"half\"]),\n        \"bearing_de_expected_c\": be, \"bearing_de_residual_k\": r[\"bearing_de_c\"] - be,\n        \"bpfo_hz\": r[\"motor_rpm\"] * c[\"bpfo\"],\n        \"ir_40c_mohm\": r[\"ir_mohm\"] * 2 ** ((r[\"ir_temp_c\"] - 40) / k[\"irhalf\"]),\n        \"igbt_baseplate_expected_c\": ge, \"igbt_baseplate_residual_k\": r[\"igbt_baseplate_c\"] - ge,\n        \"igbt_cycles_to_failure\": nf, \"igbt_life_years\": nf / (max(r[\"igbt_cycles_day\"], 1) * 365),\n    }\n\n\ndef alert_rules(twin):\n    p = _parts(twin)\n    k, L = p[\"k\"], p[\"L\"]\n    TR = f\"({p['TM']} / np.maximum({p['TE']}, {L['te_min_kn']!r}))\"\n    return [\n        (\"TM_TE_SHORTFALL\", f\"({p['TE']} > {L['te_min_kn']!r}) & ({TR} < {L['te_ratio_alert']!r}) & ({p['CN']} <= {L['creep_alert_pct']!r})\", \"High\", \"rotor_cage_damage\"),\n        (\"TM_INSULATION_LOW\", f\"(df['IR_MOHM'] * 2 ** ((df['IR_TEMP_C'] - 40) / {k['irhalf']!r})) < {L['ir_40c_min_mohm']!r}\", \"High\", \"insulation_moisture\"),\n        (\"TM_BEARING_HOT\", f\"(df['BEARING_DE_C'] - {p['BE']}) > {L['bearing_residual_alert_k']!r}\", \"High\", \"bearing_lubrication\"),\n        (\"TM_IGBT_HOT\", f\"(df['IGBT_BASEPLATE_C'] - {p['GE']}) > {L['igbt_residual_alert_k']!r}\", \"High\", \"inverter_cooling\"),\n        (\"TM_AGING_FAST\", f\"{p['AG']} > {L['aging_rate_alert']!r}\", \"Medium\", \"cooling_ducts_blocked\"),\n        (\"TM_WINDING_RESIDUAL\", f\"((df['STATOR_C'] - {p['SE']}) > {L['winding_residual_alert_k']!r}) & (df['CURRENT_RMS30_A'] > {L['load_min_frac'] * k['ir']!r})\", \"Medium\", \"cooling_ducts_blocked\"),\n        (\"TM_VENT_FLOW_LOW\", f\"df['BLOWER_FLOW_PCT'] < {L['vent_flow_alert_pct']!r}\", \"Medium\", \"blower_degraded\"),\n        (\"TM_BEARING_ENVELOPE\", f\"df['ENV_BPFO_G'] > {L['envelope_alert_g']!r}\", \"Medium\", \"bearing_outer_race\"),\n        (\"TM_WHEEL_SLIP\", f\"({p['CN']} > {L['creep_alert_pct']!r}) & (df['DEMAND_PCT'] > 5)\", \"Medium\", \"low_adhesion\"),\n        (\"TM_SLIP_EVENTS\", f\"df['SLIP_EVENTS_100KM'] > {L['slip_events_alert']!r}\", \"Medium\", \"low_adhesion\"),\n        (\"TM_CURRENT_HIGH\", f\"((df['MOTOR_CURRENT_A'] / {p['IE']}) > {L['current_ratio_alert']!r}) & (np.abs(df['MOTOR_TORQUE_KNM']) > {0.2 * k['tr']!r})\", \"Medium\", \"rotor_cage_damage\"),\n        (\"TM_IGBT_LIFE_SHORT\", f\"{p['LY']} < {L['igbt_life_alert_years']!r}\", \"Medium\", \"inverter_cooling\"),\n        (\"TM_CREEP_OFFSET\", f\"np.abs(df['CREEP_COAST_PCT']) > {L['creep_offset_alert_pct']!r}\", \"Low\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    te, tr = t[\"te_expected_kn\"], t[\"te_measured_kn\"] / max(t[\"te_expected_kn\"], L[\"te_min_kn\"])\n    add(te > L[\"te_min_kn\"] and tr < L[\"te_ratio_alert\"] and t[\"creep_net_pct\"] <= L[\"creep_alert_pct\"], \"TM_TE_SHORTFALL\", \"High\",\n        f\"Effort {t['te_measured_kn']:.1f} kN for {te:.1f} kN demanded ({tr * 100:.0f} %) with normal creep\", \"rotor\", \"rotor_cage_damage\")\n    add(t[\"ir_40c_mohm\"] < L[\"ir_40c_min_mohm\"], \"TM_INSULATION_LOW\", \"High\",\n        f\"Insulation resistance {t['ir_40c_mohm']:.0f} M\u03a9 at 40 \u00b0C, below {L['ir_40c_min_mohm']:.0f} M\u03a9\", \"stator\", \"insulation_moisture\")\n    add(t[\"bearing_de_residual_k\"] > L[\"bearing_residual_alert_k\"], \"TM_BEARING_HOT\", \"High\",\n        f\"Drive-end bearing {r['bearing_de_c']:.0f} \u00b0C, {t['bearing_de_residual_k']:.0f} K above what the speed explains\", \"bearing\", \"bearing_lubrication\")\n    add(t[\"igbt_baseplate_residual_k\"] > L[\"igbt_residual_alert_k\"], \"TM_IGBT_HOT\", \"High\",\n        f\"IGBT baseplate {r['igbt_baseplate_c']:.0f} \u00b0C, {t['igbt_baseplate_residual_k']:.0f} K above what the current explains\", \"inverter\", \"inverter_cooling\")\n    add(t[\"aging_rate\"] > L[\"aging_rate_alert\"], \"TM_AGING_FAST\", \"Medium\",\n        f\"Insulation ageing {t['aging_rate']:.1f} \u00d7 the design rate (winding {r['stator_c']:.0f} \u00b0C)\", \"stator\", \"cooling_ducts_blocked\")\n    add(t[\"stator_residual_k\"] > L[\"winding_residual_alert_k\"] and r[\"current_rms30_a\"] > L[\"load_min_frac\"] * k[\"ir\"], \"TM_WINDING_RESIDUAL\", \"Medium\",\n        f\"Winding {r['stator_c']:.0f} \u00b0C, {t['stator_residual_k']:.0f} K above what load and air flow explain\", \"stator\", \"cooling_ducts_blocked\")\n    add(r[\"blower_flow_pct\"] < L[\"vent_flow_alert_pct\"], \"TM_VENT_FLOW_LOW\", \"Medium\",\n        f\"Blower flow {r['blower_flow_pct']:.0f} % of rated\", \"blower\", \"blower_degraded\")\n    add(r[\"env_bpfo_g\"] > L[\"envelope_alert_g\"], \"TM_BEARING_ENVELOPE\", \"Medium\",\n        f\"Envelope {r['env_bpfo_g']:.2f} g at the outer-race frequency ({t['bpfo_hz']:.0f} Hz)\", \"bearing\", \"bearing_outer_race\")\n    add(t[\"creep_net_pct\"] > L[\"creep_alert_pct\"] and r[\"demand_pct\"] > 5, \"TM_WHEEL_SLIP\", \"Medium\",\n        f\"Creep {t['creep_net_pct']:.1f} % under traction (normal below {L['creep_alert_pct']:.0f} %)\", \"wheelset\", \"low_adhesion\")\n    add(r[\"slip_events_100km\"] > L[\"slip_events_alert\"], \"TM_SLIP_EVENTS\", \"Medium\",\n        f\"{r['slip_events_100km']:.0f} slip corrections in the last 100 km\", \"wheelset\", \"low_adhesion\")\n    add(t[\"current_ratio\"] > L[\"current_ratio_alert\"] and abs(r[\"motor_torque_knm\"]) > 0.2 * k[\"tr\"], \"TM_CURRENT_HIGH\", \"Medium\",\n        f\"Current {r['motor_current_a']:.0f} A, {t['current_ratio']:.2f} \u00d7 what the torque needs\", \"rotor\", \"rotor_cage_damage\")\n    add(t[\"igbt_life_years\"] < L[\"igbt_life_alert_years\"], \"TM_IGBT_LIFE_SHORT\", \"Medium\",\n        f\"IGBT power-cycling life {t['igbt_life_years']:.0f} years at the present cycles (design {k['life']:.0f})\", \"inverter\", \"inverter_cooling\")\n    add(abs(r[\"creep_coast_pct\"]) > L[\"creep_offset_alert_pct\"], \"TM_CREEP_OFFSET\", \"Low\",\n        f\"Creep {r['creep_coast_pct']:.1f} % while coasting: check the wheel diameter parameter\", \"wheelset\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "TM-5401 traction motor twin. Expected values in Maximo Monitor from the locomotive data sheet, the motor data and the converter data; the TCMS sends only what it measures.", "twin": {"id": "TM-5401", "name": "Traction motor TM-5401", "version": "1.0.0", "folder": "traction-twin"}, "identification": {"asset": "TM-5401", "assetnum": "TM-5401", "manufacturer": "Siemens Mobility (locomotive: Vectron AC)", "model": "Asynchronous traction motor, axle 1 of a Vectron AC Bo'Bo' locomotive (motor type: see the nameplate)", "description": "Traction motor 1 of locomotive 5401 with its IGBT traction inverter, blower and bearings, monitored through the TCMS", "vehicle": "Siemens Vectron AC, 6.4 MW, 200 km/h, Bo'Bo', freight and passenger", "motor": "Three-phase asynchronous (squirrel-cage induction) traction motor, forced ventilation from a traction-motor blower", "drive": "Motor in the bogie driving the axle through a single-stage gear (assumed nose-suspended)", "inverter": "IGBT traction inverter, one per motor (assumed), water-glycol cooled", "position": "Bogie 1, axle 1"}, "design": {"locomotive": {"power_wheel_kw": 6400, "start_te_kn": 320, "ebrake_kn": 240, "vmax_kmh": 200, "mass_t": 85, "axles": 4, "wheel_new_mm": 1250, "wheel_worn_mm": 1160, "source": "Siemens Mobility Vectron brochure (MOML-B10020-03-7600) and Vectron 230 km/h data sheet: 6,400 kW max. power at wheel, 160 / 200 km/h, approx. 85 t (max. 90 t), Bo'Bo', wheels 1,250 mm new / 1,160 mm worn, starting tractive effort 320 kN (350 kN where authorised), electric braking effort 240 kN."}, "motor": {"power_kw": 1600.0, "start_te_kn": 80.0, "base_speed_kmh": 72.0, "gear_ratio": 4.0, "gear_eff": 0.98, "motor_eff": 0.955, "rated_current_a": 530.0, "magnetising_a": 150.0, "wheel_mid_mm": 1205.0, "base_rpm": 1267.96, "max_rpm": 3522.1, "rated_torque_knm": 12.2959, "kt_a_per_knm": 41.341, "source": "Power and starting effort per motor = locomotive values / 4 (published). Gear ratio 4.0, gear efficiency 0.98, motor efficiency 0.955, rated current 530 A and magnetising current 150 A: assumption: typical value, replace with the motor data sheet / type test report. Base speed, rpm, rated torque and current per torque are derived from these in build_twin.py."}, "thermal": {"air_nominal_c": 30.0, "rise_rated_k": 125.0, "flow_rated_pct": 100.0, "flow_exponent": 0.8, "hotspot_allowance_k": 10.0, "insulation_class_c": 200, "class_life_h": 20000.0, "halving_k": 10.0, "life_ref_c": 150.0, "source": "Winding rise of 125 K over the cooling air at rated RMS current and full blower flow, rise proportional to current squared and to (rated flow / flow)^0.8, hot spot 10 K above the winding sensor: assumption: typical value, replace with the motor data sheet / type test report. Thermal class 200 (IEC 60085); 20 000 h at the class temperature and life halved per 10 K (Montsinger) are commonly applied approximations; reference temperature 150 C (640 000 h by that rule) chosen for the ageing rate."}, "bearings": {"de": "insulated cylindrical roller bearing (drive end, pinion side)", "nde": "insulated deep groove ball bearing (non-drive end)", "rise_at_max_k": 40.0, "rollers": 14, "roller_d_mm": 32.0, "pitch_d_mm": 190.0, "source": "Bearing types typical of traction motors (current-insulated to stop converter bearing currents). Temperature rise over the cooling air of 40 K at maximum speed, 14 rollers of 32 mm on a 190 mm pitch circle: assumption: typical value, replace with the motor data sheet / type test report."}, "insulation": {"ir_new_40c_mohm": 2000.0, "ir_halving_k": 10.0, "source": "Insulation resistance of a dry, clean winding at 40 C, and halving per 10 K for the temperature correction (the usual approximation used with IEEE 43): assumption: typical value, replace with the motor data sheet / type test report."}, "adhesion": {"mu_dry": 0.42, "creep_normal_pct": 0.8, "source": "Adhesion available on dry rail with sanding and normal creep of the slip control at full effort: assumption, typical values; 320 kN on 85 t needs about 0.38."}, "converter": {"coolant_nominal_c": 45.0, "loss_rated_kw": 25.0, "loss_linear_share": 0.4, "rth_k_per_kw": 1.2, "lesit_a": 302500.0, "lesit_alpha": 5.039, "lesit_ea_j": 9.89e-20, "kb_j_per_k": 1.380649e-23, "design_life_years": 30.0, "cycles_per_day": 60.0, "source": "Inverter losses 25 kW at rated current (40 % proportional to current, 60 % to current squared), heat-sink thermal resistance 1.2 K/kW, coolant 45 C, 60 stop-start cycles a day, 30-year design life: assumption: typical value, replace with the motor data sheet / type test report. LESIT power-cycling parameters A, alpha, Ea as commonly quoted from Held et al. (1997); kB = Boltzmann constant. LESIT describes 1990s modules: replace with the module maker's power-cycling curve."}, "demo": {"time_scale": 15, "cycle_s": 160, "note": "Demo only: the plant clock runs 15 times faster, so the 30-minute averages settle in 2 minutes and one 40-minute run (stand, start, climb, cruise, coast, brake) takes 160 s of real time."}}, "telemetry": {"event": "traction", "publish_every_s": 10, "device_type": "TRACTION_MOTOR_TCMS", "groups": {"Run": "Train speed and driver demand", "Motor": "Motor speed, torque and current", "Thermal": "Winding, cooling air and blower", "Bearing": "Bearing temperatures and vibration", "Insulation": "Insulation test at the last stop", "Wheel": "Wheel and adhesion", "Inverter": "IGBT traction inverter"}, "points": [{"metric": "speed_kmh", "path": "Run.Speed", "label": "Train speed (radar / GNSS)", "unit": "km/h"}, {"metric": "demand_pct", "path": "Run.Demand", "label": "Driver's tractive effort demand", "unit": "%"}, {"metric": "motor_rpm", "path": "Motor.Speed", "label": "Motor speed (speed sensor)", "unit": "rpm"}, {"metric": "motor_torque_knm", "path": "Motor.Torque", "label": "Motor torque estimated by the inverter", "unit": "kN\u00b7m"}, {"metric": "motor_current_a", "path": "Motor.Current", "label": "Motor phase current (RMS)", "unit": "A"}, {"metric": "current_rms30_a", "path": "Motor.CurrentRms30", "label": "Thermal RMS current, last 30 min", "unit": "A"}, {"metric": "current_rms5_a", "path": "Motor.CurrentRms5", "label": "Thermal RMS current, last 5 min", "unit": "A"}, {"metric": "rpm_avg30", "path": "Motor.SpeedAvg30", "label": "Mean motor speed, last 30 min", "unit": "rpm"}, {"metric": "stator_c", "path": "Thermal.Stator", "label": "Stator winding temperature (Pt100)", "unit": "\u00b0C"}, {"metric": "air_in_c", "path": "Thermal.AirIn", "label": "Cooling air inlet temperature", "unit": "\u00b0C"}, {"metric": "blower_flow_pct", "path": "Thermal.BlowerFlow", "label": "Blower air flow (from differential pressure)", "unit": "%"}, {"metric": "bearing_de_c", "path": "Bearing.TempDE", "label": "Drive-end bearing temperature", "unit": "\u00b0C"}, {"metric": "bearing_nde_c", "path": "Bearing.TempNDE", "label": "Non-drive-end bearing temperature", "unit": "\u00b0C"}, {"metric": "env_bpfo_g", "path": "Bearing.EnvelopeBPFO", "label": "Envelope acceleration at the outer-race frequency (DE)", "unit": "g"}, {"metric": "ir_mohm", "path": "Insulation.Resistance", "label": "Insulation resistance to earth, last standstill test", "unit": "M\u03a9"}, {"metric": "ir_temp_c", "path": "Insulation.WindingTemp", "label": "Winding temperature during that test", "unit": "\u00b0C"}, {"metric": "wheel_d_mm", "path": "Wheel.Diameter", "label": "Wheel diameter parameter (set at the last reprofiling)", "unit": "mm"}, {"metric": "creep_coast_pct", "path": "Wheel.CreepCoast", "label": "Mean creep during the last coasting", "unit": "%"}, {"metric": "slip_events_100km", "path": "Wheel.SlipEvents", "label": "Wheel slip / slide corrections, last 100 km", "unit": "count"}, {"metric": "coolant_c", "path": "Inverter.Coolant", "label": "Inverter coolant inlet temperature", "unit": "\u00b0C"}, {"metric": "igbt_baseplate_c", "path": "Inverter.Baseplate", "label": "IGBT module baseplate temperature (NTC)", "unit": "\u00b0C"}, {"metric": "igbt_tj_swing_k", "path": "Inverter.TjSwing", "label": "Mean junction temperature swing per stop-start, last day", "unit": "K"}, {"metric": "igbt_tj_mean_c", "path": "Inverter.TjMean", "label": "Mean junction temperature of those cycles", "unit": "\u00b0C"}, {"metric": "igbt_cycles_day", "path": "Inverter.CyclesDay", "label": "Stop-start thermal cycles, last day", "unit": "count"}, {"metric": "odometer_km", "path": "Run.Odometer", "label": "Locomotive odometer", "unit": "km"}]}, "twin_model": {"limits": {"vent_flow_alert_pct": 70.0, "winding_residual_alert_k": 15.0, "aging_rate_alert": 2.0, "load_min_frac": 0.3, "bearing_residual_alert_k": 20.0, "envelope_alert_g": 1.5, "ir_40c_min_mohm": 100.0, "creep_alert_pct": 3.0, "slip_events_alert": 5.0, "creep_offset_alert_pct": 1.5, "te_ratio_alert": 0.85, "te_min_kn": 10.0, "current_ratio_alert": 1.15, "igbt_residual_alert_k": 10.0, "igbt_life_alert_years": 30.0}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "blower_degraded": {"name": "Traction-motor blower or air filter degraded", "part": "blower", "symptoms": "blower flow down, winding hotter but as the reduced flow explains, insulation ages faster", "rules": ["TM_VENT_FLOW_LOW", "TM_AGING_FAST"], "default_ramp_min": 1}, "cooling_ducts_blocked": {"name": "Motor cooling ducts blocked (dust, brake dust, oil mist)", "part": "stator", "symptoms": "flow normal, winding hotter than the load and the flow explain, insulation ages faster", "rules": ["TM_WINDING_RESIDUAL", "TM_AGING_FAST"], "default_ramp_min": 1.5}, "bearing_lubrication": {"name": "Bearing grease loss or degraded grease (drive end)", "part": "bearing", "symptoms": "drive-end bearing hotter than speed explains, vibration still normal", "rules": ["TM_BEARING_HOT"], "default_ramp_min": 1}, "bearing_outer_race": {"name": "Bearing outer race defect (drive end, spalling or fluting)", "part": "bearing", "symptoms": "envelope acceleration at the outer-race frequency up, temperature still normal", "rules": ["TM_BEARING_ENVELOPE"], "default_ramp_min": 1}, "insulation_moisture": {"name": "Winding insulation moisture or contamination", "part": "stator", "symptoms": "insulation resistance at 40 C falls below the minimum", "rules": ["TM_INSULATION_LOW"], "default_ramp_min": 0.5}, "low_adhesion": {"name": "Low adhesion: wheel slip (leaves, sanding fault)", "part": "wheelset", "symptoms": "creep above normal under traction, many slip corrections, effort capped by adhesion", "rules": ["TM_WHEEL_SLIP", "TM_SLIP_EVENTS"], "default_ramp_min": 0.5}, "rotor_cage_damage": {"name": "Rotor cage damage (cracked bar or end ring)", "part": "rotor", "symptoms": "less torque than demanded, more current per unit of torque", "rules": ["TM_TE_SHORTFALL", "TM_CURRENT_HIGH"], "default_ramp_min": 1.5}, "inverter_cooling": {"name": "Inverter cooling degraded (pump, coolant, fouled cooler)", "part": "inverter", "symptoms": "IGBT baseplate hotter than the current explains, bigger and hotter junction cycles, life shortens", "rules": ["TM_IGBT_HOT", "TM_IGBT_LIFE_SHORT"], "default_ramp_min": 1}}, "presentation": {"title": "TM-5401 traction motor", "dashboard": "TRACTION_MOTOR_TCMS"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 1) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (metres; x = along the axle, y = up, z = along the track) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(4.3, 3.0, -5.3); ctl.target.set(-0.15, 1.4, -0.6); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .7, r: .3 }), dark = M(0x2f3338, { m: .4 }), frameM = M(0x3d4249, { m: .35 }), copper = M(0xc8742f, { m: .8, r: .35 });
+const cyl = (r1, r2, h, m, s = 40) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const R = 0.605;                                   // wheel radius (1210 mm wheel)
+// rails and sleepers
+[-0.7175, 0.7175].forEach(x => { scene.add(at(box(.07, .16, 8, M(0x8a8f96, { m: .8 })), x, -.08, 0)); });
+for (let z = -3.9; z <= 3.9; z += .6) scene.add(at(box(2.6, .16, .26, M(0x5b5348, { m: 0, r: .9 })), 0, -.24, z));
+// wheelset: axle + two wheels (rotate as a group about x)
+const ws = new THREE.Group(); at(ws, 0, R, 0); scene.add(ws);
+const axle = cyl(.095, .095, 2.0, steel); axle.rotation.z = Math.PI / 2; ws.add(axle);
+[-0.75, 0.75].forEach(x => {
+  const w = cyl(R, R, .14, M(0x7b8188, { m: .75, r: .35 }), 64); w.rotation.z = Math.PI / 2; ws.add(at(w, x, 0, 0));
+  const fl = cyl(R + .03, R + .03, .03, M(0x6f757c, { m: .75 }), 64); fl.rotation.z = Math.PI / 2; ws.add(at(fl, x - Math.sign(x) * .07, 0, 0));
+  const sp = box(.16, .06, R * 1.6, dark); ws.add(at(sp, x, 0, 0));             // a spoke mark so rotation is visible
+});
+// axle boxes and bogie side frames
+[-1.02, 1.02].forEach(x => { scene.add(at(box(.24, .3, .36, dark), x, R, 0)); scene.add(at(box(.16, .26, 3.6, frameM), x, R + .32, -0.6)); });
+scene.add(at(box(2.2, .22, .3, frameM), 0, R + .32, -1.25));                    // transom
+// gear case on the axle (right side) and pinion
+const gear = at(cyl(.42, .42, .2, M(0x4f5a66, { m: .5 })), .45, R, -.18); gear.rotation.z = Math.PI / 2; gear.scale.set(1, 1, 1.3); scene.add(gear);
+// traction motor: stator frame (transparent in cutaway), rotor, end windings, cooling ribs
+const motor = new THREE.Group(); at(motor, -0.05, R + .05, -0.78); scene.add(motor);
+const frameMat = M(0x2f6db5, { m: .35, ds: true });
+const stator = cyl(.36, .36, 1.0, frameMat, 48); stator.rotation.z = Math.PI / 2; motor.add(stator);
+for (let i = 0; i < 9; i++) { const rib = new THREE.Mesh(new THREE.TorusGeometry(.365, .012, 6, 48), frameMat); rib.rotation.y = Math.PI / 2; motor.add(at(rib, -.42 + i * .105, 0, 0)); }
+const rotorG = new THREE.Group(); motor.add(rotorG);
+const rotor = cyl(.2, .2, .78, M(0x8d8d8d, { m: .7 }), 32); rotor.rotation.z = Math.PI / 2; rotorG.add(rotor);
+for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, bar = box(.82, .025, .025, copper); bar.position.set(0, Math.cos(a) * .19, Math.sin(a) * .19); rotorG.add(bar); }
+[-0.41, 0.41].forEach(x => { const ring = new THREE.Mesh(new THREE.TorusGeometry(.19, .02, 8, 32), copper); ring.rotation.y = Math.PI / 2; rotorG.add(at(ring, x, 0, 0)); });
+const shaft = cyl(.05, .05, 1.35, steel); shaft.rotation.z = Math.PI / 2; rotorG.add(shaft);
+const statorCore = cyl(.29, .29, .7, M(0x6f6f6f, { m: .5, t: 1 }), 48); statorCore.rotation.z = Math.PI / 2; statorCore.visible = false; motor.add(statorCore);
+[-0.43, 0.43].forEach(x => { const ew = new THREE.Mesh(new THREE.TorusGeometry(.25, .05, 10, 40), copper); ew.rotation.y = Math.PI / 2; motor.add(at(ew, x, 0, 0)); });
+// end shields with bearings (DE towards the gear on +x)
+const bearDE = at(cyl(.12, .12, .08, M(0x9aa3ad, { m: .8 })), .54, 0, 0); bearDE.rotation.z = Math.PI / 2; motor.add(bearDE);
+const bearNDE = at(cyl(.1, .1, .08, M(0x9aa3ad, { m: .8 })), -.54, 0, 0); bearNDE.rotation.z = Math.PI / 2; motor.add(bearNDE);
+[-0.5, 0.5].forEach(x => { const es = cyl(.37, .37, .05, dark); es.rotation.z = Math.PI / 2; motor.add(at(es, x, 0, 0)); });
+// nose lug to the transom and axle-hung (suspension) bearings
+motor.add(at(box(.3, .12, .4, dark), 0, .1, -.42));
+[-0.35, 0.3].forEach(x => scene.add(at(box(.14, .3, .3, dark), x - .05, R + .02, -.35)));
+// terminal box and cables to the inverter
+motor.add(at(box(.3, .16, .2, M(0x393939)), -.2, .36, .05));
+const tube = (pts, c, r = .02) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 50, r, 8, false); const m = new THREE.Mesh(g, M(c, { m: .3 })); scene.add(m); return m; };
+[0, .05, .1].forEach(dz => tube([[-.25, R + .46, -.73 + dz], [-.4, R + 1.0, -.6 + dz], [-.6, 2.35, -1.5 + dz]], 0x161616, .018));
+// blower duct (bellows) from the carbody into the motor NDE
+const duct = tube([[-.7, R + .1, -.78], [-.95, R + .6, -.78], [-.95, 2.3, -.4]], 0x525252, .12);
+const airGlow = tube([[-.7, R + .1, -.78], [-.95, R + .6, -.78], [-.95, 2.3, -.4]], 0x78a9ff, .06); airGlow.material.emissive = new THREE.Color(0x78a9ff); airGlow.material.emissiveIntensity = .8;
+// carbody floor (cut) and the IGBT inverter in it
+scene.add(at(box(2.9, .05, 3.2, M(0x8d9198, { t: .25 })), 0, 2.3, -1.0));
+const inv = at(box(1.3, .6, .9, M(0x8a3ffc, { m: .2 })), -.4, 2.62, -1.6); scene.add(inv);
+scene.add(at(box(.5, .35, .02, M(0xd0d0d0)), -.4, 2.62, -1.14));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, -.4, 2.98, -1.6));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('te', [.75, .05, -.4]); lbl('creep', [.85, 1.3, .1]); lbl('stator', [-.05, 1.22, -.9]); lbl('blower', [-.95, 1.6, -.7]);
+lbl('brg', [.6, .75, -1.1]); lbl('ins', [-.75, .2, -1.4]); lbl('igbt', [-.4, 3.05, -1.6]); lbl('cur', [.45, 2.3, -2.1]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 0, flow = 100;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.motor_rpm; flow = r.blower_flow_pct;
+  setLbl('te', `effort · expected (kN) · ${fmt(r.speed_kmh, 0)} km/h · demand ${fmt(r.demand_pct, 0)} %`, `${fmt(t.te_measured_kn)} · ${fmt(t.te_expected_kn)}`, st(names.has('TM_TE_SHORTFALL'), t.te_ratio < 0.92));
+  setLbl('creep', `creep (net) · slip corrections / 100 km`, `${fmt(t.creep_net_pct, 2)} % · ${fmt(r.slip_events_100km, 0)}`, st(names.has('TM_WHEEL_SLIP') || names.has('TM_SLIP_EVENTS'), names.has('TM_CREEP_OFFSET')));
+  setLbl('stator', `winding · expected · ageing ×`, `${fmt(r.stator_c, 0)} °C · ${fmt(t.stator_expected_c, 0)} · ${fmt(t.aging_rate, 2)}`, st(names.has('TM_WINDING_RESIDUAL') || names.has('TM_AGING_FAST'), t.stator_residual_k > 8));
+  setLbl('blower', 'blower flow · cooling air', `${fmt(r.blower_flow_pct, 0)} % · ${fmt(r.air_in_c, 0)} °C`, st(names.has('TM_VENT_FLOW_LOW'), r.blower_flow_pct < 85));
+  setLbl('brg', `DE bearing · residual · envelope at ${fmt(t.bpfo_hz, 0)} Hz`, `${fmt(r.bearing_de_c, 0)} °C · ${fmt(t.bearing_de_residual_k, 0)} K · ${fmt(r.env_bpfo_g, 2)} g`, st(names.has('TM_BEARING_HOT') || names.has('TM_BEARING_ENVELOPE'), r.env_bpfo_g > 1));
+  setLbl('ins', 'insulation at 40 °C (last stop)', `${fmt(t.ir_40c_mohm, 0)} MΩ`, st(names.has('TM_INSULATION_LOW'), t.ir_40c_mohm < 300));
+  setLbl('igbt', `IGBT baseplate · expected · life`, `${fmt(r.igbt_baseplate_c, 0)} °C · ${fmt(t.igbt_baseplate_expected_c, 0)} · ${fmt(t.igbt_life_years, 0)} y`, st(names.has('TM_IGBT_HOT') || names.has('TM_IGBT_LIFE_SHORT'), t.igbt_baseplate_residual_k > 5));
+  setLbl('cur', 'motor current · expected', `${fmt(r.motor_current_a, 0)} A · ${fmt(t.current_expected_a, 0)}`, st(names.has('TM_CURRENT_HIGH')));
+  $('k-health').textContent = ST.health; $('k-te').textContent = fmt(t.te_ratio, 2); $('k-age').textContent = fmt(t.aging_rate, 2) + '×';
+  $('c-phase-t').textContent = `${fmt(r.speed_kmh, 0)} km/h · ${fmt(r.demand_pct, 0)} % demand`; $('c-phase').className = 'chip ' + (ST.health >= 100 ? 'ok' : ST.health >= 70 ? 'warn' : 'bad');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Tractive effort (kN)', fmt(t.te_measured_kn), fmt(t.te_expected_kn), names.has('TM_TE_SHORTFALL')) +
+    row('Available at this speed (kN)', '', fmt(t.te_available_kn)) +
+    row('Motor current (A)', fmt(r.motor_current_a, 0), fmt(t.current_expected_a, 0), names.has('TM_CURRENT_HIGH')) +
+    row('Net creep (%)', fmt(t.creep_net_pct, 2), '< ' + L.creep_alert_pct, names.has('TM_WHEEL_SLIP')) +
+    row('Winding (°C)', fmt(r.stator_c, 0), fmt(t.stator_expected_c, 0), names.has('TM_WINDING_RESIDUAL')) +
+    row('Insulation ageing rate', fmt(t.aging_rate, 2), '≤ ' + L.aging_rate_alert, names.has('TM_AGING_FAST')) +
+    row('Blower flow (%)', fmt(r.blower_flow_pct, 0), '≥ ' + L.vent_flow_alert_pct, names.has('TM_VENT_FLOW_LOW')) +
+    row('DE bearing (°C)', fmt(r.bearing_de_c, 0), fmt(t.bearing_de_expected_c, 0), names.has('TM_BEARING_HOT')) +
+    row('Envelope at BPFO (g)', fmt(r.env_bpfo_g, 2), '≤ ' + L.envelope_alert_g, names.has('TM_BEARING_ENVELOPE')) +
+    row('Insulation at 40 °C (MΩ)', fmt(t.ir_40c_mohm, 0), '≥ ' + L.ir_40c_min_mohm, names.has('TM_INSULATION_LOW')) +
+    row('IGBT baseplate (°C)', fmt(r.igbt_baseplate_c, 0), fmt(t.igbt_baseplate_expected_c, 0), names.has('TM_IGBT_HOT')) +
+    row('IGBT cycling life (years)', fmt(t.igbt_life_years, 0), '≥ ' + L.igbt_life_alert_years, names.has('TM_IGBT_LIFE_SHORT'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the motor behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  const hot = Math.max(0, Math.min(1, (r.stator_c - 80) / 100));
+  frameMat.color.setRGB(.18 + .6 * hot, .43 - .25 * hot, .71 - .5 * hot);
+  airGlow.material.opacity = Math.max(.1, flow / 100); airGlow.material.transparent = true;
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  frameMat.transparent = true; frameMat.opacity = cut ? .2 : 1; frameMat.depthWrite = !cut;
+  gear.material.transparent = true; gear.material.opacity = cut ? .3 : 1;
+  statorCore.visible = cut; statorCore.material.transparent = true; statorCore.material.opacity = .35;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shownRpm = 0, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  shownRpm += (rpm - shownRpm) * Math.min(1, dt * 2);
+  const gr = TW ? TW.design.motor.gear_ratio : 4;
+  const vis = 0.06;                                         // slowed down so the rotation stays visible
+  rotorG.rotation.x += shownRpm / 60 * 2 * Math.PI * dt * vis;
+  ws.rotation.x -= shownRpm / gr / 60 * 2 * Math.PI * dt * vis;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

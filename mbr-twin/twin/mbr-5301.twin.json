@@ -1,0 +1,315 @@
+{
+ "$comment": "MBR-5301 membrane bioreactor train twin. Expected values in Maximo Monitor from the module fact sheet and the process design; the PLC sends only what it measures and records.",
+ "twin": {
+  "id": "MBR-5301",
+  "name": "Membrane bioreactor train MBR-5301",
+  "version": "1.0.0",
+  "folder": "mbr-twin"
+ },
+ "identification": {
+  "asset": "MBR-5301",
+  "assetnum": "MBR-5301",
+  "manufacturer": "Veolia Water Technologies",
+  "model": "ZeeWeed 500D (MBR module, 40.0 m²)",
+  "description": "Membrane train 1 of a municipal wastewater works: submerged hollow-fibre ultrafiltration after activated sludge",
+  "module": "ZeeWeed 500D MBR module: PVDF hollow fibres, nominal pore 0.04 µm, outside-in, 40.0 m² per module",
+  "cassette": "4 cassettes of 48 modules in one membrane tank (assumption)",
+  "permeate": "Reversible permeate pump on a VFD: production under suction, short backpulse in reverse",
+  "air": "Membrane air scour blower and aerators under each cassette",
+  "plc": "Train PLC: production / backpulse cycle, maintenance and recovery clean sequences, permeability records"
+ },
+ "design": {
+  "module": {
+   "area_m2": 40.0,
+   "material": "PVDF",
+   "pore_um": 0.04,
+   "fibre_od_mm": 2.2,
+   "flow_path": "outside-in",
+   "tmp_min_kpa": -55.0,
+   "tmp_max_kpa": 55.0,
+   "temp_max_c": 40.0,
+   "ph_min": 5.0,
+   "ph_max": 9.5,
+   "clean_ph_min": 2.0,
+   "clean_ph_max": 10.5,
+   "cl2_max_ppm": 1000.0,
+   "tensile_n": 600.0,
+   "width_mm": 844.0,
+   "length_mm": 1940.0,
+   "depth_mm": 49.0,
+   "source": "Veolia ZeeWeed 500D Module fact sheet FSpw500D-MOD_EN (MBR column): surface area, material, pore size, fibre diameter, flow path, TMP range, max operating temperature, operating and cleaning pH, max Cl2 concentration, tensile strength (> 600 N) and module dimensions."
+  },
+  "train": {
+   "cassettes": 4,
+   "modules_per_cassette": 48,
+   "area_m2": 7680.0,
+   "source": "Train layout: assumption: typical value, replace with the supplier's process design / O&M manual for your train. The ZeeWeed 500D cassette fact sheet (FSpw500D-CASS_EN) lists cassettes of up to 68 modules (68M) and 20 modules (20M)."
+  },
+  "operation": {
+   "flux_design_lmh": 25.0,
+   "flow_design_m3h": 192.0,
+   "temp_nominal_c": 18.0,
+   "backpulse_pct_of_time": 3.0,
+   "source": "Design gross flux at 20 °C and nominal mixed liquor temperature: assumption: typical value, replace with the supplier's process design / O&M manual for your train. Backpulse share of the operating time inside the 1-5 % range of US EPA 832-F-07-015."
+  },
+  "permeability": {
+   "k_new_20_lmhbar": 250.0,
+   "k_rc_trigger_lmhbar": 100.0,
+   "k_very_low_lmhbar": 70.0,
+   "k_rc_last_lmhbar": 210.0,
+   "fouling_rate_design_pct_d": 1.5,
+   "source": "Permeability of new (clean) fibres at 20 °C, recovery-clean trigger, very-low limit, value after the last recovery clean and normal fouling rate between maintenance cleans: assumption: typical value, replace with the supplier's process design / O&M manual for your train."
+  },
+  "viscosity": {
+   "a_mpas": 0.02939,
+   "b_k": 507.88,
+   "c_k": 149.3,
+   "source": "Water viscosity mu = A exp(B / (T - C)) (Vogel-Fulcher-Tammann fit quoted in Wikipedia 'Viscosity'). Correction to 20 °C: K20 = K(T) x mu(T) / mu(20 °C)."
+  },
+  "aeration": {
+   "sadm_design": 0.25,
+   "air_design_nm3h": 1920.0,
+   "blower_kw_design": 55.0,
+   "source": "Specific air demand per m² of membrane (SADm), scour air flow and blower power: assumption: typical value, replace with the supplier's process design / O&M manual for your train."
+  },
+  "cleaning": {
+   "mc_interval_h": 168.0,
+   "mc_naocl_mgl": 200.0,
+   "rc_interval_h": 4380.0,
+   "rc_naocl_mgl": 1000.0,
+   "rc_citric_pct": 0.2,
+   "source": "Weekly maintenance clean with sodium hypochlorite, recovery clean about every 6 months or on the permeability trigger, hypochlorite then citric acid: assumption: typical value, replace with the supplier's process design / O&M manual for your train. Hypochlorite and citric acid are the usual chemicals (US EPA 832-F-07-015); the recovery clean hypochlorite stays at the 1,000 ppm Cl2 maximum of the module fact sheet."
+  },
+  "process": {
+   "mlss_nominal_mgl": 9000.0,
+   "ttf_nominal_s": 30.0,
+   "turbidity_nominal_ntu": 0.05,
+   "source": "Mixed liquor suspended solids, time-to-filter of the mixed liquor and permeate turbidity of a healthy train: assumption: typical value, replace with the supplier's process design / O&M manual for your train. (US EPA 832-F-07-015 reports one large ZeeWeed plant averaging 6,400 mg/L MLSS.)"
+  },
+  "demo": {
+   "time_scale": 5040,
+   "note": "Demo only: the plant clock runs 5040 times faster, so one week between maintenance cleans passes in two minutes of real time and the permeability sawtooth is visible."
+  }
+ },
+ "telemetry": {
+  "event": "mbr",
+  "publish_every_s": 10,
+  "device_type": "MBR_MEMBRANE_TRAIN",
+  "groups": {
+   "Train": "Train state",
+   "Permeate": "Permeate pump and quality",
+   "Process": "Mixed liquor",
+   "Air": "Membrane air scour",
+   "MC": "Last maintenance clean",
+   "RC": "Last recovery clean"
+  },
+  "points": [
+   {
+    "metric": "running",
+    "path": "Train.Producing",
+    "label": "Train in production (1 = yes)",
+    "unit": "code"
+   },
+   {
+    "metric": "cassettes_in_service",
+    "path": "Train.CassettesInService",
+    "label": "Cassettes in service",
+    "unit": "count"
+   },
+   {
+    "metric": "permeate_flow_m3h",
+    "path": "Permeate.Flow",
+    "label": "Permeate flow during production (gross)",
+    "unit": "m³/h"
+   },
+   {
+    "metric": "tmp_kpa",
+    "path": "Permeate.TMP",
+    "label": "Transmembrane pressure (suction, as a positive number)",
+    "unit": "kPa"
+   },
+   {
+    "metric": "permeate_turbidity_ntu",
+    "path": "Permeate.Turbidity",
+    "label": "Permeate turbidity",
+    "unit": "NTU"
+   },
+   {
+    "metric": "permeate_pump_kw",
+    "path": "Permeate.PumpPower",
+    "label": "Permeate pump power",
+    "unit": "kW"
+   },
+   {
+    "metric": "ml_temp_c",
+    "path": "Process.Temperature",
+    "label": "Mixed liquor temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "mlss_mgl",
+    "path": "Process.MLSS",
+    "label": "Mixed liquor suspended solids in the membrane tank",
+    "unit": "mg/L"
+   },
+   {
+    "metric": "sludge_ttf_s",
+    "path": "Process.TimeToFilter",
+    "label": "Time-to-filter of the mixed liquor (last lab test)",
+    "unit": "s"
+   },
+   {
+    "metric": "air_scour_nm3h",
+    "path": "Air.ScourFlow",
+    "label": "Membrane scour air flow",
+    "unit": "Nm³/h"
+   },
+   {
+    "metric": "scour_blower_kw",
+    "path": "Air.BlowerPower",
+    "label": "Scour blower power",
+    "unit": "kW"
+   },
+   {
+    "metric": "mc_flux_lmh",
+    "path": "MC.Flux",
+    "label": "Flux at which the last MC permeability check ran",
+    "unit": "L/(m²·h)"
+   },
+   {
+    "metric": "mc_temp_c",
+    "path": "MC.Temperature",
+    "label": "Temperature during the last MC check",
+    "unit": "°C"
+   },
+   {
+    "metric": "mc_tmp_before_kpa",
+    "path": "MC.TMPBefore",
+    "label": "TMP just before the last maintenance clean",
+    "unit": "kPa"
+   },
+   {
+    "metric": "mc_tmp_after_kpa",
+    "path": "MC.TMPAfter",
+    "label": "TMP just after the last maintenance clean",
+    "unit": "kPa"
+   },
+   {
+    "metric": "hours_since_mc",
+    "path": "MC.HoursSince",
+    "label": "Hours since the last maintenance clean",
+    "unit": "h"
+   },
+   {
+    "metric": "rc_perm20_lmhbar",
+    "path": "RC.Permeability20",
+    "label": "Permeability at 20 °C measured after the last recovery clean",
+    "unit": "L/(m²·h·bar)"
+   },
+   {
+    "metric": "hours_since_rc",
+    "path": "RC.HoursSince",
+    "label": "Hours since the last recovery clean",
+    "unit": "h"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "tmp_high_kpa": 40.0,
+   "fouling_rate_alert_pct_d": 4.0,
+   "days_to_rc_alert": 7.0,
+   "mc_recovery_min_pct": 5.0,
+   "irreversible_alert_pct": 30.0,
+   "flux_ratio_alert": 1.15,
+   "sadm_ratio_min": 0.8,
+   "mlss_max_mgl": 12000.0,
+   "ttf_max_s": 100.0,
+   "turbidity_alert_ntu": 0.2,
+   "turbidity_breach_ntu": 0.5,
+   "mc_overdue_factor": 1.5,
+   "rc_overdue_factor": 1.25
+  },
+  "source": "Alert limits: assumption: typical value, replace with the supplier's process design / O&M manual for your train. TMP limit of the module: Veolia ZeeWeed 500D Module fact sheet FSpw500D-MOD_EN (MBR column) (55 kPa). Permeate turbidity below 0.5 NTU is Veolia's typical ZeeWeed MBR effluent claim; 0.2 NTU is an early-warning assumption."
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "irreversible_fouling": {
+   "name": "Irreversible fouling (scale, organics the cleans no longer remove)",
+   "part": "membrane",
+   "symptoms": "permeability after cleans lower each time, maintenance clean recovers little",
+   "rules": [
+    "MBR_PERM_LOW",
+    "MBR_MC_INEFFECTIVE",
+    "MBR_IRREVERSIBLE_HIGH"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "poor_filterability": {
+   "name": "Poor sludge filterability (bulking, foaming, high SMP)",
+   "part": "biology",
+   "symptoms": "permeability falls fast between cleans, time-to-filter up",
+   "rules": [
+    "MBR_FOULING_FAST",
+    "MBR_FILTERABILITY_POOR",
+    "MBR_CLEAN_DUE_SOON"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "air_scour_low": {
+   "name": "Air scour reduced (blocked aerators, blower or valve fault)",
+   "part": "air",
+   "symptoms": "SADm low, permeability falls fast between cleans",
+   "rules": [
+    "MBR_SCOUR_LOW",
+    "MBR_FOULING_FAST",
+    "MBR_CLEAN_DUE_SOON"
+   ],
+   "default_ramp_min": 1
+  },
+  "fibre_breakage": {
+   "name": "Broken fibres (integrity breach)",
+   "part": "membrane",
+   "symptoms": "permeate turbidity up, permeability normal",
+   "rules": [
+    "MBR_TURBIDITY_HIGH",
+    "MBR_INTEGRITY_BREACH"
+   ],
+   "default_ramp_min": 1
+  },
+  "sludging": {
+   "name": "Module sludging (solids packed between the fibres)",
+   "part": "membrane",
+   "symptoms": "MLSS high, TMP jumps, permeability very low",
+   "rules": [
+    "MBR_MLSS_HIGH",
+    "MBR_PERM_VERY_LOW",
+    "MBR_TMP_HIGH",
+    "MBR_FOULING_FAST"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "peak_flux": {
+   "name": "Flux above design (storm flow with a cassette out)",
+   "part": "operation",
+   "symptoms": "flux per m² in service above the design flux, TMP up, permeability normal",
+   "rules": [
+    "MBR_FLUX_HIGH"
+   ],
+   "default_ramp_min": 1
+  },
+  "mc_skipped": {
+   "name": "Maintenance cleans skipped (sequence or dosing failure)",
+   "part": "cleaning",
+   "symptoms": "hours since the last MC grow, permeability drifts down",
+   "rules": [
+    "MBR_MC_OVERDUE"
+   ],
+   "default_ramp_min": 0.5
+  }
+ },
+ "presentation": {
+  "title": "MBR-5301 membrane bioreactor train",
+  "dashboard": "MBR_MEMBRANE_TRAIN"
+ }
+}

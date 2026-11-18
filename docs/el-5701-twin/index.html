@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EL-5701 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>EL-5701</b><span class="g">KONE MonoSpace 500 · 1000 kg · 1.6 m/s · 12 stops · machine-room-less</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-door"><span class="dot"></span><span id="c-door-t">doors –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Torque, doors and trends →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the elevator model…</div>
+<div class="credit">Shaft with the car, the counterweight, guide rails, 2:1 ropes and the gearless disc machine at the top of the shaft (no machine room), centre-opening doors on every landing. Floor spacing is drawn shorter than the real 4 m. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-car">Follow car</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The car and counterweight move with the measured car position; the doors with the measured door position.</div>
+<aside>
+  <section>
+    <h2>EL-5701 twin</h2>
+    <p class="sub" id="sub">passenger elevator</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Balance %<b id="k-bal">–</b></div><div>Friction kN<b id="k-fr">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The controller sends only what it measures. The expected torque at each load and direction, the counterweight balance and running friction solved from the last up and down trips, the brake test margin and the energy per trip are computed from the twin file.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for EL-5701: car, counterweight, machine, brake, doors, drive and energy meter, with injectable faults.\n\nThe real elevator controller sends the same points (see telemetry.points in the twin file). Nothing here is used by\nMonitor: the expected values are computed in Monitor from the twin file only. This model only produces believable\nreadings and fault fingerprints for the tests, the figures and the live pages. Pure Python (math, random).\n\nThe \"true\" elevator follows the same hoisting equation as the twin, with the faults acting on the physical causes:\n  door_obstruction         doors close up to 60 % slower and the operator draws up to 80 % more current\n  light_curtain_fault      reopenings go from 5 % to 35 % of the closings\n  door_lock_fault          up to 12 closings a day without the lock contact made\n  counterweight_imbalance  the car got heavier (or filler weights were lost): balance ratio down by up to 12 points\n  guide_friction_high      running friction up to 2.5 x, horizontal vibration up\n  brake_wear               the brake holds up to 55 % less torque in its automatic test\n  levelling_drift          stopping error up to 18 mm, re-levelling after up to 20 % of the stops\n  regen_lost               the drive burns the regenerated energy: running energy per trip up 60 %\nTraffic follows an office day on the plant clock (morning, lunch and evening peaks, quiet nights).\n\"\"\"\nimport math\nimport random\n\n\ndef office_starts_per_h(hour):\n    \"\"\"Motor starts per hour of an office lift through the day (assumption: a typical weekday shape).\"\"\"\n    day = 1 / (1 + math.exp(-(hour - 7.3) * 4)) * 1 / (1 + math.exp((hour - 18.8) * 4))\n    peaks = (85 * math.exp(-((hour - 8.6) / 0.7) ** 2) + 50 * math.exp(-((hour - 12.6) / 0.6) ** 2)\n             + 65 * math.exp(-((hour - 17.4) / 0.7) ** 2))\n    return 4 + 45 * day + peaks\n\n\nTRIPS_DAY = sum(office_starts_per_h(h / 10) for h in range(240)) / 10\n\n\nclass Elevator:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.d = d\n        h, dr, e = d[\"hoist\"], d[\"doors\"], d[\"energy\"]\n        self.Q, self.kb, self.ff, self.g = d[\"car\"][\"rated_load_kg\"], h[\"balance_ratio\"], h[\"friction_kn\"], h[\"g\"]\n        self.r, self.i = h[\"sheave_d_m\"] / 2, h[\"roping\"]\n        self.open0, self.close0, self.amp0 = dr[\"open_time_s\"], dr[\"close_time_s\"], dr[\"close_current_a\"]\n        self.e0, self.em, self.psb = e[\"e_start_wh\"], e[\"e_metre_wh\"], e[\"standby_w\"]\n        self.brl = d[\"brake\"][\"test_required_load_ratio\"]\n        self.demo = d[\"demo\"]\n        self.rope_trips = float(self.demo[\"rope_trips_now\"])\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def kb_true(self):\n        return self.kb - 0.12 * self.faults[\"counterweight_imbalance\"]\n\n    def ff_true(self):\n        return self.ff * (1 + 1.5 * self.faults[\"guide_friction_high\"])\n\n    def torque(self, load, d):\n        \"\"\"True constant-speed motor torque (N m) for a load (kg) and direction (+1 up, -1 down), with drive noise.\"\"\"\n        f = (load - self.kb_true() * self.Q) * self.g + d * self.ff_true() * 1000\n        return f * self.r / self.i * (1 + self.n(0.004)) + self.n(1.5)\n\n    def brake_ratio(self):\n        return 1.9 * (1 - 0.55 * self.faults[\"brake_wear\"])\n\n    def energy_per_trip(self, s):\n        f = self.faults\n        fr = self.ff_true() / self.ff\n        return ((self.e0 + self.em * s * (1 + 0.12 * (fr - 1))) * (1 + 0.8 * abs(self.kb_true() - self.kb))\n                * (1 + 0.6 * f[\"regen_lost\"]))\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, hour, up_load, down_load, live=None):\n        f, n = self.faults, self.n\n        live = live or {\"floor\": 0, \"speed\": 0.0, \"load\": 0.0, \"door\": 100.0}\n        floor_starts = self.demo.get(\"min_starts_per_h\", 0)\n        starts = max(0, round(max(office_starts_per_h(hour), floor_starts) * (1 + n(0.05))))\n\n        def per_hour(rate):\n            mean = starts * rate\n            return max(0, round(mean + n(0.5 * math.sqrt(mean + 0.25))))\n        trips = round(TRIPS_DAY * (1 + n(0.02)))\n        s_avg = 13.0 * (1 + n(0.02))\n        e24 = trips * self.energy_per_trip(s_avg) / 1000 * (1 + n(0.008)) + (self.psb + n(3)) * 24 / 1000\n        req = (self.brl - self.kb) * self.Q * self.g * self.r / self.i\n        return {\n            \"car_floor\": live[\"floor\"], \"car_speed_ms\": round(live[\"speed\"], 3), \"car_load_kg\": round(live[\"load\"]),\n            \"door_position_pct\": round(live[\"door\"], 1),\n            \"up_torque_nm\": round(self.torque(up_load, 1), 1), \"up_load_kg\": round(up_load + n(5)),\n            \"down_torque_nm\": round(self.torque(down_load, -1), 1), \"down_load_kg\": round(down_load + n(5)),\n            \"door_open_time_s\": round(self.open0 * (1 + 0.15 * f[\"door_obstruction\"]) + n(0.04), 2),\n            \"door_close_time_s\": round(self.close0 * (1 + 0.6 * f[\"door_obstruction\"]) + n(0.05), 2),\n            \"door_close_current_a\": round(self.amp0 * (1 + 0.8 * f[\"door_obstruction\"]) + n(0.03), 2),\n            \"door_reopens_1h\": per_hour(0.05 + 0.30 * f[\"light_curtain_fault\"]),\n            \"door_lock_fails_24h\": max(0, round(0.3 + 12 * f[\"door_lock_fault\"] + n(0.6))),\n            \"level_error_max_mm\": round(abs(4.0 + 14.0 * f[\"levelling_drift\"] + n(0.8)), 1),\n            \"relevels_1h\": per_hour(0.01 + 0.19 * f[\"levelling_drift\"]),\n            \"vib_lateral_mg\": round(9.0 + 18.0 * f[\"guide_friction_high\"] + n(1.0), 1),\n            \"vib_vertical_mg\": round(12.0 + 3.0 * f[\"guide_friction_high\"] + n(1.0), 1),\n            \"jerk_max_ms3\": round(1.0 + n(0.03), 2),\n            \"brake_test_torque_nm\": round(req * self.brake_ratio() * (1 + n(0.01)), 1),\n            \"brake_test_hours_since\": round((hour - 3.0) % 24, 2),\n            \"energy_kwh_24h\": round(e24, 2), \"standby_power_w\": round(self.psb + n(3), 1),\n            \"trips_24h\": trips, \"distance_m_24h\": round(trips * s_avg), \"starts_1h\": starts,\n            \"trips_since_rope_change\": round(self.rope_trips), \"in_service\": 1,\n        }\n\n    def measure(self, hour=None, up_load=None, down_load=None):\n        hour = self.rnd.uniform(7, 19) if hour is None else hour\n        up_load = self.rnd.uniform(0, 800) if up_load is None else up_load\n        down_load = self.rnd.uniform(0, 600) if down_load is None else down_load\n        return self.reading(hour, up_load, down_load)\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The car serves random calls: doors open (dwell), doors close, run with a trapezoid speed profile, stop, doors open.\n    Each trip takes a new load and its constant-speed torque becomes the \"last up\" or \"last down\" reading. The counters\n    (starts per hour, trips per day) follow the office profile on the plant clock, with demo.min_starts_per_h as a floor\n    so the per-hour rates work at night too.\n    \"\"\"\n    DWELL = 4.0\n\n    def __init__(self, twin, seed=5701):\n        self.twin = twin\n        d = twin[\"design\"]\n        demo = d.get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.el = Elevator(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.stops, self.fh = d[\"shaft\"][\"stops\"], d[\"shaft\"][\"floor_height_m\"]\n        self.vmax, self.acc = d[\"car\"][\"speed_ms\"], d[\"ride\"][\"accel_ms2\"]\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.pos, self.v, self.target = 0.0, 0.0, 0\n        self.phase, self.timer, self.door = \"dwell\", 0.0, 100.0\n        self.load = 0.0\n        self.up_load, self.down_load = 320.0, 160.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def _new_call(self):\n        r = self.el.rnd\n        here = round(self.pos / self.fh)\n        nxt = here\n        while nxt == here:\n            nxt = r.randrange(self.stops)\n        self.target = nxt\n        self.load = r.uniform(0, 800) if nxt > here else r.uniform(0, 600)\n        if nxt > here:\n            self.up_load = self.load\n        else:\n            self.down_load = self.load\n        self.el.rope_trips += 1\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.el.faults[k] = f.sev\n        self.t += dt * self.scale\n        close_t = self.el.close0 * (1 + 0.6 * self.el.faults[\"door_obstruction\"])\n        left = dt\n        while left > 1e-9:\n            h = min(left, 0.25)\n            left -= h\n            if self.phase == \"dwell\":\n                self.timer += h\n                if self.timer >= self.DWELL:\n                    self._new_call()\n                    self.phase, self.timer = \"closing\", 0.0\n            elif self.phase == \"closing\":\n                self.door = max(0.0, self.door - 100 * h / close_t)\n                if self.door <= 0:\n                    self.phase = \"run\"\n            elif self.phase == \"run\":\n                goal = self.target * self.fh\n                dist = goal - self.pos\n                sgn = 1 if dist > 0 else -1\n                vstop = math.sqrt(2 * self.acc * abs(dist))\n                speed = min(abs(self.v) + self.acc * h, self.vmax, vstop)\n                self.v = sgn * speed\n                step = self.v * h\n                if abs(step) >= abs(dist) or abs(dist) < 0.005:\n                    self.pos, self.v, self.phase = goal, 0.0, \"opening\"\n                else:\n                    self.pos += step\n            elif self.phase == \"opening\":\n                self.door = min(100.0, self.door + 100 * h / self.el.open0)\n                if self.door >= 100:\n                    self.phase, self.timer = \"dwell\", 0.0\n        hour = (self.t / 3600) % 24\n        return {\"hour\": hour, \"floor\": round(self.pos / self.fh, 2), \"speed\": self.v, \"load\": self.load, \"door\": self.door,\n                \"pos_m\": self.pos, \"phase\": self.phase}\n\n    def measure(self, true):\n        return self.el.reading(true[\"hour\"], self.up_load, self.down_load, true)\n", "twin_calc": "\"\"\"The passenger elevator twin's expectations (EL-5701, KONE MonoSpace 500, 1000 kg, 1.6 m/s).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nHoisting (traction, counterweight = car + k Q):\n  The car side and the counterweight side differ by the out-of-balance mass L - k Q (L = load in the car, Q = rated load,\n  k = balance ratio). At constant speed the drive must hold that weight and overcome the running friction F_f (guide\n  shoes, rope bending, sheave bearings), which always acts against the motion:\n      F = (L - k Q) g + d F_f                d = +1 going up, -1 going down        force referred to the car (N)\n      T = F r / i                            motor torque, r = sheave radius, i = roping ratio (2:1)\n  The controller sends the constant-speed torque and the load of the last up trip and of the last down trip. With\n  F_up = T_up i / r and F_dn = T_dn i / r the two equations solve for the two unknowns of the hoistway:\n      F_f  (apparent friction)  = (F_up - F_dn - (L_up - L_dn) g) / 2\n      k    (apparent balance)   = (L_up + L_dn - (F_up + F_dn) / g) / (2 Q)\n  A counterweight out of balance moves both torques the same way; friction moves them apart. The twin tells them apart.\nBrake: the drive's automatic test pushes the motor against the closed brake; the twin divides the torque the brake held\n  by the torque needed to hold 1.25 Q against the counterweight: (1.25 - k) Q g r / i.\nDoors: closing time and peak operator current against the commissioning baseline; reopenings and re-levellings per\n  100 starts (with at least 20 starts in the denominator, so a quiet night hour does not make a rate out of one event).\nEnergy (reference cycle measured at commissioning, as ISO 25745-1 describes):\n      running energy per trip = (E_24h - P_standby x 24 h) / trips\n      expected per trip       = e_start + e_metre x (distance / trips)\nRopes: trips since the rope change against the expected rope life. Traffic: starts per hour against the rated starts.\n\"\"\"\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    c, h, dr, br, e = d[\"car\"], d[\"hoist\"], d[\"doors\"], d[\"brake\"], d[\"energy\"]\n    r = h[\"sheave_d_m\"] / 2\n    return dict(Q=c[\"rated_load_kg\"], kb=h[\"balance_ratio\"], r=r, i=h[\"roping\"], ff=h[\"friction_kn\"], g=h[\"g\"],\n                v=c[\"speed_ms\"], open0=dr[\"open_time_s\"], close0=dr[\"close_time_s\"], amp0=dr[\"close_current_a\"],\n                stop_acc=d[\"ride\"][\"stop_accuracy_mm\"], lev_acc=d[\"ride\"][\"level_accuracy_mm\"],\n                brl=br[\"test_required_load_ratio\"], e0=e[\"e_start_wh\"], em=e[\"e_metre_wh\"], psb=e[\"standby_w\"],\n                rope=d[\"ropes\"][\"life_trips\"], starts=d[\"traffic\"][\"rated_starts_per_h\"],\n                travel=d[\"shaft\"][\"travel_m\"], stops=d[\"shaft\"][\"stops\"])\n\n\ndef f_per_nm(k):\n    \"\"\"Newtons at the car per newton-metre of motor torque: i / r.\"\"\"\n    return k[\"i\"] / k[\"r\"]\n\n\ndef brake_required_nm(k):\n    \"\"\"Torque needed to hold brl x Q in the car against the counterweight.\"\"\"\n    return (k[\"brl\"] - k[\"kb\"]) * k[\"Q\"] * k[\"g\"] * k[\"r\"] / k[\"i\"]\n\n\ndef torque_expected(k, load, d, ff=None, kb=None):\n    \"\"\"Constant-speed motor torque (N m) for a car load (kg) and direction d (+1 up, -1 down).\"\"\"\n    ff = k[\"ff\"] if ff is None else ff\n    kb = k[\"kb\"] if kb is None else kb\n    return ((load - kb * k[\"Q\"]) * k[\"g\"] + d * ff * 1000) * k[\"r\"] / k[\"i\"]\n\n\ndef _parts(twin):\n    k = _k(twin)\n    L = twin[\"twin_model\"][\"limits\"]\n    c = f_per_nm(k) / 1000\n    UF = f\"(df['UP_TORQUE_NM'] * {c})\"\n    DF = f\"(df['DOWN_TORQUE_NM'] * {c})\"\n    FA = f\"(({UF} - {DF} - (df['UP_LOAD_KG'] - df['DOWN_LOAD_KG']) * {k['g'] / 1000}) / 2)\"\n    BA = f\"((df['UP_LOAD_KG'] + df['DOWN_LOAD_KG'] - ({UF} + {DF}) * {1000 / k['g']}) / {2 * k['Q'] / 100})\"\n    rr = k[\"r\"] / k[\"i\"]\n    UE = f\"(((df['UP_LOAD_KG'] - {k['kb'] * k['Q']}) * {k['g']} + {k['ff'] * 1000}) * {rr})\"\n    DE = f\"(((df['DOWN_LOAD_KG'] - {k['kb'] * k['Q']}) * {k['g']} - {k['ff'] * 1000}) * {rr})\"\n    ST = f\"np.maximum(df['STARTS_1H'], {L['rate_min_starts']})\"\n    TR = \"np.maximum(df['TRIPS_24H'], 1)\"\n    EPT = f\"((df['ENERGY_KWH_24H'] - {k['psb'] * 24 / 1000}) * 1000 / {TR})\"\n    EEX = f\"({k['e0']} + {k['em']} * df['DISTANCE_M_24H'] / {TR})\"\n    BR = f\"(df['BRAKE_TEST_TORQUE_NM'] / {brake_required_nm(k)})\"\n    return dict(k=k, UF=UF, DF=DF, FA=FA, BA=BA, UE=UE, DE=DE, ST=ST, EPT=EPT, EEX=EEX, BR=BR)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"UP_FORCE_KN\", p[\"UF\"]),\n        (\"DOWN_FORCE_KN\", p[\"DF\"]),\n        (\"FRICTION_APPARENT_KN\", p[\"FA\"]),\n        (\"BALANCE_APPARENT_PCT\", p[\"BA\"]),\n        (\"BALANCE_DEV_PCT\", f\"{p['BA']} - {k['kb'] * 100}\"),\n        (\"UP_TORQUE_EXPECTED_NM\", p[\"UE\"]),\n        (\"DOWN_TORQUE_EXPECTED_NM\", p[\"DE\"]),\n        (\"UP_TORQUE_RESIDUAL_NM\", f\"df['UP_TORQUE_NM'] - {p['UE']}\"),\n        (\"DOWN_TORQUE_RESIDUAL_NM\", f\"df['DOWN_TORQUE_NM'] - {p['DE']}\"),\n        (\"DOOR_CLOSE_RATIO\", f\"df['DOOR_CLOSE_TIME_S'] / {k['close0']}\"),\n        (\"DOOR_CURRENT_RATIO\", f\"df['DOOR_CLOSE_CURRENT_A'] / {k['amp0']}\"),\n        (\"REOPEN_RATE_PCT\", f\"df['DOOR_REOPENS_1H'] / {p['ST']} * 100\"),\n        (\"RELEVEL_RATE_PCT\", f\"df['RELEVELS_1H'] / {p['ST']} * 100\"),\n        (\"BRAKE_TEST_RATIO\", p[\"BR\"]),\n        (\"ENERGY_PER_TRIP_WH\", p[\"EPT\"]),\n        (\"ENERGY_EXPECTED_WH\", p[\"EEX\"]),\n        (\"ENERGY_RATIO\", f\"{p['EPT']} / {p['EEX']}\"),\n        (\"ROPE_LIFE_USED_PCT\", f\"df['TRIPS_SINCE_ROPE_CHANGE'] / {k['rope'] / 100}\"),\n        (\"STARTS_RATIO\", f\"df['STARTS_1H'] / {k['starts']}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    L = twin[\"twin_model\"][\"limits\"]\n    c = f_per_nm(k) / 1000\n    uf, df_ = r[\"up_torque_nm\"] * c, r[\"down_torque_nm\"] * c\n    fa = (uf - df_ - (r[\"up_load_kg\"] - r[\"down_load_kg\"]) * (k[\"g\"] / 1000)) / 2\n    ba = (r[\"up_load_kg\"] + r[\"down_load_kg\"] - (uf + df_) * (1000 / k[\"g\"])) / (2 * k[\"Q\"] / 100)\n    ue, de = torque_expected(k, r[\"up_load_kg\"], 1), torque_expected(k, r[\"down_load_kg\"], -1)\n    st = max(r[\"starts_1h\"], L[\"rate_min_starts\"])\n    tr = max(r[\"trips_24h\"], 1)\n    ept = (r[\"energy_kwh_24h\"] - k[\"psb\"] * 24 / 1000) * 1000 / tr\n    eex = k[\"e0\"] + k[\"em\"] * r[\"distance_m_24h\"] / tr\n    return {\n        \"up_force_kn\": uf, \"down_force_kn\": df_, \"friction_apparent_kn\": fa, \"balance_apparent_pct\": ba,\n        \"balance_dev_pct\": ba - k[\"kb\"] * 100, \"up_torque_expected_nm\": ue, \"down_torque_expected_nm\": de,\n        \"up_torque_residual_nm\": r[\"up_torque_nm\"] - ue, \"down_torque_residual_nm\": r[\"down_torque_nm\"] - de,\n        \"door_close_ratio\": r[\"door_close_time_s\"] / k[\"close0\"], \"door_current_ratio\": r[\"door_close_current_a\"] / k[\"amp0\"],\n        \"reopen_rate_pct\": r[\"door_reopens_1h\"] / st * 100, \"relevel_rate_pct\": r[\"relevels_1h\"] / st * 100,\n        \"brake_test_ratio\": r[\"brake_test_torque_nm\"] / brake_required_nm(k),\n        \"energy_per_trip_wh\": ept, \"energy_expected_wh\": eex, \"energy_ratio\": ept / eex,\n        \"rope_life_used_pct\": r[\"trips_since_rope_change\"] / (k[\"rope\"] / 100), \"starts_ratio\": r[\"starts_1h\"] / k[\"starts\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"EL_BRAKE_TEST_FAIL\", f\"{p['BR']} < {L['brake_margin_limit']}\", \"Critical\", \"brake_wear\"),\n        (\"EL_DOOR_LOCK_FAIL\", f\"df['DOOR_LOCK_FAILS_24H'] > {L['lock_fails_alert']}\", \"High\", \"door_lock_fault\"),\n        (\"EL_LEVELLING\", f\"df['LEVEL_ERROR_MAX_MM'] > {k['stop_acc']}\", \"High\", \"levelling_drift\"),\n        (\"EL_BRAKE_MARGIN_LOW\", f\"({p['BR']} < {L['brake_margin_alert']}) & ({p['BR']} >= {L['brake_margin_limit']})\", \"Medium\", \"brake_wear\"),\n        (\"EL_BRAKE_TEST_OVERDUE\", f\"df['BRAKE_TEST_HOURS_SINCE'] > {L['brake_test_max_h']}\", \"Medium\", None),\n        (\"EL_DOOR_SLOW\", f\"(df['DOOR_CLOSE_TIME_S'] / {k['close0']}) > {L['door_close_ratio_alert']}\", \"Medium\", \"door_obstruction\"),\n        (\"EL_DOOR_CURRENT_HIGH\", f\"(df['DOOR_CLOSE_CURRENT_A'] / {k['amp0']}) > {L['door_current_ratio_alert']}\", \"Medium\", \"door_obstruction\"),\n        (\"EL_DOOR_REOPENS\", f\"(df['DOOR_REOPENS_1H'] / {p['ST']} * 100) > {L['reopen_rate_alert_pct']}\", \"Medium\", \"light_curtain_fault\"),\n        (\"EL_BALANCE_OFF\", f\"np.abs({p['BA']} - {k['kb'] * 100}) > {L['balance_dev_alert_pct']}\", \"Medium\", \"counterweight_imbalance\"),\n        (\"EL_FRICTION_HIGH\", f\"{p['FA']} > {L['friction_alert_kn']}\", \"Medium\", \"guide_friction_high\"),\n        (\"EL_RIDE_LATERAL\", f\"df['VIB_LATERAL_MG'] > {L['vib_lateral_alert_mg']}\", \"Medium\", \"guide_friction_high\"),\n        (\"EL_RELEVEL_HIGH\", f\"(df['RELEVELS_1H'] / {p['ST']} * 100) > {L['relevel_rate_alert_pct']}\", \"Medium\", \"levelling_drift\"),\n        (\"EL_ENERGY_HIGH\", f\"({p['EPT']} / {p['EEX']}) > {L['energy_ratio_alert']}\", \"Medium\", \"regen_lost\"),\n        (\"EL_ROPE_LIFE\", f\"(df['TRIPS_SINCE_ROPE_CHANGE'] / {k['rope'] / 100}) > {L['rope_life_alert_pct']}\", \"Medium\", None),\n        (\"EL_STARTS_HIGH\", f\"df['STARTS_1H'] > {k['starts']}\", \"Low\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    br, bd = t[\"brake_test_ratio\"], t[\"balance_dev_pct\"]\n    add(br < L[\"brake_margin_limit\"], \"EL_BRAKE_TEST_FAIL\", \"Critical\",\n        f\"Brake held only {br:.2f} x the test torque: take the elevator out of service\", \"brake\", \"brake_wear\")\n    add(r[\"door_lock_fails_24h\"] > L[\"lock_fails_alert\"], \"EL_DOOR_LOCK_FAIL\", \"High\",\n        f\"{r['door_lock_fails_24h']:.0f} closings in 24 h without the door lock contact made\", \"doors\", \"door_lock_fault\")\n    add(r[\"level_error_max_mm\"] > k[\"stop_acc\"], \"EL_LEVELLING\", \"High\",\n        f\"Car stopped {r['level_error_max_mm']:.0f} mm from the landing (limit \u00b1{k['stop_acc']:.0f} mm): trip hazard\", \"hoist\", \"levelling_drift\")\n    add(L[\"brake_margin_limit\"] <= br < L[\"brake_margin_alert\"], \"EL_BRAKE_MARGIN_LOW\", \"Medium\",\n        f\"Brake held {br:.2f} x the test torque, below {L['brake_margin_alert']}\", \"brake\", \"brake_wear\")\n    add(r[\"brake_test_hours_since\"] > L[\"brake_test_max_h\"], \"EL_BRAKE_TEST_OVERDUE\", \"Medium\",\n        f\"Last automatic brake test {r['brake_test_hours_since']:.0f} h ago\", \"brake\")\n    add(t[\"door_close_ratio\"] > L[\"door_close_ratio_alert\"], \"EL_DOOR_SLOW\", \"Medium\",\n        f\"Doors close in {r['door_close_time_s']:.1f} s, {t['door_close_ratio']:.2f} x the commissioning time\", \"doors\", \"door_obstruction\")\n    add(t[\"door_current_ratio\"] > L[\"door_current_ratio_alert\"], \"EL_DOOR_CURRENT_HIGH\", \"Medium\",\n        f\"Door operator draws {r['door_close_current_a']:.2f} A on closing, {t['door_current_ratio']:.2f} x baseline\", \"doors\", \"door_obstruction\")\n    add(t[\"reopen_rate_pct\"] > L[\"reopen_rate_alert_pct\"], \"EL_DOOR_REOPENS\", \"Medium\",\n        f\"Doors reopened on {t['reopen_rate_pct']:.0f} % of closings in the last hour\", \"doors\", \"light_curtain_fault\")\n    add(abs(bd) > L[\"balance_dev_alert_pct\"], \"EL_BALANCE_OFF\", \"Medium\",\n        f\"Counterweight balances {t['balance_apparent_pct']:.0f} % of the rated load, design {k['kb'] * 100:.0f} %\", \"hoist\", \"counterweight_imbalance\")\n    add(t[\"friction_apparent_kn\"] > L[\"friction_alert_kn\"], \"EL_FRICTION_HIGH\", \"Medium\",\n        f\"Running friction {t['friction_apparent_kn']:.2f} kN, design {k['ff']:.2f} kN\", \"guides\", \"guide_friction_high\")\n    add(r[\"vib_lateral_mg\"] > L[\"vib_lateral_alert_mg\"], \"EL_RIDE_LATERAL\", \"Medium\",\n        f\"Horizontal vibration {r['vib_lateral_mg']:.0f} mg peak-to-peak\", \"guides\", \"guide_friction_high\")\n    add(t[\"relevel_rate_pct\"] > L[\"relevel_rate_alert_pct\"], \"EL_RELEVEL_HIGH\", \"Medium\",\n        f\"Re-levelled after {t['relevel_rate_pct']:.0f} % of the stops in the last hour\", \"hoist\", \"levelling_drift\")\n    add(t[\"energy_ratio\"] > L[\"energy_ratio_alert\"], \"EL_ENERGY_HIGH\", \"Medium\",\n        f\"{t['energy_per_trip_wh']:.1f} Wh per trip, {t['energy_ratio']:.2f} x the reference cycle\", \"drive\", \"regen_lost\")\n    add(t[\"rope_life_used_pct\"] > L[\"rope_life_alert_pct\"], \"EL_ROPE_LIFE\", \"Medium\",\n        f\"Ropes at {t['rope_life_used_pct']:.0f} % of their expected life in trips: plan the rope change\", \"ropes\")\n    add(r[\"starts_1h\"] > k[\"starts\"], \"EL_STARTS_HIGH\", \"Low\", f\"{r['starts_1h']:.0f} starts in the last hour, rated {k['starts']}\", \"drive\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "EL-5701 passenger elevator twin. Expected values in Maximo Monitor come from the design data (load, counterweight balance, friction, door and energy baselines); the controller sends only what it measures.", "twin": {"id": "EL-5701", "name": "Passenger elevator EL-5701", "version": "1.0.0", "folder": "elevator-twin"}, "identification": {"asset": "EL-5701", "assetnum": "EL-5701", "manufacturer": "KONE", "model": "MonoSpace 500 (1000 kg, 13 persons, 1.6 m/s)", "description": "Passenger elevator 1 of the office tower lobby group: 12 stops, 44 m travel, machine-room-less traction", "machine": "KONE EcoDisc gearless permanent-magnet hoisting machine in the shaft, double brake, steel ropes", "drive": "VVVF (variable-voltage variable-frequency) regenerative drive, torque estimate per trip", "doors": "Centre-opening car and landing doors, 900 mm clear opening, door operator with its own controller, curtain of light", "monitoring": "Elevator controller and drive event log, car load weighing, car-top accelerometer (ride quality), energy meter on the lift supply"}, "design": {"car": {"rated_load_kg": 1000.0, "persons": 13, "car_width_mm": 1100, "car_depth_mm": 2100, "speed_ms": 1.6, "source": "KONE MonoSpace 500 planning guide (kone.co.il, 2018) and UK brochure (kone.co.uk): rated load 1000 kg = 13 persons, car 1100 x 2100 mm, 1.6 m/s within the duty range (1000 kg, 75 m, 24 stops)."}, "shaft": {"stops": 12, "floor_height_m": 4.0, "travel_m": 44.0, "pit_mm": 1200, "source": "12 stops at 4.0 m floor height (assumption: typical value, replace with your lift's commissioning report / maker's data); pit 1200 mm at 1.6 m/s from the KONE MonoSpace 500 planning guide (kone.co.il, 2018) and UK brochure (kone.co.uk)."}, "hoist": {"balance_ratio": 0.45, "sheave_d_m": 0.4, "roping": 2, "friction_kn": 0.6, "g": 9.81, "source": "Counterweight = car + 45 % of the rated load (balance ratio), traction sheave diameter, 2:1 roping and the running friction of guide shoes, rope bending and sheave bearings referred to the car (kN): assumption: typical value, replace with your lift's commissioning report / maker's data."}, "doors": {"clear_opening_mm": 900, "type": "centre opening", "open_time_s": 2.0, "close_time_s": 2.8, "close_current_a": 1.5, "source": "Clear opening and type from the options of the KONE MonoSpace 500 planning guide (kone.co.il, 2018) and UK brochure (kone.co.uk). Opening time, closing time and the peak operator current on closing, measured at commissioning: assumption: typical value, replace with your lift's commissioning report / maker's data."}, "ride": {"stop_accuracy_mm": 10.0, "level_accuracy_mm": 20.0, "jerk_ms3": 1.0, "accel_ms2": 0.7, "source": "Stopping accuracy +/-10 mm and levelling accuracy +/-20 mm: EN 81-70:2003 clause 5.3.3 (moved into EN 81-20 in 2018). Jerk and acceleration of the drive's travel curve: assumption: typical value, replace with your lift's commissioning report / maker's data."}, "brake": {"test_required_load_ratio": 1.25, "source": "The daily automatic brake test of the drive (KONE EN 81-20 fact sheet: automated daily testing of brake torque). Reference torque = torque to hold 125 % of the rated load against the counterweight: assumption, a load ratio commonly used for brake checks; replace with your maker's test setting."}, "energy": {"e_start_wh": 8.0, "e_metre_wh": 0.9, "standby_w": 120.0, "source": "Running energy per start (acceleration, braking, door cycle) and per metre travelled, and the standby power, measured on a reference cycle at commissioning in the way ISO 25745-1 describes: assumption: typical value, replace with your lift's commissioning report / maker's data. Annual energy by the ISO 25745-2 method is in the maker's EPD."}, "ropes": {"life_trips": 1500000.0, "source": "Expected rope life in trips for this sheave and roping: assumption: typical value, replace with your lift's commissioning report / maker's data (replace with the rope maker's or the lift maker's figure)."}, "traffic": {"rated_starts_per_h": 180, "source": "Rated starts per hour of the machine and drive: assumption: typical value, replace with your lift's commissioning report / maker's data."}, "demo": {"time_scale": 1, "min_starts_per_h": 60, "rope_trips_now": 900000.0, "note": "Demo only: the car serves a new call every few seconds whatever the hour so the 3D view is always moving; the counters (trips per day, starts per hour) follow an office day profile on the plant clock, with at least 60 starts per hour so the per-hour rates work at night."}}, "telemetry": {"event": "elevator", "publish_every_s": 10, "device_type": "ELEVATOR_TRACTION_MRL", "groups": {"Car": "Car position, load and motion", "Hoist": "Constant-speed torque of the last trips", "Door": "Door operator", "Ride": "Levelling and ride quality", "Brake": "Automatic brake test", "Energy": "Energy meter", "Traffic": "Trips and starts", "Status": "Elevator state"}, "points": [{"metric": "car_floor", "path": "Car.Floor", "label": "Car position (floor, 0 = ground)", "unit": "floor"}, {"metric": "car_speed_ms", "path": "Car.Speed", "label": "Car speed (+ up)", "unit": "m/s"}, {"metric": "car_load_kg", "path": "Car.Load", "label": "Car load (load weighing)", "unit": "kg"}, {"metric": "door_position_pct", "path": "Door.Position", "label": "Car door position (100 = open)", "unit": "%"}, {"metric": "up_torque_nm", "path": "Hoist.UpTorque", "label": "Motor torque at constant speed, last up trip (mid-shaft)", "unit": "N\u00b7m"}, {"metric": "up_load_kg", "path": "Hoist.UpLoad", "label": "Car load on the last up trip", "unit": "kg"}, {"metric": "down_torque_nm", "path": "Hoist.DownTorque", "label": "Motor torque at constant speed, last down trip (mid-shaft)", "unit": "N\u00b7m"}, {"metric": "down_load_kg", "path": "Hoist.DownLoad", "label": "Car load on the last down trip", "unit": "kg"}, {"metric": "door_open_time_s", "path": "Door.OpenTime", "label": "Door opening time, mean of the last hour", "unit": "s"}, {"metric": "door_close_time_s", "path": "Door.CloseTime", "label": "Door closing time, mean of the last hour", "unit": "s"}, {"metric": "door_close_current_a", "path": "Door.CloseCurrent", "label": "Door operator peak current on closing, mean of the last hour", "unit": "A"}, {"metric": "door_reopens_1h", "path": "Door.Reopens", "label": "Door reopenings by the light curtain, last hour", "unit": "count"}, {"metric": "door_lock_fails_24h", "path": "Door.LockFails", "label": "Door closed but lock contact not made, last 24 h", "unit": "count"}, {"metric": "level_error_max_mm", "path": "Ride.LevelErrorMax", "label": "Largest stopping error at the landings, last hour", "unit": "mm"}, {"metric": "relevels_1h", "path": "Ride.Relevels", "label": "Re-levelling runs, last hour", "unit": "count"}, {"metric": "vib_lateral_mg", "path": "Ride.VibLateral", "label": "Horizontal vibration, A95 peak-to-peak (car top)", "unit": "mg"}, {"metric": "vib_vertical_mg", "path": "Ride.VibVertical", "label": "Vertical vibration, A95 peak-to-peak (car top)", "unit": "mg"}, {"metric": "jerk_max_ms3", "path": "Ride.JerkMax", "label": "Largest jerk, last trip", "unit": "m/s\u00b3"}, {"metric": "brake_test_torque_nm", "path": "Brake.TestTorque", "label": "Torque the closed brake held in the last automatic test", "unit": "N\u00b7m"}, {"metric": "brake_test_hours_since", "path": "Brake.HoursSince", "label": "Hours since the last automatic brake test", "unit": "h"}, {"metric": "energy_kwh_24h", "path": "Energy.Day", "label": "Energy of the lift supply, last 24 h", "unit": "kWh"}, {"metric": "standby_power_w", "path": "Energy.Standby", "label": "Power while parked with doors closed (last standby period)", "unit": "W"}, {"metric": "trips_24h", "path": "Traffic.Trips", "label": "Trips, last 24 h", "unit": "count"}, {"metric": "distance_m_24h", "path": "Traffic.Distance", "label": "Distance travelled, last 24 h", "unit": "m"}, {"metric": "starts_1h", "path": "Traffic.Starts", "label": "Motor starts, last hour", "unit": "count"}, {"metric": "trips_since_rope_change", "path": "Traffic.RopeTrips", "label": "Trips since the ropes were changed", "unit": "count"}, {"metric": "in_service", "path": "Status.InService", "label": "In service (1) or out of service (0)", "unit": "code"}]}, "twin_model": {"limits": {"door_close_ratio_alert": 1.25, "door_current_ratio_alert": 1.4, "reopen_rate_alert_pct": 15.0, "lock_fails_alert": 4, "rate_min_starts": 20, "balance_dev_alert_pct": 5.0, "friction_alert_kn": 1.0, "vib_lateral_alert_mg": 20.0, "relevel_rate_alert_pct": 10.0, "brake_margin_alert": 1.3, "brake_margin_limit": 1.0, "brake_test_max_h": 30.0, "energy_ratio_alert": 1.3, "rope_life_alert_pct": 85.0, "source": "Alert limits: assumption: typical value, replace with your lift's commissioning report / maker's data. The stopping accuracy limit is EN 81-70:2003 5.3.3 (+/-10 mm, now in EN 81-20); ISO 18738-1 defines how ride vibration is measured but sets no limit, so the vibration limit is the commissioning baseline plus margin."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "door_obstruction": {"name": "Door sill debris or worn door rollers", "part": "doors", "symptoms": "doors close slower and the operator draws more current to push them", "rules": ["EL_DOOR_SLOW", "EL_DOOR_CURRENT_HIGH"], "default_ramp_min": 1.5}, "light_curtain_fault": {"name": "Light curtain dirty or misaligned", "part": "doors", "symptoms": "doors reopen on many closings with nobody in the way", "rules": ["EL_DOOR_REOPENS"], "default_ramp_min": 1}, "door_lock_fault": {"name": "Landing door lock contact fault", "part": "doors", "symptoms": "door closes but the safety circuit stays open: retries, then the car is taken out of service", "rules": ["EL_DOOR_LOCK_FAIL"], "default_ramp_min": 1}, "counterweight_imbalance": {"name": "Counterweight out of balance (car mass changed)", "part": "hoist", "symptoms": "torque high on every up trip and low on every down trip by the same amount", "rules": ["EL_BALANCE_OFF"], "default_ramp_min": 1}, "guide_friction_high": {"name": "Guide shoe wear or rail misalignment", "part": "guides", "symptoms": "running friction up, torque up going up and down going down, car shakes sideways", "rules": ["EL_FRICTION_HIGH", "EL_RIDE_LATERAL"], "default_ramp_min": 1.5}, "brake_wear": {"name": "Brake lining wear or brake spring weak", "part": "brake", "symptoms": "the automatic brake test holds less torque each day", "rules": ["EL_BRAKE_MARGIN_LOW", "EL_BRAKE_TEST_FAIL"], "default_ramp_min": 1.5}, "levelling_drift": {"name": "Levelling drift (rope slip in worn sheave grooves, encoder)", "part": "hoist", "symptoms": "the car stops further from the landing and re-levels more often", "rules": ["EL_LEVELLING", "EL_RELEVEL_HIGH"], "default_ramp_min": 1}, "regen_lost": {"name": "Regenerative drive not feeding back (energy burned in the resistor)", "part": "drive", "symptoms": "energy per trip up at the same traffic", "rules": ["EL_ENERGY_HIGH"], "default_ramp_min": 1}}, "presentation": {"title": "EL-5701 passenger elevator", "dashboard": "ELEVATOR_TRACTION_MRL"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, follow = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 400);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const NF = 12, FH = 3.0;                  // 12 stops, drawn floor spacing (real 4.0 m)
+const TOP = (NF - 1) * FH + 4.2;          // top of the shaft (headroom)
+const home = () => { cam.position.set(24, TOP * .6, 62); ctl.target.set(0, TOP * .53, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(10, 40, 20); scene.add(sun);
+scene.add(new THREE.GridHelper(30, 30, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), blue = M(0x2f6db5, { m: .35 }), rail = M(0x6f747a, { m: .7, r: .35 });
+const wallMat = M(0x9aa1a8, { r: .9, t: .18, ds: true }), slab = M(0x5a5f66, { r: .9, t: .55 });
+const cyl = (r1, r2, h, m, s = 28) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// shaft: car 1.1 m wide x 2.1 m deep (x = width, z = depth, landing doors on +z), counterweight beside the car on -x
+const CW = 1.1, CD = 2.1, CH = 2.3, SW = 2.25, SD = 2.5, CX = .35, CWX = -.8;
+const shaft = new THREE.Group(); scene.add(shaft);
+[[-SW / 2 - .05, 0, .1, SD], [SW / 2 + .05, 0, .1, SD]].forEach(([x, z, w, d]) => shaft.add(at(box(w, TOP, d, wallMat), x, TOP / 2, z)));
+shaft.add(at(box(SW + .2, TOP, .1, wallMat), 0, TOP / 2, -SD / 2 - .05));
+// floor slabs and landing doors (front wall pieces) on every floor
+const landing = [];
+for (let f = 0; f < NF; f++) {
+  const y = f * FH;
+  scene.add(at(box(3.2, .18, 1.6, slab), CX, y - .09, SD / 2 + .85));
+  const a0 = -SW / 2 - .1, a1 = CX - .47, b0 = CX + .47, b1 = SW / 2 + .1;   // wall left and right of the door opening
+  shaft.add(at(box(a1 - a0, FH - .1, .1, wallMat), (a0 + a1) / 2, y + (FH - .1) / 2, SD / 2 + .05));
+  shaft.add(at(box(b1 - b0, FH - .1, .1, wallMat), (b0 + b1) / 2, y + (FH - .1) / 2, SD / 2 + .05));
+  shaft.add(at(box(.94, FH - 2.2, .1, wallMat), CX, y + 2.15 + (FH - 2.2) / 2, SD / 2 + .05));
+  const l = at(box(.46, 2.1, .04, steel.clone()), CX - .23, y + 1.05, SD / 2 + .02), r = at(box(.46, 2.1, .04, steel.clone()), CX + .23, y + 1.05, SD / 2 + .02);
+  scene.add(l, r); landing.push([l, r]);
+}
+// guide rails for the car and the counterweight
+[[CX - CW / 2 - .1, 0], [CX + CW / 2 + .1, 0]].forEach(([x, z]) => scene.add(at(box(.07, TOP, .12, rail), x, TOP / 2, z)));
+[[CWX - .25, -.55], [CWX - .25, .55]].forEach(([x, z]) => scene.add(at(box(.05, TOP, .08, rail), x, TOP / 2, z)));
+// machine at the top of the shaft: flat disc motor (EcoDisc type) with the traction sheave and the double brake
+const machine = new THREE.Group(); at(machine, (CX + CWX) / 2 - .1, TOP - .6, -SD / 2 + .45); scene.add(machine);
+const disc = cyl(.55, .55, .22, blue.clone(), 40); disc.rotation.x = Math.PI / 2; machine.add(disc);
+const sheave = cyl(.2, .2, .18, steel, 30); sheave.rotation.x = Math.PI / 2; at(sheave, 0, 0, .2); machine.add(sheave);
+const brakes = [-1, 1].map(s => { const b = box(.18, .16, .12, M(0x8a7a2a, { m: .3 })); at(b, s * .48, .25, .05); machine.add(b); return b; });
+machine.add(at(box(1.4, .1, .5, dark), 0, -.6, 0));
+// car: cabin with centre-opening car doors, pulleys under the car (2:1)
+const car = new THREE.Group(); scene.add(car);
+const cabMat = M(0xd0d4d9, { m: .5, r: .35, t: 1 });
+car.add(at(box(CW, CH, CD, cabMat), 0, CH / 2, 0));
+car.add(at(box(CW + .3, .25, CD + .1, dark), 0, -.13, 0));
+car.add(at(box(CW + .3, .15, CD + .1, dark), 0, CH + .08, 0));
+const carDoors = [-1, 1].map(s => { const d = box(.46, 2.1, .04, steel.clone()); at(d, s * .23, 1.05, CD / 2 + .04); car.add(d); return d; });
+const curtain = at(box(.03, 2.0, .03, M(0xda1e28, { m: 0, r: 1 })), -.5, 1.05, CD / 2 + .08); car.add(curtain);
+const carPulleys = [-1, 1].map(s => { const p = cyl(.16, .16, .1, steel); p.rotation.x = Math.PI / 2; at(p, s * .62, -.3, -.4); car.add(p); return p; });
+const loadBox = at(box(.7, .5, 1.2, M(0x8a3ffc, { t: .5 })), 0, .25, 0); car.add(loadBox);
+// counterweight with its pulley
+const cw = new THREE.Group(); scene.add(cw);
+cw.add(at(box(.38, 2.4, 1.0, M(0x6f6f6f, { r: .8 })), 0, 1.2, 0));
+const cwP = cyl(.16, .16, .1, steel); cwP.rotation.x = Math.PI / 2; at(cwP, 0, 2.6, 0); cw.add(cwP);
+// ropes: dead-end hitch -> under the car -> sheave -> counterweight pulley -> dead-end hitch (drawn as straight lines)
+const ropeMat = new THREE.LineBasicMaterial({ color: 0xe0e0e0 });
+const ropeGeo = new THREE.BufferGeometry(); const rope = new THREE.Line(ropeGeo, ropeMat); scene.add(rope);
+function ropes(cy, wy) {
+  const sx = machine.position.x, sy = machine.position.y, z = -.4;
+  const P = [[CX - .62 - .16, TOP - .15, z], [CX - .62 - .16, cy - .3, z], [CX + .62 + .16, cy - .3, z], [CX + .62 + .16, TOP - .25, z], [sx + .2, sy, z],
+    [sx - .2, sy, z], [CWX + .16, wy + 2.6, 0], [CWX - .16, wy + 2.6, 0], [CWX - .16, TOP - .15, 0]];
+  ropeGeo.setFromPoints(P.map(p => new THREE.Vector3(...p)));
+}
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos, obj) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos), obj }; }
+lbl('mach', [-6.5, 1.0, 0], machine); lbl('brake', [6.0, 1.0, 0], machine); lbl('cw', [-4.5, 1.2, 0], cw);
+lbl('load', [0, CH + .4, 0], car); lbl('door', [6.0, 1.9, CD / 2 + .2], car); lbl('level', [6.0, -.6, CD / 2], car); lbl('ride', [-6.5, .4, -.6], car);
+lbl('energy', [-6.5, 7.5, SD / 2], null); lbl('rope', [-6.5, TOP - 7, 0], null);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) {
+    const L = LBL[k], p = L.pos.clone(); if (L.obj) L.obj.localToWorld(p);
+    const v = p.project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px';
+  }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let carFloor = 0, doorPct = 100, speed = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  carFloor = r.car_floor; doorPct = r.door_position_pct; speed = r.car_speed_ms;
+  setLbl('mach', 'torque last up · last down (expected)', `${fmt(r.up_torque_nm, 0)} (${fmt(t.up_torque_expected_nm, 0)}) · ${fmt(r.down_torque_nm, 0)} (${fmt(t.down_torque_expected_nm, 0)}) N·m`, st(names.has('EL_BALANCE_OFF') || names.has('EL_FRICTION_HIGH')));
+  setLbl('brake', 'brake test ÷ required torque', `${fmt(t.brake_test_ratio)} · ${fmt(r.brake_test_hours_since, 1)} h ago`, st(names.has('EL_BRAKE_TEST_FAIL'), names.has('EL_BRAKE_MARGIN_LOW') || names.has('EL_BRAKE_TEST_OVERDUE')));
+  setLbl('cw', 'apparent balance · friction', `${fmt(t.balance_apparent_pct, 1)} % · ${fmt(t.friction_apparent_kn)} kN`, st(names.has('EL_BALANCE_OFF') || names.has('EL_FRICTION_HIGH')));
+  setLbl('load', 'car load · speed · floor', `${fmt(r.car_load_kg, 0)} kg · ${fmt(r.car_speed_ms)} m/s · ${fmt(r.car_floor, 1)}`, '');
+  setLbl('door', 'door close time · current · reopen rate', `${fmt(r.door_close_time_s)} s · ${fmt(r.door_close_current_a)} A · ${fmt(t.reopen_rate_pct, 0)} %`, st(names.has('EL_DOOR_LOCK_FAIL'), names.has('EL_DOOR_SLOW') || names.has('EL_DOOR_CURRENT_HIGH') || names.has('EL_DOOR_REOPENS')));
+  setLbl('level', 'worst stop error · re-levels', `${fmt(r.level_error_max_mm, 1)} mm · ${fmt(t.relevel_rate_pct, 0)} %`, st(names.has('EL_LEVELLING'), names.has('EL_RELEVEL_HIGH')));
+  setLbl('ride', 'vibration horizontal · vertical (A95)', `${fmt(r.vib_lateral_mg, 0)} · ${fmt(r.vib_vertical_mg, 0)} mg`, st(names.has('EL_RIDE_LATERAL')));
+  setLbl('energy', 'energy per trip · reference', `${fmt(t.energy_per_trip_wh, 1)} · ${fmt(t.energy_expected_wh, 1)} Wh`, st(names.has('EL_ENERGY_HIGH')));
+  setLbl('rope', 'rope life used · trips 24 h', `${fmt(t.rope_life_used_pct, 0)} % · ${r.trips_24h}`, st(names.has('EL_ROPE_LIFE')));
+  $('k-health').textContent = ST.health; $('k-bal').textContent = fmt(t.balance_apparent_pct, 1); $('k-fr').textContent = fmt(t.friction_apparent_kn);
+  const doorBad = names.has('EL_DOOR_LOCK_FAIL') || names.has('EL_DOOR_SLOW') || names.has('EL_DOOR_CURRENT_HIGH') || names.has('EL_DOOR_REOPENS');
+  $('c-door-t').textContent = `doors close ${fmt(r.door_close_time_s, 1)} s`; $('c-door').className = 'chip ' + (doorBad ? 'bad' : t.door_close_ratio > 1.12 ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row(`Up torque at ${fmt(r.up_load_kg, 0)} kg (N·m)`, fmt(r.up_torque_nm, 0), fmt(t.up_torque_expected_nm, 0), names.has('EL_BALANCE_OFF') || names.has('EL_FRICTION_HIGH')) +
+    row(`Down torque at ${fmt(r.down_load_kg, 0)} kg (N·m)`, fmt(r.down_torque_nm, 0), fmt(t.down_torque_expected_nm, 0), names.has('EL_BALANCE_OFF') || names.has('EL_FRICTION_HIGH')) +
+    row('Counterweight balance (%)', fmt(t.balance_apparent_pct, 1), fmt(d.hoist.balance_ratio * 100, 0), names.has('EL_BALANCE_OFF')) +
+    row('Running friction (kN)', fmt(t.friction_apparent_kn), fmt(d.hoist.friction_kn), names.has('EL_FRICTION_HIGH')) +
+    row('Door close time (s)', fmt(r.door_close_time_s), fmt(d.doors.close_time_s), names.has('EL_DOOR_SLOW')) +
+    row('Door close current (A)', fmt(r.door_close_current_a), fmt(d.doors.close_current_a), names.has('EL_DOOR_CURRENT_HIGH')) +
+    row('Door reopenings (%)', fmt(t.reopen_rate_pct, 1), '< ' + L.reopen_rate_alert_pct, names.has('EL_DOOR_REOPENS')) +
+    row('Lock fails (24 h)', fmt(r.door_lock_fails_24h, 0), '≤ ' + L.lock_fails_alert, names.has('EL_DOOR_LOCK_FAIL')) +
+    row('Worst stop error (mm)', fmt(r.level_error_max_mm, 1), '≤ ' + d.ride.stop_accuracy_mm, names.has('EL_LEVELLING')) +
+    row('Re-levellings (%)', fmt(t.relevel_rate_pct, 1), '< ' + L.relevel_rate_alert_pct, names.has('EL_RELEVEL_HIGH')) +
+    row('Horizontal vibration (mg)', fmt(r.vib_lateral_mg, 1), '< ' + L.vib_lateral_alert_mg, names.has('EL_RIDE_LATERAL')) +
+    row('Brake test ÷ required', fmt(t.brake_test_ratio), '≥ ' + L.brake_margin_alert, names.has('EL_BRAKE_TEST_FAIL') || names.has('EL_BRAKE_MARGIN_LOW')) +
+    row('Energy per trip (Wh)', fmt(t.energy_per_trip_wh, 1), fmt(t.energy_expected_wh, 1), names.has('EL_ENERGY_HIGH')) +
+    row('Starts last hour', fmt(r.starts_1h, 0), '≤ ' + d.traffic.rated_starts_per_h, names.has('EL_STARTS_HIGH')) +
+    row('Rope life used (%)', fmt(t.rope_life_used_pct, 0), '< ' + L.rope_life_alert_pct, names.has('EL_ROPE_LIFE'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the elevator behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  const brBad = names.has('EL_BRAKE_TEST_FAIL'), brWarn = names.has('EL_BRAKE_MARGIN_LOW');
+  brakes.forEach(b => b.material.color.setHex(brBad ? 0xda1e28 : brWarn ? 0xd8a31a : 0x8a7a2a));
+  carDoors.forEach(dd => dd.material.color.setHex(doorBad ? 0xff832b : 0xb9bec4));
+  curtain.material.color.setHex(names.has('EL_DOOR_REOPENS') ? 0xffd000 : 0xda1e28);
+  loadBox.scale.y = Math.max(.05, r.car_load_kg / d.car.rated_load_kg * 2); loadBox.position.y = .25 * loadBox.scale.y;
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = () => { follow = false; $('t-car').classList.remove('on'); home(); };
+$('t-car').onclick = () => { follow = !follow; $('t-car').classList.toggle('on', follow); };
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  wallMat.opacity = cut ? .03 : .18; cabMat.transparent = true; cabMat.opacity = cut ? .25 : 1; cabMat.depthWrite = !cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), shownF = 0, shownD = 100;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  // the state arrives every second: glide towards it so the car moves smoothly
+  shownF += (carFloor - shownF) * Math.min(1, dt * 2.5);
+  shownD += (doorPct - shownD) * Math.min(1, dt * 4);
+  const cy = shownF * FH, wy = (TOP - 3.4) - cy * ((TOP - 4) / ((NF - 1) * FH));
+  at(car, CX, cy, 0); at(cw, CWX, Math.max(.3, wy), 0); ropes(cy, Math.max(.3, wy));
+  const open = shownD / 100 * .45;
+  carDoors.forEach((dd, i) => dd.position.x = (i ? 1 : -1) * (.23 + open));
+  const nearest = Math.round(shownF), atFloor = Math.abs(shownF - nearest) < .03;
+  landing.forEach(([l, r], f) => { const o = (atFloor && f === nearest) ? open : 0; l.position.x = CX - .23 - o; r.position.x = CX + .23 + o; });
+  const w = speed * dt * (TW ? TW.design.hoist.roping : 2);
+  sheave.rotation.y += w / .2; disc.rotation.y += w / .2; carPulleys.forEach(p => p.rotation.y -= w / .16); cwP.rotation.y += w / .16;
+  if (follow) { ctl.target.set(CX, cy + 1.2, 0); cam.position.set(CX + 7, cy + 3, 9); }
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GPU-5901 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>GPU-5901</b><span class="g">400 Hz ground power unit · 90 kVA · contact stand</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-ac"><span class="dot"></span><span id="c-ac-t">stand –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Voltage, efficiency and cooling →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the ground power unit model…</div>
+<div class="credit">90 kVA solid-state 400 Hz GPU under a passenger boarding bridge, 28 m cable coil, aircraft connector at the nose of a narrow-body. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The GPU raises its output by the drop the cable model expects; the plug-head sense shows what the aircraft really gets (113–118 V).</div>
+<aside>
+  <section>
+    <h2>GPU-5901 twin</h2>
+    <p class="sub" id="sub">400 Hz ground power</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>At the aircraft<b id="k-conn">–</b></div><div>CO₂ avoided<b id="k-co2">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures. The cable drop, the output setpoint, the expected losses, efficiency and heat-sink temperature, and the fuel and CO₂ avoided are computed from the twin file: the data sheet, the cable data and the aircraft power limits.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for GPU-5901: the 400 Hz converter, its output contactor, the 28 m aircraft cable and connector, the cooling\nand the parked aircraft (load and APU), with injectable faults.\n\nThe real device sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages. Pure Python (math, random), so it also runs in Pyodide.\n\"\"\"\nimport math\nimport random\n\n\nclass GPU:\n    \"\"\"One steady reading at a given aircraft load. Faults are severities 0..1.\"\"\"\n\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.ra, self.ef, self.cb, self.th, self.ap = d[\"rating\"], d[\"efficiency\"], d[\"cable\"], d[\"thermal\"], d[\"apu\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        pf = self.ef[\"eff_full_kva\"] * self.ef[\"pf\"]\n        self.kq = (pf / self.ef[\"eff_full\"] - pf - self.ef[\"no_load_loss_kw\"]) / self.ef[\"eff_full_kva\"] ** 2\n        self.r = self.cb[\"r_mohm_per_m\"] * self.cb[\"length_m\"] / 1000\n        self.x = self.cb[\"x_mohm_per_m_400hz\"] * self.cb[\"length_m\"] / 1000\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def loss(self, kva):\n        \"\"\"True converter loss (kW): the data-sheet model plus the 'power_stage_losses' fault (constant extra loss).\"\"\"\n        return self.ef[\"no_load_loss_kw\"] + self.kq * kva ** 2 + 2.5 * self.faults[\"power_stage_losses\"]\n\n    def state(self, kva=None, pf=None, connected=True, ambient=30.0):\n        kva = self.ap[\"aircraft_load_kva\"] if kva is None else kva\n        pf = self.ap[\"aircraft_pf\"] if pf is None else pf\n        if not connected:\n            kva = 0.0\n        loss = self.loss(kva)\n        return {\"connected\": connected, \"kva\": kva, \"pf\": pf, \"ambient\": ambient, \"loss\": loss,\n                \"heatsink\": ambient + self.th[\"rth_k_per_kw\"] * loss + 40.0 * self.faults[\"cooling_degraded\"]}\n\n    def measure(self, s=None, counters=None):\n        \"\"\"One published message for the true state s (default: aircraft on the GPU at its nominal load).\"\"\"\n        s = s or self.state()\n        f = self.faults\n        vn = self.ra[\"v_ln_nom\"]\n        on = s[\"connected\"]\n        pf = s[\"pf\"]\n        sin = math.sqrt(1 - pf * pf)\n        u_out, i_ph, conn = [], [], []\n        for ph, imb in enumerate((1.0, 1.01, 0.99)):\n            i = s[\"kva\"] * 1000 / (3 * vn) * imb if on else 0.0\n            de = i * (self.r * pf + self.x * sin)                             # the GPU's own cable model (= the twin's)\n            u = vn + de - 3.5 * f[\"voltage_regulation_fault\"] + self.n(0.12)\n            act = de * (1 + 1.2 * f[\"cable_compensation_mismatch\"])           # a longer / other cable than the model\n            if ph == 0:\n                act += i * 0.025 * f[\"connector_pin_wear\"] * pf               # worn pin on phase A: extra contact resistance\n            c = u - act + self.n(0.08) if on else u + self.n(0.08)\n            u_out.append(u), i_ph.append(max(0.0, i + (self.n(0.3) if on else 0.0))), conn.append(c)\n        s_kva = sum(a * b for a, b in zip(u_out, i_ph)) / 1000\n        p_out = s_kva * pf\n        loss = s[\"loss\"] + self.n(0.04)\n        c = counters or {}\n        return {\n            \"u_out_a\": round(u_out[0], 3), \"u_out_b\": round(u_out[1], 3), \"u_out_c\": round(u_out[2], 3),\n            \"i_a\": round(i_ph[0], 2), \"i_b\": round(i_ph[1], 2), \"i_c\": round(i_ph[2], 2),\n            \"freq_hz\": round(self.ra[\"f_nom_hz\"] + self.n(0.02), 3), \"p_out_kw\": round(p_out, 3),\n            \"thd_v_pct\": round(max(0.3, self.ra[\"thd_typ_pct\"] + 5.0 * f[\"output_filter_aging\"] + self.n(0.08)), 3),\n            \"conn_v_a\": round(conn[0], 3), \"conn_v_b\": round(conn[1], 3), \"conn_v_c\": round(conn[2], 3),\n            \"p_in_kw\": round(p_out + loss, 3), \"heatsink_c\": round(s[\"heatsink\"] + self.n(0.4), 2), \"ambient_c\": round(s[\"ambient\"] + self.n(0.2), 2),\n            \"contactor\": 1 if on else 0, \"apu_running\": 1 if (on and f[\"apu_left_running\"] > 0.5) else 0,\n            \"contactor_ops\": int(c.get(\"contactor_ops\", 61840) + 50000 * f[\"contactor_wear\"]),\n            \"plug_cycles\": int(c.get(\"plug_cycles\", 2460) + 4000 * f[\"connector_pin_wear\"]),\n            \"supply_hours_ytd\": round(c.get(\"supply_hours_ytd\", 3120.0), 1),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    Turnarounds repeat: the aircraft is on the GPU for `demo.turn_connected_min` plant minutes (load wandering around the\n    nominal aircraft load), then the stand is empty for `demo.turn_gap_min`. The plant clock runs `demo.time_scale` times\n    faster than real time. The cycle does not depend on the time of day, so the page opens in a sensible state at any hour.\n    The heat sink follows its losses with a first-order lag.\n    \"\"\"\n    TAU_S = 600.0     # heat-sink thermal time constant, plant seconds (assumption)\n\n    def __init__(self, twin, seed=5901):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.on_s = 60.0 * float(demo.get(\"turn_connected_min\", 40))\n        self.cycle_s = self.on_s + 60.0 * float(demo.get(\"turn_gap_min\", 10))\n        self.g = GPU(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def reset(self):\n        self.phase = 120.0\n        self.hs = None\n        self.counters = {\"contactor_ops\": 61840, \"plug_cycles\": 2460, \"supply_hours_ytd\": 3120.0}\n        self.turn = 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.g.faults[k] = f.sev\n        pdt = dt * self.scale\n        self.t += pdt\n        was_on = self.phase < self.on_s\n        self.phase = (self.phase + pdt) % self.cycle_s\n        on = self.phase < self.on_s\n        if on and not was_on:\n            self.turn += 1\n            self.counters[\"contactor_ops\"] += 1\n            self.counters[\"plug_cycles\"] += 1\n        if on:\n            self.counters[\"supply_hours_ytd\"] += pdt / 3600\n        x = self.phase / self.on_s\n        nom = self.g.ap[\"aircraft_load_kva\"]\n        kva = nom * (0.85 + 0.15 * math.sin(math.pi * x) + 0.05 * math.sin(7 * math.pi * x + self.turn))\n        s = self.g.state(kva, self.g.ap[\"aircraft_pf\"], on, 30.0 + 2.0 * math.sin(self.t / 7200))\n        if self.hs is None or pdt <= 0:\n            self.hs = s[\"heatsink\"] if self.hs is None else self.hs\n        else:\n            a = 1 - math.exp(-pdt / self.TAU_S)\n            self.hs += (s[\"heatsink\"] - self.hs) * a\n        s[\"heatsink\"] = self.hs\n        return s\n\n    def measure(self, true):\n        return self.g.measure(true, self.counters)\n", "twin_calc": "\"\"\"The 400 Hz ground power unit twin's expectations (GPU-5901, 90 kVA solid-state GPU under a boarding bridge).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nLoad (per reading, from the three output voltages and currents at the GPU terminals):\n    S = (Ua Ia + Ub Ib + Uc Ic) / 1000  kVA,   load % = S / S_rated,   PF = P_out / S\nVoltage drop along the aircraft cable (per phase, the usual short-line approximation):\n    dU = I x (R cos phi + X sin phi),   R = r x L,  X = x(400 Hz) x L\n  At 400 Hz the reactance is eight times its 50 Hz value, so X, not R, carries most of the drop. The GPU raises its output\n  by the expected drop so that the aircraft sees 115 V:  U_out setpoint = 115 + dU_expected.\n  The plug-head voltage sense gives the drop actually measured: dU_measured = mean(U_out) - mean(U_connector).\n  drop ratio = dU_measured / dU_expected: 1 when the cable and connector are as modelled.\n  At the aircraft connector the voltage must stay inside 113..118 V (MIL-STD-704 108..118 V inside the aircraft, minus up\n  to 5 V of aircraft wiring, as UFC 3-555-01N writes it); unbalance = max - min of the three connector voltages.\nEfficiency (loss model fitted to the data sheet):\n    P_loss = P0 + k x S^2,   P0 = no-load loss,   k from the efficiency at full load and PF 0.8\n    loss excess = (P_in - P_out) - P_loss expected\nCooling:\n    heat-sink residual = T_heatsink - (T_ambient + Rth x measured loss): positive = the cooling removes less heat than at commissioning\nAPU replacement (while the aircraft is on the GPU and its APU is off):\n    fuel avoided = APU fuel flow,   CO2 avoided = fuel x 3.16 - P_in x grid factor   (kg/h)\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    ra, ef, cb, al, th, we, ap = (d[\"rating\"], d[\"efficiency\"], d[\"cable\"], d[\"aircraft_limits\"], d[\"thermal\"], d[\"wear\"], d[\"apu\"])\n    p_full = ef[\"eff_full_kva\"] * ef[\"pf\"]\n    kq = float(f'{(p_full / ef[\"eff_full\"] - p_full - ef[\"no_load_loss_kw\"]) / ef[\"eff_full_kva\"] ** 2:.6g}')\n    return dict(kva=ra[\"kva\"], vn=ra[\"v_ln_nom\"], fn=ra[\"f_nom_hz\"], ftol=ra[\"f_nom_hz\"] * ra[\"freq_tol_pct\"] / 100,\n                thd_spec=ra[\"thd_spec_pct\"], ovl=ra[\"overload_pct_600s\"], p0=ef[\"no_load_loss_kw\"], kq=kq,\n                r=round(cb[\"r_mohm_per_m\"] * cb[\"length_m\"] / 1000, 9), x=round(cb[\"x_mohm_per_m_400hz\"] * cb[\"length_m\"] / 1000, 9),\n                vmin=al[\"conn_min_v\"], vmax=al[\"conn_max_v\"], thd_lim=al[\"thd_limit_pct\"], rth=th[\"rth_k_per_kw\"],\n                c_life=we[\"contactor_life_ops\"], p_life=we[\"connector_life_cycles\"],\n                fuel=ap[\"fuel_kg_h\"], co2f=ap[\"co2_per_kg_fuel\"], grid=ap[\"grid_kg_co2_per_kwh\"])\n\n\ndef loss_expected(k, kva):\n    return k[\"p0\"] + k[\"kq\"] * kva ** 2\n\n\ndef eff_expected(k, kva, pf=0.8):\n    p = kva * pf\n    return p / (p + loss_expected(k, kva)) if p > 0 else 0.0\n\n\ndef drop_expected(k, i, pf):\n    pf = min(max(pf, 0.0), 1.0)\n    return i * (k[\"r\"] * pf + k[\"x\"] * math.sqrt(1 - pf * pf))\n\n\ndef _parts(twin):\n    k = _k(twin)\n    S = \"((df['U_OUT_A'] * df['I_A'] + df['U_OUT_B'] * df['I_B'] + df['U_OUT_C'] * df['I_C']) / 1000)\"\n    PF = f\"np.clip(df['P_OUT_KW'] / np.maximum({S}, 0.1), 0, 1)\"\n    I = \"((df['I_A'] + df['I_B'] + df['I_C']) / 3)\"\n    UO = \"((df['U_OUT_A'] + df['U_OUT_B'] + df['U_OUT_C']) / 3)\"\n    UC = \"((df['CONN_V_A'] + df['CONN_V_B'] + df['CONN_V_C']) / 3)\"\n    UMIN = \"np.minimum(np.minimum(df['CONN_V_A'], df['CONN_V_B']), df['CONN_V_C'])\"\n    UMAX = \"np.maximum(np.maximum(df['CONN_V_A'], df['CONN_V_B']), df['CONN_V_C'])\"\n    DE = f\"({I} * ({k['r']:.6g} * {PF} + {k['x']:.6g} * np.sqrt(1 - {PF} ** 2)))\"\n    DM = f\"({UO} - {UC})\"\n    LM = \"(df['P_IN_KW'] - df['P_OUT_KW'])\"\n    LE = f\"({k['p0']} + {k['kq']:.6g} * {S} ** 2)\"\n    ON = \"(df['CONTACTOR'] > 0.5)\"\n    return dict(k=k, S=S, PF=PF, I=I, UO=UO, UC=UC, UMIN=UMIN, UMAX=UMAX, DE=DE, DM=DM, LM=LM, LE=LE, ON=ON,\n                LP=f\"({S} / {k['kva']} * 100)\")\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"LOAD_KVA\", p[\"S\"]),\n        (\"LOAD_PCT\", p[\"LP\"]),\n        (\"LOAD_PF\", p[\"PF\"]),\n        (\"V_CONN_AVG\", p[\"UC\"]),\n        (\"V_CONN_MIN\", p[\"UMIN\"]),\n        (\"V_UNBALANCE_V\", f\"{p['UMAX']} - {p['UMIN']}\"),\n        (\"CABLE_DROP_EXPECTED_V\", p[\"DE\"]),\n        (\"CABLE_DROP_MEASURED_V\", p[\"DM\"]),\n        (\"CABLE_DROP_RATIO\", f\"{p['DM']} / np.maximum({p['DE']}, 0.2)\"),\n        (\"V_OUT_SETPOINT_V\", f\"{k['vn']} + {p['DE']}\"),\n        (\"REGULATION_ERROR_V\", f\"{p['UO']} - ({k['vn']} + {p['DE']})\"),\n        (\"FREQ_DEV_HZ\", f\"df['FREQ_HZ'] - {k['fn']}\"),\n        (\"LOSS_MEASURED_KW\", p[\"LM\"]),\n        (\"LOSS_EXPECTED_KW\", p[\"LE\"]),\n        (\"LOSS_EXCESS_KW\", f\"{p['LM']} - {p['LE']}\"),\n        (\"EFFICIENCY\", \"df['P_OUT_KW'] / np.maximum(df['P_IN_KW'], 0.1)\"),\n        (\"EFFICIENCY_EXPECTED\", f\"df['P_OUT_KW'] / np.maximum(df['P_OUT_KW'] + {p['LE']}, 0.1)\"),\n        (\"HEATSINK_RESIDUAL_K\", f\"df['HEATSINK_C'] - (df['AMBIENT_C'] + {k['rth']} * {p['LM']})\"),\n        (\"APU_FUEL_AVOIDED_KG_H\", f\"{p['ON']} * (1 - df['APU_RUNNING']) * {k['fuel']}\"),\n        (\"CO2_AVOIDED_KG_H\", f\"{p['ON']} * (1 - df['APU_RUNNING']) * {k['fuel'] * k['co2f']:.6g} - df['P_IN_KW'] * {k['grid']}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    s = (r[\"u_out_a\"] * r[\"i_a\"] + r[\"u_out_b\"] * r[\"i_b\"] + r[\"u_out_c\"] * r[\"i_c\"]) / 1000\n    pf = min(max(r[\"p_out_kw\"] / max(s, 0.1), 0.0), 1.0)\n    i = (r[\"i_a\"] + r[\"i_b\"] + r[\"i_c\"]) / 3\n    uo = (r[\"u_out_a\"] + r[\"u_out_b\"] + r[\"u_out_c\"]) / 3\n    cv = (r[\"conn_v_a\"], r[\"conn_v_b\"], r[\"conn_v_c\"])\n    uc = sum(cv) / 3\n    de = i * (k[\"r\"] * pf + k[\"x\"] * math.sqrt(1 - pf ** 2))\n    dm = uo - uc\n    lm = r[\"p_in_kw\"] - r[\"p_out_kw\"]\n    le = k[\"p0\"] + k[\"kq\"] * s ** 2\n    on = 1.0 if r[\"contactor\"] > 0.5 else 0.0\n    return {\n        \"load_kva\": s, \"load_pct\": s / k[\"kva\"] * 100, \"load_pf\": pf,\n        \"v_conn_avg\": uc, \"v_conn_min\": min(cv), \"v_unbalance_v\": max(cv) - min(cv),\n        \"cable_drop_expected_v\": de, \"cable_drop_measured_v\": dm, \"cable_drop_ratio\": dm / max(de, 0.2),\n        \"v_out_setpoint_v\": k[\"vn\"] + de, \"regulation_error_v\": uo - (k[\"vn\"] + de),\n        \"freq_dev_hz\": r[\"freq_hz\"] - k[\"fn\"],\n        \"loss_measured_kw\": lm, \"loss_expected_kw\": le, \"loss_excess_kw\": lm - le,\n        \"efficiency\": r[\"p_out_kw\"] / max(r[\"p_in_kw\"], 0.1), \"efficiency_expected\": r[\"p_out_kw\"] / max(r[\"p_out_kw\"] + le, 0.1),\n        \"heatsink_residual_k\": r[\"heatsink_c\"] - (r[\"ambient_c\"] + k[\"rth\"] * lm),\n        \"apu_fuel_avoided_kg_h\": on * (1 - r[\"apu_running\"]) * k[\"fuel\"],\n        \"co2_avoided_kg_h\": on * (1 - r[\"apu_running\"]) * (k[\"fuel\"] * k[\"co2f\"]) - r[\"p_in_kw\"] * k[\"grid\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    ON, LP = p[\"ON\"], p[\"LP\"]\n    LOADED = f\"{ON} & ({LP} > {L['min_load_pct']})\"\n    THD = \"df['THD_V_PCT']\"\n    return [\n        (\"GPU_CONN_VOLTAGE_LOW\", f\"{ON} & ({p['UMIN']} < {k['vmin']})\", \"High\", \"cable_compensation_mismatch\"),\n        (\"GPU_CONN_VOLTAGE_HIGH\", f\"{ON} & ({p['UMAX']} > {k['vmax']})\", \"High\", None),\n        (\"GPU_THD_LIMIT\", f\"{THD} > {k['thd_lim']}\", \"High\", \"output_filter_aging\"),\n        (\"GPU_OVERLOAD\", f\"{LP} > {k['ovl']}\", \"High\", None),\n        (\"GPU_HEATSINK_HOT\", f\"df['HEATSINK_C'] > {L['hs_max_c']}\", \"High\", \"cooling_degraded\"),\n        (\"GPU_REGULATION_ERROR\", f\"{LOADED} & (np.abs({p['UO']} - ({k['vn']} + {p['DE']})) > {L['regulation_err_v']})\", \"Medium\", \"voltage_regulation_fault\"),\n        (\"GPU_CABLE_DROP_HIGH\", f\"{LOADED} & ({p['DM']} / np.maximum({p['DE']}, 0.2) > {L['drop_ratio_alert']})\", \"Medium\", \"cable_compensation_mismatch\"),\n        (\"GPU_PHASE_UNBALANCE\", f\"{ON} & ({p['UMAX']} - {p['UMIN']} > {L['unbalance_v']})\", \"Medium\", \"connector_pin_wear\"),\n        (\"GPU_FREQ_OUT_OF_SPEC\", f\"np.abs(df['FREQ_HZ'] - {k['fn']}) > {k['ftol']:.6g}\", \"Medium\", None),\n        (\"GPU_THD_HIGH\", f\"({THD} > {k['thd_spec']}) & ({THD} <= {k['thd_lim']})\", \"Medium\", \"output_filter_aging\"),\n        (\"GPU_EFFICIENCY_LOW\", f\"{LOADED} & ({p['LM']} - {p['LE']} > {L['loss_excess_kw']})\", \"Medium\", \"power_stage_losses\"),\n        (\"GPU_HEATSINK_FOULED\", f\"df['HEATSINK_C'] - (df['AMBIENT_C'] + {k['rth']} * {p['LM']}) > {L['hs_residual_k']}\", \"Medium\", \"cooling_degraded\"),\n        (\"GPU_CONTACTOR_LIFE\", f\"df['CONTACTOR_OPS'] > {k['c_life'] * L['contactor_life_pct'] / 100:.6g}\", \"Medium\", \"contactor_wear\"),\n        (\"GPU_CONNECTOR_CYCLES\", f\"df['PLUG_CYCLES'] > {k['p_life'] * L['connector_cycles_pct'] / 100:.6g}\", \"Medium\", \"connector_pin_wear\"),\n        (\"GPU_APU_RUNNING\", f\"{ON} & (df['APU_RUNNING'] > 0.5)\", \"Medium\", \"apu_left_running\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    on = r[\"contactor\"] > 0.5\n    loaded = on and t[\"load_pct\"] > L[\"min_load_pct\"]\n    cv = (r[\"conn_v_a\"], r[\"conn_v_b\"], r[\"conn_v_c\"])\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    add(on and min(cv) < k[\"vmin\"], \"GPU_CONN_VOLTAGE_LOW\", \"High\",\n        f\"{min(cv):.1f} V at the aircraft connector, below {k['vmin']:.0f} V\", \"connector\", \"cable_compensation_mismatch\")\n    add(on and max(cv) > k[\"vmax\"], \"GPU_CONN_VOLTAGE_HIGH\", \"High\", f\"{max(cv):.1f} V at the aircraft connector, above {k['vmax']:.0f} V\", \"connector\")\n    add(r[\"thd_v_pct\"] > k[\"thd_lim\"], \"GPU_THD_LIMIT\", \"High\", f\"Voltage THD {r['thd_v_pct']:.1f} %, above the {k['thd_lim']:.0f} % aircraft limit\",\n        \"filter\", \"output_filter_aging\")\n    add(t[\"load_pct\"] > k[\"ovl\"], \"GPU_OVERLOAD\", \"High\", f\"Load {t['load_pct']:.0f} % of {k['kva']:.0f} kVA\", \"converter\")\n    add(r[\"heatsink_c\"] > L[\"hs_max_c\"], \"GPU_HEATSINK_HOT\", \"High\", f\"Heat sink {r['heatsink_c']:.0f} \u00b0C, above {L['hs_max_c']:.0f} \u00b0C\", \"cooling\", \"cooling_degraded\")\n    add(loaded and abs(t[\"regulation_error_v\"]) > L[\"regulation_err_v\"], \"GPU_REGULATION_ERROR\", \"Medium\",\n        f\"Output {t['regulation_error_v']:+.1f} V from its setpoint {t['v_out_setpoint_v']:.1f} V\", \"control\", \"voltage_regulation_fault\")\n    add(loaded and t[\"cable_drop_ratio\"] > L[\"drop_ratio_alert\"], \"GPU_CABLE_DROP_HIGH\", \"Medium\",\n        f\"Cable drop {t['cable_drop_measured_v']:.1f} V, {t['cable_drop_ratio']:.2f} x the cable model\", \"cable\", \"cable_compensation_mismatch\")\n    add(on and t[\"v_unbalance_v\"] > L[\"unbalance_v\"], \"GPU_PHASE_UNBALANCE\", \"Medium\",\n        f\"Connector phases {cv[0]:.1f} / {cv[1]:.1f} / {cv[2]:.1f} V: {t['v_unbalance_v']:.1f} V apart\", \"connector\", \"connector_pin_wear\")\n    add(abs(t[\"freq_dev_hz\"]) > k[\"ftol\"], \"GPU_FREQ_OUT_OF_SPEC\", \"Medium\", f\"Frequency {r['freq_hz']:.2f} Hz, outside 400 \u00b1 {k['ftol']:.1f} Hz\", \"control\")\n    add(k[\"thd_spec\"] < r[\"thd_v_pct\"] <= k[\"thd_lim\"], \"GPU_THD_HIGH\", \"Medium\", f\"Voltage THD {r['thd_v_pct']:.1f} %, above the {k['thd_spec']:.0f} % of the data sheet\",\n        \"filter\", \"output_filter_aging\")\n    add(loaded and t[\"loss_excess_kw\"] > L[\"loss_excess_kw\"], \"GPU_EFFICIENCY_LOW\", \"Medium\",\n        f\"Losses {t['loss_measured_kw']:.1f} kW, {t['loss_excess_kw']:.1f} kW above the model; efficiency {t['efficiency'] * 100:.1f} %\", \"converter\", \"power_stage_losses\")\n    add(t[\"heatsink_residual_k\"] > L[\"hs_residual_k\"], \"GPU_HEATSINK_FOULED\", \"Medium\",\n        f\"Heat sink {t['heatsink_residual_k']:.0f} K hotter than its losses explain\", \"cooling\", \"cooling_degraded\")\n    add(r[\"contactor_ops\"] > k[\"c_life\"] * L[\"contactor_life_pct\"] / 100, \"GPU_CONTACTOR_LIFE\", \"Medium\",\n        f\"Output contactor at {r['contactor_ops'] / k['c_life'] * 100:.0f} % of its rated operations\", \"contactor\", \"contactor_wear\")\n    add(r[\"plug_cycles\"] > k[\"p_life\"] * L[\"connector_cycles_pct\"] / 100, \"GPU_CONNECTOR_CYCLES\", \"Medium\",\n        f\"Connector head mated {r['plug_cycles']:.0f} times, rated {k['p_life']}\", \"connector\", \"connector_pin_wear\")\n    add(on and r[\"apu_running\"] > 0.5, \"GPU_APU_RUNNING\", \"Medium\",\n        f\"APU running while on ground power: {k['fuel']:.0f} kg/h of fuel not saved\", \"aircraft\", \"apu_left_running\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "GPU-5901 400 Hz ground power unit twin. Expected values in Maximo Monitor from the data sheet, the cable data and the aircraft power limits; the device sends only what it measures.", "twin": {"id": "GPU-5901", "name": "400 Hz ground power unit GPU-5901", "version": "1.0.0", "folder": "gpu-twin"}, "identification": {"asset": "GPU-5901", "assetnum": "GPU-5901", "manufacturer": "ITW GSE", "model": "2400 solid-state GPU, 90 kVA, mounted under the passenger boarding bridge", "description": "400 Hz ground power for a narrow-body contact stand: 3 x 115/200 V 400 Hz through a 28 m aircraft cable", "type": "Fixed solid-state static frequency converter (not a diesel GPU), 50/60 Hz in, 400 Hz out", "cable": "28 m flexible 400 Hz aircraft cable on a cable coil, aircraft connector to ISO 461-1 style 6-pin plug", "location": "Contact stand of a passenger terminal (generic airport)"}, "design": {"rating": {"kva": 90.0, "v_ln_nom": 115.0, "f_nom_hz": 400.0, "freq_tol_pct": 0.1, "regulation_pct": 0.5, "thd_typ_pct": 1.5, "thd_spec_pct": 2.0, "overload_pct_600s": 125.0, "ambient_max_c": 56.0, "source": "ITW GSE 2400 Compact data sheet (Rev C, June 2023): 90 kVA PF 0.8-1, 3 x 115/200 V, 400 Hz +/- 0.1 %, voltage regulation < 0.5 % (balanced and up to 30 % unbalanced load), total harmonic content < 2 % (typ. 1.5 %) per ISO 1540, overload 125 % for 600 s, operating up to +56 C."}, "efficiency": {"no_load_loss_kw": 2.2, "standby_loss_kw": 0.065, "eff_full": 0.94, "eff_full_kva": 90.0, "eff_low": 0.9, "eff_low_kva": 25.0, "pf": 0.8, "source": "ITW GSE 2400 Compact data sheet (Rev C, June 2023): overall efficiency 0.94 at 35-90 kVA load PF 0.8, 0.90 at 25 kVA PF 0.8, no-load losses 2.2 kW, stand-by 65 W. The twin's loss model P_loss = P0 + k x S^2 is fitted to the 90 kVA point (k from 0.94) and checks the 25 kVA point."}, "cable": {"length_m": 28.0, "r_mohm_per_m": 0.3, "x_mohm_per_m_400hz": 0.64, "source": "Length: 2400 Power Coil data sheet (24 m or 28 m usable cable). Resistance: assumption: typical value, replace with your cable data sheet (IEC 60228 class 5 copper 70 mm2 is 0.272 ohm/km at 20 C, raised for a warm conductor). Reactance at 400 Hz: assumption: typical value, replace with the cable maker's value (about 0.08 ohm/km at 50 Hz x 8; UFC 3-555-01N notes the 400 Hz reactance drop is about seven times the 60 Hz one)."}, "aircraft_limits": {"conn_min_v": 113.0, "conn_max_v": 118.0, "aircraft_min_v": 108.0, "thd_limit_pct": 5.0, "source": "UFC 3-555-01N (US DoD 400 Hz criteria, 2004, cancelled; quoted as design practice): MIL-STD-704 operating range 108-118 V inside the aircraft includes a 0-5 V internal drop, so the voltage at the aircraft connector should stay between 113 and 118 V; THD of the supply to the aircraft not above 5 %. Check the limits of your own aircraft types and of ISO 6858 / SAE ARP5015."}, "thermal": {"rth_k_per_kw": 6.5, "source": "Heat-sink temperature rise per kW of converter loss (forced air): assumption: typical value, replace with the rise measured on your unit at commissioning."}, "wear": {"contactor_life_ops": 100000, "connector_life_cycles": 5000, "source": "Output contactor electrical life and aircraft connector head life in mating cycles: assumption: typical value, replace with the contactor maker's AC-1 life curve and the connector maker's rated mating cycles."}, "apu": {"fuel_kg_h": 110.0, "co2_per_kg_fuel": 3.16, "grid_kg_co2_per_kwh": 0.4, "aircraft_load_kva": 55.0, "aircraft_pf": 0.85, "source": "CO2 per kg of jet fuel: ICAO carbon emissions calculator methodology (3.16). APU fuel flow of a narrow-body APU at the gate: assumption: typical value, replace with the airline's APU fuel flow for your fleet (sources quote about 100 to 130 kg/h). Grid emission factor: assumption: typical value, replace with your utility's figure. Aircraft load at the gate (air conditioning by PCA, so electrical load only): assumption: typical value, replace with your measured load."}, "demo": {"time_scale": 20, "turn_connected_min": 40, "turn_gap_min": 10, "note": "Demo only: the plant clock runs 20 times faster, so one turnaround (40 min on GPU, 10 min empty stand) takes 150 s of real time."}}, "telemetry": {"event": "gpu", "publish_every_s": 10, "device_type": "GROUND_POWER_400HZ", "groups": {"Output": "400 Hz output at the GPU terminals", "Connector": "Voltage at the aircraft connector", "Input": "Grid input", "Thermal": "Cooling", "State": "Contactor and aircraft", "Counters": "Wear and use counters"}, "points": [{"metric": "u_out_a", "path": "Output.VoltageA", "label": "Output voltage phase A (L-N)", "unit": "V"}, {"metric": "u_out_b", "path": "Output.VoltageB", "label": "Output voltage phase B (L-N)", "unit": "V"}, {"metric": "u_out_c", "path": "Output.VoltageC", "label": "Output voltage phase C (L-N)", "unit": "V"}, {"metric": "i_a", "path": "Output.CurrentA", "label": "Output current phase A", "unit": "A"}, {"metric": "i_b", "path": "Output.CurrentB", "label": "Output current phase B", "unit": "A"}, {"metric": "i_c", "path": "Output.CurrentC", "label": "Output current phase C", "unit": "A"}, {"metric": "freq_hz", "path": "Output.Frequency", "label": "Output frequency", "unit": "Hz"}, {"metric": "p_out_kw", "path": "Output.Power", "label": "Output active power", "unit": "kW"}, {"metric": "thd_v_pct", "path": "Output.THD", "label": "Output voltage total harmonic distortion", "unit": "%"}, {"metric": "conn_v_a", "path": "Connector.VoltageA", "label": "Voltage at the aircraft connector, phase A", "unit": "V"}, {"metric": "conn_v_b", "path": "Connector.VoltageB", "label": "Voltage at the aircraft connector, phase B", "unit": "V"}, {"metric": "conn_v_c", "path": "Connector.VoltageC", "label": "Voltage at the aircraft connector, phase C", "unit": "V"}, {"metric": "p_in_kw", "path": "Input.Power", "label": "Grid input active power", "unit": "kW"}, {"metric": "heatsink_c", "path": "Thermal.HeatSink", "label": "Power stage heat-sink temperature", "unit": "\u00b0C"}, {"metric": "ambient_c", "path": "Thermal.Ambient", "label": "Air inlet (ambient) temperature", "unit": "\u00b0C"}, {"metric": "contactor", "path": "State.Contactor", "label": "Output contactor closed (1 = aircraft on GPU)", "unit": "code"}, {"metric": "apu_running", "path": "State.APU", "label": "Aircraft APU running (stand APU monitor)", "unit": "code"}, {"metric": "contactor_ops", "path": "Counters.ContactorOps", "label": "Output contactor operations since replacement", "unit": "count"}, {"metric": "plug_cycles", "path": "Counters.PlugCycles", "label": "Aircraft connector matings since the head was replaced", "unit": "count"}, {"metric": "supply_hours_ytd", "path": "Counters.SupplyHoursYTD", "label": "Hours supplying an aircraft this year", "unit": "h"}]}, "twin_model": {"limits": {"min_load_pct": 20.0, "regulation_err_v": 1.5, "drop_ratio_alert": 1.6, "unbalance_v": 1.5, "loss_excess_kw": 1.5, "hs_residual_k": 12.0, "hs_max_c": 85.0, "contactor_life_pct": 90.0, "connector_cycles_pct": 100.0}, "limits_source": "Regulation error, drop ratio, unbalance, loss excess, heat-sink residual and maximum: assumption, alert levels to tune on your unit. Connector 113-118 V and THD 5 %: design.aircraft_limits. Frequency +/- 0.1 % and THD 2 %: design.rating (data sheet)."}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "connector_pin_wear": {"name": "Aircraft connector pin worn or burnt", "part": "connector", "symptoms": "one phase drops more than the others at the aircraft, mating cycles past the head's life", "rules": ["GPU_PHASE_UNBALANCE", "GPU_CONN_VOLTAGE_LOW", "GPU_CONNECTOR_CYCLES"], "default_ramp_min": 1.5}, "cable_compensation_mismatch": {"name": "Cable changed, drop compensation not updated", "part": "cable", "symptoms": "all three phases drop more than the cable model, voltage at the aircraft low", "rules": ["GPU_CABLE_DROP_HIGH", "GPU_CONN_VOLTAGE_LOW"], "default_ramp_min": 1}, "voltage_regulation_fault": {"name": "Output voltage regulation drift (sensing or control)", "part": "control", "symptoms": "output below its setpoint, drop along the cable normal", "rules": ["GPU_REGULATION_ERROR", "GPU_CONN_VOLTAGE_LOW"], "default_ramp_min": 1}, "output_filter_aging": {"name": "Output filter capacitors aged", "part": "filter", "symptoms": "voltage THD rises above the data sheet, then above 5 %", "rules": ["GPU_THD_HIGH", "GPU_THD_LIMIT"], "default_ramp_min": 1.5}, "power_stage_losses": {"name": "Power stage losses up (IGBT, transformer, connections)", "part": "converter", "symptoms": "input power up for the same output, efficiency below the loss model", "rules": ["GPU_EFFICIENCY_LOW"], "default_ramp_min": 1}, "cooling_degraded": {"name": "Cooling degraded (fan, clogged filter)", "part": "cooling", "symptoms": "heat sink hotter than the loss and the ambient explain", "rules": ["GPU_HEATSINK_FOULED", "GPU_HEATSINK_HOT"], "default_ramp_min": 1.5}, "contactor_wear": {"name": "Output contactor near the end of its life", "part": "contactor", "symptoms": "operations counter past 90 % of the rated life", "rules": ["GPU_CONTACTOR_LIFE"], "default_ramp_min": 0.5}, "apu_left_running": {"name": "APU left running while on ground power", "part": "aircraft", "symptoms": "aircraft on the GPU but its APU still runs: no fuel saved", "rules": ["GPU_APU_RUNNING"], "default_ramp_min": 0.5}}, "presentation": {"title": "GPU-5901 400 Hz ground power unit", "dashboard": "GROUND_POWER_400HZ"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(7, 8, 19); ctl.target.set(-3.5, 2.2, 0.5); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(6, 12, 8); scene.add(sun);
+const grid = new THREE.GridHelper(40, 40, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .35, roughness: o.r ?? .5, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide, emissive: o.e ?? 0 });
+const steel = M(0xb9bec4, { m: .6, r: .3 }), dark = M(0x3d4249), grey = M(0x8d96a0), black = M(0x1a1c1f, { r: .8 }), white = M(0xe8ecf0, { m: .2, r: .4 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// apron markings
+const line = box(.15, .01, 30, M(0xd8a31a, { m: 0 })); scene.add(at(line, -6.2, .01, 0));
+// passenger boarding bridge (tunnel on a drive column), running along +x towards the aircraft door
+const bridge = at(box(10, 2.6, 2.4, M(0xcfd6dd, { m: .3 })), 3.2, 5.2, -1.2); scene.add(bridge);
+for (let i = 0; i < 9; i++) scene.add(at(box(.05, 2.3, 2.45, grey), -1.2 + i * 1.1, 5.2, -1.2));
+scene.add(at(box(2.2, 3, 3, M(0xb7c0c9, { m: .3 })), -2.6, 5.4, -1.2));          // cab at the aircraft door
+scene.add(at(box(.7, 3.9, .7, dark), 4.8, 1.95, -1.2));                           // drive column
+const wheels = at(box(2.4, .5, 1.4, dark), 4.8, .25, -1.2); scene.add(wheels);
+// GPU cabinet hung under the bridge (fixed, PBB-mounted)
+const cabMat = M(0xd9dbd6, { m: .25, ds: true });                                 // RAL 7035 light grey
+const cab = at(box(1.6, 1.15, 1.1, cabMat), 2.6, 3.32, -1.2); scene.add(cab);
+scene.add(at(box(1.7, .08, 1.2, dark), 2.6, 3.92, -1.2));
+const louvres = []; for (let i = 0; i < 5; i++) { const l = box(.02, .08, .8, dark); scene.add(at(l, 3.41, 2.95 + i * .16, -1.2)); louvres.push(l); }
+const fan = new THREE.Group(); at(fan, 1.79, 3.3, -1.2); scene.add(fan);
+fan.add(at(cyl(.26, .26, .03, dark), 0, 0, 0)); fan.children[0].rotation.z = Math.PI / 2;
+for (let b = 0; b < 5; b++) { const bl = box(.02, .22, .07, grey); bl.rotation.x = b * 2 * Math.PI / 5; bl.position.set(-.02, Math.cos(b * 2 * Math.PI / 5) * .11, Math.sin(b * 2 * Math.PI / 5) * .11); fan.add(bl); }
+// inside the cabinet (seen in cutaway): rectifier/transformer, IGBT inverter on its heat sink, output filter capacitors, contactor
+const inner = new THREE.Group(); scene.add(inner); inner.visible = false;
+inner.add(at(box(.45, .6, .6, M(0x6f4e37, { m: .5 })), 2.15, 3.15, -1.2));        // input transformer (magnetic wave-shaping)
+const hsMat = M(0x9aa3ad, { m: .7, r: .3, e: 0x000000 });
+for (let i = 0; i < 9; i++) inner.add(at(box(.02, .35, .5, hsMat), 2.5 + i * .04, 3.15, -1.2));   // heat-sink fins
+inner.add(at(box(.36, .1, .5, M(0x2f6db5)), 2.66, 3.38, -1.2));                     // IGBT modules
+const caps = []; for (let i = 0; i < 6; i++) { const c = cyl(.05, .05, .22, M(0x24a148)); inner.add(at(c, 2.98 + (i % 3) * .12, 3.05, -1.4 + Math.floor(i / 3) * .3)); caps.push(c); }
+const contactor = at(box(.18, .2, .16, dark), 3.2, 3.45, -1.0); inner.add(contactor);
+// cable coil drum next to the cabinet
+const drum = new THREE.Group(); at(drum, 1.2, 3.32, -1.2); scene.add(drum);
+const drumBody = cyl(.42, .42, .6, M(0x2a2a2a, { r: .8 })); drumBody.rotation.x = Math.PI / 2; drum.add(drumBody);
+[-.32, .32].forEach(z => { const f = cyl(.55, .55, .04, M(0xd9dbd6)); f.rotation.x = Math.PI / 2; drum.add(at(f, 0, 0, z)); });
+// aircraft: narrow-body forward fuselage, nose to +x (towards the terminal), with nose gear
+const ac = new THREE.Group(); scene.add(ac);
+const fus = cyl(1.98, 1.98, 16, white, 48); fus.rotation.z = Math.PI / 2; ac.add(at(fus, -12.5, 3.3, 3.2));
+const nose = new THREE.Mesh(new THREE.SphereGeometry(1.98, 40, 24, 0, Math.PI * 2, 0, Math.PI / 2), white); nose.rotation.z = -Math.PI / 2; nose.scale.set(1, 1.4, 1); ac.add(at(nose, -4.5, 3.3, 3.2));
+const cockpit = box(.7, .45, 2.2, M(0x1d2a3a, { m: .6, r: .2 })); cockpit.rotation.z = -.6; ac.add(at(cockpit, -3.0, 4.45, 3.2));
+ac.add(at(cyl(.08, .08, 1.6, steel), -3.4, .9, 3.2)); ac.add(at(cyl(.32, .32, .25, black), -3.4, .32, 3.0)); ac.add(at(cyl(.32, .32, .25, black), -3.4, .32, 3.4));
+ac.children.slice(-2).forEach(w => w.rotation.x = Math.PI / 2);
+const door = at(box(.9, 1.8, .05, M(0xbfc6cc)), -6.5, 3.8, 1.2); ac.add(door);
+// ground power receptacle panel on the lower forward fuselage and the plugged connector
+const recept = at(box(.4, .3, .05, dark), -5.0, 1.8, 1.92); ac.add(recept);
+const plug = at(cyl(.12, .12, .35, M(0xf1c21b, { m: .2 })), -5.0, 1.8, 1.72); plug.rotation.x = Math.PI / 2; scene.add(plug);
+// the aircraft cable: from the coil down to the apron, along the ground and up to the receptacle (sagging)
+const cableMat = M(0x161616, { r: .9 });
+const cablePts = [[1.2, 2.9, -1.2], [.6, 1.2, -.6], [-.5, .1, .2], [-2.5, .08, .9], [-4.6, .1, 1.4], [-5.0, .9, 1.65], [-5.0, 1.65, 1.72]].map(p => new THREE.Vector3(...p));
+const cable = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(cablePts), 80, .055, 8, false), cableMat); scene.add(cable);
+// APU exhaust plume (tail cone is off-screen; a puff at the far end of the fuselage shows the APU state)
+const plume = new THREE.Mesh(new THREE.SphereGeometry(.9, 16, 12), new THREE.MeshBasicMaterial({ color: 0x9fa6ad, transparent: true, opacity: 0 })); scene.add(at(plume, -21.5, 4.2, 3.2));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.09, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, 3.3, 3.98, -.8));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('out', [3.4, 4.5, -.4]); lbl('load', [.6, 3.2, 0]); lbl('thd', [4.6, 2.9, -1.2]); lbl('hs', [2.6, 1.5, -1.2]);
+lbl('drop', [-1.5, .4, .6]); lbl('conn', [-5.0, 2.2, 1.6]); lbl('cnt', [-3.6, .7, .5]); lbl('apu', [-17, 5.8, 3.2]); lbl('co2', [-9, 5.8, 3.2]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let on = 1, loadPct = 0, hsC = 40, apu = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design, A = d.aircraft_limits;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  on = r.contactor; loadPct = t.load_pct; hsC = r.heatsink_c; apu = r.apu_running;
+  const uo = (r.u_out_a + r.u_out_b + r.u_out_c) / 3;
+  setLbl('out', `GPU output · setpoint ${fmt(t.v_out_setpoint_v, 1)} V`, `${fmt(uo, 1)} V · ${fmt(r.freq_hz, 2)} Hz`, st(names.has('GPU_REGULATION_ERROR') || names.has('GPU_FREQ_OUT_OF_SPEC')));
+  setLbl('load', 'load · power factor', on ? `${fmt(t.load_kva, 1)} kVA · ${fmt(t.load_pct, 0)} % · PF ${fmt(t.load_pf)}` : 'stand empty', st(names.has('GPU_OVERLOAD')));
+  setLbl('thd', `voltage THD (data sheet < ${d.rating.thd_spec_pct} %)`, `${fmt(r.thd_v_pct, 1)} %`, st(names.has('GPU_THD_LIMIT'), names.has('GPU_THD_HIGH')));
+  setLbl('hs', `heat sink · ambient ${fmt(r.ambient_c, 0)} °C · residual`, `${fmt(r.heatsink_c, 0)} °C · ${fmt(t.heatsink_residual_k, 1)} K`, st(names.has('GPU_HEATSINK_HOT'), names.has('GPU_HEATSINK_FOULED')));
+  setLbl('drop', 'cable drop measured / expected', on ? `${fmt(t.cable_drop_measured_v)} / ${fmt(t.cable_drop_expected_v)} V · ${fmt(t.cable_drop_ratio)}×` : '–', st(names.has('GPU_CABLE_DROP_HIGH')));
+  setLbl('conn', `at the aircraft (${A.conn_min_v}–${A.conn_max_v} V)`, on ? `${fmt(r.conn_v_a, 1)} / ${fmt(r.conn_v_b, 1)} / ${fmt(r.conn_v_c, 1)} V` : 'not connected',
+    st(names.has('GPU_CONN_VOLTAGE_LOW') || names.has('GPU_CONN_VOLTAGE_HIGH'), names.has('GPU_PHASE_UNBALANCE')));
+  setLbl('cnt', 'connector matings · contactor ops', `${r.plug_cycles} / ${d.wear.connector_life_cycles} · ${r.contactor_ops}`, st(names.has('GPU_CONNECTOR_CYCLES') || names.has('GPU_CONTACTOR_LIFE')));
+  setLbl('apu', 'aircraft APU', on ? (r.apu_running ? 'RUNNING on GPU' : 'off: on ground power') : '–', st(names.has('GPU_APU_RUNNING')));
+  setLbl('co2', 'fuel · CO₂ avoided now', `${fmt(t.apu_fuel_avoided_kg_h, 0)} kg/h · ${fmt(t.co2_avoided_kg_h, 0)} kg/h`, '');
+  $('k-health').textContent = ST.health; $('k-conn').textContent = on ? fmt(t.v_conn_min, 1) + ' V' : '–'; $('k-co2').textContent = fmt(t.co2_avoided_kg_h, 0) + ' kg/h';
+  $('c-ac-t').textContent = on ? (r.apu_running ? 'aircraft on GPU, APU on' : 'aircraft on GPU') : 'stand empty'; $('c-ac').className = 'chip ' + (on ? (r.apu_running ? 'warn' : 'ok') : '');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Output voltage (V)', fmt(uo, 2), fmt(t.v_out_setpoint_v, 2), names.has('GPU_REGULATION_ERROR')) +
+    row('Cable drop (V)', fmt(t.cable_drop_measured_v), fmt(t.cable_drop_expected_v), names.has('GPU_CABLE_DROP_HIGH')) +
+    row('Lowest phase at aircraft (V)', fmt(t.v_conn_min, 1), '≥ ' + A.conn_min_v, names.has('GPU_CONN_VOLTAGE_LOW')) +
+    row('Phase unbalance (V)', fmt(t.v_unbalance_v), '≤ ' + L.unbalance_v, names.has('GPU_PHASE_UNBALANCE')) +
+    row('Frequency (Hz)', fmt(r.freq_hz, 2), '400 ± ' + (d.rating.f_nom_hz * d.rating.freq_tol_pct / 100).toFixed(1), names.has('GPU_FREQ_OUT_OF_SPEC')) +
+    row('Voltage THD (%)', fmt(r.thd_v_pct, 1), '≤ ' + d.rating.thd_spec_pct, r.thd_v_pct > d.rating.thd_spec_pct) +
+    row('Losses (kW)', fmt(t.loss_measured_kw), fmt(t.loss_expected_kw), names.has('GPU_EFFICIENCY_LOW')) +
+    row('Efficiency (%)', fmt(t.efficiency * 100, 1), fmt(t.efficiency_expected * 100, 1), names.has('GPU_EFFICIENCY_LOW')) +
+    row('Heat sink (°C)', fmt(r.heatsink_c, 1), fmt(r.heatsink_c - t.heatsink_residual_k, 1), names.has('GPU_HEATSINK_FOULED') || names.has('GPU_HEATSINK_HOT')) +
+    row('Contactor life used (%)', fmt(r.contactor_ops / d.wear.contactor_life_ops * 100, 0), '≤ ' + L.contactor_life_pct, names.has('GPU_CONTACTOR_LIFE')) +
+    row('Supply hours this year', fmt(r.supply_hours_ytd, 0), '–');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the GPU behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  const bad = names.has('GPU_CONN_VOLTAGE_LOW') || names.has('GPU_CABLE_DROP_HIGH') || names.has('GPU_PHASE_UNBALANCE');
+  cableMat.color.setHex(bad ? 0x7a1a1f : 0x161616); plug.material.color.setHex(names.has('GPU_PHASE_UNBALANCE') || names.has('GPU_CONNECTOR_CYCLES') ? 0xda1e28 : 0xf1c21b);
+  caps.forEach(c => c.material.color.setHex(names.has('GPU_THD_LIMIT') ? 0xda1e28 : names.has('GPU_THD_HIGH') ? 0xf1c21b : 0x24a148));
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.manufacturer + ' ' + TW.identification.model;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  cabMat.transparent = true; cabMat.opacity = cut ? .2 : 1; cabMat.depthWrite = !cut; inner.visible = cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), shownOn = 1;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  fan.rotation.x += dt * (6 + 0.25 * Math.max(0, hsC - 25));            // fan speed follows the heat-sink temperature
+  shownOn += ((on ? 1 : 0) - shownOn) * Math.min(1, dt * 3);
+  cable.visible = shownOn > .5; plug.visible = shownOn > .5; ac.visible = shownOn > .5;   // empty stand between turnarounds
+  const glow = Math.max(0, Math.min(1, (hsC - 45) / 45));
+  hsMat.emissive.setRGB(glow * .6, glow * .15, 0);
+  plume.material.opacity = (apu ? .35 + .1 * Math.sin(now / 300) : 0) * shownOn;
+  plume.scale.setScalar(1 + .15 * Math.sin(now / 500));
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

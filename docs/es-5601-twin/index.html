@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ES-5601 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>ES-5601</b><span class="g">Heavy-duty metro escalator · KONE TransitMaster 140 · 10 m rise · 0.5 m/s</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-mode"><span class="dot"></span><span id="c-mode-t">mode –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Power, brake and handrail curves →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the escalator model…</div>
+<div class="credit">Up escalator, platform to ticket hall: 30° incline, 1000 mm steps, drive and brake at the upper landing, step chain return station at the lower landing. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-drive">Drive station</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The yellow marks on the handrails move at the measured handrail speed: on a slipping handrail they fall behind the steps.</div>
+<aside>
+  <section>
+    <h2>ES-5601 twin</h2>
+    <p class="sub" id="sub">metro escalator</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Power kW<b id="k-p">–</b></div><div>Full-load stop m<b id="k-stop">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The controller sends only what it measures. Every expected value comes from the twin file: the KONE data, the EN 115-1 limits and the escalator's own design data.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for ES-5601: drive, step band, handrails, step chain, gearbox, brake and safety circuit, with injectable faults.\n\nThe real escalator controller sends the same points (see telemetry.points in the twin file). Nothing here is used by\nMonitor: the expected values are computed in Monitor from the twin file only. This model only produces believable readings\nand fault fingerprints for the tests, the figures and the live pages. Pure Python (math, random).\n\nThe \"true\" escalator follows the same equations as the twin, with the faults acting on the physical causes:\n  brake_weak        brake force down 12 %, delay up 0.10 s (worn lining, larger air gap)\n  brake_harsh       brake force up 60 %, delay down 0.15 s (brake set too hard)\n  handrail_slip     the left handrail drive slips: from +1 % down to -13 % against the steps\n  chain_wear        step chain elongation grows 1.05 % beyond its wear line (lubrication failure)\n  step_band_drag    step band friction (no-load power) up 50 %, step sag trips\n  gearbox_wear      gear oil 16 K hotter than the power explains, vibration x 3.5\n  comb_damage       comb plate impact switch trips\n  standby_disabled  the escalator no longer drops to stand-by speed\n\"\"\"\nimport math\nimport random\n\nG = 9.81\n\n\nclass Escalator:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.d = d\n        ge, sp, dr, pa, br = d[\"geometry\"], d[\"speed\"], d[\"drive\"], d[\"passengers\"], d[\"brake\"]\n        self.H, self.sin = ge[\"rise_m\"], math.sin(math.radians(ge[\"inclination_deg\"]))\n        self.vr, self.vsb = sp[\"rated_ms\"], sp[\"standby_ms\"]\n        self.pnl = dr[\"noload_a_kw_per_m\"] * self.H + dr[\"noload_b_kw\"]\n        self.eta, self.share, self.m = dr[\"eta_load\"], dr[\"friction_share\"], pa[\"mass_kg\"]\n        self.meq, self.td = br[\"m_eq_kg\"], br[\"delay_s\"]\n        riser = ge[\"step_depth_m\"] * math.tan(math.radians(ge[\"inclination_deg\"]))\n        self.mfull = br[\"brake_load_kg_per_step\"] * self.H / riser\n        self.ff = self.share * self.pnl * 1000 / self.vr\n        # brake force set at commissioning so that a fully loaded down stop takes 0.70 m (inside 0.20 .. 1.00 m)\n        a = self.vr ** 2 / 2 / (0.70 - self.vr * self.td)\n        self.fb = a * (self.meq + self.mfull) + self.mfull * G * self.sin - self.ff\n        self.hr, self.ch, self.gb, self.us = d[\"handrail\"], d[\"chain\"], d[\"gearbox\"], d[\"usage\"]\n        self.demo = d[\"demo\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def power(self, v, ppm, direction):\n        \"\"\"True motor input power (kW) at step speed v with ppm passengers per minute.\"\"\"\n        drag = 1 + 0.5 * self.faults[\"step_band_drag\"]\n        x = ppm / 60 * self.m * G * self.H / 1000\n        load = x / self.eta if direction > 0 else -x * self.eta\n        return self.pnl * drag * v / self.vr + load\n\n    def stop(self, v, load_kg, direction):\n        \"\"\"One stop: the brake values the controller records.\"\"\"\n        f = self.faults\n        fb = self.fb * (1 - 0.12 * f[\"brake_weak\"]) * (1 + 0.6 * f[\"brake_harsh\"])\n        td = self.td + 0.10 * f[\"brake_weak\"] - 0.15 * f[\"brake_harsh\"]\n        ff = self.ff * (1 + 0.5 * f[\"step_band_drag\"])\n        a = max(0.05, (fb + ff + direction * load_kg * G * self.sin) / (self.meq + load_kg))\n        return {\"last_stop_distance_m\": round(v * td + v * v / (2 * a) + self.n(0.003), 3),\n                \"last_stop_decel_ms2\": round(a * (1 + self.n(0.004)), 4), \"last_stop_delay_s\": round(td + self.n(0.004), 3),\n                \"last_stop_speed_ms\": round(v, 3), \"last_stop_load_kg\": round(max(0.0, load_kg + self.n(25)), 0),\n                \"last_stop_dir\": direction}\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, v, ppm, direction, p_avg, stop, amb, run_h, standby_share):\n        f, n = self.faults, self.n\n        p = self.power(v, ppm, direction)\n        hl_pct = self.hr[\"nominal_pct\"] - 14.0 * f[\"handrail_slip\"]\n        e = self.ch[\"elong0_pct\"] + self.ch[\"wear_pct_per_1000h\"] * run_h / 1000 + 1.05 * f[\"chain_wear\"]\n        oil = amb + self.gb[\"oil_rise0_k\"] + self.gb[\"oil_k_per_kw\"] * max(p_avg, 0) + 16.0 * f[\"gearbox_wear\"]\n        vm = v * (1 + n(0.001))\n        r = {\n            \"motor_power_kw\": round(p + n(0.01 * self.pnl + 0.008 * abs(p - self.pnl)), 3),\n            \"motor_power_avg_kw\": round(p_avg, 3), \"step_speed_ms\": round(vm, 4),\n            \"run_mode\": 2 if v > (self.vr + self.vsb) / 2 else 1, \"direction\": direction,\n            \"passengers_per_min\": round(max(0.0, ppm * (1 + n(0.015))), 1),\n            \"handrail_left_ms\": round(v * (1 + hl_pct / 100 + n(0.0012)), 4),\n            \"handrail_right_ms\": round(v * (1 + self.hr[\"nominal_pct\"] / 100 + n(0.0012)), 4),\n            \"chain_elongation_pct\": round(e + n(0.01), 3), \"gear_oil_temp_c\": round(oil + n(0.5), 2),\n            \"gearbox_vib_mms\": round(self.gb[\"vib_baseline_mms\"] * (1 + 2.5 * f[\"gearbox_wear\"]) * (1 + n(0.05)), 3),\n            \"ambient_temp_c\": round(amb, 1),\n            \"trips_comb_24h\": int(round(7 * f[\"comb_damage\"])) + (1 if self.rnd.random() < 0.15 else 0),\n            \"trips_handrail_inlet_24h\": 1 if self.rnd.random() < 0.1 else 0,\n            \"trips_step_sag_24h\": int(round(4 * f[\"step_band_drag\"])),\n            \"trips_estop_24h\": self.rnd.choice((0, 0, 1, 1, 2)),\n            \"run_hours\": round(run_h, 1), \"standby_share_24h\": round(max(0.0, standby_share - 0.28 * f[\"standby_disabled\"] + n(0.01)), 3),\n        }\n        r.update(stop)\n        return r\n\n    def measure(self, ppm=None, direction=1, standby=None):\n        \"\"\"A random steady reading (tests): passenger flow, stand-by or rated speed, a random last stop.\"\"\"\n        rnd = self.rnd\n        ppm = rnd.uniform(0, 95) if ppm is None else ppm\n        standby = (ppm < 1 and self.faults[\"standby_disabled\"] < 0.5) if standby is None else standby\n        v = self.vsb if standby else self.vr\n        p_avg = self.power(self.vr, rnd.uniform(15, 60), direction)\n        stop = self.stop(rnd.choice((self.vr, self.vr, self.vsb)), rnd.uniform(0, 3000), rnd.choice((1, 1, -1)))\n        return self.reading(v, ppm, direction, p_avg, stop, self.demo[\"ambient_c\"] + self.n(1.5),\n                            self.us[\"run_hours_now\"] + rnd.uniform(0, 500), 0.30)\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    A train arrives every demo.train_every_s seconds; its passengers ride up in a burst that decays with demo.train_tau_s.\n    When nobody has entered for demo.standby_after_s seconds the escalator drops to stand-by speed. Every demo.stop_every_s\n    seconds the controller records a stop (brake values). The readings do not depend on the time of day.\n    \"\"\"\n    TAU_AVG = 60.0\n\n    def __init__(self, twin, seed=5601):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.es = Escalator(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        es = self.es\n        self.clock, self.idle, self.stop_timer = 30.0, 0.0, 0.0\n        self.v = es.vr\n        self.p_avg = es.power(es.vr, 30.0, 1)\n        self.run_h = es.us[\"run_hours_now\"]\n        self.last_stop = es.stop(es.vr, 1200.0, 1)\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        es, dm = self.es, self.es.demo\n        for k, f in self.faults.items():\n            f.step(dt)\n            es.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.run_h += dt * self.scale / 3600\n        self.clock = (self.clock + dt) % dm[\"train_every_s\"]\n        ppm = dm[\"train_peak_ppm\"] * math.exp(-self.clock / dm[\"train_tau_s\"]) if self.clock > 2 else 0.0\n        ppm = ppm if ppm >= 1.0 else 0.0\n        self.idle = 0.0 if ppm > 0 else self.idle + dt\n        standby = self.idle >= dm[\"standby_after_s\"] and es.faults[\"standby_disabled\"] < 0.5\n        self.v = es.vsb if standby else es.vr\n        p = es.power(self.v, ppm, 1)\n        self.p_avg += min(1.0, dt / self.TAU_AVG) * (p - self.p_avg)\n        self.stop_timer += dt\n        if self.stop_timer >= dm[\"stop_every_s\"]:\n            self.stop_timer = 0.0\n            self.last_stop = es.stop(self.v, es.rnd.uniform(0, 2500) if ppm > 0 else es.rnd.uniform(0, 300), 1)\n        return {\"v\": self.v, \"ppm\": ppm, \"p_avg\": self.p_avg, \"standby\": standby, \"amb\": dm[\"ambient_c\"],\n                \"run_h\": self.run_h, \"standby_share\": 0.30, \"stop\": dict(self.last_stop)}\n\n    def measure(self, true):\n        return self.es.reading(true[\"v\"], true[\"ppm\"], 1, true[\"p_avg\"], true[\"stop\"], true[\"amb\"], true[\"run_h\"], true[\"standby_share\"])\n", "twin_calc": "\"\"\"The metro escalator twin's expectations (ES-5601, KONE TransitMaster 140, 10 m rise, 30 degrees, 0.5 m/s).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nEvery expression works on one reading (no history in Monitor).\n\nMotor power (Al-Sharif's measured no-load model + lifting the passengers):\n    P_NL = 0.47 x rise + 1.74 kW at rated speed, taken as proportional to the step speed v\n    lift power X = (passengers per min / 60) x m x g x rise / 1000 kW       (m = 75 kg per passenger)\n    expected P = P_NL x v / v_rated + X / eta (up)   or   - X x eta (down: the passengers drive the band)\n    drag ratio = (P - load term) x v_rated / v / P_NL   (1.0 = step band runs as freely as designed)\n    energy per passenger = P x 1000 / 60 / passengers per min   (Wh)\nHandrail: deviation = (handrail speed / step speed - 1) x 100 %; EN 115-1 normal operation 0 to +2 %, monitor trip at 15 %.\nStep chain: expected elongation = e0 + wear rate x run hours; residual = measured - expected; hours to the replacement limit.\nBrake (last stop, from the controller's encoder): mean deceleration a under full brake torque, delay t_d, load m_L, direction d.\n    Newton along the incline:   (m_eq + m_L) a = F_b + F_f + d m_L g sin(alpha)      (d = +1 up: gravity helps the brake)\n    so the brake force         F_b = (m_eq + m_L) a - F_f - d m_L g sin(alpha)\n    with F_f = share x P_NL / v_rated the step band friction. Then, for the same brake:\n    fully loaded, running down:  a_fd = (F_b + F_f - m_full g sin(alpha)) / (m_eq + m_full),  m_full = 120 kg x rise / riser\n    empty:                       a_e  = (F_b + F_f) / m_eq\n    stopping distance            s = v_rated t_d + v_rated^2 / (2 a)       -> compared with EN 115-1 0.20 m (empty) to 1.00 m (full, down)\nGearbox: expected oil temperature = ambient + k0 + k1 x 15-min mean power; vibration / commissioning baseline.\nEnergy saving: kWh/day lost when the stand-by share falls below the expected share.\n\"\"\"\nimport math\n\nG = 9.81\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    ge, sp, dr, pa, br, hr, ch, gb, sa, en = (d[x] for x in (\"geometry\", \"speed\", \"drive\", \"passengers\", \"brake\", \"handrail\",\n                                                            \"chain\", \"gearbox\", \"safety\", \"energy\"))\n    H, alpha = ge[\"rise_m\"], math.radians(ge[\"inclination_deg\"])\n    pnl = dr[\"noload_a_kw_per_m\"] * H + dr[\"noload_b_kw\"]\n    riser = ge[\"step_depth_m\"] * math.tan(alpha)\n    nsteps = H / riser\n    vr = sp[\"rated_ms\"]\n    return dict(H=H, sin=math.sin(alpha), vr=vr, vsb=sp[\"standby_ms\"], pnl=pnl, eta=dr[\"eta_load\"],\n                ff=dr[\"friction_share\"] * pnl * 1000 / vr, m=pa[\"mass_kg\"], duty=pa[\"duty_h_per_day\"],\n                riser=riser, nsteps=nsteps, mfull=br[\"brake_load_kg_per_step\"] * nsteps, meq=br[\"m_eq_kg\"],\n                td=br[\"delay_s\"], smin=br[\"stop_min_m\"], smax=br[\"stop_max_m\"],\n                hmin=hr[\"tol_min_pct\"], hmax=hr[\"tol_max_pct\"], e0=ch[\"elong0_pct\"], w=ch[\"wear_pct_per_1000h\"],\n                ealert=ch[\"alert_pct\"], erep=ch[\"replace_pct\"], k0=gb[\"oil_rise0_k\"], k1=gb[\"oil_k_per_kw\"],\n                vib0=gb[\"vib_baseline_mms\"], fexp=en[\"standby_share_expected\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    X = f\"(df['PASSENGERS_PER_MIN'] / 60 * {k['m'] * G * k['H'] / 1000:.10g})\"\n    LOAD = f\"np.where(df['DIRECTION'] > 0, {X} / {k['eta']}, -{X} * {k['eta']})\"\n    NL = f\"((df['MOTOR_POWER_KW'] - {LOAD}) * {k['vr']} / np.maximum(df['STEP_SPEED_MS'], 0.05))\"\n    DRAG = f\"({NL} / {k['pnl']:.10g})\"\n    HL = \"((df['HANDRAIL_LEFT_MS'] / np.maximum(df['STEP_SPEED_MS'], 0.05) - 1) * 100)\"\n    HR = \"((df['HANDRAIL_RIGHT_MS'] / np.maximum(df['STEP_SPEED_MS'], 0.05) - 1) * 100)\"\n    CE = f\"({k['e0']} + {k['w']} * df['RUN_HOURS'] / 1000)\"\n    BF = (f\"(((({k['meq']} + df['LAST_STOP_LOAD_KG']) * df['LAST_STOP_DECEL_MS2'] - {k['ff']:.10g}\"\n          f\" - df['LAST_STOP_DIR'] * df['LAST_STOP_LOAD_KG'] * {G * k['sin']:.10g})) / 1000)\")\n    AFD = f\"(({BF} * 1000 + {k['ff'] - k['mfull'] * G * k['sin']:.10g}) / {k['meq'] + k['mfull']:.10g})\"\n    AE = f\"(({BF} * 1000 + {k['ff']:.10g}) / {k['meq']})\"\n    SFD = (f\"np.where({AFD} > 0.02, {k['vr']} * df['LAST_STOP_DELAY_S'] + {k['vr'] ** 2 / 2:.10g} / np.maximum({AFD}, 0.02), 9.99)\")\n    SE = f\"({k['vr']} * df['LAST_STOP_DELAY_S'] + {k['vr'] ** 2 / 2:.10g} / np.maximum({AE}, 0.02))\"\n    OE = f\"(df['AMBIENT_TEMP_C'] + {k['k0']} + {k['k1']} * np.maximum(df['MOTOR_POWER_AVG_KW'], 0))\"\n    return dict(k=k, X=X, LOAD=LOAD, NL=NL, DRAG=DRAG, HL=HL, HR=HR, CE=CE, BF=BF, AFD=AFD, AE=AE, SFD=SFD, SE=SE, OE=OE)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"LOAD_POWER_KW\", p[\"LOAD\"]),\n        (\"POWER_EXPECTED_KW\", f\"{k['pnl']:.10g} * df['STEP_SPEED_MS'] / {k['vr']} + {p['LOAD']}\"),\n        (\"POWER_RESIDUAL_KW\", f\"df['MOTOR_POWER_KW'] - ({k['pnl']:.10g} * df['STEP_SPEED_MS'] / {k['vr']} + {p['LOAD']})\"),\n        (\"NOLOAD_POWER_EST_KW\", p[\"NL\"]),\n        (\"DRAG_RATIO\", p[\"DRAG\"]),\n        (\"ENERGY_PER_PAX_WH\", \"df['MOTOR_POWER_KW'] * 1000 / 60 / np.maximum(df['PASSENGERS_PER_MIN'], 1)\"),\n        (\"HANDRAIL_L_DEV_PCT\", p[\"HL\"]),\n        (\"HANDRAIL_R_DEV_PCT\", p[\"HR\"]),\n        (\"CHAIN_ELONG_EXPECTED_PCT\", p[\"CE\"]),\n        (\"CHAIN_WEAR_RESIDUAL_PCT\", f\"df['CHAIN_ELONGATION_PCT'] - {p['CE']}\"),\n        (\"CHAIN_HOURS_TO_LIMIT\", f\"({k['erep']} - df['CHAIN_ELONGATION_PCT']) / {k['w']} * 1000\"),\n        (\"BRAKE_FORCE_KN\", p[\"BF\"]),\n        (\"STOP_DIST_FULL_DOWN_M\", p[\"SFD\"]),\n        (\"STOP_DIST_EMPTY_M\", p[\"SE\"]),\n        (\"STOP_DIST_MODEL_ERR_M\", \"df['LAST_STOP_DISTANCE_M'] - (df['LAST_STOP_SPEED_MS'] * df['LAST_STOP_DELAY_S']\"\n                                  \" + df['LAST_STOP_SPEED_MS'] ** 2 / 2 / np.maximum(df['LAST_STOP_DECEL_MS2'], 0.02))\"),\n        (\"OIL_TEMP_EXPECTED_C\", p[\"OE\"]),\n        (\"OIL_TEMP_RESIDUAL_C\", f\"df['GEAR_OIL_TEMP_C'] - {p['OE']}\"),\n        (\"VIB_RATIO\", f\"df['GEARBOX_VIB_MMS'] / {k['vib0']}\"),\n        (\"SAFETY_TRIPS_24H\", \"df['TRIPS_COMB_24H'] + df['TRIPS_HANDRAIL_INLET_24H'] + df['TRIPS_STEP_SAG_24H'] + df['TRIPS_ESTOP_24H']\"),\n        (\"STANDBY_LOST_KWH_DAY\", f\"np.maximum({k['fexp']} - df['STANDBY_SHARE_24H'], 0) * {k['duty'] * k['pnl'] * (1 - k['vsb'] / k['vr']):.10g}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    x = r[\"passengers_per_min\"] / 60 * float(f\"{k['m'] * G * k['H'] / 1000:.10g}\")\n    load = x / k[\"eta\"] if r[\"direction\"] > 0 else -x * k[\"eta\"]\n    pnl = float(f\"{k['pnl']:.10g}\")\n    v = max(r[\"step_speed_ms\"], 0.05)\n    nl = (r[\"motor_power_kw\"] - load) * k[\"vr\"] / v\n    exp_p = pnl * r[\"step_speed_ms\"] / k[\"vr\"] + load\n    hl = (r[\"handrail_left_ms\"] / v - 1) * 100\n    hr = (r[\"handrail_right_ms\"] / v - 1) * 100\n    ce = k[\"e0\"] + k[\"w\"] * r[\"run_hours\"] / 1000\n    ff = float(f\"{k['ff']:.10g}\")\n    gs = float(f\"{G * k['sin']:.10g}\")\n    bf = ((k[\"meq\"] + r[\"last_stop_load_kg\"]) * r[\"last_stop_decel_ms2\"] - ff - r[\"last_stop_dir\"] * r[\"last_stop_load_kg\"] * gs) / 1000\n    afd = (bf * 1000 + float(f\"{k['ff'] - k['mfull'] * G * k['sin']:.10g}\")) / float(f\"{k['meq'] + k['mfull']:.10g}\")\n    ae = (bf * 1000 + ff) / k[\"meq\"]\n    h2 = float(f\"{k['vr'] ** 2 / 2:.10g}\")\n    sfd = k[\"vr\"] * r[\"last_stop_delay_s\"] + h2 / max(afd, 0.02) if afd > 0.02 else 9.99\n    se = k[\"vr\"] * r[\"last_stop_delay_s\"] + h2 / max(ae, 0.02)\n    vs = r[\"last_stop_speed_ms\"]\n    oe = r[\"ambient_temp_c\"] + k[\"k0\"] + k[\"k1\"] * max(r[\"motor_power_avg_kw\"], 0)\n    return {\n        \"load_power_kw\": load, \"power_expected_kw\": exp_p, \"power_residual_kw\": r[\"motor_power_kw\"] - exp_p,\n        \"noload_power_est_kw\": nl, \"drag_ratio\": nl / pnl,\n        \"energy_per_pax_wh\": r[\"motor_power_kw\"] * 1000 / 60 / max(r[\"passengers_per_min\"], 1),\n        \"handrail_l_dev_pct\": hl, \"handrail_r_dev_pct\": hr,\n        \"chain_elong_expected_pct\": ce, \"chain_wear_residual_pct\": r[\"chain_elongation_pct\"] - ce,\n        \"chain_hours_to_limit\": (k[\"erep\"] - r[\"chain_elongation_pct\"]) / k[\"w\"] * 1000,\n        \"brake_force_kn\": bf, \"stop_dist_full_down_m\": sfd, \"stop_dist_empty_m\": se,\n        \"stop_dist_model_err_m\": r[\"last_stop_distance_m\"] - (vs * r[\"last_stop_delay_s\"] + vs ** 2 / 2 / max(r[\"last_stop_decel_ms2\"], 0.02)),\n        \"oil_temp_expected_c\": oe, \"oil_temp_residual_c\": r[\"gear_oil_temp_c\"] - oe, \"vib_ratio\": r[\"gearbox_vib_mms\"] / k[\"vib0\"],\n        \"safety_trips_24h\": r[\"trips_comb_24h\"] + r[\"trips_handrail_inlet_24h\"] + r[\"trips_step_sag_24h\"] + r[\"trips_estop_24h\"],\n        \"standby_lost_kwh_day\": max(k[\"fexp\"] - r[\"standby_share_24h\"], 0) * float(f\"{k['duty'] * k['pnl'] * (1 - k['vsb'] / k['vr']):.10g}\"),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    HMIN, HMAX = f\"np.minimum({p['HL']}, {p['HR']})\", f\"np.maximum({p['HL']}, {p['HR']})\"\n    CW = f\"(df['CHAIN_ELONGATION_PCT'] - {p['CE']})\"\n    m = L[\"stop_margin_frac\"] * k[\"smax\"]\n    return [\n        (\"ESC_STOP_TOO_LONG\", f\"{p['SFD']} > {k['smax']}\", \"Critical\", \"brake_weak\"),\n        (\"ESC_STOP_HARSH\", f\"{p['SE']} < {k['smin']}\", \"High\", \"brake_harsh\"),\n        (\"ESC_HANDRAIL_SLIP\", f\"{HMIN} < {L['handrail_slip_pct']}\", \"High\", \"handrail_slip\"),\n        (\"ESC_CHAIN_ELONG_LIMIT\", f\"df['CHAIN_ELONGATION_PCT'] > {L['chain_replace_pct']}\", \"High\", \"chain_wear\"),\n        (\"ESC_STOP_MARGIN_LOW\", f\"({p['SFD']} > {m:.6g}) & ({p['SFD']} <= {k['smax']})\", \"Medium\", \"brake_weak\"),\n        (\"ESC_HANDRAIL_OUT_OF_TOL\", f\"(({HMIN} < {k['hmin']}) | ({HMAX} > {k['hmax']})) & ({HMIN} >= {L['handrail_slip_pct']})\", \"Medium\", \"handrail_slip\"),\n        (\"ESC_CHAIN_ELONG_ALERT\", f\"(df['CHAIN_ELONGATION_PCT'] > {L['chain_alert_pct']}) & (df['CHAIN_ELONGATION_PCT'] <= {L['chain_replace_pct']})\", \"Medium\", \"chain_wear\"),\n        (\"ESC_CHAIN_WEAR_FAST\", f\"{CW} > {L['chain_fast_wear_pct']}\", \"Medium\", \"chain_wear\"),\n        (\"ESC_DRAG_HIGH\", f\"{p['DRAG']} > {L['drag_ratio_alert']}\", \"Medium\", \"step_band_drag\"),\n        (\"ESC_STEP_SAG_TRIPS\", f\"df['TRIPS_STEP_SAG_24H'] >= {L['step_sag_trips_alert']}\", \"Medium\", \"step_band_drag\"),\n        (\"ESC_GEAR_OIL_HOT\", f\"(df['GEAR_OIL_TEMP_C'] - {p['OE']}) > {L['oil_residual_alert_k']}\", \"Medium\", \"gearbox_wear\"),\n        (\"ESC_GEAR_VIB_HIGH\", f\"df['GEARBOX_VIB_MMS'] / {k['vib0']} > {L['vib_ratio_alert']}\", \"Medium\", \"gearbox_wear\"),\n        (\"ESC_COMB_TRIPS\", f\"df['TRIPS_COMB_24H'] >= {L['comb_trips_alert']}\", \"Medium\", \"comb_damage\"),\n        (\"ESC_STANDBY_UNUSED\", f\"df['STANDBY_SHARE_24H'] < {L['standby_share_alert']}\", \"Low\", \"standby_disabled\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    sfd, se = t[\"stop_dist_full_down_m\"], t[\"stop_dist_empty_m\"]\n    hmin, hmax = min(t[\"handrail_l_dev_pct\"], t[\"handrail_r_dev_pct\"]), max(t[\"handrail_l_dev_pct\"], t[\"handrail_r_dev_pct\"])\n    e, cw = r[\"chain_elongation_pct\"], t[\"chain_wear_residual_pct\"]\n    m = float(f\"{L['stop_margin_frac'] * k['smax']:.6g}\")\n    add(sfd > k[\"smax\"], \"ESC_STOP_TOO_LONG\", \"Critical\",\n        f\"Fully loaded down stop would take {sfd:.2f} m, beyond the EN 115-1 maximum of {k['smax']:.2f} m\", \"brake\", \"brake_weak\")\n    add(se < k[\"smin\"], \"ESC_STOP_HARSH\", \"High\",\n        f\"Empty stop only {se:.2f} m, shorter than the EN 115-1 minimum of {k['smin']:.2f} m: risk of passenger falls\", \"brake\", \"brake_harsh\")\n    add(hmin < L[\"handrail_slip_pct\"], \"ESC_HANDRAIL_SLIP\", \"High\",\n        f\"Handrail {hmin:+.1f} % against the steps: close to the monitor trip at -{twin['design']['handrail']['monitor_trip_pct']:.0f} %\", \"handrail\", \"handrail_slip\")\n    add(e > L[\"chain_replace_pct\"], \"ESC_CHAIN_ELONG_LIMIT\", \"High\", f\"Step chain elongation {e:.2f} %, beyond the {L['chain_replace_pct']} % replacement limit\",\n        \"step chain\", \"chain_wear\")\n    add(m < sfd <= k[\"smax\"], \"ESC_STOP_MARGIN_LOW\", \"Medium\", f\"Fully loaded down stop would take {sfd:.2f} m (limit {k['smax']:.2f} m)\", \"brake\", \"brake_weak\")\n    add((hmin < k[\"hmin\"] or hmax > k[\"hmax\"]) and hmin >= L[\"handrail_slip_pct\"], \"ESC_HANDRAIL_OUT_OF_TOL\", \"Medium\",\n        f\"Handrail speed {hmin:+.1f} / {hmax:+.1f} % against the steps, outside 0 to +2 %\", \"handrail\", \"handrail_slip\")\n    add(L[\"chain_alert_pct\"] < e <= L[\"chain_replace_pct\"], \"ESC_CHAIN_ELONG_ALERT\", \"Medium\", f\"Step chain elongation {e:.2f} %: plan the replacement\",\n        \"step chain\", \"chain_wear\")\n    add(cw > L[\"chain_fast_wear_pct\"], \"ESC_CHAIN_WEAR_FAST\", \"Medium\", f\"Chain {cw:+.2f} % longer than the wear line for {r['run_hours']:.0f} run hours: check lubrication\",\n        \"step chain\", \"chain_wear\")\n    add(t[\"drag_ratio\"] > L[\"drag_ratio_alert\"], \"ESC_DRAG_HIGH\", \"Medium\", f\"No-load power {t['noload_power_est_kw']:.1f} kW, {t['drag_ratio']:.2f} x expected\",\n        \"step band\", \"step_band_drag\")\n    add(r[\"trips_step_sag_24h\"] >= L[\"step_sag_trips_alert\"], \"ESC_STEP_SAG_TRIPS\", \"Medium\", f\"{r['trips_step_sag_24h']:.0f} step sag trips in 24 h\",\n        \"step band\", \"step_band_drag\")\n    add(t[\"oil_temp_residual_c\"] > L[\"oil_residual_alert_k\"], \"ESC_GEAR_OIL_HOT\", \"Medium\",\n        f\"Gear oil {r['gear_oil_temp_c']:.0f} \u00b0C, {t['oil_temp_residual_c']:+.0f} K above what the power explains\", \"gearbox\", \"gearbox_wear\")\n    add(t[\"vib_ratio\"] > L[\"vib_ratio_alert\"], \"ESC_GEAR_VIB_HIGH\", \"Medium\", f\"Gearbox vibration {r['gearbox_vib_mms']:.1f} mm/s, {t['vib_ratio']:.1f} x baseline\",\n        \"gearbox\", \"gearbox_wear\")\n    add(r[\"trips_comb_24h\"] >= L[\"comb_trips_alert\"], \"ESC_COMB_TRIPS\", \"Medium\", f\"{r['trips_comb_24h']:.0f} comb plate trips in 24 h\", \"comb plate\", \"comb_damage\")\n    add(r[\"standby_share_24h\"] < L[\"standby_share_alert\"], \"ESC_STANDBY_UNUSED\", \"Low\",\n        f\"Stand-by speed used {r['standby_share_24h'] * 100:.0f} % of the time: about {t['standby_lost_kwh_day']:.0f} kWh/day lost\", \"controller\", \"standby_disabled\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "ES-5601 metro escalator twin. Expected values in Maximo Monitor from KONE data, EN 115-1 limits and published escalator physics; the controller sends only what it measures.", "twin": {"id": "ES-5601", "name": "Metro escalator ES-5601", "version": "1.0.0", "folder": "escalator-twin"}, "identification": {"asset": "ES-5601", "assetnum": "ES-5601", "manufacturer": "KONE", "model": "TransitMaster 140", "description": "Heavy-duty public transport escalator, platform to ticket hall (up), 10 m rise", "type": "Heavy-duty (public service) escalator, outside roller step chains, stand-by speed operation", "location": "Metro station, platform level to ticket hall (generic)", "drive": "Electric motor and gearbox at the upper landing, driving the step chain sprockets; operational brake on the motor shaft, auxiliary brake on the main drive shaft", "controller": "Escalator controller with speed sensor, handrail speed monitor, chain elongation sensor and safety circuit diagnostics"}, "design": {"geometry": {"rise_m": 10.0, "inclination_deg": 30.0, "step_width_mm": 1000, "step_depth_m": 0.4, "flat_steps": 3, "source": "Rise, inclination and step width: KONE TransitMaster 140 EPD representative unit (10 m, 30 deg, 1000 mm) and brochure (rise up to 18 m, 27.3 or 30 deg, 1000 mm). Three flat steps at each landing: brochure note (EN 115-1, rise above 6 m). Step depth 0.40 m: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "speed": {"rated_ms": 0.5, "standby_ms": 0.2, "source": "Rated speed 0.5 m/s: EPD representative unit (brochure: 0.5, 0.65, 0.75 m/s). Stand-by speed operation: brochure; the stand-by speed value 0.2 m/s is an assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "drive": {"noload_a_kw_per_m": 0.47, "noload_b_kw": 1.74, "eta_load": 0.85, "friction_share": 0.4, "motor_rated_kw": 30.0, "source": "No-load power at rated speed P_NL = 0.47 x rise + 1.74 kW: Al-Sharif (measurement-based model of escalator power). Efficiency of the drive for the passenger load (motor + gearbox), share of the no-load power that is mechanical friction at the step band, motor rating: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "passengers": {"mass_kg": 75.0, "max_capacity_ph": 6000, "duty_h_per_day": 20.0, "annual_kwh_epd": 87327, "source": "75 kg per passenger: Al-Sharif. Max. capacity 6000 persons/h (EN 115-1 for 0.5 m/s), 20 h/day, 87,327 kWh/year (ISO 25745-3 method, automatic start/stop unit): KONE TransitMaster 140 EPD."}, "brake": {"brake_load_kg_per_step": 120.0, "stop_min_m": 0.2, "stop_max_m": 1.0, "decel_asme_ms2": 0.91, "m_eq_kg": 16000.0, "delay_s": 0.35, "source": "Stopping distance window for 0.50 m/s, 0.20 m (empty) to 1.00 m (fully loaded, down): EN 115-1 as tabulated by Al-Sharif. Brake load 120 kg per 1000 mm step, steps = rise / riser: EN 115-1 as commonly quoted (check your edition). ASME A17.1/CSA B44 maximum deceleration 0.91 m/s2: as quoted by Al-Sharif (for comparison only). Equivalent moving mass of step band, chains, handrails and rotating parts at the steps, and the delay from the stop command until full brake torque: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "handrail": {"tol_min_pct": 0.0, "tol_max_pct": 2.0, "monitor_trip_pct": 15.0, "monitor_trip_s": 15.0, "nominal_pct": 1.0, "source": "Handrail speed 0 to +2 % of the step speed in normal operation; monitor stops the escalator at more than 15 % deviation for more than 15 s: EN 115-1 as reported by secondary sources (check the clause of your edition). Nominal +1 % setting: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "chain": {"elong0_pct": 0.1, "wear_pct_per_1000h": 0.007, "alert_pct": 1.0, "replace_pct": 1.5, "fast_wear_pct": 0.3, "source": "Outside roller step chains (rollers 100 x 25 mm): KONE brochure. Initial elongation after running-in, wear rate, alert and replacement elongation: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records) (the chain maker's wear limit)"}, "gearbox": {"oil_rise0_k": 18.0, "oil_k_per_kw": 1.2, "oil_alert_k": 10.0, "vib_baseline_mms": 1.2, "vib_ratio_alert": 2.5, "source": "Gear oil temperature above ambient at no load and per kW of 15-minute mean motor power, vibration baseline at commissioning, alert levels: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "safety": {"comb_trips_alert": 3, "step_sag_trips_alert": 2, "source": "Safety devices (comb plate impact, handrail inlet, step sag, emergency stop): KONE brochure. Alert counts per 24 h: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "energy": {"standby_share_expected": 0.25, "standby_share_alert": 0.1, "source": "Share of running time at stand-by speed expected for this station's traffic, and the alert level: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "usage": {"run_hours_now": 62000.0, "service_life_h": 150000, "source": "Typical service life up to 150,000 h: KONE brochure. Run hours of this unit: assumption: typical value, replace with the data of your own escalator (manufacturer's commissioning report / service records)"}, "demo": {"time_scale": 1, "train_every_s": 150, "train_peak_ppm": 90.0, "train_tau_s": 25.0, "standby_after_s": 10, "stop_every_s": 10, "ambient_c": 22.0, "note": "Demo only: a train arrives every 150 s of real time and its passengers ride up in a burst; the escalator drops to stand-by speed when nobody has entered for 10 s. A stop is recorded every 10 s so the brake values update often; in service they come from the last real stop (night shutdown, emergency stop or safety trip)."}}, "telemetry": {"event": "escalator", "publish_every_s": 10, "device_type": "ESCALATOR_HEAVY_DUTY", "groups": {"Drive": "Motor and step band", "Load": "Passengers", "Handrail": "Handrail speeds", "Chain": "Step chain", "Gearbox": "Gearbox", "Env": "Environment", "Brake": "Last stop (brake)", "Safety": "Safety circuit trips, last 24 h", "Usage": "Run hours and energy saving"}, "points": [{"metric": "motor_power_kw", "path": "Drive.Power", "label": "Motor input power", "unit": "kW"}, {"metric": "motor_power_avg_kw", "path": "Drive.Power15", "label": "Motor input power, 15-minute mean", "unit": "kW"}, {"metric": "step_speed_ms", "path": "Drive.StepSpeed", "label": "Step band speed", "unit": "m/s"}, {"metric": "run_mode", "path": "Drive.Mode", "label": "Mode (2 rated speed, 1 stand-by speed, 0 stopped)", "unit": "code"}, {"metric": "direction", "path": "Drive.Direction", "label": "Direction (1 up, -1 down)", "unit": "code"}, {"metric": "passengers_per_min", "path": "Load.Flow", "label": "Passengers entering per minute (landing counter)", "unit": "1/min"}, {"metric": "handrail_left_ms", "path": "Handrail.Left", "label": "Left handrail speed", "unit": "m/s"}, {"metric": "handrail_right_ms", "path": "Handrail.Right", "label": "Right handrail speed", "unit": "m/s"}, {"metric": "chain_elongation_pct", "path": "Chain.Elongation", "label": "Step chain elongation", "unit": "%"}, {"metric": "gear_oil_temp_c", "path": "Gearbox.OilTemp", "label": "Gear oil temperature", "unit": "\u00b0C"}, {"metric": "gearbox_vib_mms", "path": "Gearbox.Vibration", "label": "Gearbox vibration velocity (RMS)", "unit": "mm/s"}, {"metric": "ambient_temp_c", "path": "Env.Ambient", "label": "Machine space temperature", "unit": "\u00b0C"}, {"metric": "last_stop_distance_m", "path": "Brake.Distance", "label": "Stopping distance of the last stop", "unit": "m"}, {"metric": "last_stop_decel_ms2", "path": "Brake.Deceleration", "label": "Mean deceleration under full brake torque, last stop", "unit": "m/s\u00b2"}, {"metric": "last_stop_delay_s", "path": "Brake.Delay", "label": "Delay from stop command to full brake torque, last stop", "unit": "s"}, {"metric": "last_stop_speed_ms", "path": "Brake.Speed", "label": "Step speed at the last stop command", "unit": "m/s"}, {"metric": "last_stop_load_kg", "path": "Brake.Load", "label": "Passenger load at the last stop (controller estimate)", "unit": "kg"}, {"metric": "last_stop_dir", "path": "Brake.Direction", "label": "Direction at the last stop (1 up, -1 down)", "unit": "code"}, {"metric": "trips_comb_24h", "path": "Safety.Comb", "label": "Comb plate impact switch trips, 24 h", "unit": "count"}, {"metric": "trips_handrail_inlet_24h", "path": "Safety.HandrailInlet", "label": "Handrail inlet switch trips, 24 h", "unit": "count"}, {"metric": "trips_step_sag_24h", "path": "Safety.StepSag", "label": "Step sag / missing step trips, 24 h", "unit": "count"}, {"metric": "trips_estop_24h", "path": "Safety.EStop", "label": "Passenger emergency stops, 24 h", "unit": "count"}, {"metric": "run_hours", "path": "Usage.RunHours", "label": "Run hours since commissioning", "unit": "h"}, {"metric": "standby_share_24h", "path": "Usage.StandbyShare", "label": "Share of running time at stand-by speed, 24 h", "unit": "-"}]}, "twin_model": {"limits": {"drag_ratio_alert": 1.3, "stop_margin_frac": 0.85, "handrail_slip_pct": -10.0, "chain_alert_pct": 1.0, "chain_replace_pct": 1.5, "chain_fast_wear_pct": 0.3, "oil_residual_alert_k": 10.0, "vib_ratio_alert": 2.5, "comb_trips_alert": 3, "step_sag_trips_alert": 2, "standby_share_alert": 0.1}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "brake_weak": {"name": "Brake lining worn / brake too weak", "part": "brake", "symptoms": "longer delay and less brake force: the predicted fully loaded down stop leaves the EN 115-1 window", "rules": ["ESC_STOP_MARGIN_LOW", "ESC_STOP_TOO_LONG"], "default_ramp_min": 1.5}, "brake_harsh": {"name": "Brake set too hard (harsh stop)", "part": "brake", "symptoms": "short delay and high brake force: an empty stop shorter than the EN 115-1 minimum, passengers may fall", "rules": ["ESC_STOP_HARSH"], "default_ramp_min": 1}, "handrail_slip": {"name": "Handrail drive slip (worn friction wheel, handrail stretch)", "part": "handrail", "symptoms": "left handrail slower than the steps, first outside 0 to +2 %, then close to the monitor trip", "rules": ["ESC_HANDRAIL_OUT_OF_TOL", "ESC_HANDRAIL_SLIP"], "default_ramp_min": 1.5}, "chain_wear": {"name": "Step chain wear (lubrication failure)", "part": "step chain", "symptoms": "elongation grows faster than the wear line of the run hours, then reaches the replacement limit", "rules": ["ESC_CHAIN_WEAR_FAST", "ESC_CHAIN_ELONG_ALERT", "ESC_CHAIN_ELONG_LIMIT"], "default_ramp_min": 1.5}, "step_band_drag": {"name": "Step band drag (worn step rollers, misaligned tracks)", "part": "step band", "symptoms": "no-load power up at the same passenger flow, step sag trips", "rules": ["ESC_DRAG_HIGH", "ESC_STEP_SAG_TRIPS"], "default_ramp_min": 1}, "gearbox_wear": {"name": "Gearbox wear or low oil", "part": "gearbox", "symptoms": "gear oil hotter than the power explains, vibration up", "rules": ["ESC_GEAR_OIL_HOT", "ESC_GEAR_VIB_HIGH"], "default_ramp_min": 1}, "comb_damage": {"name": "Comb plate damage (broken teeth, debris)", "part": "comb plate", "symptoms": "repeated comb plate impact switch trips", "rules": ["ESC_COMB_TRIPS"], "default_ramp_min": 0.5}, "standby_disabled": {"name": "Energy-saving stand-by speed disabled", "part": "controller", "symptoms": "escalator stays at rated speed with nobody on it; energy per passenger up", "rules": ["ESC_STANDBY_UNUSED"], "default_ramp_min": 0.5}}, "presentation": {"title": "ES-5601 metro escalator", "dashboard": "ESCALATOR_HEAVY_DUTY"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const sgn = (v, d = 1) => (v == null || isNaN(v)) ? '–' : (v >= 0 ? '+' : '') + Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(3, 10, 31); ctl.target.set(1, 5.2, 0); ctl.update(); };
+const driveView = () => { cam.position.set(14.5, 12.5, 7); ctl.target.set(10.4, 8.7, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(6, 20, 12); scene.add(sun);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), alu = M(0x9aa3ad, { m: .7, r: .35 }), yellowM = M(0xe0b000, { m: .2, r: .5 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+
+// geometry: rise 10 m, 30 deg; incline from x = -XI to +XI; flats beyond
+const H = 10, TAN = Math.tan(Math.PI / 6), XI = H / TAN / 2, X0 = -XI - 2.4, X1 = XI + 2.4, PITCH = 0.4;
+const yOf = x => x < -XI ? 0 : x > XI ? H : (x + XI) * TAN;
+// floors: platform (lower) and ticket hall (upper)
+const floorMat = M(0x5b636e, { m: .1, r: .9, t: 1 });
+scene.add(at(box(9, .3, 7, floorMat), X0 - 4.5, -.15, 0));
+scene.add(at(box(9, .3, 7, floorMat), X1 + 4.5, H - .15, 0));
+const grid = new THREE.GridHelper(40, 40, 0x3a3f47, 0x2a2e35); grid.position.y = -.31; scene.add(grid);
+// truss / cladding: an extruded side profile, see-through in cutaway
+const trussMat = M(0x6d7782, { m: .3, r: .6, t: 1, ds: true });
+{ const s = new THREE.Shape(); s.moveTo(X0, -.1); s.lineTo(-XI, -.1); s.lineTo(XI, H - .1); s.lineTo(X1, H - .1); s.lineTo(X1, H - 1.4); s.lineTo(XI + .6, H - 1.4);
+  s.lineTo(-XI + .6, -1.4); s.lineTo(X0, -1.4); s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: 1.5, bevelEnabled: false }); g.translate(0, 0, -.75);
+  scene.add(new THREE.Mesh(g, trussMat)); }
+// balustrades (glass) and decking, both sides
+const glass = M(0x9ec5ff, { t: .28, r: .1, m: .1, ds: true });
+const HR = 1.0;
+[-1, 1].forEach(side => {
+  const s = new THREE.Shape(); s.moveTo(X0 + .6, .1); s.lineTo(-XI, .1); s.lineTo(XI, H + .1); s.lineTo(X1 - .6, H + .1);
+  s.lineTo(X1 - .6, H + HR - .05); s.lineTo(XI, H + HR - .05); s.lineTo(-XI, HR - .05); s.lineTo(X0 + .6, HR - .05); s.closePath();
+  const g = new THREE.ExtrudeGeometry(s, { depth: .012, bevelEnabled: false }); const m = new THREE.Mesh(g, glass); m.position.z = side * .6; scene.add(m);
+});
+// handrails: tube along the path (rounded newels), with moving marks
+const hrPath = side => { const pts = [];
+  pts.push(new THREE.Vector3(X0 + .6, HR - .5, side * .63)); pts.push(new THREE.Vector3(X0 + .25, HR - .25, side * .63)); pts.push(new THREE.Vector3(X0 + .6, HR, side * .63));
+  for (let x = -XI - 1; x <= XI + 1; x += .5) pts.push(new THREE.Vector3(x, yOf(x) + HR, side * .63));
+  pts.push(new THREE.Vector3(X1 - .6, H + HR, side * .63)); pts.push(new THREE.Vector3(X1 - .25, H + HR - .25, side * .63)); pts.push(new THREE.Vector3(X1 - .6, H + HR - .5, side * .63));
+  return new THREE.CatmullRomCurve3(pts); };
+const HRC = { L: hrPath(-1), R: hrPath(1) };
+Object.values(HRC).forEach(c => scene.add(new THREE.Mesh(new THREE.TubeGeometry(c, 300, .045, 8, false), M(0x111111, { m: .1, r: .6 }))));
+const marks = { L: [], R: [] };
+['L', 'R'].forEach(k => { for (let i = 0; i < 14; i++) { const m = new THREE.Mesh(new THREE.SphereGeometry(.06, 10, 8), M(0xf1c21b, { m: .1 })); scene.add(m); marks[k].push(m); } });
+// steps (tread + riser), moving along the path
+const stepMat = M(0xa7adb5, { m: .7, r: .35 }), demarc = M(0xe0b000, { m: .2 });
+const steps = [];
+for (let x = X0 + .6; x < X1 - .6; x += PITCH) {
+  const g = new THREE.Group();
+  g.add(at(box(PITCH - .02, .06, 1.0, stepMat), 0, -.03, 0));
+  g.add(at(box(.04, .061, 1.0, demarc), PITCH / 2 - .04, -.029, 0));
+  g.add(at(box(.02, PITCH * TAN, 1.0, stepMat), -PITCH / 2 + .01, -PITCH * TAN / 2, 0));
+  scene.add(g); steps.push(g);
+}
+const STEP_L = steps.length * PITCH;
+// comb plates
+[[X0 + .62, 0], [X1 - .62, H]].forEach(([x, y]) => scene.add(at(box(.12, .03, 1.0, yellowM), x, y + .01, 0)));
+// step chains (both sides): upper run along the path, return run below
+const chainMat = M(0x8a8f96, { m: .8, r: .3 });
+[-.55, .55].forEach(z => {
+  const up = [], dn = [];
+  for (let x = X0 + .6; x <= X1 - .6; x += .5) { up.push(new THREE.Vector3(x, yOf(x) - .25, z)); }
+  for (let x = X1 - .6; x >= X0 + .6; x -= .5) { dn.push(new THREE.Vector3(x, yOf(x) - 1.0, z)); }
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(up), 200, .05, 6, false), chainMat));
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(dn), 200, .05, 6, false), chainMat));
+});
+// drive station (upper pit): sprocket shaft, gearbox, motor, brake disc
+const sprocket = cyl(.38, .38, 1.3, M(0x5c6670, { m: .7 })); sprocket.rotation.x = Math.PI / 2; scene.add(at(sprocket, X1 - 1.0, H - .62, 0));
+const gearbox = at(box(.9, .7, .6, M(0x2f6db5, { m: .35 })), X1 - 1.0, H - .75, 1.0); scene.add(gearbox);
+const motor = cyl(.25, .25, .8, M(0x2f6db5, { m: .35 })); motor.rotation.z = Math.PI / 2; scene.add(at(motor, X1 - .1, H - .9, 1.0));
+const disc = cyl(.24, .24, .05, M(0xc0392b, { m: .5 })); disc.rotation.z = Math.PI / 2; scene.add(at(disc, X1 + .38, H - .9, 1.0));
+scene.add(at(box(.1, .2, .14, dark), X1 + .38, H - .62, 1.0));
+// return station (lower pit) with tension carriage
+const ret = cyl(.38, .38, 1.3, M(0x5c6670, { m: .7 })); ret.rotation.x = Math.PI / 2; scene.add(at(ret, X0 + 1.0, -.62, 0));
+const carriage = at(box(.5, .25, 1.4, dark), X0 + .55, -.62, 0); scene.add(carriage);
+// controller cabinet in the upper pit and a people counter at the lower landing
+scene.add(at(box(.6, .9, .35, M(0x8a3ffc, { m: .2 })), X1 - 2.0, H - .85, 1.1));
+scene.add(at(box(.12, 1.2, .12, dark), X0 + .2, .6, -1.0)); scene.add(at(box(.14, .14, .14, M(0x0f62fe)), X0 + .2, 1.25, -1.0));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.1, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(beacon, X1 - 2.0, H - .3, 1.1));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('flow', [X0 + .2, 1.6, -1.0]); lbl('power', [X1, H - .4, 1.4]); lbl('brake', [X1 + .6, H - 2.6, 1.0]); lbl('gear', [X1 - 1.8, H - 1.5, 1.3]);
+lbl('hrL', [-1.5, yOf(-1.5) + HR + .15, -.63]); lbl('hrR', [2.5, yOf(2.5) + HR + .15, .63]); lbl('chain', [X0 + 1.0, -.2, .7]);
+lbl('comb', [X1 - .6, H + 2.4, 0]); lbl('energy', [X1 + 3.5, H + .2, -1.5]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let vStep = .5, vHL = .505, vHR = .505;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  vStep = r.step_speed_ms; vHL = r.handrail_left_ms; vHR = r.handrail_right_ms;
+  setLbl('flow', 'passengers entering', `${fmt(r.passengers_per_min, 0)} /min · ${r.run_mode === 1 ? 'stand-by' : 'rated'} ${fmt(r.step_speed_ms)} m/s`, '');
+  setLbl('power', `motor power · expected ${fmt(t.power_expected_kw, 1)} kW`, `${fmt(r.motor_power_kw, 1)} kW · drag ${fmt(t.drag_ratio)}`, st(names.has('ESC_DRAG_HIGH'), t.drag_ratio > 1.15));
+  setLbl('brake', `brake: full-load down / empty stop (${d.brake.stop_min_m}–${d.brake.stop_max_m} m)`, `${fmt(t.stop_dist_full_down_m)} / ${fmt(t.stop_dist_empty_m)} m`,
+    st(names.has('ESC_STOP_TOO_LONG') || names.has('ESC_STOP_HARSH'), names.has('ESC_STOP_MARGIN_LOW')));
+  setLbl('gear', `gear oil · residual ${sgn(t.oil_temp_residual_c)} K`, `${fmt(r.gear_oil_temp_c, 0)} °C · ${fmt(r.gearbox_vib_mms, 1)} mm/s`, st(names.has('ESC_GEAR_OIL_HOT') || names.has('ESC_GEAR_VIB_HIGH')));
+  setLbl('hrL', 'left handrail vs steps (0 to +2 %)', `${sgn(t.handrail_l_dev_pct)} %`, st(t.handrail_l_dev_pct < L.handrail_slip_pct, t.handrail_l_dev_pct < 0 || t.handrail_l_dev_pct > 2));
+  setLbl('hrR', 'right handrail vs steps (0 to +2 %)', `${sgn(t.handrail_r_dev_pct)} %`, st(t.handrail_r_dev_pct < L.handrail_slip_pct, t.handrail_r_dev_pct < 0 || t.handrail_r_dev_pct > 2));
+  setLbl('chain', `step chain · expected ${fmt(t.chain_elong_expected_pct)} %`, `${fmt(r.chain_elongation_pct)} % elongation`, st(names.has('ESC_CHAIN_ELONG_LIMIT'), names.has('ESC_CHAIN_ELONG_ALERT') || names.has('ESC_CHAIN_WEAR_FAST')));
+  setLbl('comb', 'safety trips 24 h: comb · sag · inlet · E-stop', `${r.trips_comb_24h} · ${r.trips_step_sag_24h} · ${r.trips_handrail_inlet_24h} · ${r.trips_estop_24h}`, st(names.has('ESC_COMB_TRIPS') || names.has('ESC_STEP_SAG_TRIPS')));
+  setLbl('energy', 'energy per passenger · stand-by share', `${fmt(t.energy_per_pax_wh, 1)} Wh · ${fmt(r.standby_share_24h * 100, 0)} %`, st(false, names.has('ESC_STANDBY_UNUSED')));
+  $('k-health').textContent = ST.health; $('k-p').textContent = fmt(r.motor_power_kw, 1); $('k-stop').textContent = fmt(t.stop_dist_full_down_m);
+  $('c-mode-t').textContent = r.run_mode === 1 ? 'stand-by speed' : r.run_mode === 2 ? 'rated speed' : 'stopped'; $('c-mode').className = 'chip ' + (r.run_mode ? 'ok' : 'warn');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Motor power (kW)', fmt(r.motor_power_kw, 2), fmt(t.power_expected_kw, 2)) +
+    row('No-load power (kW)', fmt(t.noload_power_est_kw, 2), fmt(d.drive.noload_a_kw_per_m * d.geometry.rise_m + d.drive.noload_b_kw, 2), names.has('ESC_DRAG_HIGH')) +
+    row('Energy per passenger (Wh)', fmt(t.energy_per_pax_wh, 1), '–') +
+    row('Handrail left / right (%)', `${sgn(t.handrail_l_dev_pct)} / ${sgn(t.handrail_r_dev_pct)}`, '0 to +2', names.has('ESC_HANDRAIL_SLIP') || names.has('ESC_HANDRAIL_OUT_OF_TOL')) +
+    row('Step chain elongation (%)', fmt(r.chain_elongation_pct), fmt(t.chain_elong_expected_pct), names.has('ESC_CHAIN_WEAR_FAST') || names.has('ESC_CHAIN_ELONG_LIMIT')) +
+    row('Brake force (kN)', fmt(t.brake_force_kn, 1), '–') +
+    row('Stop, full load down (m)', fmt(t.stop_dist_full_down_m), '≤ ' + d.brake.stop_max_m.toFixed(2), names.has('ESC_STOP_TOO_LONG') || names.has('ESC_STOP_MARGIN_LOW')) +
+    row('Stop, empty (m)', fmt(t.stop_dist_empty_m), '≥ ' + d.brake.stop_min_m.toFixed(2), names.has('ESC_STOP_HARSH')) +
+    row('Gear oil (°C)', fmt(r.gear_oil_temp_c, 1), fmt(t.oil_temp_expected_c, 1), names.has('ESC_GEAR_OIL_HOT')) +
+    row('Gearbox vibration (mm/s)', fmt(r.gearbox_vib_mms), fmt(d.gearbox.vib_baseline_mms), names.has('ESC_GEAR_VIB_HIGH')) +
+    row('Stand-by share, 24 h', fmt(r.standby_share_24h * 100, 0) + ' %', fmt(d.energy.standby_share_expected * 100, 0) + ' %', names.has('ESC_STANDBY_UNUSED')) +
+    row('Run hours', fmt(r.run_hours, 0), '≤ ' + d.usage.service_life_h);
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the escalator behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-drive').onclick = driveView;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [trussMat, floorMat].forEach(m => { m.transparent = true; m.opacity = cut ? .15 : 1; m.depthWrite = !cut; });
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let sv = .5, off = 0, offL = 0, offR = 0, last = performance.now();
+function tick(now) {
+  const dt = Math.max(0, Math.min(.1, (now - last) / 1000)); last = now;   // the first frame's timestamp can precede `last`
+  sv += (vStep - sv) * Math.min(1, dt * 1.5);                 // the band ramps between rated and stand-by speed
+  off = (off + sv * dt) % STEP_L;
+  steps.forEach((g, i) => { let x = X0 + .6 + ((i * PITCH + off) % STEP_L); g.position.set(x, yOf(x), 0); });
+  const hl = sv * vHL / Math.max(vStep, .05), hr = sv * vHR / Math.max(vStep, .05);
+  offL = (offL + hl * dt / HRC.L.getLength()) % 1; offR = (offR + hr * dt / HRC.R.getLength()) % 1;
+  ['L', 'R'].forEach(k => marks[k].forEach((m, i) => m.position.copy(HRC[k].getPointAt(((((k === 'L' ? offL : offR) + i / marks[k].length) % 1) + 1) % 1))));
+  sprocket.rotation.y -= sv * dt / .38; ret.rotation.y -= sv * dt / .38; motor.rotation.x += sv * dt * 30; disc.rotation.x += sv * dt * 30;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

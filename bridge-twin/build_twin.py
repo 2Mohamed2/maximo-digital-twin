@@ -1,0 +1,145 @@
+"""Write twin/br-6001.twin.json: the road bridge bearings and expansion joints twin (BR-6001).
+
+    python build_twin.py
+
+BR-6001 is a three-span continuous steel-concrete composite girder road bridge, spans 60 + 80 + 60 m (200 m). Fixed pot bearings
+(mageba RESTON POT type TF) sit on pier P1; guided sliding pot bearings (type TE, PTFE on stainless steel) on abutment A1, pier P2
+and abutment A2. A single-gap joint closes the deck end at A1 and a 3-gap modular joint (mageba TENSA MODULAR LR 3) at A2.
+
+Sources and assumptions (every number below is either from a published source or labelled as an assumption in "source"):
+  mageba RESTON POT brochure: types TF (fixed), TE (guided sliding), TA (free sliding); PTFE with grease dimples on austenitic steel.
+  mageba TENSA MODULAR LR brochure: each gap 60 to 80 mm depending on the norm; LR 3 = 3 gaps, 240 mm longitudinal movement.
+  mageba ROBO SLIDE 75 brochure: PTFE to EN 1337-2: friction 2.0 to 3.0 %, maximum 3 %; 10 km accumulated sliding path; -35 / +48 C.
+  EN 1994-2 5.4.2.5 (quoted in SCI P406): alpha = 12e-6 /K for the change in length of a composite bridge.
+  EN 1991-1-5: T0 = 10 C when no other information; expansion range Te,max - T0, contraction range T0 - Te,min.
+  Geometry, loads, stiffness, influence coefficient, wear and alarm limits: ASSUMPTIONS of a typical bridge of this size.
+"""
+import json
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with the design report / bearing and joint schedules of your bridge"
+
+twin = {
+    "$comment": "BR-6001 bridge bearings and expansion joints twin. Expected movements, gaps, strains and wear in Maximo Monitor from the design data; the loggers send only what they measure.",
+    "twin": {"id": "BR-6001", "name": "Road bridge BR-6001: bearings, expansion joints and deck", "version": "1.0.0", "folder": "bridge-twin"},
+    "identification": {
+        "asset": "BR-6001", "assetnum": "BR-6001", "manufacturer": "mageba RESTON POT bearings,",
+        "model": "TENSA MODULAR LR 3 joint (3-span composite girder bridge)",
+        "description": "Road bridge, 3 continuous spans 60 + 80 + 60 m, steel-concrete composite girders: bearings, expansion joints and deck strain",
+        "structure": "Two steel plate girders with a concrete deck slab, continuous over 4 supports (A1, P1, P2, A2)",
+        "bearings": "Pot bearings: fixed (TF) on pier P1; guided sliding (TE), PTFE on stainless steel, on A1, P2 and A2",
+        "joint_a1": "Single-gap strip seal joint at abutment A1",
+        "joint_a2": "Modular expansion joint, 3 gaps, at abutment A2 (for example mageba TENSA MODULAR LR 3)",
+        "monitoring": "Data loggers with displacement transducers, tiltmeter, temperature probes and strain gauges; a weigh-in-motion (WIM) station on the approach",
+    },
+    "design": {
+        "geometry": {
+            "spans_m": [60.0, 80.0, 60.0], "fixed_support": "P1",
+            "exp_length_a1_m": 60.0, "exp_length_p2_m": 80.0, "exp_length_a2_m": 140.0,
+            "source": "Spans and the position of the fixed bearing: " + A + ". Expansion length = distance from the fixed bearing on P1.",
+        },
+        "thermal": {
+            "alpha_per_k": 12e-6, "t0_c": 10.0, "te_min_c": -20.0, "te_max_c": 45.0, "slab_weight": 0.5,
+            "source": "alpha = 12e-6 /K for the change in length of a composite bridge (EN 1994-2 5.4.2.5, as quoted in SCI P406). "
+                      "T0 = 10 C, the value EN 1991-1-5 gives when no other information is available (here also the bearing setting temperature). "
+                      "Te,min / Te,max of the site (national maps of EN 1991-1-5) and the weighting of slab and girder probes into the "
+                      "effective (uniform) bridge temperature: " + A,
+        },
+        "joints": {
+            "a1_gap_t0_mm": 50.0, "a1_capacity_mm": 80.0,
+            "a2_gaps": 3, "a2_gap_t0_mm": 110.0, "a2_gap_max_mm": 80.0, "a2_gap_min_mm": 5.0, "a2_capacity_mm": 240.0,
+            "source": "TENSA MODULAR LR 3: 3 gaps, 240 mm longitudinal movement, each gap up to 80 mm (mageba brochure). Total gap at T0, "
+                      "single-gap joint size and the 5 mm minimum gap (lamellas about to touch): " + A,
+        },
+        "bearing_p2": {
+            "type": "TE guided sliding pot bearing", "bearings_per_support": 2, "permanent_load_kn": 5000.0,
+            "mu_design": 0.015, "mu_max": 0.03,
+            "pier_height_m": 12.0, "pier_stiffness_kn_per_mm": 60.0,
+            "sliding_gap_new_mm": 2.0, "sliding_gap_wear_mm_per_km": 0.05,
+            "path_capacity_m": 10000.0, "path_rate_design_m_per_y": 400.0, "service_years": 12.0,
+            "source": "Friction of PTFE on austenitic steel 2.0 to 3.0 %, maximum 3 %, and 10 km accumulated sliding path for PTFE to EN 1337-2 "
+                      "(mageba ROBO SLIDE 75 brochure; 10 km at 400 m/year = the 25 years it quotes for PTFE). Permanent load per bearing, "
+                      "pier height and stiffness, PTFE protrusion when new, wear per km of path and the design path rate (thermal + traffic "
+                      "micro-movements): " + A + ". Pier head tilt = 1.5 x head displacement / height (cantilever with a load at the top).",
+        },
+        "deck": {
+            "strain_per_kn_ue": 0.30, "strain_per_dt_ue": 1.5, "steel_e_mpa": 210000.0,
+            "legal_gross_kn": 432.0,
+            "source": "Peak strain at the span 2 midspan bottom flange per kN of vehicle gross weight in the slow lane (influence coefficient from "
+                      "the bridge model, calibrated by a load test) and the static strain per K of slab-to-girder temperature difference: " + A
+                      + ". Legal gross weight 44 t: assumption, replace with your national limit.",
+        },
+        "demo": {"time_scale": 60, "season": "summer", "air_mean_c": 27.0, "air_amp_c": 7.0,
+                 "slab_mean_c": 29.0, "slab_amp_c": 9.0, "girder_mean_c": 26.0, "girder_amp_c": 4.0,
+                 "seized_since_te_c": 2.0, "blocked_since_te_c": 12.0, "restraint_factor": 0.8,
+                 "note": "Demo only: the plant clock runs 60 times faster (one bridge day in 24 minutes) on a summer day. A seized bearing has been "
+                         "stuck since the winter (Te 2 C) and a blocked joint since the spring (Te 12 C), so the residuals show at once."},
+    },
+    "telemetry": {
+        "event": "bridge", "publish_every_s": 10, "device_type": "BRIDGE_BEARINGS_JOINTS",
+        "groups": {"Temperature": "Deck slab, girder and air temperature", "BearingP2": "Sliding bearing on pier P2",
+                   "BearingA2": "Sliding bearing on abutment A2", "Pier": "Pier P2 head", "JointA1": "Single-gap joint at abutment A1",
+                   "JointA2": "Modular joint at abutment A2", "Deck": "Span 2 strain gauges", "WIM": "Weigh-in-motion station"},
+        "points": [
+            {"metric": "slab_temp_c", "path": "Temperature.Slab", "label": "Deck slab temperature (embedded probes, mean)", "unit": "°C"},
+            {"metric": "girder_temp_c", "path": "Temperature.Girder", "label": "Steel girder temperature (web probes, mean)", "unit": "°C"},
+            {"metric": "air_temp_c", "path": "Temperature.Air", "label": "Shade air temperature", "unit": "°C"},
+            {"metric": "bearing_p2_disp_mm", "path": "BearingP2.Displacement", "label": "Bearing P2 sliding displacement from its set position (+ = away from P1)", "unit": "mm"},
+            {"metric": "bearing_p2_sliding_gap_mm", "path": "BearingP2.SlidingGap", "label": "Bearing P2 PTFE protrusion (sliding gap)", "unit": "mm"},
+            {"metric": "bearing_p2_path_m", "path": "BearingP2.SlidingPath", "label": "Bearing P2 accumulated sliding path since installation", "unit": "m"},
+            {"metric": "bearing_p2_path_rate_m_y", "path": "BearingP2.PathRate365", "label": "Bearing P2 sliding path over the last 365 days", "unit": "m/y"},
+            {"metric": "bearing_a2_disp_mm", "path": "BearingA2.Displacement", "label": "Bearing A2 sliding displacement from its set position (+ = away from P1)", "unit": "mm"},
+            {"metric": "pier_p2_tilt_mrad", "path": "Pier.TiltP2", "label": "Pier P2 head tilt along the bridge", "unit": "mrad"},
+            {"metric": "joint_a1_gap_mm", "path": "JointA1.Gap", "label": "Joint A1 gap opening", "unit": "mm"},
+            {"metric": "joint_a2_gap1_mm", "path": "JointA2.Gap1", "label": "Joint A2 gap 1 opening", "unit": "mm"},
+            {"metric": "joint_a2_gap2_mm", "path": "JointA2.Gap2", "label": "Joint A2 gap 2 opening", "unit": "mm"},
+            {"metric": "joint_a2_gap3_mm", "path": "JointA2.Gap3", "label": "Joint A2 gap 3 opening", "unit": "mm"},
+            {"metric": "joint_a2_impact_g", "path": "JointA2.ImpactPeak", "label": "Joint A2 lamella peak vertical acceleration under traffic, last 10 min", "unit": "g"},
+            {"metric": "strain_static_ue", "path": "Deck.StaticStrain", "label": "Span 2 bottom flange static strain (temperature compensated, traffic filtered)", "unit": "µε"},
+            {"metric": "strain_peak_ue", "path": "Deck.PeakStrainLastHeavy", "label": "Span 2 bottom flange peak strain under the last heavy vehicle", "unit": "µε"},
+            {"metric": "wim_last_heavy_kn", "path": "WIM.LastHeavyWeight", "label": "Gross weight of the last heavy vehicle (slow lane)", "unit": "kN"},
+            {"metric": "wim_heavy_24h", "path": "WIM.Heavy24h", "label": "Heavy vehicles, last 24 h", "unit": "count"},
+            {"metric": "wim_overweight_24h", "path": "WIM.Overweight24h", "label": "Vehicles above the legal gross weight, last 24 h", "unit": "count"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "bearing_residual_mm": 8.0, "pier_tilt_mrad": 1.0, "joint_residual_mm": 10.0, "restraint_strain_ue": 50.0,
+            "gap_spread_mm": 15.0, "impact_g": 6.0, "strain_ratio": 1.2, "sliding_gap_min_mm": 1.0,
+            "path_rate_factor": 1.5, "wear_life_min_y": 5.0, "overweight_24h": 20, "closure_mm": 6.0,
+            "source": "Alert limits: " + A + "; the friction limit is the 3 % maximum for PTFE (bearing_p2.mu_max).",
+        },
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "bearing_seized": {"name": "Sliding bearing P2 seized (corrosion, debris, displaced PTFE)", "part": "bearing",
+                           "symptoms": "bearing P2 stops following the temperature; the deck drags the pier head: tilt and friction estimate jump",
+                           "rules": ["BR_BEARING_SEIZED", "BR_PIER_TILT", "BR_BEARING_FRICTION_HIGH"], "default_ramp_min": 1.5},
+        "ptfe_wear": {"name": "PTFE sliding sheet worn (end of life)", "part": "bearing",
+                      "symptoms": "PTFE protrusion below its limit, friction above 3 %, the bearing still moves",
+                      "rules": ["BR_SLIDING_GAP_LOW", "BR_BEARING_FRICTION_HIGH"], "default_ramp_min": 1.5},
+        "sliding_path_fast": {"name": "Sliding path growing fast (traffic micro-movements, loose guide)", "part": "bearing",
+                              "symptoms": "path over the last 365 days well above design; remaining wear life short",
+                              "rules": ["BR_WEAR_RATE_HIGH", "BR_WEAR_LIFE_LOW"], "default_ramp_min": 1},
+        "joint_blocked": {"name": "Expansion joint A2 blocked (debris, end of travel)", "part": "joint_a2",
+                          "symptoms": "joint does not close as the deck warms; compressive restraint strain in the deck",
+                          "rules": ["BR_JOINT_BLOCKED", "BR_DECK_RESTRAINT"], "default_ramp_min": 1.5},
+        "joint_control_failure": {"name": "Modular joint control springs failed", "part": "joint_a2",
+                                  "symptoms": "gaps no longer equal, one gap closed and lamellas hammering under traffic",
+                                  "rules": ["BR_JOINT_GAP_UNEVEN", "BR_JOINT_GAP_LIMIT", "BR_JOINT_IMPACT"], "default_ramp_min": 1},
+        "girder_stiffness_loss": {"name": "Girder stiffness loss (shear connectors, cracking)", "part": "deck",
+                                  "symptoms": "more strain per kN of vehicle weight than the model", "rules": ["BR_STRAIN_RATIO_HIGH"], "default_ramp_min": 1.5},
+        "overweight_traffic": {"name": "Overweight traffic", "part": "wim", "symptoms": "many vehicles above the legal weight; strain per kN normal",
+                               "rules": ["BR_OVERWEIGHT_TRAFFIC"], "default_ramp_min": 1},
+        "displacement_sensor": {"name": "Displacement transducer drift at A2", "part": "sensor",
+                                "symptoms": "joint gap and bearing movement at A2 no longer add up", "rules": ["BR_SENSOR_MISMATCH"], "default_ramp_min": 0.5},
+    },
+    "presentation": {"title": "BR-6001 road bridge bearings and expansion joints", "dashboard": "BRIDGE_BEARINGS_JOINTS"},
+}
+
+out = HERE / "twin" / "br-6001.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out)

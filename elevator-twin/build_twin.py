@@ -1,0 +1,146 @@
+"""Write twin/el-5701.twin.json: the passenger elevator twin (EL-5701).
+
+    python build_twin.py
+
+EL-5701 is a machine-room-less (MRL) traction passenger elevator in an office building: KONE MonoSpace 500, rated load
+1000 kg (13 persons), 1.6 m/s, 12 stops over 44 m. Gearless permanent-magnet KONE EcoDisc hoisting machine in the shaft,
+VVVF drive, counterweight, centre-opening car and landing doors with a light curtain.
+
+Sources and assumptions (every number below is either from a checked source or labelled as an assumption in "source"):
+  KONE MonoSpace 500 planning guide (2018) and UK brochure: speeds 0.63 to 1.75 m/s, loads 320 to 1150 kg; duty range
+    at 1.6 m/s: 1000 kg, up to 75 m travel and 24 stops; 1000 kg = 13 persons, car 1100 x 2100 mm, door clear opening
+    800 / 900 / 1000 mm, side or centre opening; pit 1200 mm at 1.6 m/s; EcoDisc hoisting machine; "compliant with EN81-20".
+  KONE MonoSpace 500 DX EPD (North America, S-P-05555): gearless traction, reference service life 25 years, annual energy
+    by the ISO 25745-2 method (2599 kWh for its own reference lift, not this one).
+  KONE EN 81-20 fact sheet: automated daily testing of the hoisting machine's brake torque; curtain of light door detection.
+  EN 81-70:2003 clause 5.3.3: stopping accuracy +/-10 mm, levelling accuracy +/-20 mm (the 2018 edition moved these
+    requirements into EN 81-20).
+  Everything else (balance ratio, sheave, roping, friction, door times and currents, energy per trip, rope life, starts per
+    hour, vibration and brake limits): ASSUMPTIONS of a typical installation, labelled in each "source".
+"""
+import json
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with your lift's commissioning report / maker's data"
+PG = "KONE MonoSpace 500 planning guide (kone.co.il, 2018) and UK brochure (kone.co.uk)"
+
+twin = {
+    "$comment": "EL-5701 passenger elevator twin. Expected values in Maximo Monitor come from the design data (load, counterweight balance, friction, door and energy baselines); the controller sends only what it measures.",
+    "twin": {"id": "EL-5701", "name": "Passenger elevator EL-5701", "version": "1.0.0", "folder": "elevator-twin"},
+    "identification": {
+        "asset": "EL-5701", "assetnum": "EL-5701", "manufacturer": "KONE",
+        "model": "MonoSpace 500 (1000 kg, 13 persons, 1.6 m/s)",
+        "description": "Passenger elevator 1 of the office tower lobby group: 12 stops, 44 m travel, machine-room-less traction",
+        "machine": "KONE EcoDisc gearless permanent-magnet hoisting machine in the shaft, double brake, steel ropes",
+        "drive": "VVVF (variable-voltage variable-frequency) regenerative drive, torque estimate per trip",
+        "doors": "Centre-opening car and landing doors, 900 mm clear opening, door operator with its own controller, curtain of light",
+        "monitoring": "Elevator controller and drive event log, car load weighing, car-top accelerometer (ride quality), energy meter on the lift supply",
+    },
+    "design": {
+        "car": {"rated_load_kg": 1000.0, "persons": 13, "car_width_mm": 1100, "car_depth_mm": 2100, "speed_ms": 1.6,
+                "source": PG + ": rated load 1000 kg = 13 persons, car 1100 x 2100 mm, 1.6 m/s within the duty range (1000 kg, 75 m, 24 stops)."},
+        "shaft": {"stops": 12, "floor_height_m": 4.0, "travel_m": 44.0, "pit_mm": 1200,
+                  "source": "12 stops at 4.0 m floor height (" + A + "); pit 1200 mm at 1.6 m/s from the " + PG + "."},
+        "hoist": {"balance_ratio": 0.45, "sheave_d_m": 0.40, "roping": 2, "friction_kn": 0.60, "g": 9.81,
+                  "source": "Counterweight = car + 45 % of the rated load (balance ratio), traction sheave diameter, 2:1 roping and the running "
+                            "friction of guide shoes, rope bending and sheave bearings referred to the car (kN): " + A + "."},
+        "doors": {"clear_opening_mm": 900, "type": "centre opening", "open_time_s": 2.0, "close_time_s": 2.8, "close_current_a": 1.5,
+                  "source": "Clear opening and type from the options of the " + PG + ". Opening time, closing time and the peak operator current on "
+                            "closing, measured at commissioning: " + A + "."},
+        "ride": {"stop_accuracy_mm": 10.0, "level_accuracy_mm": 20.0, "jerk_ms3": 1.0, "accel_ms2": 0.7,
+                 "source": "Stopping accuracy +/-10 mm and levelling accuracy +/-20 mm: EN 81-70:2003 clause 5.3.3 (moved into EN 81-20 in 2018). "
+                           "Jerk and acceleration of the drive's travel curve: " + A + "."},
+        "brake": {"test_required_load_ratio": 1.25,
+                  "source": "The daily automatic brake test of the drive (KONE EN 81-20 fact sheet: automated daily testing of brake torque). Reference torque "
+                            "= torque to hold 125 % of the rated load against the counterweight: assumption, a load ratio commonly used for brake checks; "
+                            "replace with your maker's test setting."},
+        "energy": {"e_start_wh": 8.0, "e_metre_wh": 0.9, "standby_w": 120.0,
+                   "source": "Running energy per start (acceleration, braking, door cycle) and per metre travelled, and the standby power, measured on a reference "
+                             "cycle at commissioning in the way ISO 25745-1 describes: " + A + ". Annual energy by the ISO 25745-2 method is in the maker's EPD."},
+        "ropes": {"life_trips": 1.5e6, "source": "Expected rope life in trips for this sheave and roping: " + A + " (replace with the rope maker's or the lift maker's figure)."},
+        "traffic": {"rated_starts_per_h": 180, "source": "Rated starts per hour of the machine and drive: " + A + "."},
+        "demo": {"time_scale": 1, "min_starts_per_h": 60, "rope_trips_now": 9.0e5,
+                 "note": "Demo only: the car serves a new call every few seconds whatever the hour so the 3D view is always moving; the counters (trips per day, "
+                         "starts per hour) follow an office day profile on the plant clock, with at least 60 starts per hour so the per-hour rates work at night."},
+    },
+    "telemetry": {
+        "event": "elevator", "publish_every_s": 10, "device_type": "ELEVATOR_TRACTION_MRL",
+        "groups": {"Car": "Car position, load and motion", "Hoist": "Constant-speed torque of the last trips", "Door": "Door operator",
+                   "Ride": "Levelling and ride quality", "Brake": "Automatic brake test", "Energy": "Energy meter", "Traffic": "Trips and starts",
+                   "Status": "Elevator state"},
+        "points": [
+            {"metric": "car_floor", "path": "Car.Floor", "label": "Car position (floor, 0 = ground)", "unit": "floor"},
+            {"metric": "car_speed_ms", "path": "Car.Speed", "label": "Car speed (+ up)", "unit": "m/s"},
+            {"metric": "car_load_kg", "path": "Car.Load", "label": "Car load (load weighing)", "unit": "kg"},
+            {"metric": "door_position_pct", "path": "Door.Position", "label": "Car door position (100 = open)", "unit": "%"},
+            {"metric": "up_torque_nm", "path": "Hoist.UpTorque", "label": "Motor torque at constant speed, last up trip (mid-shaft)", "unit": "N·m"},
+            {"metric": "up_load_kg", "path": "Hoist.UpLoad", "label": "Car load on the last up trip", "unit": "kg"},
+            {"metric": "down_torque_nm", "path": "Hoist.DownTorque", "label": "Motor torque at constant speed, last down trip (mid-shaft)", "unit": "N·m"},
+            {"metric": "down_load_kg", "path": "Hoist.DownLoad", "label": "Car load on the last down trip", "unit": "kg"},
+            {"metric": "door_open_time_s", "path": "Door.OpenTime", "label": "Door opening time, mean of the last hour", "unit": "s"},
+            {"metric": "door_close_time_s", "path": "Door.CloseTime", "label": "Door closing time, mean of the last hour", "unit": "s"},
+            {"metric": "door_close_current_a", "path": "Door.CloseCurrent", "label": "Door operator peak current on closing, mean of the last hour", "unit": "A"},
+            {"metric": "door_reopens_1h", "path": "Door.Reopens", "label": "Door reopenings by the light curtain, last hour", "unit": "count"},
+            {"metric": "door_lock_fails_24h", "path": "Door.LockFails", "label": "Door closed but lock contact not made, last 24 h", "unit": "count"},
+            {"metric": "level_error_max_mm", "path": "Ride.LevelErrorMax", "label": "Largest stopping error at the landings, last hour", "unit": "mm"},
+            {"metric": "relevels_1h", "path": "Ride.Relevels", "label": "Re-levelling runs, last hour", "unit": "count"},
+            {"metric": "vib_lateral_mg", "path": "Ride.VibLateral", "label": "Horizontal vibration, A95 peak-to-peak (car top)", "unit": "mg"},
+            {"metric": "vib_vertical_mg", "path": "Ride.VibVertical", "label": "Vertical vibration, A95 peak-to-peak (car top)", "unit": "mg"},
+            {"metric": "jerk_max_ms3", "path": "Ride.JerkMax", "label": "Largest jerk, last trip", "unit": "m/s³"},
+            {"metric": "brake_test_torque_nm", "path": "Brake.TestTorque", "label": "Torque the closed brake held in the last automatic test", "unit": "N·m"},
+            {"metric": "brake_test_hours_since", "path": "Brake.HoursSince", "label": "Hours since the last automatic brake test", "unit": "h"},
+            {"metric": "energy_kwh_24h", "path": "Energy.Day", "label": "Energy of the lift supply, last 24 h", "unit": "kWh"},
+            {"metric": "standby_power_w", "path": "Energy.Standby", "label": "Power while parked with doors closed (last standby period)", "unit": "W"},
+            {"metric": "trips_24h", "path": "Traffic.Trips", "label": "Trips, last 24 h", "unit": "count"},
+            {"metric": "distance_m_24h", "path": "Traffic.Distance", "label": "Distance travelled, last 24 h", "unit": "m"},
+            {"metric": "starts_1h", "path": "Traffic.Starts", "label": "Motor starts, last hour", "unit": "count"},
+            {"metric": "trips_since_rope_change", "path": "Traffic.RopeTrips", "label": "Trips since the ropes were changed", "unit": "count"},
+            {"metric": "in_service", "path": "Status.InService", "label": "In service (1) or out of service (0)", "unit": "code"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "door_close_ratio_alert": 1.25, "door_current_ratio_alert": 1.4, "reopen_rate_alert_pct": 15.0, "lock_fails_alert": 4,
+            "rate_min_starts": 20, "balance_dev_alert_pct": 5.0, "friction_alert_kn": 1.0, "vib_lateral_alert_mg": 20.0,
+            "relevel_rate_alert_pct": 10.0, "brake_margin_alert": 1.3, "brake_margin_limit": 1.0, "brake_test_max_h": 30.0,
+            "energy_ratio_alert": 1.3, "rope_life_alert_pct": 85.0,
+            "source": "Alert limits: " + A + ". The stopping accuracy limit is EN 81-70:2003 5.3.3 (+/-10 mm, now in EN 81-20); ISO 18738-1 defines how ride "
+                      "vibration is measured but sets no limit, so the vibration limit is the commissioning baseline plus margin.",
+        },
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "door_obstruction": {"name": "Door sill debris or worn door rollers", "part": "doors",
+                             "symptoms": "doors close slower and the operator draws more current to push them",
+                             "rules": ["EL_DOOR_SLOW", "EL_DOOR_CURRENT_HIGH"], "default_ramp_min": 1.5},
+        "light_curtain_fault": {"name": "Light curtain dirty or misaligned", "part": "doors",
+                                "symptoms": "doors reopen on many closings with nobody in the way",
+                                "rules": ["EL_DOOR_REOPENS"], "default_ramp_min": 1},
+        "door_lock_fault": {"name": "Landing door lock contact fault", "part": "doors",
+                            "symptoms": "door closes but the safety circuit stays open: retries, then the car is taken out of service",
+                            "rules": ["EL_DOOR_LOCK_FAIL"], "default_ramp_min": 1},
+        "counterweight_imbalance": {"name": "Counterweight out of balance (car mass changed)", "part": "hoist",
+                                    "symptoms": "torque high on every up trip and low on every down trip by the same amount",
+                                    "rules": ["EL_BALANCE_OFF"], "default_ramp_min": 1},
+        "guide_friction_high": {"name": "Guide shoe wear or rail misalignment", "part": "guides",
+                                "symptoms": "running friction up, torque up going up and down going down, car shakes sideways",
+                                "rules": ["EL_FRICTION_HIGH", "EL_RIDE_LATERAL"], "default_ramp_min": 1.5},
+        "brake_wear": {"name": "Brake lining wear or brake spring weak", "part": "brake",
+                       "symptoms": "the automatic brake test holds less torque each day",
+                       "rules": ["EL_BRAKE_MARGIN_LOW", "EL_BRAKE_TEST_FAIL"], "default_ramp_min": 1.5},
+        "levelling_drift": {"name": "Levelling drift (rope slip in worn sheave grooves, encoder)", "part": "hoist",
+                            "symptoms": "the car stops further from the landing and re-levels more often",
+                            "rules": ["EL_LEVELLING", "EL_RELEVEL_HIGH"], "default_ramp_min": 1},
+        "regen_lost": {"name": "Regenerative drive not feeding back (energy burned in the resistor)", "part": "drive",
+                       "symptoms": "energy per trip up at the same traffic",
+                       "rules": ["EL_ENERGY_HIGH"], "default_ramp_min": 1},
+    },
+    "presentation": {"title": "EL-5701 passenger elevator", "dashboard": "ELEVATOR_TRACTION_MRL"},
+}
+
+out = HERE / "twin" / "el-5701.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out)

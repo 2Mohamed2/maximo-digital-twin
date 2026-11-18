@@ -1,0 +1,411 @@
+{
+ "$comment": "QC-5801 ship-to-shore container crane twin. Expected values and design-working-period clocks in Maximo Monitor from the maker's data sheet and the crane standards; the crane sends only what its crane management system measures and counts.",
+ "twin": {
+  "id": "QC-5801",
+  "name": "Ship-to-shore container crane QC-5801",
+  "version": "1.0.0",
+  "folder": "stscrane-twin"
+ },
+ "identification": {
+  "asset": "QC-5801",
+  "assetnum": "QC-5801",
+  "manufacturer": "Liebherr Container Cranes",
+  "model": "Ship-to-shore gantry crane, Super Post Panamax size",
+  "description": "Quay crane on berth 58 of a container terminal: discharges and loads container ships",
+  "structure": "Single lattice main beam and boom (hinged), A-frame, portal on four corners with rail wheels",
+  "hoist": "Main hoist: two winch drums driven by electric motors through a gearbox, rope reeving to the trolley and the headblock",
+  "trolley": "Self-powered trolley on the main beam and boom rails, every wheel driven and braked",
+  "spreader": "Telescopic twin-lift spreader under a headblock: one 20 ft, 40 ft or 45 ft box, or two 20 ft boxes",
+  "boom": "Boom hoist: raises the boom to 80 degrees out of operation and when a ship berths or leaves",
+  "gantry": "Gantry travel drives on the quay rails, rail clamps and storm pins",
+  "cms": "Crane management system (CMS): load cells, drive data, counters, fault log"
+ },
+ "design": {
+  "geometry": {
+   "outreach_m": 55.0,
+   "backreach_m": 20.0,
+   "span_m": 30.5,
+   "lift_height_m": 40.0,
+   "source": "Liebherr STS technical data sheet 2026 (v2), Super Post Panamax column: outreach up to 55 m, lift height 40 m, backreach 0-25 m, span 15-35 m. The backreach (20 m) and the span (30.5 m, 100 ft) of QC-5801 are an assumption: typical value, replace with your crane's general arrangement drawing"
+  },
+  "rated": {
+   "swl_twin_t": 65.0,
+   "swl_single_t": 50.0,
+   "attachment_t": 15.0,
+   "source": "Liebherr STS technical data sheet 2026 (v2), Super Post Panamax column: safe working load 40-50 t single, 65 t twin, under the spreader (the upper end of the single range is used). Mass of the spreader and headblock carried by the ropes (15 t): assumption: typical value, replace with the weights on your spreader and headblock name plates"
+  },
+  "hoist": {
+   "speed_rated_mpm": 70.0,
+   "speed_empty_mpm": 175.0,
+   "efficiency": 0.85,
+   "source": "Liebherr STS technical data sheet 2026 (v2), Super Post Panamax column: hoisting speed 70-175 m/min, read as 70 m/min with the rated load and 175 m/min with the empty spreader (the 2020 description writes the same pair as 'rated / empty', e.g. 90/180). The drive holds constant power between the two (field weakening). Efficiency from the electrical input to the load (motor, gearbox, drums, reeving): assumption: typical value, replace with the drive's commissioning data"
+  },
+  "trolley": {
+   "speed_mpm": 240.0,
+   "wheel_new_mm": 630.0,
+   "wheel_min_mm": 620.0,
+   "wear_mm_per_1000km": 0.5,
+   "source": "Liebherr STS technical data sheet 2026 (v2), Super Post Panamax column: trolley speed 210-240 m/min (upper end used). Trolley wheel diameter new (630 mm), discard diameter (620 mm) and expected wear (0.5 mm per 1000 km of travel): assumption: typical value, replace with the maker's maintenance manual and your own wheel history"
+  },
+  "gantry": {
+   "speed_mpm": 45.0,
+   "wind_in_service_ms": 20.0,
+   "wind_out_of_service_ms": 42.0,
+   "source": "Liebherr STS technical data sheet 2026 (v2), Super Post Panamax column: travel speed 45 m/min. Liebherr STS technical description 02/2020, typical design parameters: in-service wind speed 72 km/h (20 m/s), out-of-service 151.2 km/h (42 m/s). Your crane's own wind limits are on its design calculation and operating manual."
+  },
+  "classification": {
+   "crane": "A7",
+   "utilization": "U7",
+   "spectrum": "Q2",
+   "mechanism_hoist": "M8",
+   "dn_cycles": 2000000,
+   "kp": 0.25,
+   "dc_cycles": 500000,
+   "dm_hours": 12500.0,
+   "f1": 1.0,
+   "source": "Liebherr STS technical description 02/2020, typical design parameters: classification according to F.E.M. U7-Q2-A7. ISO 12482:2014 Tables A.1, A.2, A.3 and B.3: DN for U7 = 2 000 000 work cycles, Kp for Q2 = 0.25, DC for A7 = 500 000, DM for M8 = 12 500 h; Table 1: f1 = 1.0 for an automatic recording system. Hoist mechanism group M8: assumption: typical value, replace with the mechanism classification on your crane's design documents (not on the data sheet)"
+  },
+  "rope": {
+   "falls": 8,
+   "reeving_efficiency": 0.95,
+   "nominal_mm": 36.0,
+   "mbf_kn": 1020.0,
+   "zp_min": 9.0,
+   "h2_min": 28.0,
+   "type_factor_t": 1.0,
+   "ref_mm": 36.6,
+   "dia_slight_pct": 3.5,
+   "dia_discard_pct": 7.5,
+   "life_moves": 120000,
+   "bends_per_move": 10,
+   "source": "ISO 16625:2013 Table 1 (Zp = 9.0 for M8, single-layer spooling) and Table 4 (sheave factor h2 = 28.0 for M8). ISO 4309:2017 Table 5, single-layer rope with steel core: decrease in diameter slight from 3.5 %, discard at 7.5 % of nominal, measured from the reference diameter after installation. Number of falls, reeving efficiency, rope size and minimum breaking force, reference diameter, rope type factor t, bends per move and the rope life of 120 000 moves: assumption: typical value, replace with the rope certificate, the reeving drawing and your own rope history"
+  },
+  "brake": {
+   "release_ms": 260.0,
+   "release_alert_ms": 400.0,
+   "pad_new_mm": 8.0,
+   "pad_min_mm": 2.0,
+   "source": "Hoist service brake (disc brake with thrusters) release time and pad thickness, new and minimum: assumption: typical value, replace with the brake maker's manual"
+  },
+  "spreader": {
+   "faults_per_1000_alert": 5.0,
+   "source": "Twistlock faults (lock or unlock not confirmed, retries) per 1000 twistlock cycles: assumption: typical value, replace with your spreader fault history"
+  },
+  "operation": {
+   "moves_per_hour": 30.0,
+   "hoist_hours_per_year": 1900.0,
+   "moves_per_year": 115000,
+   "mix": [
+    [
+     "40 ft empty",
+     0.15,
+     3.8
+    ],
+    [
+     "40 ft laden",
+     0.45,
+     22.0
+    ],
+    [
+     "20 ft laden",
+     0.15,
+     16.0
+    ],
+    [
+     "twin 20 ft laden",
+     0.2,
+     34.0
+    ],
+    [
+     "twin 20 ft empty",
+     0.05,
+     4.6
+    ]
+   ],
+   "source": "Gross crane rate (moves per hour), hoist running hours and moves per year, and the container mix (share of moves, payload under the spreader in t): assumption: typical value, replace with your terminal operating system (TOS) move history"
+  },
+  "demo": {
+   "time_scale": 1,
+   "cycle_s": 120,
+   "note": "Demo only: one container move takes 120 s of real time (30 moves per hour). The lifetime counters, the rope and wheel measurements and the 24-hour and 30-day statistics come from the failure modes, not from the demo clock."
+  }
+ },
+ "telemetry": {
+  "event": "stscrane",
+  "publish_every_s": 10,
+  "device_type": "STS_CONTAINER_CRANE",
+  "groups": {
+   "Ops": "Live motion and productivity",
+   "Hoist": "Last loaded lift (steady hoisting)",
+   "Brake": "Hoist brakes",
+   "Rope": "Hoist ropes",
+   "Spreader": "Spreader and twistlocks",
+   "Trolley": "Trolley wheels",
+   "Wind": "Anemometer",
+   "Duty": "Duty counters for the design working period"
+  },
+  "points": [
+   {
+    "metric": "crane_active",
+    "path": "Ops.Active",
+    "label": "Crane in operation (1 = working a ship)",
+    "unit": "code"
+   },
+   {
+    "metric": "trolley_pos_m",
+    "path": "Ops.TrolleyPosition",
+    "label": "Trolley position from the waterside rail (+ = over the ship)",
+    "unit": "m"
+   },
+   {
+    "metric": "hoist_height_m",
+    "path": "Ops.HoistHeight",
+    "label": "Spreader height above the quay",
+    "unit": "m"
+   },
+   {
+    "metric": "load_now_t",
+    "path": "Ops.Load",
+    "label": "Payload under the spreader now",
+    "unit": "t"
+   },
+   {
+    "metric": "hoist_speed_mpm",
+    "path": "Ops.HoistSpeed",
+    "label": "Hoist speed now (+ up)",
+    "unit": "m/min"
+   },
+   {
+    "metric": "hoist_power_kw",
+    "path": "Ops.HoistPower",
+    "label": "Hoist drive power now (− = regenerating)",
+    "unit": "kW"
+   },
+   {
+    "metric": "moves_per_hour",
+    "path": "Ops.MovesPerHour",
+    "label": "Gross crane rate, last hour",
+    "unit": "moves/h"
+   },
+   {
+    "metric": "last_load_t",
+    "path": "Hoist.LastLoad",
+    "label": "Payload of the last loaded lift",
+    "unit": "t"
+   },
+   {
+    "metric": "last_lift_speed_mpm",
+    "path": "Hoist.LastSpeed",
+    "label": "Steady hoist speed of the last loaded lift",
+    "unit": "m/min"
+   },
+   {
+    "metric": "last_lift_power_kw",
+    "path": "Hoist.LastPower",
+    "label": "Hoist drive power at steady speed, last loaded lift",
+    "unit": "kW"
+   },
+   {
+    "metric": "brake_release_ms",
+    "path": "Brake.ReleaseTime",
+    "label": "Hoist brake release time, last lift",
+    "unit": "ms"
+   },
+   {
+    "metric": "brake_pad_mm",
+    "path": "Brake.PadThickness",
+    "label": "Thinnest hoist brake pad (wear sensor)",
+    "unit": "mm"
+   },
+   {
+    "metric": "rope_moves_since_change",
+    "path": "Rope.MovesSinceChange",
+    "label": "Moves since the hoist ropes were changed",
+    "unit": "count"
+   },
+   {
+    "metric": "rope_dia_mm",
+    "path": "Rope.Diameter",
+    "label": "Smallest hoist rope diameter, last measurement",
+    "unit": "mm"
+   },
+   {
+    "metric": "twl_cycles_24h",
+    "path": "Spreader.TwistlockCycles24h",
+    "label": "Twistlock cycles, last 24 h",
+    "unit": "count"
+   },
+   {
+    "metric": "twl_faults_24h",
+    "path": "Spreader.TwistlockFaults24h",
+    "label": "Twistlock faults, last 24 h",
+    "unit": "count"
+   },
+   {
+    "metric": "snag_events_24h",
+    "path": "Spreader.Snags24h",
+    "label": "Snag events (spreader caught, load peak), last 24 h",
+    "unit": "count"
+   },
+   {
+    "metric": "peak_load_24h_t",
+    "path": "Spreader.PeakLoad24h",
+    "label": "Highest load-cell reading under the spreader, last 24 h",
+    "unit": "t"
+   },
+   {
+    "metric": "trolley_km_since_change",
+    "path": "Trolley.KmSinceChange",
+    "label": "Trolley travel since the wheels were changed",
+    "unit": "km"
+   },
+   {
+    "metric": "trolley_wheel_mm",
+    "path": "Trolley.WheelDiameter",
+    "label": "Smallest trolley wheel diameter, last measurement",
+    "unit": "mm"
+   },
+   {
+    "metric": "wind_ms",
+    "path": "Wind.Speed",
+    "label": "Wind speed at the top of the crane (3 s gust)",
+    "unit": "m/s"
+   },
+   {
+    "metric": "moves_total",
+    "path": "Duty.Moves",
+    "label": "Work cycles (moves) since commissioning",
+    "unit": "count"
+   },
+   {
+    "metric": "moves_30d",
+    "path": "Duty.Moves30d",
+    "label": "Work cycles, last 30 days",
+    "unit": "count"
+   },
+   {
+    "metric": "struct_equiv",
+    "path": "Duty.StructEquiv",
+    "label": "Sum of (payload / rated)³ over every cycle",
+    "unit": "cycles"
+   },
+   {
+    "metric": "struct_equiv_30d",
+    "path": "Duty.StructEquiv30d",
+    "label": "Sum of (payload / rated)³, last 30 days",
+    "unit": "cycles"
+   },
+   {
+    "metric": "hoist_hours",
+    "path": "Duty.HoistHours",
+    "label": "Hoist running hours since commissioning",
+    "unit": "h"
+   },
+   {
+    "metric": "hoist_hours_30d",
+    "path": "Duty.HoistHours30d",
+    "label": "Hoist running hours, last 30 days",
+    "unit": "h"
+   },
+   {
+    "metric": "hoist_equiv_h",
+    "path": "Duty.HoistEquiv",
+    "label": "Hoist running hours weighted by ((load + attachments) / (rated + attachments))³",
+    "unit": "h"
+   },
+   {
+    "metric": "hoist_equiv_30d_h",
+    "path": "Duty.HoistEquiv30d",
+    "label": "Weighted hoist hours, last 30 days",
+    "unit": "h"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "hoist_power_ratio_alert": 1.15,
+   "moves_ratio_alert": 0.8,
+   "trolley_wear_ratio_alert": 1.5,
+   "trolley_wheel_left_alert_mm": 2.0,
+   "wind_warn_ratio": 0.8,
+   "dwp_years_alert": 1.0
+  }
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it (full severity first, then any that show on the way).",
+  "brake_drag": {
+   "name": "Hoist brake dragging (thruster or air gap)",
+   "part": "hoist brake",
+   "symptoms": "hoist power above what the load and speed need, slow brake release",
+   "rules": [
+    "STS_HOIST_POWER_HIGH",
+    "STS_BRAKE_SLOW"
+   ],
+   "default_ramp_min": 1
+  },
+  "brake_pad_wear": {
+   "name": "Hoist brake pads worn",
+   "part": "hoist brake",
+   "symptoms": "pad wear sensor near the minimum thickness",
+   "rules": [
+    "STS_BRAKE_PAD_LOW"
+   ],
+   "default_ramp_min": 1
+  },
+  "rope_wear": {
+   "name": "Hoist rope worn past its life",
+   "part": "hoist ropes",
+   "symptoms": "diameter shrinks against the reference, moves since change beyond the rope life",
+   "rules": [
+    "STS_ROPE_DISCARD",
+    "STS_ROPE_LIFE",
+    "STS_ROPE_DIAMETER"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "twistlock_faults": {
+   "name": "Spreader twistlock faults",
+   "part": "spreader",
+   "symptoms": "lock / unlock not confirmed, retries, the crane rate drops",
+   "rules": [
+    "STS_TWISTLOCK_FAULTS",
+    "STS_MOVES_LOW"
+   ],
+   "default_ramp_min": 1
+  },
+  "trolley_wheel_wear": {
+   "name": "Trolley wheel wear (misalignment, skew)",
+   "part": "trolley",
+   "symptoms": "wheel diameter falls faster than the travel explains",
+   "rules": [
+    "STS_TROLLEY_WEAR_RATE",
+    "STS_TROLLEY_WHEEL_MIN"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "snag_overload": {
+   "name": "Snag loads (spreader caught in a cell guide)",
+   "part": "spreader / hoist",
+   "symptoms": "load-cell peaks above the safe working load, snag events logged",
+   "rules": [
+    "STS_SNAG",
+    "STS_OVERLOAD"
+   ],
+   "default_ramp_min": 0.5
+  },
+  "wind_operation": {
+   "name": "Working on in rising wind",
+   "part": "gantry / structure",
+   "symptoms": "wind at the top of the crane near or above the in-service limit while the crane works",
+   "rules": [
+    "STS_WIND_LIMIT",
+    "STS_WIND_HIGH"
+   ],
+   "default_ramp_min": 1
+  }
+ },
+ "presentation": {
+  "title": "QC-5801 ship-to-shore container crane",
+  "dashboard": "STS_CONTAINER_CRANE"
+ }
+}

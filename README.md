@@ -1,6 +1,6 @@
 # Digital Twin for Maximo
 
-Code that goes with forty-seven IBM Community posts on building physics-based digital twins of Maximo assets
+Code that goes with fifty-seven IBM Community posts on building physics-based digital twins of Maximo assets
 with standard Maximo Monitor and Maximo Manage features:
 
 | Asset | Twin folder | Post |
@@ -52,6 +52,16 @@ with standard Maximo Monitor and Maximo Manage features:
 | AD-4901, Mesophilic anaerobic digester no. 1 of a municipal wastewater treatment plant (primary + | `digester-twin` | Anaerobic digester digital twin in Maximo |
 | BP-5001, Digested sludge dewatering press, municipal wastewater treatment plant, with polymer | `beltpress-twin` | Belt filter press digital twin in Maximo |
 | CL-5101, Chlorine contact tank (clearwell) after the filters of a surface water treatment works | `chlorine-twin` | Chlorine contact tank digital twin in Maximo |
+| LS-5201, Municipal sewage lift station: wet well, two submersible pumps duty/standby, check | `liftstation-twin` | Sewage lift station digital twin in Maximo |
+| MBR-5301, Membrane train 1 of a municipal wastewater works: submerged hollow-fibre ultrafiltration | `mbr-twin` | Membrane bioreactor digital twin in Maximo |
+| TM-5401, Traction motor 1 of locomotive 5401 with its IGBT traction inverter, blower and bearings | `traction-twin` | Traction motor digital twin in Maximo |
+| PM-5501, Point machine of a main-line turnout with external clamp locks, with a condition | `points-twin` | Railway point machine digital twin in Maximo |
+| ES-5601, Heavy-duty public transport escalator, platform to ticket hall (up), 10 m rise | `escalator-twin` | Metro escalator digital twin in Maximo |
+| EL-5701, Passenger elevator 1 of the office tower lobby group: 12 stops, 44 m travel | `elevator-twin` | Passenger elevator digital twin in Maximo |
+| QC-5801, Quay crane on berth 58 of a container terminal: discharges and loads container ships | `stscrane-twin` | Ship-to-shore container crane digital twin in Maximo |
+| GPU-5901, 400 Hz ground power for a narrow-body contact stand: 3 x 115/200 V 400 Hz through a 28 m | `gpu-twin` | 400 Hz ground power unit digital twin in Maximo |
+| BR-6001, Road bridge, 3 continuous spans 60 + 80 + 60 m, steel-concrete composite girders | `bridge-twin` | Road bridge digital twin in Maximo |
+| UPS-6101, Data hall A UPS: three-phase double-conversion, 150 kW N+1, with two VRLA battery strings | `ups-twin` | Data centre UPS digital twin in Maximo |
 
 The posts are on the IBM Community (Maximo group), by Mohamed Chihaoui.
 

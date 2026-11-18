@@ -1,0 +1,360 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BR-6001 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:320px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>BR-6001</b><span class="g">Road bridge · bearings, expansion joints and deck</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-te"><span class="dot"></span><span id="c-te-t">Te –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Movement curves and wear →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the bridge model…</div>
+<div class="credit">Three continuous spans 60 + 80 + 60 m, two steel plate girders with a concrete slab, pot bearings (fixed on P1, sliding elsewhere) and a 3-gap modular joint at A2. Typical proportions, not vendor CAD. Movements are drawn exaggerated. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-ex">Exaggeration ×100</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The deck grows and shrinks from the fixed bearing on P1 as its temperature changes; the twin compares every bearing and joint with that expected movement.</div>
+<aside>
+  <section>
+    <h2>BR-6001 twin</h2>
+    <p class="sub" id="sub">3-span composite girder road bridge</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Effective temp.<b id="k-te">–</b></div><div>Bearing life left<b id="k-life">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time (an hour or more of bridge time). The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The loggers send only what they measure. Every expected movement, gap, strain and the bearing wear life are computed from the twin file: the bridge geometry, the thermal data of EN 1991-1-5 and the bearing and joint data sheets.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for BR-6001: deck temperatures, bearing and joint movements, pier tilt, deck strain and the weigh-in-motion\nstation, with injectable faults.\n\nThe real bridge sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the expected\nvalues are computed in Monitor from the twin file only. This model only produces believable readings and fault fingerprints\nfor the tests, the figures and the live pages. Pure Python (math, random): it also runs in the browser (Pyodide).\n\nMechanics of the stand-in (one summer day, the deck free to expand from the fixed bearing on P1):\n  the deck moves alpha x L x (Te - T0) at each support; the pier P2 head is pushed by the bearing friction (Coulomb, sign of\n  the movement); a seized bearing stops sliding and the pier head is dragged with the deck; a blocked joint holds the deck end\n  at A2, so part of the expansion becomes compressive strain; failed control springs let one modular gap close.\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\nclass Bridge:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        self.k = tc._k(twin)\n        d = twin[\"design\"]\n        self.demo, self.b = d[\"demo\"], d[\"bearing_p2\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.path0 = self.b[\"path_rate_design_m_per_y\"] * self.b[\"service_years\"]\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # temperatures over the day ------------------------------------------------------------------------------------\n    def temps(self, h):\n        dm = self.demo\n        c = lambda mean, amp, peak: mean + amp * math.cos(2 * math.pi * (h - peak) / 24)\n        return c(dm[\"air_mean_c\"], dm[\"air_amp_c\"], 15.0), c(dm[\"slab_mean_c\"], dm[\"slab_amp_c\"], 14.5), c(dm[\"girder_mean_c\"], dm[\"girder_amp_c\"], 16.5)\n\n    def te_rate(self, h):\n        \"\"\"dTe/dt in K per hour (sign gives the direction the deck slides).\"\"\"\n        dm, w = self.demo, self.k[\"w\"]\n        s = lambda amp, peak: -amp * 2 * math.pi / 24 * math.sin(2 * math.pi * (h - peak) / 24)\n        return w * s(dm[\"slab_amp_c\"], 14.5) + (1 - w) * s(dm[\"girder_amp_c\"], 16.5)\n\n    # true state -------------------------------------------------------------------------------------------------------\n    def true_state(self, h):\n        k, f, dm = self.k, self.faults, self.demo\n        air, slab, girder = self.temps(h)\n        te = k[\"w\"] * slab + (1 - k[\"w\"]) * girder\n        dt = te - k[\"t0\"]\n        ep2, ea2, ea1 = k[\"a_p2\"] * dt, k[\"a_a2\"] * dt, k[\"a_a1\"] * dt\n        # blocked joint at A2: the deck end is held since Te = blocked_since; part of the expansion becomes strain\n        jb, rf, tb = f[\"joint_blocked\"], dm[\"restraint_factor\"], dm[\"blocked_since_te_c\"]\n        held = jb * rf * max(0.0, te - tb)\n        u_a2 = ea2 - k[\"a_a2\"] * held\n        u_p2deck = ep2 - k[\"a_p2\"] * held\n        restraint = -held * k[\"alpha\"] * 1e6\n        # bearing P2: friction drags the pier head; a seized bearing does not slide at all\n        s = f[\"bearing_seized\"]\n        u_stuck = k[\"a_p2\"] * (dm[\"seized_since_te_c\"] - k[\"t0\"])\n        slide = u_p2deck + s * (u_stuck - u_p2deck)\n        mu = k[\"mu_d\"] + 0.027 * f[\"ptfe_wear\"]\n        direction = math.tanh(self.te_rate(h) / 0.3)\n        head = (u_p2deck - slide) + direction * k[\"n\"] * mu * k[\"N\"] / k[\"kp\"]\n        tilt = 1.5 * head / k[\"H\"]\n        # modular joint A2: total opening shared by the control springs\n        tot = k[\"g0a2\"] - u_a2\n        c = f[\"joint_control_failure\"]\n        g2 = tot / 3\n        g3 = max(0.0, tot / 3 - 28.0 * c)\n        g1 = tot - g2 - g3\n        return {\"h\": h, \"air\": air, \"slab\": slab, \"girder\": girder, \"te\": te, \"u_p2\": slide, \"u_a2\": u_a2, \"tilt\": tilt,\n                \"gap_a1\": k[\"g0a1\"] - ea1, \"g\": (g1, g2, g3), \"impact\": 3.0 + 6.0 * c, \"restraint\": restraint, \"mu\": mu}\n\n    def vehicle(self):\n        \"\"\"Gross weight (kN) of a heavy vehicle in the slow lane.\"\"\"\n        w = 300.0 + self.n(80.0) + 150.0 * self.faults[\"overweight_traffic\"]\n        return max(120.0, min(700.0, w))\n\n    def reading(self, s, w, path):\n        k, f = self.k, self.faults\n        g1, g2, g3 = (max(0.0, x + self.n(0.3)) for x in s[\"g\"])\n        rate = self.b[\"path_rate_design_m_per_y\"] * (1 + 2.75 * f[\"sliding_path_fast\"]) + self.n(5.0)\n        return {\n            \"slab_temp_c\": round(s[\"slab\"] + self.n(0.15), 2), \"girder_temp_c\": round(s[\"girder\"] + self.n(0.15), 2),\n            \"air_temp_c\": round(s[\"air\"] + self.n(0.2), 2),\n            \"bearing_p2_disp_mm\": round(s[\"u_p2\"] + self.n(0.2), 2),\n            \"bearing_p2_sliding_gap_mm\": round(self.b[\"sliding_gap_new_mm\"] - self.b[\"sliding_gap_wear_mm_per_km\"] * path / 1000\n                                               - 1.2 * f[\"ptfe_wear\"] + self.n(0.02), 3),\n            \"bearing_p2_path_m\": round(path, 1), \"bearing_p2_path_rate_m_y\": round(rate, 1),\n            \"bearing_a2_disp_mm\": round(s[\"u_a2\"] + 15.0 * f[\"displacement_sensor\"] + self.n(0.2), 2),\n            \"pier_p2_tilt_mrad\": round(s[\"tilt\"] + self.n(0.01), 4),\n            \"joint_a1_gap_mm\": round(s[\"gap_a1\"] + self.n(0.3), 2),\n            \"joint_a2_gap1_mm\": round(g1, 2), \"joint_a2_gap2_mm\": round(g2, 2), \"joint_a2_gap3_mm\": round(g3, 2),\n            \"joint_a2_impact_g\": round(max(0.5, s[\"impact\"] + self.n(0.3)), 2),\n            \"strain_static_ue\": round(k[\"kdt\"] * (s[\"slab\"] - s[\"girder\"]) + s[\"restraint\"] + self.n(2.0), 1),\n            \"strain_peak_ue\": round(k[\"cs\"] * w * (1 + 0.35 * f[\"girder_stiffness_loss\"]) * (1 + self.n(0.02)), 1),\n            \"wim_last_heavy_kn\": round(w, 1), \"wim_heavy_24h\": int(round(2400 + self.n(60))),\n            \"wim_overweight_24h\": int(max(0, round(3 + self.n(1.2) + 60 * f[\"overweight_traffic\"]))),\n        }\n\n    def measure(self, h=10.0):\n        return self.reading(self.true_state(h), self.vehicle(), self.path0)\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    t is the plant clock in seconds; it runs `demo.time_scale` times faster than real time, so one bridge day lasts 24 minutes.\n    A heavy vehicle crosses about every 15 real seconds; the bearing's sliding path accumulates at its current rate.\n    \"\"\"\n    VEHICLE_EVERY_S = 15.0\n\n    def __init__(self, twin, seed=6001):\n        self.twin = twin\n        self.scale = float(twin[\"design\"].get(\"demo\", {}).get(\"time_scale\", 1))\n        self.b = Bridge(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 10 * 3600.0\n        self.running, self.trip = True, 0\n        self.path = self.b.path0\n        self.w = 300.0\n        self.since_vehicle = 0.0\n\n    def hour(self):\n        return (self.t / 3600.0) % 24\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.path = self.b.path0\n        self.since_vehicle = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.b.faults[k] = f.sev\n        self.t += dt * self.scale\n        rate = self.b.b[\"path_rate_design_m_per_y\"] * (1 + 2.75 * self.b.faults[\"sliding_path_fast\"])\n        self.path += rate * dt * self.scale / (365 * 86400)\n        self.since_vehicle += dt\n        if self.since_vehicle >= self.VEHICLE_EVERY_S:\n            self.since_vehicle = 0.0\n            self.w = self.b.vehicle()\n        return self.b.true_state(self.hour())\n\n    def measure(self, true):\n        return self.b.reading(true, self.w, self.path)\n", "twin_calc": "\"\"\"The road bridge twin's expectations (BR-6001: bearings, expansion joints and deck of a 3-span composite girder bridge).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nThermal movement (EN 1991-1-5 uniform temperature component, alpha from EN 1994-2 5.4.2.5):\n  effective bridge temperature  Te = w x T_slab + (1 - w) x T_girder\n  expected movement of a support at distance L from the fixed bearing:   u = alpha x L x (Te - T0)\n  expected joint opening:   gap = gap(T0) - alpha x L x (Te - T0)            (the deck closes the joint as it warms)\n  residual = measured - expected.  A seized bearing stops moving while u keeps changing; a blocked joint stops closing.\nPier P2 head (guided sliding bearing on top):\n  the deck pushes the pier head with the bearing friction force F = mu x n x N, so the head moves delta = F / k and tilts\n  theta = 1.5 x delta / H (cantilever). Turned round: mu_est = theta x H x k / (1.5 x n x N).  PTFE: mu <= 3 % (EN 1337-2).\n  A seized bearing: no sliding, but the pier head still moves (it is dragged by the deck): theta far above friction level.\nJoint A2 consistency: total gap + bearing A2 movement = gap(T0) for a rigid deck end. A non-zero closure is a sensor fault.\nModular joint: the control springs share the movement equally between the gaps; spread = max gap - min gap.\nDeck strain under traffic: expected peak strain = c x W (W = gross weight of the vehicle from the WIM station); a higher ratio\n  means a softer girder (lost composite action, cracking). Static strain: expected = k x (T_slab - T_girder) from the\n  temperature difference; the rest is restraint (a blocked joint compresses the deck).\nBearing wear: remaining life = (path capacity - accumulated path) / path over the last 365 days; PTFE protrusion expected\n  from the path: h = h0 - wear per km x path.\n\"\"\"\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    g, th, j, b, dk = d[\"geometry\"], d[\"thermal\"], d[\"joints\"], d[\"bearing_p2\"], d[\"deck\"]\n    a = th[\"alpha_per_k\"]\n    return dict(alpha=a, t0=th[\"t0_c\"], temin=th[\"te_min_c\"], temax=th[\"te_max_c\"], w=th[\"slab_weight\"],\n                a_a1=a * g[\"exp_length_a1_m\"] * 1000, a_p2=a * g[\"exp_length_p2_m\"] * 1000, a_a2=a * g[\"exp_length_a2_m\"] * 1000,\n                g0a1=j[\"a1_gap_t0_mm\"], g0a2=j[\"a2_gap_t0_mm\"], gmax=j[\"a2_gap_max_mm\"], gmin=j[\"a2_gap_min_mm\"],\n                n=b[\"bearings_per_support\"], N=b[\"permanent_load_kn\"], mu_d=b[\"mu_design\"], mu_max=b[\"mu_max\"],\n                H=b[\"pier_height_m\"], kp=b[\"pier_stiffness_kn_per_mm\"],\n                cmu=b[\"pier_height_m\"] * b[\"pier_stiffness_kn_per_mm\"] / (1.5 * b[\"bearings_per_support\"] * b[\"permanent_load_kn\"]),\n                h0=b[\"sliding_gap_new_mm\"], kw=b[\"sliding_gap_wear_mm_per_km\"], cap=b[\"path_capacity_m\"], rate_d=b[\"path_rate_design_m_per_y\"],\n                cs=dk[\"strain_per_kn_ue\"], kdt=dk[\"strain_per_dt_ue\"], E=dk[\"steel_e_mpa\"], legal=dk[\"legal_gross_kn\"])\n\n\ndef tilt_from_mu(k, mu):\n    \"\"\"Pier head tilt (mrad) for a bearing friction coefficient mu (both bearings sliding the same way).\"\"\"\n    return mu / k[\"cmu\"]\n\n\ndef _parts(twin):\n    k = _k(twin)\n    TE = f\"({k['w']} * df['SLAB_TEMP_C'] + {1 - k['w']:.6g} * df['GIRDER_TEMP_C'])\"\n    DT = f\"({TE} - {k['t0']})\"\n    EP2 = f\"({k['a_p2']:.6g} * {DT})\"\n    EA2 = f\"({k['a_a2']:.6g} * {DT})\"\n    TOT = \"(df['JOINT_A2_GAP1_MM'] + df['JOINT_A2_GAP2_MM'] + df['JOINT_A2_GAP3_MM'])\"\n    GEA2 = f\"({k['g0a2']} - {EA2})\"\n    GRA2 = f\"({TOT} - {GEA2})\"\n    GRA1 = f\"(df['JOINT_A1_GAP_MM'] - ({k['g0a1']} - {k['a_a1']:.6g} * {DT}))\"\n    GMAX = \"np.maximum(np.maximum(df['JOINT_A2_GAP1_MM'], df['JOINT_A2_GAP2_MM']), df['JOINT_A2_GAP3_MM'])\"\n    GMIN = \"np.minimum(np.minimum(df['JOINT_A2_GAP1_MM'], df['JOINT_A2_GAP2_MM']), df['JOINT_A2_GAP3_MM'])\"\n    RP2 = f\"(df['BEARING_P2_DISP_MM'] - {EP2})\"\n    CLO = f\"({TOT} + df['BEARING_A2_DISP_MM'] - {k['g0a2']})\"\n    MU = f\"({k['cmu']:.6g} * np.abs(df['PIER_P2_TILT_MRAD']))\"\n    SRES = f\"(df['STRAIN_STATIC_UE'] - {k['kdt']} * (df['SLAB_TEMP_C'] - df['GIRDER_TEMP_C']))\"\n    SEXP = f\"({k['cs']} * df['WIM_LAST_HEAVY_KN'])\"\n    SR = f\"(df['STRAIN_PEAK_UE'] / {SEXP})\"\n    LIFE = f\"(({k['cap']} - df['BEARING_P2_PATH_M']) / np.maximum(df['BEARING_P2_PATH_RATE_M_Y'], 1.0))\"\n    return dict(k=k, TE=TE, DT=DT, EP2=EP2, EA2=EA2, TOT=TOT, GEA2=GEA2, GRA2=GRA2, GRA1=GRA1, GMAX=GMAX, GMIN=GMIN,\n                RP2=RP2, CLO=CLO, MU=MU, SRES=SRES, SEXP=SEXP, SR=SR, LIFE=LIFE)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"TE_EFFECTIVE_C\", p[\"TE\"]),\n        (\"SLAB_GIRDER_DIFF_K\", \"df['SLAB_TEMP_C'] - df['GIRDER_TEMP_C']\"),\n        (\"MOVE_EXP_P2_MM\", p[\"EP2\"]),\n        (\"RES_P2_MM\", p[\"RP2\"]),\n        (\"MOVE_EXP_A2_MM\", p[\"EA2\"]),\n        (\"RES_A2_MM\", f\"df['BEARING_A2_DISP_MM'] - {p['EA2']}\"),\n        (\"GAP_RES_A1_MM\", p[\"GRA1\"]),\n        (\"GAP_A2_TOTAL_MM\", p[\"TOT\"]),\n        (\"GAP_EXP_A2_MM\", p[\"GEA2\"]),\n        (\"GAP_RES_A2_MM\", p[\"GRA2\"]),\n        (\"GAP_SPREAD_A2_MM\", f\"{p['GMAX']} - {p['GMIN']}\"),\n        (\"CLOSURE_A2_MM\", p[\"CLO\"]),\n        (\"FRICTION_COEFF_EST\", p[\"MU\"]),\n        (\"STRAIN_STATIC_RES_UE\", p[\"SRES\"]),\n        (\"STRAIN_EXPECTED_UE\", p[\"SEXP\"]),\n        (\"STRAIN_RATIO\", p[\"SR\"]),\n        (\"SLIDING_GAP_EXPECTED_MM\", f\"{k['h0']} - {k['kw']} * df['BEARING_P2_PATH_M'] / 1000\"),\n        (\"WEAR_LIFE_YEARS\", p[\"LIFE\"]),\n        (\"PATH_USED_PCT\", f\"df['BEARING_P2_PATH_M'] / {k['cap']} * 100\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    te = k[\"w\"] * r[\"slab_temp_c\"] + (1 - k[\"w\"]) * r[\"girder_temp_c\"]\n    dt = te - k[\"t0\"]\n    ep2, ea2 = k[\"a_p2\"] * dt, k[\"a_a2\"] * dt\n    g = (r[\"joint_a2_gap1_mm\"], r[\"joint_a2_gap2_mm\"], r[\"joint_a2_gap3_mm\"])\n    tot = g[0] + g[1] + g[2]\n    gea2 = k[\"g0a2\"] - ea2\n    sexp = k[\"cs\"] * r[\"wim_last_heavy_kn\"]\n    return {\n        \"te_effective_c\": te, \"slab_girder_diff_k\": r[\"slab_temp_c\"] - r[\"girder_temp_c\"],\n        \"move_exp_p2_mm\": ep2, \"res_p2_mm\": r[\"bearing_p2_disp_mm\"] - ep2,\n        \"move_exp_a2_mm\": ea2, \"res_a2_mm\": r[\"bearing_a2_disp_mm\"] - ea2,\n        \"gap_res_a1_mm\": r[\"joint_a1_gap_mm\"] - (k[\"g0a1\"] - k[\"a_a1\"] * dt),\n        \"gap_a2_total_mm\": tot, \"gap_exp_a2_mm\": gea2, \"gap_res_a2_mm\": tot - gea2,\n        \"gap_spread_a2_mm\": max(g) - min(g), \"closure_a2_mm\": tot + r[\"bearing_a2_disp_mm\"] - k[\"g0a2\"],\n        \"friction_coeff_est\": k[\"cmu\"] * abs(r[\"pier_p2_tilt_mrad\"]),\n        \"strain_static_res_ue\": r[\"strain_static_ue\"] - k[\"kdt\"] * (r[\"slab_temp_c\"] - r[\"girder_temp_c\"]),\n        \"strain_expected_ue\": sexp, \"strain_ratio\": r[\"strain_peak_ue\"] / sexp,\n        \"sliding_gap_expected_mm\": k[\"h0\"] - k[\"kw\"] * r[\"bearing_p2_path_m\"] / 1000,\n        \"wear_life_years\": (k[\"cap\"] - r[\"bearing_p2_path_m\"]) / max(r[\"bearing_p2_path_rate_m_y\"], 1.0),\n        \"path_used_pct\": r[\"bearing_p2_path_m\"] / k[\"cap\"] * 100,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"BR_BEARING_SEIZED\", f\"(np.abs({p['RP2']}) > {L['bearing_residual_mm']}) & (np.abs(df['PIER_P2_TILT_MRAD']) > {L['pier_tilt_mrad']})\", \"High\", \"bearing_seized\"),\n        (\"BR_PIER_TILT\", f\"np.abs(df['PIER_P2_TILT_MRAD']) > {L['pier_tilt_mrad']}\", \"High\", \"bearing_seized\"),\n        (\"BR_JOINT_BLOCKED\", f\"({p['GRA2']} > {L['joint_residual_mm']}) | ({p['GRA1']} > {L['joint_residual_mm']})\", \"High\", \"joint_blocked\"),\n        (\"BR_DECK_RESTRAINT\", f\"np.abs({p['SRES']}) > {L['restraint_strain_ue']}\", \"High\", \"joint_blocked\"),\n        (\"BR_JOINT_GAP_LIMIT\", f\"({p['GMAX']} > {k['gmax']}) | ({p['GMIN']} < {k['gmin']})\", \"High\", \"joint_control_failure\"),\n        (\"BR_STRAIN_RATIO_HIGH\", f\"{p['SR']} > {L['strain_ratio']}\", \"High\", \"girder_stiffness_loss\"),\n        (\"BR_BEARING_FRICTION_HIGH\", f\"{p['MU']} > {k['mu_max']}\", \"Medium\", \"ptfe_wear\"),\n        (\"BR_SLIDING_GAP_LOW\", f\"df['BEARING_P2_SLIDING_GAP_MM'] < {L['sliding_gap_min_mm']}\", \"Medium\", \"ptfe_wear\"),\n        (\"BR_WEAR_RATE_HIGH\", f\"df['BEARING_P2_PATH_RATE_M_Y'] > {L['path_rate_factor'] * k['rate_d']:.6g}\", \"Medium\", \"sliding_path_fast\"),\n        (\"BR_WEAR_LIFE_LOW\", f\"{p['LIFE']} < {L['wear_life_min_y']}\", \"Medium\", \"sliding_path_fast\"),\n        (\"BR_JOINT_GAP_UNEVEN\", f\"({p['GMAX']} - {p['GMIN']}) > {L['gap_spread_mm']}\", \"Medium\", \"joint_control_failure\"),\n        (\"BR_JOINT_IMPACT\", f\"df['JOINT_A2_IMPACT_G'] > {L['impact_g']}\", \"Medium\", \"joint_control_failure\"),\n        (\"BR_OVERWEIGHT_TRAFFIC\", f\"df['WIM_OVERWEIGHT_24H'] > {L['overweight_24h']}\", \"Medium\", \"overweight_traffic\"),\n        (\"BR_SENSOR_MISMATCH\", f\"np.abs({p['CLO']}) > {L['closure_mm']}\", \"Low\", \"displacement_sensor\"),\n        (\"BR_TEMP_OUTSIDE_DESIGN\", f\"({p['TE']} > {k['temax']}) | ({p['TE']} < {k['temin']})\", \"Low\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    tilt = abs(r[\"pier_p2_tilt_mrad\"])\n    g = (r[\"joint_a2_gap1_mm\"], r[\"joint_a2_gap2_mm\"], r[\"joint_a2_gap3_mm\"])\n    life = t[\"wear_life_years\"]\n    add(abs(t[\"res_p2_mm\"]) > L[\"bearing_residual_mm\"] and tilt > L[\"pier_tilt_mrad\"], \"BR_BEARING_SEIZED\", \"High\",\n        f\"Bearing P2 at {r['bearing_p2_disp_mm']:.1f} mm, expected {t['move_exp_p2_mm']:.1f} mm at Te {t['te_effective_c']:.1f} \u00b0C, while the pier tilts {r['pier_p2_tilt_mrad']:.2f} mrad\",\n        \"bearing\", \"bearing_seized\")\n    add(tilt > L[\"pier_tilt_mrad\"], \"BR_PIER_TILT\", \"High\", f\"Pier P2 head tilt {r['pier_p2_tilt_mrad']:.2f} mrad (limit {L['pier_tilt_mrad']})\", \"pier\", \"bearing_seized\")\n    add(t[\"gap_res_a2_mm\"] > L[\"joint_residual_mm\"] or t[\"gap_res_a1_mm\"] > L[\"joint_residual_mm\"], \"BR_JOINT_BLOCKED\", \"High\",\n        f\"Joint A2 open {t['gap_a2_total_mm']:.1f} mm, expected {t['gap_exp_a2_mm']:.1f} mm (A1 residual {t['gap_res_a1_mm']:+.1f} mm): the joint does not close\",\n        \"joint_a2\", \"joint_blocked\")\n    add(abs(t[\"strain_static_res_ue\"]) > L[\"restraint_strain_ue\"], \"BR_DECK_RESTRAINT\", \"High\",\n        f\"Restraint strain {t['strain_static_res_ue']:+.0f} \u00b5\u03b5 ({t['strain_static_res_ue'] * k['E'] / 1e6:+.0f} MPa in the steel)\", \"deck\", \"joint_blocked\")\n    add(max(g) > k[\"gmax\"] or min(g) < k[\"gmin\"], \"BR_JOINT_GAP_LIMIT\", \"High\",\n        f\"Joint A2 gaps {g[0]:.0f} / {g[1]:.0f} / {g[2]:.0f} mm: outside {k['gmin']:.0f} to {k['gmax']:.0f} mm\", \"joint_a2\", \"joint_control_failure\")\n    add(t[\"strain_ratio\"] > L[\"strain_ratio\"], \"BR_STRAIN_RATIO_HIGH\", \"High\",\n        f\"Peak strain {r['strain_peak_ue']:.0f} \u00b5\u03b5 under a {r['wim_last_heavy_kn']:.0f} kN vehicle: {t['strain_ratio']:.2f} x the model\", \"deck\", \"girder_stiffness_loss\")\n    add(t[\"friction_coeff_est\"] > k[\"mu_max\"], \"BR_BEARING_FRICTION_HIGH\", \"Medium\",\n        f\"Bearing P2 friction about {t['friction_coeff_est'] * 100:.1f} % (PTFE maximum {k['mu_max'] * 100:.0f} %)\", \"bearing\", \"ptfe_wear\")\n    add(r[\"bearing_p2_sliding_gap_mm\"] < L[\"sliding_gap_min_mm\"], \"BR_SLIDING_GAP_LOW\", \"Medium\",\n        f\"PTFE protrusion {r['bearing_p2_sliding_gap_mm']:.2f} mm, below {L['sliding_gap_min_mm']} mm\", \"bearing\", \"ptfe_wear\")\n    add(r[\"bearing_p2_path_rate_m_y\"] > L[\"path_rate_factor\"] * k[\"rate_d\"], \"BR_WEAR_RATE_HIGH\", \"Medium\",\n        f\"Sliding path {r['bearing_p2_path_rate_m_y']:.0f} m in 365 days, design {k['rate_d']:.0f} m\", \"bearing\", \"sliding_path_fast\")\n    add(life < L[\"wear_life_min_y\"], \"BR_WEAR_LIFE_LOW\", \"Medium\", f\"Sliding material life left about {life:.1f} years\", \"bearing\", \"sliding_path_fast\")\n    add(max(g) - min(g) > L[\"gap_spread_mm\"], \"BR_JOINT_GAP_UNEVEN\", \"Medium\",\n        f\"Joint A2 gaps differ by {max(g) - min(g):.0f} mm (limit {L['gap_spread_mm']:.0f})\", \"joint_a2\", \"joint_control_failure\")\n    add(r[\"joint_a2_impact_g\"] > L[\"impact_g\"], \"BR_JOINT_IMPACT\", \"Medium\", f\"Joint A2 impact {r['joint_a2_impact_g']:.1f} g under traffic\", \"joint_a2\", \"joint_control_failure\")\n    add(r[\"wim_overweight_24h\"] > L[\"overweight_24h\"], \"BR_OVERWEIGHT_TRAFFIC\", \"Medium\",\n        f\"{r['wim_overweight_24h']:.0f} vehicles above {k['legal']:.0f} kN in 24 h\", \"wim\", \"overweight_traffic\")\n    add(abs(t[\"closure_a2_mm\"]) > L[\"closure_mm\"], \"BR_SENSOR_MISMATCH\", \"Low\",\n        f\"Joint A2 gap + bearing A2 movement off by {t['closure_a2_mm']:+.1f} mm: check the transducers\", \"sensor\", \"displacement_sensor\")\n    add(t[\"te_effective_c\"] > k[\"temax\"] or t[\"te_effective_c\"] < k[\"temin\"], \"BR_TEMP_OUTSIDE_DESIGN\", \"Low\",\n        f\"Effective bridge temperature {t['te_effective_c']:.1f} \u00b0C outside the design range {k['temin']:.0f} to {k['temax']:.0f} \u00b0C\", \"deck\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "BR-6001 bridge bearings and expansion joints twin. Expected movements, gaps, strains and wear in Maximo Monitor from the design data; the loggers send only what they measure.", "twin": {"id": "BR-6001", "name": "Road bridge BR-6001: bearings, expansion joints and deck", "version": "1.0.0", "folder": "bridge-twin"}, "identification": {"asset": "BR-6001", "assetnum": "BR-6001", "manufacturer": "mageba RESTON POT bearings,", "model": "TENSA MODULAR LR 3 joint (3-span composite girder bridge)", "description": "Road bridge, 3 continuous spans 60 + 80 + 60 m, steel-concrete composite girders: bearings, expansion joints and deck strain", "structure": "Two steel plate girders with a concrete deck slab, continuous over 4 supports (A1, P1, P2, A2)", "bearings": "Pot bearings: fixed (TF) on pier P1; guided sliding (TE), PTFE on stainless steel, on A1, P2 and A2", "joint_a1": "Single-gap strip seal joint at abutment A1", "joint_a2": "Modular expansion joint, 3 gaps, at abutment A2 (for example mageba TENSA MODULAR LR 3)", "monitoring": "Data loggers with displacement transducers, tiltmeter, temperature probes and strain gauges; a weigh-in-motion (WIM) station on the approach"}, "design": {"geometry": {"spans_m": [60.0, 80.0, 60.0], "fixed_support": "P1", "exp_length_a1_m": 60.0, "exp_length_p2_m": 80.0, "exp_length_a2_m": 140.0, "source": "Spans and the position of the fixed bearing: assumption: typical value, replace with the design report / bearing and joint schedules of your bridge. Expansion length = distance from the fixed bearing on P1."}, "thermal": {"alpha_per_k": 1.2e-05, "t0_c": 10.0, "te_min_c": -20.0, "te_max_c": 45.0, "slab_weight": 0.5, "source": "alpha = 12e-6 /K for the change in length of a composite bridge (EN 1994-2 5.4.2.5, as quoted in SCI P406). T0 = 10 C, the value EN 1991-1-5 gives when no other information is available (here also the bearing setting temperature). Te,min / Te,max of the site (national maps of EN 1991-1-5) and the weighting of slab and girder probes into the effective (uniform) bridge temperature: assumption: typical value, replace with the design report / bearing and joint schedules of your bridge"}, "joints": {"a1_gap_t0_mm": 50.0, "a1_capacity_mm": 80.0, "a2_gaps": 3, "a2_gap_t0_mm": 110.0, "a2_gap_max_mm": 80.0, "a2_gap_min_mm": 5.0, "a2_capacity_mm": 240.0, "source": "TENSA MODULAR LR 3: 3 gaps, 240 mm longitudinal movement, each gap up to 80 mm (mageba brochure). Total gap at T0, single-gap joint size and the 5 mm minimum gap (lamellas about to touch): assumption: typical value, replace with the design report / bearing and joint schedules of your bridge"}, "bearing_p2": {"type": "TE guided sliding pot bearing", "bearings_per_support": 2, "permanent_load_kn": 5000.0, "mu_design": 0.015, "mu_max": 0.03, "pier_height_m": 12.0, "pier_stiffness_kn_per_mm": 60.0, "sliding_gap_new_mm": 2.0, "sliding_gap_wear_mm_per_km": 0.05, "path_capacity_m": 10000.0, "path_rate_design_m_per_y": 400.0, "service_years": 12.0, "source": "Friction of PTFE on austenitic steel 2.0 to 3.0 %, maximum 3 %, and 10 km accumulated sliding path for PTFE to EN 1337-2 (mageba ROBO SLIDE 75 brochure; 10 km at 400 m/year = the 25 years it quotes for PTFE). Permanent load per bearing, pier height and stiffness, PTFE protrusion when new, wear per km of path and the design path rate (thermal + traffic micro-movements): assumption: typical value, replace with the design report / bearing and joint schedules of your bridge. Pier head tilt = 1.5 x head displacement / height (cantilever with a load at the top)."}, "deck": {"strain_per_kn_ue": 0.3, "strain_per_dt_ue": 1.5, "steel_e_mpa": 210000.0, "legal_gross_kn": 432.0, "source": "Peak strain at the span 2 midspan bottom flange per kN of vehicle gross weight in the slow lane (influence coefficient from the bridge model, calibrated by a load test) and the static strain per K of slab-to-girder temperature difference: assumption: typical value, replace with the design report / bearing and joint schedules of your bridge. Legal gross weight 44 t: assumption, replace with your national limit."}, "demo": {"time_scale": 60, "season": "summer", "air_mean_c": 27.0, "air_amp_c": 7.0, "slab_mean_c": 29.0, "slab_amp_c": 9.0, "girder_mean_c": 26.0, "girder_amp_c": 4.0, "seized_since_te_c": 2.0, "blocked_since_te_c": 12.0, "restraint_factor": 0.8, "note": "Demo only: the plant clock runs 60 times faster (one bridge day in 24 minutes) on a summer day. A seized bearing has been stuck since the winter (Te 2 C) and a blocked joint since the spring (Te 12 C), so the residuals show at once."}}, "telemetry": {"event": "bridge", "publish_every_s": 10, "device_type": "BRIDGE_BEARINGS_JOINTS", "groups": {"Temperature": "Deck slab, girder and air temperature", "BearingP2": "Sliding bearing on pier P2", "BearingA2": "Sliding bearing on abutment A2", "Pier": "Pier P2 head", "JointA1": "Single-gap joint at abutment A1", "JointA2": "Modular joint at abutment A2", "Deck": "Span 2 strain gauges", "WIM": "Weigh-in-motion station"}, "points": [{"metric": "slab_temp_c", "path": "Temperature.Slab", "label": "Deck slab temperature (embedded probes, mean)", "unit": "\u00b0C"}, {"metric": "girder_temp_c", "path": "Temperature.Girder", "label": "Steel girder temperature (web probes, mean)", "unit": "\u00b0C"}, {"metric": "air_temp_c", "path": "Temperature.Air", "label": "Shade air temperature", "unit": "\u00b0C"}, {"metric": "bearing_p2_disp_mm", "path": "BearingP2.Displacement", "label": "Bearing P2 sliding displacement from its set position (+ = away from P1)", "unit": "mm"}, {"metric": "bearing_p2_sliding_gap_mm", "path": "BearingP2.SlidingGap", "label": "Bearing P2 PTFE protrusion (sliding gap)", "unit": "mm"}, {"metric": "bearing_p2_path_m", "path": "BearingP2.SlidingPath", "label": "Bearing P2 accumulated sliding path since installation", "unit": "m"}, {"metric": "bearing_p2_path_rate_m_y", "path": "BearingP2.PathRate365", "label": "Bearing P2 sliding path over the last 365 days", "unit": "m/y"}, {"metric": "bearing_a2_disp_mm", "path": "BearingA2.Displacement", "label": "Bearing A2 sliding displacement from its set position (+ = away from P1)", "unit": "mm"}, {"metric": "pier_p2_tilt_mrad", "path": "Pier.TiltP2", "label": "Pier P2 head tilt along the bridge", "unit": "mrad"}, {"metric": "joint_a1_gap_mm", "path": "JointA1.Gap", "label": "Joint A1 gap opening", "unit": "mm"}, {"metric": "joint_a2_gap1_mm", "path": "JointA2.Gap1", "label": "Joint A2 gap 1 opening", "unit": "mm"}, {"metric": "joint_a2_gap2_mm", "path": "JointA2.Gap2", "label": "Joint A2 gap 2 opening", "unit": "mm"}, {"metric": "joint_a2_gap3_mm", "path": "JointA2.Gap3", "label": "Joint A2 gap 3 opening", "unit": "mm"}, {"metric": "joint_a2_impact_g", "path": "JointA2.ImpactPeak", "label": "Joint A2 lamella peak vertical acceleration under traffic, last 10 min", "unit": "g"}, {"metric": "strain_static_ue", "path": "Deck.StaticStrain", "label": "Span 2 bottom flange static strain (temperature compensated, traffic filtered)", "unit": "\u00b5\u03b5"}, {"metric": "strain_peak_ue", "path": "Deck.PeakStrainLastHeavy", "label": "Span 2 bottom flange peak strain under the last heavy vehicle", "unit": "\u00b5\u03b5"}, {"metric": "wim_last_heavy_kn", "path": "WIM.LastHeavyWeight", "label": "Gross weight of the last heavy vehicle (slow lane)", "unit": "kN"}, {"metric": "wim_heavy_24h", "path": "WIM.Heavy24h", "label": "Heavy vehicles, last 24 h", "unit": "count"}, {"metric": "wim_overweight_24h", "path": "WIM.Overweight24h", "label": "Vehicles above the legal gross weight, last 24 h", "unit": "count"}]}, "twin_model": {"limits": {"bearing_residual_mm": 8.0, "pier_tilt_mrad": 1.0, "joint_residual_mm": 10.0, "restraint_strain_ue": 50.0, "gap_spread_mm": 15.0, "impact_g": 6.0, "strain_ratio": 1.2, "sliding_gap_min_mm": 1.0, "path_rate_factor": 1.5, "wear_life_min_y": 5.0, "overweight_24h": 20, "closure_mm": 6.0, "source": "Alert limits: assumption: typical value, replace with the design report / bearing and joint schedules of your bridge; the friction limit is the 3 % maximum for PTFE (bearing_p2.mu_max)."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "bearing_seized": {"name": "Sliding bearing P2 seized (corrosion, debris, displaced PTFE)", "part": "bearing", "symptoms": "bearing P2 stops following the temperature; the deck drags the pier head: tilt and friction estimate jump", "rules": ["BR_BEARING_SEIZED", "BR_PIER_TILT", "BR_BEARING_FRICTION_HIGH"], "default_ramp_min": 1.5}, "ptfe_wear": {"name": "PTFE sliding sheet worn (end of life)", "part": "bearing", "symptoms": "PTFE protrusion below its limit, friction above 3 %, the bearing still moves", "rules": ["BR_SLIDING_GAP_LOW", "BR_BEARING_FRICTION_HIGH"], "default_ramp_min": 1.5}, "sliding_path_fast": {"name": "Sliding path growing fast (traffic micro-movements, loose guide)", "part": "bearing", "symptoms": "path over the last 365 days well above design; remaining wear life short", "rules": ["BR_WEAR_RATE_HIGH", "BR_WEAR_LIFE_LOW"], "default_ramp_min": 1}, "joint_blocked": {"name": "Expansion joint A2 blocked (debris, end of travel)", "part": "joint_a2", "symptoms": "joint does not close as the deck warms; compressive restraint strain in the deck", "rules": ["BR_JOINT_BLOCKED", "BR_DECK_RESTRAINT"], "default_ramp_min": 1.5}, "joint_control_failure": {"name": "Modular joint control springs failed", "part": "joint_a2", "symptoms": "gaps no longer equal, one gap closed and lamellas hammering under traffic", "rules": ["BR_JOINT_GAP_UNEVEN", "BR_JOINT_GAP_LIMIT", "BR_JOINT_IMPACT"], "default_ramp_min": 1}, "girder_stiffness_loss": {"name": "Girder stiffness loss (shear connectors, cracking)", "part": "deck", "symptoms": "more strain per kN of vehicle weight than the model", "rules": ["BR_STRAIN_RATIO_HIGH"], "default_ramp_min": 1.5}, "overweight_traffic": {"name": "Overweight traffic", "part": "wim", "symptoms": "many vehicles above the legal weight; strain per kN normal", "rules": ["BR_OVERWEIGHT_TRAFFIC"], "default_ramp_min": 1}, "displacement_sensor": {"name": "Displacement transducer drift at A2", "part": "sensor", "symptoms": "joint gap and bearing movement at A2 no longer add up", "rules": ["BR_SENSOR_MISMATCH"], "default_ramp_min": 0.5}}, "presentation": {"title": "BR-6001 road bridge bearings and expansion joints", "dashboard": "BRIDGE_BEARINGS_JOINTS"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, EX = 100;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (1 unit = 10 m; A1 at x = 0, P1 at 6, P2 at 14, A2 at 20) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(38, 1, 0.05, 400);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(6, 8, 31); ctl.target.set(9, 0, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(6, 12, 8); scene.add(sun);
+const grid = new THREE.GridHelper(44, 44, 0x3a3f47, 0x2a2e35); grid.position.set(10, -1.2, 0); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .3, roughness: o.r ?? .6, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const concrete = M(0xa7a9ac, { m: .05, r: .85 }), steelM = M(0x3f6d9e, { m: .5, r: .4 }), asphalt = M(0x3b3e43, { m: 0, r: .95 }), dark = M(0x4c5158);
+const yellow = M(0xd8a31a, { m: .2, r: .5 }), steel = M(0xb9bec4, { m: .65, r: .3 }), red = M(0xb3262d, { m: .3 });
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const X = { A1: 0, P1: 6, P2: 14, A2: 20 }, DECK_Y = 1.0;
+// ground, river bed between the piers
+scene.add(at(box(28, .05, 8, M(0x2b3a2e, { r: 1 })), 10, -1.2, 0));
+scene.add(at(box(14, .06, 7.8, M(0x23435e, { r: .3 })), 10, -1.17, 0));
+// abutments with back walls
+[[X.A1, -1], [X.A2, 1]].forEach(([x, s]) => {
+  scene.add(at(box(1.2, 2.0, 3.0, concrete), x + s * .55, -.2, 0));
+  scene.add(at(box(.25, .55, 3.0, concrete), x + s * .3, DECK_Y + .05, 0));
+  scene.add(at(box(4, .3, 3.0, asphalt), x + s * 2.6, DECK_Y + .2, 0));            // approach road
+});
+// piers: P1 fixed, P2 tilts about its base
+const pierP1 = new THREE.Group(); at(pierP1, X.P1, -1.2, 0); scene.add(pierP1);
+const pierP2 = new THREE.Group(); at(pierP2, X.P2, -1.2, 0); scene.add(pierP2);
+[pierP1, pierP2].forEach(g => { g.add(at(box(.5, 1.75, 1.6, concrete), 0, .875, 0)); g.add(at(box(.7, .2, 2.4, concrete), 0, 1.85, 0)); });
+// bearings (two per support, z = +-0.7): pot = cylinder, sliding plate on top
+const cyl = (r1, r2, h, m, s = 28) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const BRG = {};
+function bearing(name, parent, x, y, fixed) {
+  const g = new THREE.Group(); at(g, x, y, 0); parent.add(g);
+  const parts = [];
+  [-.7, .7].forEach(z => {
+    const pot = at(cyl(.16, .16, .1, fixed ? dark : steel), 0, 0, z); g.add(pot);
+    const ptfe = at(cyl(.14, .14, .02, M(0xf4f4f4, { r: .3 })), 0, .06, z); g.add(ptfe);
+    const plate = at(box(.5, .03, .4, steel), 0, .085, z); g.add(plate);
+    [pot, ptfe, plate].forEach(p => { p.userData.m0 = p.material; parts.push(p); });
+  });
+  BRG[name] = { g, parts };
+}
+bearing('A1', scene, X.A1 + .3, .72, false);
+bearing('P1', pierP1, 0, 2.0, true);
+bearing('P2', pierP2, 0, 2.0, false);
+bearing('A2', scene, X.A2 - .3, .72, false);
+// deck: group with its origin on the fixed bearing P1 so it grows from there
+const deck = new THREE.Group(); at(deck, X.P1, 0, 0); scene.add(deck);
+const L = X.A2 - X.A1 - .1;
+const slabMat = M(0x9c9fa3, { m: .05, r: .85, t: 1 });
+const slab = at(box(L, .14, 3.0, slabMat), (X.A1 + X.A2) / 2 - X.P1, DECK_Y + .12, 0); deck.add(slab);
+deck.add(at(box(L, .04, 2.6, asphalt), (X.A1 + X.A2) / 2 - X.P1, DECK_Y + .21, 0));
+[-.7, .7].forEach(z => {
+  deck.add(at(box(L, .3, .03, steelM), (X.A1 + X.A2) / 2 - X.P1, DECK_Y - .1, z));             // web (3.0 m deep girder at 1:10)
+  deck.add(at(box(L, .025, .25, steelM), (X.A1 + X.A2) / 2 - X.P1, DECK_Y - .26, z));           // bottom flange
+});
+[-1.45, 1.45].forEach(z => deck.add(at(box(L, .12, .06, concrete), (X.A1 + X.A2) / 2 - X.P1, DECK_Y + .28, z)));   // parapets
+// strain gauge at midspan of span 2 (bottom flange)
+const gauge = at(box(.2, .05, .3, M(0x8a3ffc, { m: .2 })), (X.P1 + X.P2) / 2 + 4 - X.P1, DECK_Y - .3, .7); deck.add(gauge);
+// modular joint A2: 2 lamellas between deck end and abutment edge beam (3 gaps)
+const lam = [0, 1].map(() => { const b = at(box(.04, .06, 2.6, M(0xd9dde2, { m: .8, r: .2 })), X.A2 - .1, DECK_Y + .2, 0); scene.add(b); return b; });
+const edgeA2 = at(box(.05, .06, 2.6, dark), X.A2 + .1, DECK_Y + .2, 0); scene.add(edgeA2);
+const deckEndA2 = at(box(.05, .06, 2.6, dark), 0, DECK_Y + .2, 0); scene.add(deckEndA2);
+const edgeA1 = at(box(.05, .06, 2.6, dark), X.A1 - .08, DECK_Y + .2, 0); scene.add(edgeA1);
+// WIM station on the approach to A1 and a truck
+scene.add(at(box(.15, .02, 1.2, M(0x0f62fe)), X.A1 - 2.5, DECK_Y + .36, -.6));
+const truck = new THREE.Group(); scene.add(truck);
+truck.add(at(box(.9, .35, .3, M(0xe0e0e0)), 0, .25, 0)); truck.add(at(box(.25, .3, .3, M(0x0f62fe)), .58, .22, 0));
+// beacon
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.12, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, X.A2 + 1.5, DECK_Y + 1.2, 1.6));
+scene.add(at(box(.06, 1.2, .06, dark), X.A2 + 1.5, DECK_Y + .55, 1.6));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('temp', [9, 2.0, 0]); lbl('p2', [X.P2, 1.0, 1.4]); lbl('tilt', [X.P2 + .6, -.8, 1.0]); lbl('a2', [X.A2, 1.8, -1.2]);
+lbl('a1', [X.A1 + .6, 1.5, 1.6]); lbl('strain', [11.5, .4, 1.3]); lbl('wim', [X.A1 - 1.5, 2.9, -.6]); lbl('wear', [X.P2, 2.3, -1.4]); lbl('p1', [X.P1, 1.0, 1.4]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const Lb = LBL[k], v = Lb.pos.clone().project(cam); Lb.el.style.display = v.z < 1 ? '' : 'none'; Lb.el.style.left = ((v.x + 1) / 2 * w) + 'px'; Lb.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const Lb = LBL[id]; Lb.el.className = 'lbl ' + (state || ''); Lb.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let uA2 = 0, uP2 = 0, tilt = 0, gaps = [30, 30, 30], gapA1 = 40;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, Lm = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  uA2 = r.bearing_a2_disp_mm; uP2 = r.bearing_p2_disp_mm; tilt = r.pier_p2_tilt_mrad; gapA1 = r.joint_a1_gap_mm;
+  gaps = [r.joint_a2_gap1_mm, r.joint_a2_gap2_mm, r.joint_a2_gap3_mm];
+  const gA1exp = r.joint_a1_gap_mm - t.gap_res_a1_mm;
+  setLbl('temp', `slab ${fmt(r.slab_temp_c, 1)} · girder ${fmt(r.girder_temp_c, 1)} · air ${fmt(r.air_temp_c, 1)} °C`, `Te ${fmt(t.te_effective_c, 1)} °C (T0 ${d.thermal.t0_c})`, st(names.has('BR_TEMP_OUTSIDE_DESIGN')));
+  setLbl('p2', `bearing P2 · expected ${fmt(t.move_exp_p2_mm, 1)} mm`, `${fmt(r.bearing_p2_disp_mm, 1)} mm · res ${fmt(t.res_p2_mm, 1)}`, st(names.has('BR_BEARING_SEIZED'), Math.abs(t.res_p2_mm) > Lm.bearing_residual_mm / 2));
+  setLbl('tilt', `pier P2 tilt · friction ≈ ${fmt(t.friction_coeff_est * 100, 1)} %`, `${fmt(r.pier_p2_tilt_mrad, 2)} mrad`, st(names.has('BR_PIER_TILT'), names.has('BR_BEARING_FRICTION_HIGH')));
+  setLbl('a2', `joint A2 · expected ${fmt(t.gap_exp_a2_mm, 1)} mm · gaps ${gaps.map(g => fmt(g, 0)).join(' / ')}`, `${fmt(t.gap_a2_total_mm, 1)} mm · spread ${fmt(t.gap_spread_a2_mm, 0)}`,
+    st(names.has('BR_JOINT_BLOCKED') || names.has('BR_JOINT_GAP_LIMIT'), names.has('BR_JOINT_GAP_UNEVEN') || names.has('BR_JOINT_IMPACT') || names.has('BR_SENSOR_MISMATCH')));
+  setLbl('a1', `joint A1 · expected ${fmt(gA1exp, 1)} mm`, `${fmt(r.joint_a1_gap_mm, 1)} mm`, st(t.gap_res_a1_mm > Lm.joint_residual_mm));
+  setLbl('strain', `span 2 · static res ${fmt(t.strain_static_res_ue, 0)} µε`, `peak ${fmt(r.strain_peak_ue, 0)} µε · ${fmt(t.strain_ratio, 2)} × model`, st(names.has('BR_STRAIN_RATIO_HIGH') || names.has('BR_DECK_RESTRAINT')));
+  setLbl('wim', `WIM · ${fmt(r.wim_heavy_24h, 0)} heavy / 24 h`, `${fmt(r.wim_last_heavy_kn, 0)} kN · ${r.wim_overweight_24h} overweight`, st(names.has('BR_OVERWEIGHT_TRAFFIC')));
+  setLbl('wear', `PTFE ${fmt(r.bearing_p2_sliding_gap_mm, 2)} mm · ${fmt(r.bearing_p2_path_rate_m_y, 0)} m/y`, `path ${fmt(r.bearing_p2_path_m / 1000, 2)} km · ${fmt(t.wear_life_years, 1)} y left`,
+    st(names.has('BR_SLIDING_GAP_LOW') || names.has('BR_WEAR_LIFE_LOW'), names.has('BR_WEAR_RATE_HIGH')));
+  setLbl('p1', 'pier P1', 'fixed bearings', '');
+  $('k-health').textContent = ST.health; $('k-te').textContent = fmt(t.te_effective_c, 1) + ' °C'; $('k-life').textContent = fmt(t.wear_life_years, 1) + ' y';
+  const h = ST.plant_time_h;
+  $('c-te-t').textContent = `Te ${fmt(t.te_effective_c, 1)} °C` + (h != null ? ` · ${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}` : '');
+  $('c-te').className = 'chip ' + (names.has('BR_TEMP_OUTSIDE_DESIGN') ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Bearing P2 movement (mm)', fmt(r.bearing_p2_disp_mm, 1), fmt(t.move_exp_p2_mm, 1), names.has('BR_BEARING_SEIZED')) +
+    row('Bearing A2 movement (mm)', fmt(r.bearing_a2_disp_mm, 1), fmt(t.move_exp_a2_mm, 1)) +
+    row('Joint A2 opening (mm)', fmt(t.gap_a2_total_mm, 1), fmt(t.gap_exp_a2_mm, 1), names.has('BR_JOINT_BLOCKED')) +
+    row('Joint A1 opening (mm)', fmt(r.joint_a1_gap_mm, 1), fmt(gA1exp, 1), t.gap_res_a1_mm > Lm.joint_residual_mm) +
+    row('Joint A2 gap spread (mm)', fmt(t.gap_spread_a2_mm, 1), '≤ ' + Lm.gap_spread_mm, names.has('BR_JOINT_GAP_UNEVEN')) +
+    row('Gap + bearing closure (mm)', fmt(t.closure_a2_mm, 1), '0 ± ' + Lm.closure_mm, names.has('BR_SENSOR_MISMATCH')) +
+    row('Pier P2 tilt (mrad)', fmt(r.pier_p2_tilt_mrad, 2), '≤ ' + Lm.pier_tilt_mrad, names.has('BR_PIER_TILT')) +
+    row('Bearing friction (%)', fmt(t.friction_coeff_est * 100, 1), '≤ ' + (d.bearing_p2.mu_max * 100), names.has('BR_BEARING_FRICTION_HIGH')) +
+    row('Restraint strain (µε)', fmt(t.strain_static_res_ue, 0), '0 ± ' + Lm.restraint_strain_ue, names.has('BR_DECK_RESTRAINT')) +
+    row('Strain per kN ÷ model', fmt(t.strain_ratio, 2), '1.00', names.has('BR_STRAIN_RATIO_HIGH')) +
+    row('PTFE protrusion (mm)', fmt(r.bearing_p2_sliding_gap_mm, 2), fmt(t.sliding_gap_expected_mm, 2), names.has('BR_SLIDING_GAP_LOW')) +
+    row('Sliding path, 365 d (m)', fmt(r.bearing_p2_path_rate_m_y, 0), fmt(d.bearing_p2.path_rate_design_m_per_y, 0), names.has('BR_WEAR_RATE_HIGH')) +
+    row('Overweight vehicles, 24 h', fmt(r.wim_overweight_24h, 0), '≤ ' + Lm.overweight_24h, names.has('BR_OVERWEIGHT_TRAFFIC'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the bridge moves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  const seized = names.has('BR_BEARING_SEIZED'), worn = names.has('BR_BEARING_FRICTION_HIGH') || names.has('BR_SLIDING_GAP_LOW');
+  BRG.P2.parts.forEach(p => p.material = seized ? red : worn ? yellow : p.userData.m0);
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  slabMat.transparent = true; slabMat.opacity = cut ? .2 : 1; slabMat.depthWrite = !cut;
+};
+$('t-ex').onclick = () => { EX = EX === 100 ? 300 : 100; $('t-ex').textContent = 'Exaggeration ×' + EX; };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let sA2 = 0, sP2 = 0, sTilt = 0, sG = [30, 30, 30], sA1 = 40, tx = -6, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  const k = Math.min(1, dt * 4), mm = EX / 10000;                          // 1 unit = 10 m = 10000 mm
+  sA2 += (uA2 - sA2) * k; sP2 += (uP2 - sP2) * k; sTilt += (tilt - sTilt) * k; sA1 += (gapA1 - sA1) * k;
+  sG = sG.map((g, i) => g + (gaps[i] - g) * k);
+  // deck grows from P1: the A2 end moves by its bearing movement
+  deck.scale.x = 1 + sA2 * mm / (X.A2 - X.P1);
+  const endA2 = X.A2 - .05 + sA2 * mm;
+  // the joint is drawn from the abutment edge beam backwards: gap 3 next to the abutment
+  const edge = X.A2 + .1 + 0.0;
+  let x = edge - sG[2] * mm - .04; lam[1].position.x = x; x -= sG[1] * mm + .04; lam[0].position.x = x; x -= sG[0] * mm;
+  deckEndA2.position.x = Math.min(endA2, lam[0].position.x - .03);
+  // pier P2: the head is dragged by the deck (tilt about the base); bearing plates slide with the deck
+  pierP2.rotation.z = -sTilt / 1000 * EX / 4;
+  BRG.P2.parts.forEach((p, i) => { if (i % 3 === 2) p.position.x = sP2 * mm; });
+  BRG.A2.parts.forEach((p, i) => { if (i % 3 === 2) p.position.x = sA2 * mm; });
+  // truck crossing
+  tx += dt * 2.2; if (tx > 26) tx = -6; at(truck, tx, DECK_Y + .23, -.6);
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

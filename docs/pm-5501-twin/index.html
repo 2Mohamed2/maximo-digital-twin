@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PM-5501 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>PM-5501</b><span class="g">Point machine · S700K type · 220 mm stroke</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-det"><span class="dot"></span><span id="c-det-t">detection –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Power curve and force →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the turnout model…</div>
+<div class="credit">Switch toe with stock rails, switch blades, clamp locks and point heating; an S700K-type point machine beside the track with its throw bar and detector rods; the condition monitoring unit in the trackside cabinet. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-throw">Throw now</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Each throw runs unlock → drive → lock; the monitoring unit turns its power curve into forces at the throw bar.</div>
+<aside>
+  <section>
+    <h2>PM-5501 twin</h2>
+    <p class="sub" id="sub">point machine of a main-line turnout</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Drive force ÷ expected<b id="k-fr">–</b></div><div>Energy (kJ)<b id="k-en">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time and shows on the next throws. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The monitoring unit sends only what it measures on each throw. Every force, the temperature correction, the expected energy and the clutch margin are computed from the twin file: the maker's data sheet and the reference curve recorded at commissioning.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for PM-5501: the point machine, its turnout, the point heating and the condition monitoring unit, with\ninjectable faults.\n\nThe real CMU sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the expected\nvalues are computed in Monitor from the twin file only. This model only produces believable throws, power curves and\nfault fingerprints for the tests, the figures and the live pages.\nPure Python (math, random): it also runs in the browser under Pyodide.\n\"\"\"\nimport math\nimport random\n\nSQ3 = 1.7320508075688772\nPF = 0.361          # power factor while driving: 500 W at 400 V and the rated 2 A of the data sheet\n\n\nclass Machine:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.m, self.c, self.md, self.ct, self.h = d[\"machine\"], d[\"curve\"], d[\"model\"], d[\"control\"], d[\"heating\"]\n        self.v = self.m[\"stroke_mm\"] / 1000.0 / self.m[\"throw_time_s\"]\n        self.cf = self.md[\"efficiency\"] / self.v\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.air = 14.0\n        self.direction = 1\n        self.throws_total, self.throws_oh = 412360, 381240\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # weather and heating ----------------------------------------------------------------------------------------------\n    def weather(self):\n        s = self.faults[\"ice_heater\"]\n        air = self.air * (1 - s) - 4.0 * s\n        rail = air + (4.0 if air > 5 else -1.0) * (1 - s) - 1.0 * s\n        on = 1 if rail < self.h[\"switch_on_c\"] else 0\n        cur = on * self.h[\"rated_current_a\"] * (1 - s)\n        return air, rail, on, cur\n\n    def f_exp(self, rail):\n        md = self.md\n        return md[\"force_ref_n\"] + md[\"k_cold_n_per_k\"] * max(0.0, md[\"t_low_c\"] - rail) + md[\"k_hot_n_per_k\"] * max(0.0, rail - md[\"t_high_c\"])\n\n    def power(self, force):\n        return self.md[\"no_load_w\"] + force / self.cf\n\n    # one throw, summarised as the CMU sends it ------------------------------------------------------------------------\n    def throw(self):\n        f = self.faults\n        air, rail, on, hcur = self.weather()\n        fx = self.f_exp(rail) * (1 + self.n(0.02))\n        fu = fx * (1 + 0.3 * f[\"unlock_tight\"])\n        fd = fx * (1 + 0.9 * f[\"lubrication_loss\"])\n        fl = fx * (1 + 1.0 * f[\"ice_heater\"] + 0.6 * min(1.0, 2 * f[\"obstruction\"]))\n        u = self.m[\"supply_v\"] * (1 - 0.15 * f[\"supply_low\"]) + self.n(2.0)\n        tu = self.c[\"unlock_s\"] + self.n(0.02)\n        td = self.c[\"drive_s\"] * (1 + 0.04 * f[\"lubrication_loss\"]) * (1 + 0.05 * f[\"supply_low\"]) + self.n(0.03)\n        tl = self.c[\"lock_s\"] + self.n(0.02)\n        blocked = f[\"obstruction\"] > 0.5\n        if blocked:\n            fl = self.m[\"throwing_force_n\"] * (1 + self.n(0.005))\n            tl = self.ct[\"time_limit_s\"] - tu - td\n        peak = self.c[\"unlock_peak_w\"] * (1 + 1.8 * f[\"unlock_tight\"]) * (1 + self.n(0.03))\n        pd, pl, pu = self.power(fd), self.power(fl), self.power(fu)\n        energy = pu * tu + pd * td + pl * tl + self.md[\"start_energy_j\"] * peak / self.c[\"unlock_peak_w\"]\n        trailed = f[\"trailed\"] > 0.5\n        self.direction = 1 - self.direction\n        self.throws_total += 1\n        self.throws_oh += 1\n        return {\n            \"throw_direction\": self.direction, \"throw_time_s\": round(tu + td + tl, 3),\n            \"unlock_time_s\": round(tu, 3), \"drive_time_s\": round(td, 3), \"lock_time_s\": round(tl, 3),\n            \"unlock_peak_w\": round(peak, 1), \"drive_power_mean_w\": round(pd + self.n(2.0), 1),\n            \"drive_power_peak_w\": round(self.power(fd * (1.12 + 0.1 * f[\"lubrication_loss\"])) + self.n(2.0), 1),\n            \"lock_power_mean_w\": round(pl + self.n(2.0), 1), \"energy_kj\": round(energy / 1000 * (1 + self.n(0.01)), 4),\n            \"motor_voltage_v\": round(u, 1), \"drive_current_a\": round(pd / (SQ3 * u * PF) * (1 + self.n(0.01)), 3),\n            \"start_current_a\": round(self.m[\"starting_current_a\"] * u / self.m[\"supply_v\"] * (1 + self.n(0.02)), 2),\n            \"detection_ok\": 0 if (blocked or trailed) else 1,\n            \"detection_delay_s\": round(self.ct[\"detection_delay_s\"] + 0.9 * f[\"detector_adjust\"] + abs(self.n(0.03)), 3),\n            \"detection_losses_24h\": int(round(6 * f[\"detector_adjust\"])),\n            \"trailed\": 1 if trailed else 0,\n            \"air_temp_c\": round(air + self.n(0.2), 2), \"rail_temp_c\": round(rail + self.n(0.2), 2),\n            \"heater_on\": on, \"heater_current_a\": round(max(0.0, hcur + (self.n(0.2) if on else 0.0)), 2),\n            \"throws_total\": self.throws_total, \"throws_since_overhaul\": self.throws_oh,\n        }\n\n    def measure(self):\n        \"\"\"A reading as the test and the figures use it: the summary of a fresh throw.\"\"\"\n        return self.throw()\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The points lie in one end position. Every `demo.throw_every_s` seconds the interlocking calls them to the other\n    position: the motor runs through unlock, drive and lock, and the CMU stores the summary of that throw. Weather and\n    heating are read live between throws. The time of day does not matter to this asset, so `t` is only a counter.\n    \"\"\"\n\n    def __init__(self, twin, seed=5501):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.every = float(demo.get(\"throw_every_s\", 20))\n        self.mc = Machine(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.timer, self.run, self.pos = 0.0, None, 0.0\n        self.last = self.mc.throw()\n        self.pos = float(self.last[\"throw_direction\"])\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.timer, self.run = 0.0, None\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.mc.faults[k] = f.sev\n        self.t += dt * self.scale\n        if self.run is None:\n            self.timer += dt\n            if self.timer >= self.every:\n                self.timer = 0.0\n                self.run = {\"t\": 0.0, \"r\": self.mc.throw(), \"from\": self.pos}\n        else:\n            self.run[\"t\"] += dt\n            if self.run[\"t\"] >= self.run[\"r\"][\"throw_time_s\"]:\n                self.last = self.run[\"r\"]\n                self.pos = float(self.last[\"throw_direction\"]) if self.last[\"detection_ok\"] else (\n                    self.run[\"from\"] + (self.last[\"throw_direction\"] - self.run[\"from\"]) * 0.97)\n                self.run = None\n        phase, power, pos = \"lying\", 0.0, self.pos\n        if self.run is not None:\n            r, tt = self.run[\"r\"], self.run[\"t\"]\n            if tt < r[\"unlock_time_s\"]:\n                phase, power = \"unlock\", r[\"unlock_peak_w\"] if tt < 0.25 else r[\"drive_power_mean_w\"]\n                done = tt / self.mc.m[\"throw_time_s\"]\n            elif tt < r[\"unlock_time_s\"] + r[\"drive_time_s\"]:\n                phase, power = \"drive\", r[\"drive_power_mean_w\"]\n                done = (r[\"unlock_time_s\"] + (tt - r[\"unlock_time_s\"]) / r[\"drive_time_s\"] * self.mc.c[\"drive_s\"]) / self.mc.m[\"throw_time_s\"]\n            else:\n                phase, power = \"lock\", r[\"lock_power_mean_w\"]\n                done = min(1.0 if r[\"detection_ok\"] else 0.97, (self.mc.c[\"unlock_s\"] + self.mc.c[\"drive_s\"] + (tt - r[\"unlock_time_s\"] - r[\"drive_time_s\"])) / self.mc.m[\"throw_time_s\"])\n            pos = self.run[\"from\"] + (r[\"throw_direction\"] - self.run[\"from\"]) * done\n        return {\"position\": pos, \"moving\": self.run is not None, \"phase\": phase, \"power_w\": power}\n\n    def measure(self, true):\n        air, rail, on, cur = self.mc.weather()\n        r = dict(self.last)\n        r[\"air_temp_c\"] = round(air + self.mc.n(0.2), 2)\n        r[\"rail_temp_c\"] = round(rail + self.mc.n(0.2), 2)\n        r[\"heater_on\"] = on\n        r[\"heater_current_a\"] = round(max(0.0, cur + (self.mc.n(0.2) if on else 0.0)), 2)\n        if self.faults[\"trailed\"].sev > 0.5:\n            r[\"trailed\"], r[\"detection_ok\"] = 1, 0\n        if self.faults[\"detector_adjust\"].sev > 0.01:\n            r[\"detection_losses_24h\"] = int(round(6 * self.faults[\"detector_adjust\"].sev))\n        return r\n", "twin_calc": "\"\"\"The point machine twin's expectations (PM-5501, Siemens S700K type, 220 mm stroke).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nThe power curve of one throw (what the condition monitoring unit records on the three motor phases):\n  unlock  the clamp lock opens; a short peak (starting current + breakaway), then the power settles\n  drive   the throw bar pulls the switch blades across; the power is flat if the slide chairs are good\n  lock    the blade closes on the stock rail and the clamp lock engages; the motor stops on the end-position contacts\nForce at the throw bar from the electrical power. The induction motor runs at an almost constant speed, so the throw bar\nmoves at the nominal speed v = stroke / throwing time (data sheet), even while the friction clutch slips:\n      P = P0 + F x v / eta            ->   F = eta x (P - P0) / v\n  P0 = no-load power (magnetising and gear losses), eta = overall efficiency (motor x gearbox x ball screw).\nExpected drive force with a temperature correction (cold: stiff lubricant and chairs; hot: rail expansion, blades bend):\n      F_exp = F_ref + k_cold x max(0, T_low - T_rail) + k_hot x max(0, T_rail - T_high)\nEnergy per throw: E_exp = P0 x t_nominal + stroke x F_exp / eta + E_start (the starting transient).\nClutch margin: the clutch limits the force to the throwing force of the data sheet (5,500 N); a force near it means the\nmachine is pushing against something it cannot move.\n\"\"\"\n\nSQ3 = 1.7320508075688772\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    m, c, md, ct, h = d[\"machine\"], d[\"curve\"], d[\"model\"], d[\"control\"], d[\"heating\"]\n    v = m[\"stroke_mm\"] / 1000.0 / m[\"throw_time_s\"]\n    return dict(fc=m[\"throwing_force_n\"], stroke=m[\"stroke_mm\"], t_nom=m[\"throw_time_s\"], u_nom=m[\"supply_v\"],\n                overhaul=m[\"overhaul_throws\"], v=v, p0=md[\"no_load_w\"], eta=md[\"efficiency\"], e0=md[\"start_energy_j\"],\n                fref=md[\"force_ref_n\"], tl=md[\"t_low_c\"], th=md[\"t_high_c\"], kc=md[\"k_cold_n_per_k\"], kh=md[\"k_hot_n_per_k\"],\n                peak=c[\"unlock_peak_w\"], t_lim=ct[\"time_limit_s\"], ih=h[\"rated_current_a\"], ton=h[\"switch_on_c\"],\n                cf=md[\"efficiency\"] / v)\n\n\ndef force_expected(k, t_rail):\n    return k[\"fref\"] + k[\"kc\"] * max(0.0, k[\"tl\"] - t_rail) + k[\"kh\"] * max(0.0, t_rail - k[\"th\"])\n\n\ndef energy_expected_kj(k, f_exp):\n    return (k[\"p0\"] * k[\"t_nom\"] + k[\"stroke\"] / 1000.0 * f_exp / k[\"eta\"] + k[\"e0\"]) / 1000.0\n\n\ndef _parts(twin):\n    k = _k(twin)\n    cf, p0 = repr(k['cf']), k[\"p0\"]\n    FD = f\"({cf} * (df['DRIVE_POWER_MEAN_W'] - {p0}))\"\n    FP = f\"({cf} * (df['DRIVE_POWER_PEAK_W'] - {p0}))\"\n    FL = f\"({cf} * (df['LOCK_POWER_MEAN_W'] - {p0}))\"\n    FE = (f\"({k['fref']} + {k['kc']} * np.maximum(0, {k['tl']} - df['RAIL_TEMP_C'])\"\n          f\" + {k['kh']} * np.maximum(0, df['RAIL_TEMP_C'] - {k['th']}))\")\n    EE = (f\"(({k['p0'] * k['t_nom'] + k['e0']!r} + {k['stroke'] / 1000.0 / k['eta']!r} * {FE}) / 1000)\")\n    return dict(k=k, FD=FD, FP=FP, FL=FL, FE=FE, EE=EE)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"THROW_SPEED_MM_S\", f\"{k['stroke']} / df['THROW_TIME_S']\"),\n        (\"THROW_TIME_RATIO\", f\"df['THROW_TIME_S'] / {k['t_nom']}\"),\n        (\"DRIVE_FORCE_N\", p[\"FD\"]),\n        (\"DRIVE_FORCE_PEAK_N\", p[\"FP\"]),\n        (\"LOCK_FORCE_N\", p[\"FL\"]),\n        (\"FORCE_EXPECTED_N\", p[\"FE\"]),\n        (\"FORCE_RATIO\", f\"{p['FD']} / {p['FE']}\"),\n        (\"LOCK_FORCE_RATIO\", f\"{p['FL']} / {p['FE']}\"),\n        (\"CLUTCH_MARGIN_N\", f\"{k['fc']} - np.maximum({p['FP']}, {p['FL']})\"),\n        (\"ENERGY_EXPECTED_KJ\", p[\"EE\"]),\n        (\"ENERGY_RATIO\", f\"df['ENERGY_KJ'] / {p['EE']}\"),\n        (\"UNLOCK_PEAK_RATIO\", f\"df['UNLOCK_PEAK_W'] / {k['peak']}\"),\n        (\"VOLTAGE_RATIO\", f\"df['MOTOR_VOLTAGE_V'] / {k['u_nom']}\"),\n        (\"POWER_FACTOR\", f\"df['DRIVE_POWER_MEAN_W'] / ({SQ3} * df['MOTOR_VOLTAGE_V'] * df['DRIVE_CURRENT_A'])\"),\n        (\"HEATER_DEFICIT_A\", f\"df['HEATER_ON'] * {k['ih']} - df['HEATER_CURRENT_A']\"),\n        (\"OVERHAUL_USED_PCT\", f\"df['THROWS_SINCE_OVERHAUL'] / {k['overhaul']} * 100\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    cf, p0 = k[\"cf\"], k[\"p0\"]\n    fd = cf * (r[\"drive_power_mean_w\"] - p0)\n    fp = cf * (r[\"drive_power_peak_w\"] - p0)\n    fl = cf * (r[\"lock_power_mean_w\"] - p0)\n    fe = force_expected(k, r[\"rail_temp_c\"])\n    ee = energy_expected_kj(k, fe)\n    return {\n        \"throw_speed_mm_s\": k[\"stroke\"] / r[\"throw_time_s\"], \"throw_time_ratio\": r[\"throw_time_s\"] / k[\"t_nom\"],\n        \"drive_force_n\": fd, \"drive_force_peak_n\": fp, \"lock_force_n\": fl, \"force_expected_n\": fe,\n        \"force_ratio\": fd / fe, \"lock_force_ratio\": fl / fe, \"clutch_margin_n\": k[\"fc\"] - max(fp, fl),\n        \"energy_expected_kj\": ee, \"energy_ratio\": r[\"energy_kj\"] / ee,\n        \"unlock_peak_ratio\": r[\"unlock_peak_w\"] / k[\"peak\"], \"voltage_ratio\": r[\"motor_voltage_v\"] / k[\"u_nom\"],\n        \"power_factor\": r[\"drive_power_mean_w\"] / (SQ3 * r[\"motor_voltage_v\"] * r[\"drive_current_a\"]),\n        \"heater_deficit_a\": r[\"heater_on\"] * k[\"ih\"] - r[\"heater_current_a\"],\n        \"overhaul_used_pct\": r[\"throws_since_overhaul\"] / k[\"overhaul\"] * 100,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    FR, LR = f\"({p['FD']} / {p['FE']})\", f\"({p['FL']} / {p['FE']})\"\n    clutch = L[\"clutch_fraction\"] * k[\"fc\"]\n    return [\n        (\"PTS_DETECTION_LOST\", \"df['DETECTION_OK'] < 0.5\", \"Critical\", \"obstruction\"),\n        (\"PTS_TRAILED\", \"df['TRAILED'] > 0.5\", \"Critical\", \"trailed\"),\n        (\"PTS_CLUTCH_LIMIT\", f\"np.maximum({p['FP']}, {p['FL']}) > {clutch:.6g}\", \"High\", \"obstruction\"),\n        (\"PTS_FORCE_HIGH\", f\"{FR} > {L['force_ratio_alert']}\", \"High\", \"lubrication_loss\"),\n        (\"PTS_HEATER_FAIL\", f\"(df['HEATER_ON'] > 0.5) & (df['HEATER_CURRENT_A'] < {L['heater_fraction_alert'] * k['ih']:.6g})\", \"High\", \"ice_heater\"),\n        (\"PTS_FORCE_RISING\", f\"({FR} > {L['force_ratio_warn']}) & ({FR} <= {L['force_ratio_alert']})\", \"Medium\", \"lubrication_loss\"),\n        (\"PTS_ENERGY_HIGH\", f\"df['ENERGY_KJ'] / {p['EE']} > {L['energy_ratio_alert']}\", \"Medium\", \"lubrication_loss\"),\n        (\"PTS_LOCK_FORCE_HIGH\", f\"({LR} > {L['lock_force_ratio_alert']}) & ({p['FL']} <= {clutch:.6g})\", \"Medium\", \"ice_heater\"),\n        (\"PTS_THROW_SLOW\", f\"df['THROW_TIME_S'] / {k['t_nom']} > {L['throw_time_ratio_alert']}\", \"Medium\", \"obstruction\"),\n        (\"PTS_UNLOCK_PEAK_HIGH\", f\"df['UNLOCK_PEAK_W'] > {L['unlock_peak_alert_w']}\", \"Medium\", \"unlock_tight\"),\n        (\"PTS_SUPPLY_LOW\", f\"df['MOTOR_VOLTAGE_V'] / {k['u_nom']} < {L['voltage_ratio_alert']}\", \"Medium\", \"supply_low\"),\n        (\"PTS_DETECTION_FLICKER\", f\"df['DETECTION_LOSSES_24H'] >= {L['detection_losses_alert']}\", \"Medium\", \"detector_adjust\"),\n        (\"PTS_OVERHAUL_DUE\", f\"df['THROWS_SINCE_OVERHAUL'] > {L['overhaul_fraction'] * k['overhaul']:.6g}\", \"Low\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    clutch = L[\"clutch_fraction\"] * k[\"fc\"]\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    fr, lr = t[\"force_ratio\"], t[\"lock_force_ratio\"]\n    fmax = max(t[\"drive_force_peak_n\"], t[\"lock_force_n\"])\n    add(r[\"detection_ok\"] < 0.5, \"PTS_DETECTION_LOST\", \"Critical\", \"No end-position detection after the last throw: points out of use, signals at danger\", \"detection\", \"obstruction\")\n    add(r[\"trailed\"] > 0.5, \"PTS_TRAILED\", \"Critical\", \"Points trailed: trailing clutch released, examine the switch before use\", \"detection\", \"trailed\")\n    add(fmax > clutch, \"PTS_CLUTCH_LIMIT\", \"High\", f\"Force {fmax:.0f} N, at the clutch limit of {k['fc']:.0f} N: the machine pushes against something\", \"turnout\", \"obstruction\")\n    add(fr > L[\"force_ratio_alert\"], \"PTS_FORCE_HIGH\", \"High\", f\"Drive force {t['drive_force_n']:.0f} N, {fr:.2f} x expected at {r['rail_temp_c']:.0f} \u00b0C rail\", \"turnout\", \"lubrication_loss\")\n    add(r[\"heater_on\"] > 0.5 and r[\"heater_current_a\"] < L[\"heater_fraction_alert\"] * k[\"ih\"], \"PTS_HEATER_FAIL\", \"High\",\n        f\"Point heating on but drawing {r['heater_current_a']:.1f} A of {k['ih']:.0f} A\", \"heating\", \"ice_heater\")\n    add(L[\"force_ratio_warn\"] < fr <= L[\"force_ratio_alert\"], \"PTS_FORCE_RISING\", \"Medium\", f\"Drive force {fr:.2f} x expected: plan lubrication\", \"turnout\", \"lubrication_loss\")\n    add(t[\"energy_ratio\"] > L[\"energy_ratio_alert\"], \"PTS_ENERGY_HIGH\", \"Medium\", f\"Energy per throw {r['energy_kj']:.2f} kJ, {t['energy_ratio']:.2f} x expected\", \"turnout\", \"lubrication_loss\")\n    add(lr > L[\"lock_force_ratio_alert\"] and t[\"lock_force_n\"] <= clutch, \"PTS_LOCK_FORCE_HIGH\", \"Medium\",\n        f\"Lock-phase force {t['lock_force_n']:.0f} N, {lr:.2f} x expected: resistance at the toe\", \"turnout\", \"ice_heater\")\n    add(t[\"throw_time_ratio\"] > L[\"throw_time_ratio_alert\"], \"PTS_THROW_SLOW\", \"Medium\", f\"Throw took {r['throw_time_s']:.1f} s against {k['t_nom']:.0f} s\", \"machine\", \"obstruction\")\n    add(r[\"unlock_peak_w\"] > L[\"unlock_peak_alert_w\"], \"PTS_UNLOCK_PEAK_HIGH\", \"Medium\", f\"Start peak {r['unlock_peak_w']:.0f} W: blade held tight at unlocking\", \"turnout\", \"unlock_tight\")\n    add(t[\"voltage_ratio\"] < L[\"voltage_ratio_alert\"], \"PTS_SUPPLY_LOW\", \"Medium\", f\"Motor voltage {r['motor_voltage_v']:.0f} V ({t['voltage_ratio'] * 100:.0f} %)\", \"supply\", \"supply_low\")\n    add(r[\"detection_losses_24h\"] >= L[\"detection_losses_alert\"], \"PTS_DETECTION_FLICKER\", \"Medium\",\n        f\"Detection lost {r['detection_losses_24h']:.0f} times in 24 h while lying\", \"detection\", \"detector_adjust\")\n    add(r[\"throws_since_overhaul\"] > L[\"overhaul_fraction\"] * k[\"overhaul\"], \"PTS_OVERHAUL_DUE\", \"Low\",\n        f\"{r['throws_since_overhaul']:.0f} throws since overhaul ({t['overhaul_used_pct']:.0f} % of {k['overhaul']:.0f})\", \"machine\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "PM-5501 point machine twin. Expected values in Maximo Monitor from the maker's data sheet and the commissioning reference curve; the CMU sends only what it measures on each throw.", "twin": {"id": "PM-5501", "name": "Point machine PM-5501", "version": "1.0.0", "folder": "points-twin"}, "identification": {"asset": "PM-5501", "assetnum": "PM-5501", "manufacturer": "Siemens", "model": "S700K point machine (220 mm stroke, 400 V 3~)", "description": "Point machine of a main-line turnout with external clamp locks, with a condition monitoring unit on the motor supply", "turnout": "Main-line turnout, switch blades with external clamp locks, one S700K at the toe (typical layout, no real site)", "monitoring": "Condition monitoring unit (CMU) on the three motor phases: power curve per throw, split into unlock, drive and lock", "heating": "Electric point heating with its own controller (switch-on below a rail temperature set point)"}, "design": {"machine": {"throwing_force_n": 5500.0, "retention_force_n": 7000.0, "restoring_force_max_n": 1400.0, "trailing_resistance_n": 9000.0, "stroke_mm": 220.0, "throw_time_s": 6.0, "rated_current_a": 2.0, "starting_current_a": 8.0, "supply_v": 400.0, "line_resistance_max_ohm": 54.0, "weight_kg": 120.0, "ip": "IP54", "temp_min_c": -30.0, "temp_max_c": 70.0, "mtbf_h": 550000.0, "overhaul_throws": 1000000.0, "source": "Siemens S 700 K point machine brochure, technical data (A19100-V100-B802-V3-7600). Throwing time, rated and starting current are given for 400 V 3~ 50 Hz and 45 ohm core resistance."}, "curve": {"unlock_s": 1.0, "drive_s": 4.0, "lock_s": 1.0, "drive_power_w": 500.0, "unlock_peak_w": 1500.0, "unlock_peak_fault_w": 4200.0, "source": "Bian et al., Degradation detection method for railway point machines (arXiv:1809.02349), S700K power curve: phases start-release about 1 s (peak 1 to 2 kW), switch about 3 s at about 0.5 kW, lock about 1 s; unlocking fault peak about 4.2 kW. The split 1 / 4 / 1 s is that curve stretched to the 6 s of the data sheet (assumption); replace it with your commissioning reference curve."}, "model": {"no_load_w": 280.0, "efficiency": 0.35, "start_energy_j": 150.0, "force_ref_n": 2000.0, "t_low_c": 10.0, "t_high_c": 40.0, "k_cold_n_per_k": 20.0, "k_hot_n_per_k": 25.0, "source": "Electrical power = no-load power + force x speed / efficiency, with the throw bar moving at the nominal speed (stroke / throwing time). No-load power, overall efficiency (motor x gear x ball screw), start energy and the drive force of the turnout at 10 to 40 C rail temperature: assumption: typical value, replace with the reference curve recorded at commissioning of your own machine. Check: they give about 0.5 kW while driving and about 0.86 kW when the clutch slips at 5.5 kN, as in the published S700K curves. Temperature correction (cold: lubricant and chairs; hot: rail expansion and blade bending): assumption: typical value, replace with the reference curve recorded at commissioning of your own machine."}, "control": {"time_limit_s": 15.0, "detection_delay_s": 0.3, "source": "Motor run-time limit of the interlocking and normal delay from motor off to detection: assumption: typical value, replace with the reference curve recorded at commissioning of your own machine."}, "heating": {"switch_on_c": 3.0, "rated_current_a": 13.0, "source": "Point heating switch-on temperature and rated current (about 3 kW at 230 V per turnout): assumption: typical value, replace with the reference curve recorded at commissioning of your own machine."}, "demo": {"time_scale": 1, "throw_every_s": 20, "note": "Demo only: the interlocking throws the points every 20 s of real time, alternating normal and reverse, so a new throw is recorded often."}}, "telemetry": {"event": "points", "publish_every_s": 10, "device_type": "POINT_MACHINE_CM", "groups": {"Throw": "Last throw: times and direction", "Power": "Last throw: power curve by phase", "Motor": "Motor supply", "Detection": "Detection and trailing from the interlocking", "Weather": "Rail and air temperature", "Heater": "Point heating", "Service": "Throw counters"}, "points": [{"metric": "throw_direction", "path": "Throw.Direction", "label": "Direction of the last throw (1 to reverse, 0 to normal)", "unit": "code"}, {"metric": "throw_time_s", "path": "Throw.Time", "label": "Throw time, motor on to motor off", "unit": "s"}, {"metric": "unlock_time_s", "path": "Throw.UnlockTime", "label": "Unlock phase duration", "unit": "s"}, {"metric": "drive_time_s", "path": "Throw.DriveTime", "label": "Drive phase duration", "unit": "s"}, {"metric": "lock_time_s", "path": "Throw.LockTime", "label": "Lock phase duration", "unit": "s"}, {"metric": "unlock_peak_w", "path": "Power.UnlockPeak", "label": "Peak power at the start (unlock)", "unit": "W"}, {"metric": "drive_power_mean_w", "path": "Power.DriveMean", "label": "Mean power in the drive phase", "unit": "W"}, {"metric": "drive_power_peak_w", "path": "Power.DrivePeak", "label": "Highest power in the drive phase", "unit": "W"}, {"metric": "lock_power_mean_w", "path": "Power.LockMean", "label": "Mean power in the lock phase", "unit": "W"}, {"metric": "energy_kj", "path": "Power.Energy", "label": "Electrical energy of the whole throw", "unit": "kJ"}, {"metric": "motor_voltage_v", "path": "Motor.Voltage", "label": "Motor voltage (line to line) during the drive phase", "unit": "V"}, {"metric": "drive_current_a", "path": "Motor.DriveCurrent", "label": "Motor current in the drive phase", "unit": "A"}, {"metric": "start_current_a", "path": "Motor.StartCurrent", "label": "Starting current", "unit": "A"}, {"metric": "detection_ok", "path": "Detection.Ok", "label": "End position detected after the last throw (1 = yes)", "unit": "code"}, {"metric": "detection_delay_s", "path": "Detection.Delay", "label": "Motor off to detection", "unit": "s"}, {"metric": "detection_losses_24h", "path": "Detection.Losses24h", "label": "Losses of detection while lying, last 24 h", "unit": "count"}, {"metric": "trailed", "path": "Detection.Trailed", "label": "Points trailed (trailing clutch released)", "unit": "code"}, {"metric": "air_temp_c", "path": "Weather.Air", "label": "Air temperature", "unit": "\u00b0C"}, {"metric": "rail_temp_c", "path": "Weather.Rail", "label": "Rail temperature at the switch", "unit": "\u00b0C"}, {"metric": "heater_on", "path": "Heater.On", "label": "Point heating switched on (1 = on)", "unit": "code"}, {"metric": "heater_current_a", "path": "Heater.Current", "label": "Point heating current", "unit": "A"}, {"metric": "throws_total", "path": "Service.Throws", "label": "Throws since installation", "unit": "count"}, {"metric": "throws_since_overhaul", "path": "Service.ThrowsSinceOverhaul", "label": "Throws since the last general overhaul", "unit": "count"}]}, "twin_model": {"limits": {"force_ratio_warn": 1.25, "force_ratio_alert": 1.6, "lock_force_ratio_alert": 1.6, "clutch_fraction": 0.9, "energy_ratio_alert": 1.2, "throw_time_ratio_alert": 1.25, "unlock_peak_alert_w": 2500.0, "voltage_ratio_alert": 0.9, "detection_losses_alert": 2, "heater_fraction_alert": 0.5, "overhaul_fraction": 0.9, "source": "Alarm limits of the twin: assumption, typical practice for current-curve monitoring; tune them on your own fleet."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "lubrication_loss": {"name": "Slide chairs dry (lubrication loss)", "part": "turnout", "symptoms": "drive-phase power and force rise week by week, energy per throw up, throw slightly slower", "rules": ["PTS_FORCE_RISING", "PTS_FORCE_HIGH", "PTS_ENERGY_HIGH"], "default_ramp_min": 1.5}, "obstruction": {"name": "Obstruction in the switch (ballast stone, object)", "part": "turnout", "symptoms": "blade stops short, lock cannot engage, clutch slips until the time limit, no detection", "rules": ["PTS_DETECTION_LOST", "PTS_CLUTCH_LIMIT", "PTS_THROW_SLOW", "PTS_ENERGY_HIGH"], "default_ramp_min": 0.5}, "ice_heater": {"name": "Point heating failed in frost (ice at the toe)", "part": "heating", "symptoms": "heater on but no current, lock-phase force rises as ice builds between blade and stock rail", "rules": ["PTS_HEATER_FAIL", "PTS_LOCK_FORCE_HIGH"], "default_ramp_min": 1}, "unlock_tight": {"name": "Blade too tight against the stock rail (adjustment, creep)", "part": "turnout", "symptoms": "very high power peak at the start of the throw, the rest of the curve normal", "rules": ["PTS_UNLOCK_PEAK_HIGH"], "default_ramp_min": 1}, "detector_adjust": {"name": "Detector rods out of adjustment", "part": "detection", "symptoms": "detection drops out while the points lie (train vibration), detection late after a throw", "rules": ["PTS_DETECTION_FLICKER"], "default_ramp_min": 1}, "supply_low": {"name": "Low motor voltage (supply or cable)", "part": "supply", "symptoms": "voltage at the machine low, more current for the same power", "rules": ["PTS_SUPPLY_LOW"], "default_ramp_min": 1}, "trailed": {"name": "Points trailed by a train", "part": "detection", "symptoms": "trailing clutch released, detection lost: the points must be examined before use", "rules": ["PTS_TRAILED", "PTS_DETECTION_LOST"], "default_ramp_min": 0.5}}, "presentation": {"title": "PM-5501 point machine", "dashboard": "POINT_MACHINE_CM"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(-1.2, 5.6, -8.4); ctl.target.set(2.2, 0.0, -0.6); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(-4, 7, -5); scene.add(sun);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .7, r: .3 }), railM = M(0xaeb4bb, { m: .3, r: .4 }), dark = M(0x3d4249), sleeperM = M(0x8b8478, { m: .05, r: .9 });
+const cyl = (r1, r2, h, m, s = 24) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// ballast bed and sleepers (track along x, toe of the switch at x = 0)
+scene.add(at(box(14, .25, 4.2, M(0x6b665e, { m: 0, r: 1 })), 3, -.2, 0));
+for (let x = -3.6; x <= 9.6; x += .6) scene.add(at(box(.26, .16, x > -.1 && x < .9 ? 3.4 : 2.6, sleeperM), x, .0, x > -.1 && x < .9 ? -.4 : 0));
+// stock rails (straight, gauge 1.435 m) and the curved stock rail of the diverging side drawn straight for clarity
+const G = .7175;
+const rail = (x0, x1, z, m = railM) => { const r = box(x1 - x0, .17, .07, m); scene.add(at(r, (x0 + x1) / 2, .165, z)); return r; };
+rail(-3.6, 9.6, -G); rail(-3.6, 9.6, G);
+// switch blades: pivot (flex) at the heel x = 8, toe at x = 0; they move together through the stretcher bar
+const OPEN = .16, BL = 8.0;
+function bladeMesh() { const g = new THREE.BoxGeometry(BL, .16, .06); g.translate(-BL / 2, 0, 0); return new THREE.Mesh(g, M(0xd0d4d8, { m: .3, r: .35 })); }
+const bladeL = bladeMesh(), bladeR = bladeMesh(); scene.add(bladeL, bladeR);
+bladeL.position.set(BL, .16, -G + .065); bladeR.position.set(BL, .16, G - .065);   // fixed at the heel, the toe swings
+function placeBlades(pos) {                      // pos 0 = normal (left blade closed), 1 = reverse (right blade closed)
+  const s = pos * OPEN;
+  bladeL.rotation.y = Math.asin(s / BL); bladeR.rotation.y = Math.asin((s - OPEN) / BL);
+  stretch.position.z = s - OPEN / 2; throwBar.position.z = -.45 + s; det1.position.z = -.45 + s; det2.position.z = -.45 + s;
+  clampL.position.z = -G + .05 + s * .5; clampR.position.z = G - .05 - (OPEN - s) * .5;
+}
+// stretcher bar, clamp locks under the toe
+const stretch = at(box(.06, .05, 1.35, steel), 1.2, .1, 0); scene.add(stretch);
+const clampL = at(box(.32, .12, .22, M(0x2f6db5, { m: .4 })), .35, .07, -G), clampR = at(box(.32, .12, .22, M(0x2f6db5, { m: .4 })), .35, .07, G);
+scene.add(clampL, clampR);
+// the point machine beside the track (S700K-type housing 534 x 430 x 290 mm, throw bar across the track)
+const mach = new THREE.Group(); at(mach, .3, .12, -1.85); scene.add(mach);
+const housingM = M(0x7d8c93, { m: .35, r: .5 });
+const housing = box(.43, .29, .53, housingM); mach.add(at(housing, 0, .145, 0));
+const coverM = M(0x9aa6ad, { m: .5, r: .35 }); const cover = box(.45, .03, .55, coverM); mach.add(at(cover, 0, .305, 0));
+// inside: motor, gearbox, friction clutch, ball screw, detector slides (visible with Cutaway)
+const motor = cyl(.075, .075, .2, M(0xc7cbd0, { m: .6 })); motor.rotation.x = Math.PI / 2; mach.add(at(motor, -.09, .13, .1));
+const gear = box(.12, .12, .12, dark); mach.add(at(gear, -.09, .13, -.08));
+const clutch = cyl(.06, .06, .05, M(0xd8a31a, { m: .3 })); clutch.rotation.x = Math.PI / 2; mach.add(at(clutch, .07, .13, -.1));
+const screw = cyl(.018, .018, .46, steel); screw.rotation.x = Math.PI / 2; mach.add(at(screw, .07, .13, .05));
+// throw bar and two detector rods out of the housing towards the switch
+const throwBar = at(box(.05, .05, 2.3, steel), .35, .16, -.45); scene.add(throwBar);
+const det1 = at(box(.025, .025, 2.3, M(0xe0b000, { m: .5 })), .55, .12, -.45), det2 = at(box(.025, .025, 2.3, M(0xe0b000, { m: .5 })), .65, .12, -.45);
+scene.add(det1, det2);
+// point heating rods along the stock rails, the heating controller and the CMU in the trackside cabinet
+const heatM = new THREE.MeshStandardMaterial({ color: 0x6f6f6f, emissive: 0x000000, metalness: .5, roughness: .5 });
+[-1, 1].forEach(s => { const h = box(6, .025, .025, heatM); scene.add(at(h, 3, .12, s * (G + .055))); });
+const cab = at(box(.7, 1.3, .45, M(0x9aa2a8, { m: .3 })), -2.6, .65, -3.3); scene.add(cab);
+const cmu = at(box(.32, .2, .05, M(0x8a3ffc, { m: .2 })), -2.6, .9, -3.07); scene.add(cmu);
+const tube = (pts, c = 0x161616, r = .02) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 30, r, 6, false); scene.add(new THREE.Mesh(g, M(c, { m: .2, r: .8 }))); };
+tube([[-2.6, .1, -3.05], [-1.2, .05, -2.5], [.1, .1, -2.1]]);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(beacon, -2.6, 1.38, -3.3));
+// ice / ballast stone between the blade and the stock rail at the toe (shown when that failure mode is active)
+const ice = at(box(.5, .14, .06, M(0xd6ecff, { m: 0, r: .2, t: .85 })), .45, .16, 0); ice.visible = false; scene.add(ice);
+const stone = new THREE.Mesh(new THREE.DodecahedronGeometry(.05), M(0x9b948a, { m: 0, r: 1 })); stone.visible = false; scene.add(stone);
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('force', [.3, .65, -1.85]); lbl('lock', [.4, .45, -G]); lbl('peak', [.1, .5, -2.3]); lbl('time', [2.4, .5, 0]);
+lbl('det', [.6, .35, .3]); lbl('heat', [5.5, .4, G + .1]); lbl('rail', [7, .45, -G]); lbl('supply', [-2.6, 1.7, -3.3]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let lastThrow = null, anim = null, shown = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  if (lastThrow === null) { shown = r.detection_ok ? r.throw_direction : shown; }
+  else if (r.throws_total !== lastThrow) { anim = { t: 0, dur: Math.min(8, r.throw_time_s), from: shown, to: r.throw_direction, ok: !!r.detection_ok }; }
+  lastThrow = r.throws_total;
+  setLbl('force', `drive force · expected at ${fmt(r.rail_temp_c, 0)} °C`, `${fmt(t.drive_force_n, 0)} N · ${fmt(t.force_expected_n, 0)} N`, st(names.has('PTS_FORCE_HIGH') || names.has('PTS_CLUTCH_LIMIT'), names.has('PTS_FORCE_RISING')));
+  setLbl('lock', 'lock-phase force · clutch margin', `${fmt(t.lock_force_n, 0)} N · ${fmt(t.clutch_margin_n, 0)} N`, st(names.has('PTS_CLUTCH_LIMIT'), names.has('PTS_LOCK_FORCE_HIGH')));
+  setLbl('peak', 'start (unlock) peak', `${fmt(r.unlock_peak_w, 0)} W · ${fmt(t.unlock_peak_ratio)} ×`, st(names.has('PTS_UNLOCK_PEAK_HIGH')));
+  setLbl('time', `last throw (${r.throw_direction ? 'to reverse' : 'to normal'}) · energy`, `${fmt(r.throw_time_s)} s · ${fmt(r.energy_kj)} kJ (${fmt(t.energy_ratio)} ×)`, st(names.has('PTS_THROW_SLOW') || names.has('PTS_ENERGY_HIGH')));
+  setLbl('det', 'detection · losses 24 h · trailed', `${r.detection_ok ? 'detected' : 'LOST'} · ${r.detection_losses_24h} · ${r.trailed ? 'YES' : 'no'}`, st(names.has('PTS_DETECTION_LOST') || names.has('PTS_TRAILED'), names.has('PTS_DETECTION_FLICKER')));
+  setLbl('heat', 'point heating', `${r.heater_on ? 'on' : 'off'} · ${fmt(r.heater_current_a, 1)} A`, st(names.has('PTS_HEATER_FAIL')));
+  setLbl('rail', 'rail · air temperature', `${fmt(r.rail_temp_c, 1)} °C · ${fmt(r.air_temp_c, 1)} °C`, r.rail_temp_c < d.heating.switch_on_c ? 'warn' : '');
+  setLbl('supply', 'motor supply at the machine', `${fmt(r.motor_voltage_v, 0)} V · ${fmt(r.drive_current_a)} A`, st(names.has('PTS_SUPPLY_LOW')));
+  $('k-health').textContent = ST.health; $('k-fr').textContent = fmt(t.force_ratio); $('k-en').textContent = fmt(r.energy_kj);
+  $('c-det-t').textContent = r.trailed ? 'TRAILED' : r.detection_ok ? 'detected ' + (r.throw_direction ? 'reverse' : 'normal') : 'detection LOST';
+  $('c-det').className = 'chip ' + (r.detection_ok && !r.trailed ? 'ok' : 'bad');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Drive force (N)', fmt(t.drive_force_n, 0), fmt(t.force_expected_n, 0), names.has('PTS_FORCE_HIGH') || names.has('PTS_FORCE_RISING')) +
+    row('Drive peak force (N)', fmt(t.drive_force_peak_n, 0), '< ' + fmt(L.clutch_fraction * d.machine.throwing_force_n, 0)) +
+    row('Lock-phase force (N)', fmt(t.lock_force_n, 0), fmt(t.force_expected_n, 0), names.has('PTS_LOCK_FORCE_HIGH') || names.has('PTS_CLUTCH_LIMIT')) +
+    row('Clutch margin (N)', fmt(t.clutch_margin_n, 0), '> ' + fmt((1 - L.clutch_fraction) * d.machine.throwing_force_n, 0), names.has('PTS_CLUTCH_LIMIT')) +
+    row('Start peak (W)', fmt(r.unlock_peak_w, 0), fmt(d.curve.unlock_peak_w, 0), names.has('PTS_UNLOCK_PEAK_HIGH')) +
+    row('Throw time (s)', fmt(r.throw_time_s), fmt(d.machine.throw_time_s, 1), names.has('PTS_THROW_SLOW')) +
+    row('Energy per throw (kJ)', fmt(r.energy_kj), fmt(t.energy_expected_kj), names.has('PTS_ENERGY_HIGH')) +
+    row('Motor voltage (V)', fmt(r.motor_voltage_v, 0), fmt(d.machine.supply_v, 0), names.has('PTS_SUPPLY_LOW')) +
+    row('Heater current (A)', fmt(r.heater_current_a, 1), r.heater_on ? fmt(d.heating.rated_current_a, 0) : 'off', names.has('PTS_HEATER_FAIL')) +
+    row('Throws since overhaul', Number(r.throws_since_overhaul).toLocaleString('en'), fmt(t.overhaul_used_pct, 0) + ' %');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the point machine behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  ice.visible = (fs.ice_heater || 0) > .3; stone.visible = (fs.obstruction || 0) > .3;
+  heatM.emissive.setHex(r.heater_on && r.heater_current_a > 1 ? 0xb3262d : 0x000000);
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [housingM, coverM].forEach(m => { m.transparent = true; m.opacity = cut ? .18 : 1; m.depthWrite = !cut; });
+};
+$('t-throw').onclick = () => { anim = { t: 0, dur: TW ? TW.design.machine.throw_time_s : 6, from: shown, to: shown > .5 ? 0 : 1, ok: true }; };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (anim) {
+    anim.t += dt;
+    const f = Math.min(1, anim.t / anim.dur), u = 1 / 6, l = 5 / 6;
+    // unlock (first sixth) moves the lock, not the blades; drive moves the blades; lock closes the last part
+    const k = f < u ? 0 : f > l ? 1 : (f - u) / (l - u);
+    const end = anim.ok ? 1 : .97;
+    shown = anim.from + (anim.to - anim.from) * Math.min(k, end);
+    screw.rotation.y += dt * 40;
+    if (f >= 1) anim = null;
+  }
+  placeBlades(shown);
+  if (stone.visible) stone.position.set(.25, .2, (shown > .5 ? G - .1 : -G + .1));
+  ice.position.z = shown > .5 ? G - .1 : -G + .1;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

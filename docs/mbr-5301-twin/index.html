@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MBR-5301 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>MBR-5301</b><span class="g">Membrane bioreactor train · Veolia ZeeWeed 500D modules · 4 cassettes</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-perm"><span class="dot"></span><span id="c-perm-t">permeability –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Permeability and cleaning curves →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the membrane train model…</div>
+<div class="credit">Membrane tank with four cassettes of hollow-fibre modules, aerators under each cassette, permeate header and reversible permeate pump, scour blower and the clean-in-place dosing. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-rc">Recovery clean</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The fibres darken as reversible fouling builds up between cleans; the bubbles show the air scour; brown lumps between fibres mean sludging.</div>
+<aside>
+  <section>
+    <h2>MBR-5301 twin</h2>
+    <p class="sub" id="sub">membrane train</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>K20<b id="k-perm">–</b></div><div>TMP<b id="k-tmp">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The PLC sends only what it measures and records. Every expected value comes from the twin file: the module fact sheet, the design flux and air, the clean-membrane permeability and the limits. One plant week passes in two minutes here, so you see the permeability fall and the weekly maintenance clean bring it back.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for MBR-5301: the membrane train, its permeate pump, air scour and cleaning records, with injectable faults.\n\nThe real PLC sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the expected\nvalues are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages.\n\nTrue state: the permeability at 20 \u00b0C right after the last maintenance clean (MC) falls linearly with the time since that\nclean at a fouling rate r (fraction per day). Weak air scour and poor sludge filterability raise r. A maintenance clean\nbrings the permeability back to a level a little below the last recovery clean (RC); irreversible fouling lowers both.\nSludging blocks part of the fibres, so the permeability seen on the nominal area drops at once. The TMP follows from\n    TMP = J x TCF(T) / K20 x 100     (kPa; J the flux, TCF the viscosity ratio to 20 \u00b0C)\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\nclass Membrane:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        self.k = tc._k(twin)\n        d = twin[\"design\"]\n        self.d = d\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.h_mc = 84.0                 # mid-way through the weekly cycle\n        self.h_rc = 2000.0\n        self.temp = d[\"operation\"][\"temp_nominal_c\"]\n        self.mc_temp = d[\"operation\"][\"temp_nominal_c\"] + 0.4\n        self.inflow = 1.0                # forward flow relative to design\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------------\n    def rate(self):\n        f = self.faults\n        return (self.d[\"permeability\"][\"fouling_rate_design_pct_d\"] / 100 + 0.065 * f[\"poor_filterability\"] + 0.05 * f[\"air_scour_low\"])\n\n    def k_rc(self):\n        return self.d[\"permeability\"][\"k_rc_last_lmhbar\"] * (1 - 0.4 * self.faults[\"irreversible_fouling\"])\n\n    def k_after_mc(self):\n        return self.k_rc() * (0.95 - 0.25 * self.faults[\"irreversible_fouling\"])\n\n    def state(self):\n        k, f, d = self.k, self.faults, self.d\n        h_mc = self.h_mc + (250.0 * f[\"mc_skipped\"] if not hasattr(self, \"_live\") else 0.0)\n        cass = k[\"ncass\"] - (1 if f[\"peak_flux\"] >= 0.5 else 0)\n        q = d[\"operation\"][\"flow_design_m3h\"] * self.inflow * (1 + 0.25 * f[\"peak_flux\"])\n        j = q * 1000 / (k[\"am\"] * cass)\n        r = self.rate()\n        kmc = self.k_after_mc()\n        k20 = kmc * max(0.3, 1 - r * h_mc / 24) * (1 - 0.7 * f[\"sludging\"])\n        tmp = j * tc.tcf(k, self.temp) / k20 * 100\n        mc_j = d[\"operation\"][\"flux_design_lmh\"]\n        mc_after = mc_j * tc.tcf(k, self.mc_temp) / kmc * 100\n        week = self.k[\"mci\"] / 24\n        rec = (1 / max(0.3, 1 - d[\"permeability\"][\"fouling_rate_design_pct_d\"] / 100 * week) - 1) * (1 - 0.85 * f[\"irreversible_fouling\"])\n        air = d[\"aeration\"][\"air_design_nm3h\"] * cass / k[\"ncass\"] * (1 - 0.5 * f[\"air_scour_low\"])\n        return {\n            \"q\": q, \"cass\": cass, \"j\": j, \"k20\": k20, \"tmp\": tmp, \"temp\": self.temp, \"h_mc\": h_mc, \"h_rc\": self.h_rc,\n            \"mc_j\": mc_j, \"mc_temp\": self.mc_temp, \"mc_after\": mc_after, \"mc_before\": mc_after * (1 + rec), \"k_rc\": self.k_rc(),\n            \"air\": air, \"blower_kw\": d[\"aeration\"][\"blower_kw_design\"] * air / d[\"aeration\"][\"air_design_nm3h\"],\n            \"pump_kw\": 3.0 + q * (tmp + 35.0) / 3600 / 0.6,\n            \"mlss\": d[\"process\"][\"mlss_nominal_mgl\"] + 5000.0 * f[\"sludging\"],\n            \"ttf\": d[\"process\"][\"ttf_nominal_s\"] + 170.0 * f[\"poor_filterability\"],\n            \"turb\": d[\"process\"][\"turbidity_nominal_ntu\"] + 0.75 * f[\"fibre_breakage\"],\n        }\n\n    # one published message ----------------------------------------------------------------------------------------------\n    def reading(self, s):\n        n = self.n\n        return {\n            \"running\": 1, \"cassettes_in_service\": s[\"cass\"], \"permeate_flow_m3h\": round(s[\"q\"] * (1 + n(0.002)), 2),\n            \"tmp_kpa\": round(s[\"tmp\"] * (1 + n(0.004)), 2), \"permeate_turbidity_ntu\": round(max(0.01, s[\"turb\"] + n(0.008)), 3),\n            \"permeate_pump_kw\": round(s[\"pump_kw\"] + n(0.05), 2), \"ml_temp_c\": round(s[\"temp\"] + n(0.05), 2),\n            \"mlss_mgl\": round(s[\"mlss\"] + n(120), 0), \"sludge_ttf_s\": round(s[\"ttf\"] + n(2), 0),\n            \"air_scour_nm3h\": round(s[\"air\"] * (1 + n(0.005)), 0), \"scour_blower_kw\": round(s[\"blower_kw\"] + n(0.3), 1),\n            \"mc_flux_lmh\": round(s[\"mc_j\"], 2), \"mc_temp_c\": round(s[\"mc_temp\"], 2),\n            \"mc_tmp_before_kpa\": round(s[\"mc_before\"], 2), \"mc_tmp_after_kpa\": round(s[\"mc_after\"], 2),\n            \"hours_since_mc\": round(s[\"h_mc\"], 1), \"rc_perm20_lmhbar\": round(s[\"k_rc\"], 1), \"hours_since_rc\": round(s[\"h_rc\"], 0),\n        }\n\n    def measure(self):\n        return self.reading(self.state())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The train produces continuously at the design flow (a gentle diurnal swing of +/- 8 % on the plant clock is left out\n    on purpose: the twin compares at any flux). The plant clock runs `demo.time_scale` times faster than real time: the\n    hours since the last maintenance clean grow, the permeability falls, and every `cleaning.mc_interval_h` plant hours the\n    PLC runs a maintenance clean (skipped while 'mc_skipped' is active). A recovery clean runs every\n    `cleaning.rc_interval_h`. The mixed liquor temperature drifts +/- 1 \u00b0C over about half an hour of real time.\n    reset() stands for a recovery clean on demand.\n    \"\"\"\n\n    def __init__(self, twin, seed=5301):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.m = Membrane(twin, seed)\n        self.m._live = True\n        self.m.h_mc = 30.0\n        self.base_t = twin[\"design\"][\"operation\"][\"temp_nominal_c\"]\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.clock = 0.0\n        self.running, self.trip = True, 0\n        self.mci = twin[\"design\"][\"cleaning\"][\"mc_interval_h\"]\n        self.rci = twin[\"design\"][\"cleaning\"][\"rc_interval_h\"]\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        \"\"\"Recovery clean on demand: the cleaning clock restarts from zero.\"\"\"\n        self.m.h_rc = 0.0\n        self.m.h_mc = 0.0\n        self.m.mc_temp = self.m.temp\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.m.faults[k] = f.sev\n        hours = dt * self.scale / 3600\n        self.t += dt * self.scale\n        self.clock += dt\n        self.m.temp = self.base_t + 1.0 * math.sin(2 * math.pi * self.clock / 1800.0)\n        self.m.h_mc += hours\n        self.m.h_rc += hours\n        if self.m.h_rc >= self.rci:\n            self.reset()\n        elif self.m.h_mc >= self.mci and self.faults[\"mc_skipped\"].sev < 0.3:\n            self.m.h_mc = 0.0\n            self.m.mc_temp = self.m.temp\n        return self.m.state()\n\n    def measure(self, true):\n        return self.m.reading(true)\n", "twin_calc": "\"\"\"The membrane bioreactor train twin's expectations (MBR-5301, submerged hollow-fibre ultrafiltration).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nFlux and permeability (constant-flux operation, suction side):\n    J  = Q x 1000 / A_in_service                       L/(m\u00b2\u00b7h), \"LMH\"; A_in_service = 40.0 m\u00b2 x modules x cassettes in service\n    K  = J / (TMP / 100)                               L/(m\u00b2\u00b7h\u00b7bar); TMP in kPa, 100 kPa = 1 bar\nTemperature correction to 20 \u00b0C (the permeate is water: flux at a given TMP is inversely proportional to its viscosity):\n    mu(T) = A exp(B / (T + 273.15 - C))                Vogel-Fulcher-Tammann fit for water, A = 0.02939 mPa\u00b7s, B = 507.88 K, C = 149.3 K\n    TCF   = mu(T) / mu(20 \u00b0C)                          > 1 below 20 \u00b0C\n    K20   = K x TCF\nFouling, from records the PLC keeps (Monitor works on one reading at a time):\n    K20 after the last maintenance clean (MC) = J_mc / (TMP_after / 100) x TCF(T_mc)\n    fouling rate (%/day)    = (K20_mc - K20) / K20_mc x 100 / days since the MC (at least one day)\n    days to recovery clean  = (K20 - K_trigger) / (daily loss of K20)\n    MC recovery (%)         = (TMP_before / TMP_after - 1) x 100   (same flux and temperature, minutes apart)\n    irreversible loss (%)   = (1 - K20 after the last recovery clean / K20 of new fibres) x 100\n    reversible loss (%)     = (1 - K20 / K20 after the last recovery clean) x 100\nAir scour:\n    SADm = air / A_in_service   Nm\u00b3/(m\u00b2\u00b7h)      SADp = air / Q   Nm\u00b3 per m\u00b3 of permeate\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    m, tr, op, p, v, a, c = d[\"module\"], d[\"train\"], d[\"operation\"], d[\"permeability\"], d[\"viscosity\"], d[\"aeration\"], d[\"cleaning\"]\n    return dict(am=m[\"area_m2\"] * tr[\"modules_per_cassette\"], ncass=tr[\"cassettes\"], area=tr[\"area_m2\"], tmpmax=m[\"tmp_max_kpa\"],\n                jd=op[\"flux_design_lmh\"], k0=p[\"k_new_20_lmhbar\"], ktrig=p[\"k_rc_trigger_lmhbar\"], klow=p[\"k_very_low_lmhbar\"],\n                va=v[\"a_mpas\"], vb=v[\"b_k\"], vc=v[\"c_k\"], sadm=a[\"sadm_design\"], mci=c[\"mc_interval_h\"], rci=c[\"rc_interval_h\"])\n\n\ndef mu(k, t):\n    \"\"\"Water viscosity (mPa\u00b7s) at t \u00b0C.\"\"\"\n    return k[\"va\"] * math.exp(k[\"vb\"] / (t + 273.15 - k[\"vc\"]))\n\n\ndef tcf(k, t):\n    \"\"\"Viscosity ratio mu(t) / mu(20 \u00b0C): multiply a permeability at t by it to get the permeability at 20 \u00b0C.\"\"\"\n    return math.exp(k[\"vb\"] / (t + 273.15 - k[\"vc\"]) - k[\"vb\"] / (293.15 - k[\"vc\"]))\n\n\ndef _parts(twin):\n    k = _k(twin)\n    T = lambda col: f\"np.exp({k['vb']} / (df['{col}'] + {273.15 - k['vc']:.2f}) - {k['vb'] / (293.15 - k['vc']):.12g})\"\n    J = f\"(df['PERMEATE_FLOW_M3H'] * 1000 / ({k['am']} * df['CASSETTES_IN_SERVICE']))\"\n    TCF = T(\"ML_TEMP_C\")\n    K20 = f\"({J} / (df['TMP_KPA'] / 100) * {TCF})\"\n    KMC = f\"(df['MC_FLUX_LMH'] / (df['MC_TMP_AFTER_KPA'] / 100) * {T('MC_TEMP_C')})\"\n    DAYS = \"(np.maximum(df['HOURS_SINCE_MC'], 24) / 24)\"\n    LOSS = f\"(({KMC} - {K20}) / {DAYS})\"\n    RATE = f\"({LOSS} / {KMC} * 100)\"\n    DRC = f\"(({K20} - {k['ktrig']}) / np.maximum({LOSS}, 0.01))\"\n    SADM = f\"(df['AIR_SCOUR_NM3H'] / ({k['am']} * df['CASSETTES_IN_SERVICE']))\"\n    MCR = \"((df['MC_TMP_BEFORE_KPA'] / df['MC_TMP_AFTER_KPA'] - 1) * 100)\"\n    IRR = f\"((1 - df['RC_PERM20_LMHBAR'] / {k['k0']}) * 100)\"\n    return dict(k=k, J=J, TCF=TCF, K20=K20, KMC=KMC, RATE=RATE, DRC=DRC, SADM=SADM, MCR=MCR, IRR=IRR)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"FLUX_LMH\", p[\"J\"]),\n        (\"FLUX_RATIO\", f\"{p['J']} / {k['jd']}\"),\n        (\"TCF\", p[\"TCF\"]),\n        (\"PERM_LMH_BAR\", f\"{p['J']} / (df['TMP_KPA'] / 100)\"),\n        (\"PERM20_LMH_BAR\", p[\"K20\"]),\n        (\"PERM20_RATIO\", f\"{p['K20']} / {k['k0']}\"),\n        (\"TMP_CLEAN_KPA\", f\"{p['J']} * {p['TCF']} / df['RC_PERM20_LMHBAR'] * 100\"),\n        (\"TMP_MARGIN_KPA\", f\"{k['tmpmax']} - df['TMP_KPA']\"),\n        (\"PERM20_AFTER_MC\", p[\"KMC\"]),\n        (\"FOULING_RATE_PCT_D\", p[\"RATE\"]),\n        (\"DAYS_TO_RC\", p[\"DRC\"]),\n        (\"MC_RECOVERY_PCT\", p[\"MCR\"]),\n        (\"IRREVERSIBLE_LOSS_PCT\", p[\"IRR\"]),\n        (\"REVERSIBLE_LOSS_PCT\", f\"(1 - {p['K20']} / df['RC_PERM20_LMHBAR']) * 100\"),\n        (\"SADM\", p[\"SADM\"]),\n        (\"SADM_RATIO\", f\"{p['SADM']} / {k['sadm']}\"),\n        (\"SADP\", \"df['AIR_SCOUR_NM3H'] / df['PERMEATE_FLOW_M3H']\"),\n        (\"SPEC_ENERGY_KWH_M3\", \"(df['SCOUR_BLOWER_KW'] + df['PERMEATE_PUMP_KW']) / df['PERMEATE_FLOW_M3H']\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    am = k[\"am\"] * r[\"cassettes_in_service\"]\n    j = r[\"permeate_flow_m3h\"] * 1000 / am\n    f = tcf(k, r[\"ml_temp_c\"])\n    kt = j / (r[\"tmp_kpa\"] / 100)\n    k20 = kt * f\n    kmc = r[\"mc_flux_lmh\"] / (r[\"mc_tmp_after_kpa\"] / 100) * tcf(k, r[\"mc_temp_c\"])\n    days = max(r[\"hours_since_mc\"], 24) / 24\n    loss = (kmc - k20) / days\n    sadm = r[\"air_scour_nm3h\"] / am\n    return {\n        \"flux_lmh\": j, \"flux_ratio\": j / k[\"jd\"], \"tcf\": f, \"perm_lmh_bar\": kt, \"perm20_lmh_bar\": k20, \"perm20_ratio\": k20 / k[\"k0\"],\n        \"tmp_clean_kpa\": j * f / r[\"rc_perm20_lmhbar\"] * 100, \"tmp_margin_kpa\": k[\"tmpmax\"] - r[\"tmp_kpa\"],\n        \"perm20_after_mc\": kmc, \"fouling_rate_pct_d\": loss / kmc * 100, \"days_to_rc\": (k20 - k[\"ktrig\"]) / max(loss, 0.01),\n        \"mc_recovery_pct\": (r[\"mc_tmp_before_kpa\"] / r[\"mc_tmp_after_kpa\"] - 1) * 100,\n        \"irreversible_loss_pct\": (1 - r[\"rc_perm20_lmhbar\"] / k[\"k0\"]) * 100,\n        \"reversible_loss_pct\": (1 - k20 / r[\"rc_perm20_lmhbar\"]) * 100,\n        \"sadm\": sadm, \"sadm_ratio\": sadm / k[\"sadm\"], \"sadp\": r[\"air_scour_nm3h\"] / r[\"permeate_flow_m3h\"],\n        \"spec_energy_kwh_m3\": (r[\"scour_blower_kw\"] + r[\"permeate_pump_kw\"]) / r[\"permeate_flow_m3h\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    K20 = p[\"K20\"]\n    TU = \"df['PERMEATE_TURBIDITY_NTU']\"\n    return [\n        (\"MBR_INTEGRITY_BREACH\", f\"{TU} > {L['turbidity_breach_ntu']}\", \"Critical\", \"fibre_breakage\"),\n        (\"MBR_TMP_HIGH\", f\"df['TMP_KPA'] > {L['tmp_high_kpa']}\", \"High\", \"sludging\"),\n        (\"MBR_PERM_VERY_LOW\", f\"{K20} < {k['klow']}\", \"High\", \"sludging\"),\n        (\"MBR_SCOUR_LOW\", f\"{p['SADM']} / {k['sadm']} < {L['sadm_ratio_min']}\", \"High\", \"air_scour_low\"),\n        (\"MBR_PERM_LOW\", f\"({K20} >= {k['klow']}) & ({K20} < {k['ktrig']})\", \"Medium\", \"irreversible_fouling\"),\n        (\"MBR_CLEAN_DUE_SOON\", f\"({K20} >= {k['ktrig']}) & ({p['DRC']} < {L['days_to_rc_alert']})\", \"Medium\", \"poor_filterability\"),\n        (\"MBR_FOULING_FAST\", f\"{p['RATE']} > {L['fouling_rate_alert_pct_d']}\", \"Medium\", \"poor_filterability\"),\n        (\"MBR_MC_INEFFECTIVE\", f\"{p['MCR']} < {L['mc_recovery_min_pct']}\", \"Medium\", \"irreversible_fouling\"),\n        (\"MBR_IRREVERSIBLE_HIGH\", f\"{p['IRR']} > {L['irreversible_alert_pct']}\", \"Medium\", \"irreversible_fouling\"),\n        (\"MBR_FLUX_HIGH\", f\"{p['J']} / {k['jd']} > {L['flux_ratio_alert']}\", \"Medium\", \"peak_flux\"),\n        (\"MBR_TURBIDITY_HIGH\", f\"({TU} > {L['turbidity_alert_ntu']}) & ({TU} <= {L['turbidity_breach_ntu']})\", \"Medium\", \"fibre_breakage\"),\n        (\"MBR_MLSS_HIGH\", f\"df['MLSS_MGL'] > {L['mlss_max_mgl']}\", \"Medium\", \"sludging\"),\n        (\"MBR_FILTERABILITY_POOR\", f\"df['SLUDGE_TTF_S'] > {L['ttf_max_s']}\", \"Medium\", \"poor_filterability\"),\n        (\"MBR_MC_OVERDUE\", f\"df['HOURS_SINCE_MC'] > {L['mc_overdue_factor'] * k['mci']}\", \"Medium\", \"mc_skipped\"),\n        (\"MBR_RC_OVERDUE\", f\"df['HOURS_SINCE_RC'] > {L['rc_overdue_factor'] * k['rci']}\", \"Low\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    tu, k20 = r[\"permeate_turbidity_ntu\"], t[\"perm20_lmh_bar\"]\n    add(tu > L[\"turbidity_breach_ntu\"], \"MBR_INTEGRITY_BREACH\", \"Critical\",\n        f\"Permeate turbidity {tu:.2f} NTU, above {L['turbidity_breach_ntu']} NTU: broken fibres, isolate the cassette and run an integrity test\", \"membrane\", \"fibre_breakage\")\n    add(r[\"tmp_kpa\"] > L[\"tmp_high_kpa\"], \"MBR_TMP_HIGH\", \"High\",\n        f\"TMP {r['tmp_kpa']:.1f} kPa, above {L['tmp_high_kpa']:.0f} kPa (module limit {k['tmpmax']:.0f} kPa)\", \"membrane\", \"sludging\")\n    add(k20 < k[\"klow\"], \"MBR_PERM_VERY_LOW\", \"High\", f\"Permeability {k20:.0f} L/(m\u00b2\u00b7h\u00b7bar) at 20 \u00b0C, below {k['klow']:.0f}\", \"membrane\", \"sludging\")\n    add(t[\"sadm_ratio\"] < L[\"sadm_ratio_min\"], \"MBR_SCOUR_LOW\", \"High\",\n        f\"Air scour {t['sadm']:.3f} Nm\u00b3/(m\u00b2\u00b7h), {t['sadm_ratio'] * 100:.0f} % of design\", \"air\", \"air_scour_low\")\n    add(k[\"klow\"] <= k20 < k[\"ktrig\"], \"MBR_PERM_LOW\", \"Medium\",\n        f\"Permeability {k20:.0f} L/(m\u00b2\u00b7h\u00b7bar) at 20 \u00b0C, below the recovery-clean trigger {k['ktrig']:.0f}\", \"membrane\", \"irreversible_fouling\")\n    add(k20 >= k[\"ktrig\"] and t[\"days_to_rc\"] < L[\"days_to_rc_alert\"], \"MBR_CLEAN_DUE_SOON\", \"Medium\",\n        f\"At this fouling rate the recovery-clean trigger is {t['days_to_rc']:.1f} days away\", \"membrane\", \"poor_filterability\")\n    add(t[\"fouling_rate_pct_d\"] > L[\"fouling_rate_alert_pct_d\"], \"MBR_FOULING_FAST\", \"Medium\",\n        f\"Permeability falling {t['fouling_rate_pct_d']:.1f} % per day since the last maintenance clean\", \"membrane\", \"poor_filterability\")\n    add(t[\"mc_recovery_pct\"] < L[\"mc_recovery_min_pct\"], \"MBR_MC_INEFFECTIVE\", \"Medium\",\n        f\"Last maintenance clean recovered only {t['mc_recovery_pct']:.1f} % of permeability\", \"cleaning\", \"irreversible_fouling\")\n    add(t[\"irreversible_loss_pct\"] > L[\"irreversible_alert_pct\"], \"MBR_IRREVERSIBLE_HIGH\", \"Medium\",\n        f\"{t['irreversible_loss_pct']:.0f} % of the new-fibre permeability no longer comes back after a recovery clean\", \"membrane\", \"irreversible_fouling\")\n    add(t[\"flux_ratio\"] > L[\"flux_ratio_alert\"], \"MBR_FLUX_HIGH\", \"Medium\",\n        f\"Flux {t['flux_lmh']:.1f} L/(m\u00b2\u00b7h) on {r['cassettes_in_service']:.0f} cassettes, {t['flux_ratio']:.2f} x design\", \"operation\", \"peak_flux\")\n    add(L[\"turbidity_alert_ntu\"] < tu <= L[\"turbidity_breach_ntu\"], \"MBR_TURBIDITY_HIGH\", \"Medium\",\n        f\"Permeate turbidity {tu:.2f} NTU, above {L['turbidity_alert_ntu']} NTU\", \"membrane\", \"fibre_breakage\")\n    add(r[\"mlss_mgl\"] > L[\"mlss_max_mgl\"], \"MBR_MLSS_HIGH\", \"Medium\", f\"MLSS {r['mlss_mgl']:.0f} mg/L in the membrane tank\", \"biology\", \"sludging\")\n    add(r[\"sludge_ttf_s\"] > L[\"ttf_max_s\"], \"MBR_FILTERABILITY_POOR\", \"Medium\", f\"Time-to-filter {r['sludge_ttf_s']:.0f} s, above {L['ttf_max_s']:.0f} s\", \"biology\", \"poor_filterability\")\n    add(r[\"hours_since_mc\"] > L[\"mc_overdue_factor\"] * k[\"mci\"], \"MBR_MC_OVERDUE\", \"Medium\",\n        f\"Last maintenance clean {r['hours_since_mc']:.0f} h ago (plan every {k['mci']:.0f} h)\", \"cleaning\", \"mc_skipped\")\n    add(r[\"hours_since_rc\"] > L[\"rc_overdue_factor\"] * k[\"rci\"], \"MBR_RC_OVERDUE\", \"Low\", f\"Last recovery clean {r['hours_since_rc']:.0f} h ago\", \"cleaning\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "MBR-5301 membrane bioreactor train twin. Expected values in Maximo Monitor from the module fact sheet and the process design; the PLC sends only what it measures and records.", "twin": {"id": "MBR-5301", "name": "Membrane bioreactor train MBR-5301", "version": "1.0.0", "folder": "mbr-twin"}, "identification": {"asset": "MBR-5301", "assetnum": "MBR-5301", "manufacturer": "Veolia Water Technologies", "model": "ZeeWeed 500D (MBR module, 40.0 m\u00b2)", "description": "Membrane train 1 of a municipal wastewater works: submerged hollow-fibre ultrafiltration after activated sludge", "module": "ZeeWeed 500D MBR module: PVDF hollow fibres, nominal pore 0.04 \u00b5m, outside-in, 40.0 m\u00b2 per module", "cassette": "4 cassettes of 48 modules in one membrane tank (assumption)", "permeate": "Reversible permeate pump on a VFD: production under suction, short backpulse in reverse", "air": "Membrane air scour blower and aerators under each cassette", "plc": "Train PLC: production / backpulse cycle, maintenance and recovery clean sequences, permeability records"}, "design": {"module": {"area_m2": 40.0, "material": "PVDF", "pore_um": 0.04, "fibre_od_mm": 2.2, "flow_path": "outside-in", "tmp_min_kpa": -55.0, "tmp_max_kpa": 55.0, "temp_max_c": 40.0, "ph_min": 5.0, "ph_max": 9.5, "clean_ph_min": 2.0, "clean_ph_max": 10.5, "cl2_max_ppm": 1000.0, "tensile_n": 600.0, "width_mm": 844.0, "length_mm": 1940.0, "depth_mm": 49.0, "source": "Veolia ZeeWeed 500D Module fact sheet FSpw500D-MOD_EN (MBR column): surface area, material, pore size, fibre diameter, flow path, TMP range, max operating temperature, operating and cleaning pH, max Cl2 concentration, tensile strength (> 600 N) and module dimensions."}, "train": {"cassettes": 4, "modules_per_cassette": 48, "area_m2": 7680.0, "source": "Train layout: assumption: typical value, replace with the supplier's process design / O&M manual for your train. The ZeeWeed 500D cassette fact sheet (FSpw500D-CASS_EN) lists cassettes of up to 68 modules (68M) and 20 modules (20M)."}, "operation": {"flux_design_lmh": 25.0, "flow_design_m3h": 192.0, "temp_nominal_c": 18.0, "backpulse_pct_of_time": 3.0, "source": "Design gross flux at 20 \u00b0C and nominal mixed liquor temperature: assumption: typical value, replace with the supplier's process design / O&M manual for your train. Backpulse share of the operating time inside the 1-5 % range of US EPA 832-F-07-015."}, "permeability": {"k_new_20_lmhbar": 250.0, "k_rc_trigger_lmhbar": 100.0, "k_very_low_lmhbar": 70.0, "k_rc_last_lmhbar": 210.0, "fouling_rate_design_pct_d": 1.5, "source": "Permeability of new (clean) fibres at 20 \u00b0C, recovery-clean trigger, very-low limit, value after the last recovery clean and normal fouling rate between maintenance cleans: assumption: typical value, replace with the supplier's process design / O&M manual for your train."}, "viscosity": {"a_mpas": 0.02939, "b_k": 507.88, "c_k": 149.3, "source": "Water viscosity mu = A exp(B / (T - C)) (Vogel-Fulcher-Tammann fit quoted in Wikipedia 'Viscosity'). Correction to 20 \u00b0C: K20 = K(T) x mu(T) / mu(20 \u00b0C)."}, "aeration": {"sadm_design": 0.25, "air_design_nm3h": 1920.0, "blower_kw_design": 55.0, "source": "Specific air demand per m\u00b2 of membrane (SADm), scour air flow and blower power: assumption: typical value, replace with the supplier's process design / O&M manual for your train."}, "cleaning": {"mc_interval_h": 168.0, "mc_naocl_mgl": 200.0, "rc_interval_h": 4380.0, "rc_naocl_mgl": 1000.0, "rc_citric_pct": 0.2, "source": "Weekly maintenance clean with sodium hypochlorite, recovery clean about every 6 months or on the permeability trigger, hypochlorite then citric acid: assumption: typical value, replace with the supplier's process design / O&M manual for your train. Hypochlorite and citric acid are the usual chemicals (US EPA 832-F-07-015); the recovery clean hypochlorite stays at the 1,000 ppm Cl2 maximum of the module fact sheet."}, "process": {"mlss_nominal_mgl": 9000.0, "ttf_nominal_s": 30.0, "turbidity_nominal_ntu": 0.05, "source": "Mixed liquor suspended solids, time-to-filter of the mixed liquor and permeate turbidity of a healthy train: assumption: typical value, replace with the supplier's process design / O&M manual for your train. (US EPA 832-F-07-015 reports one large ZeeWeed plant averaging 6,400 mg/L MLSS.)"}, "demo": {"time_scale": 5040, "note": "Demo only: the plant clock runs 5040 times faster, so one week between maintenance cleans passes in two minutes of real time and the permeability sawtooth is visible."}}, "telemetry": {"event": "mbr", "publish_every_s": 10, "device_type": "MBR_MEMBRANE_TRAIN", "groups": {"Train": "Train state", "Permeate": "Permeate pump and quality", "Process": "Mixed liquor", "Air": "Membrane air scour", "MC": "Last maintenance clean", "RC": "Last recovery clean"}, "points": [{"metric": "running", "path": "Train.Producing", "label": "Train in production (1 = yes)", "unit": "code"}, {"metric": "cassettes_in_service", "path": "Train.CassettesInService", "label": "Cassettes in service", "unit": "count"}, {"metric": "permeate_flow_m3h", "path": "Permeate.Flow", "label": "Permeate flow during production (gross)", "unit": "m\u00b3/h"}, {"metric": "tmp_kpa", "path": "Permeate.TMP", "label": "Transmembrane pressure (suction, as a positive number)", "unit": "kPa"}, {"metric": "permeate_turbidity_ntu", "path": "Permeate.Turbidity", "label": "Permeate turbidity", "unit": "NTU"}, {"metric": "permeate_pump_kw", "path": "Permeate.PumpPower", "label": "Permeate pump power", "unit": "kW"}, {"metric": "ml_temp_c", "path": "Process.Temperature", "label": "Mixed liquor temperature", "unit": "\u00b0C"}, {"metric": "mlss_mgl", "path": "Process.MLSS", "label": "Mixed liquor suspended solids in the membrane tank", "unit": "mg/L"}, {"metric": "sludge_ttf_s", "path": "Process.TimeToFilter", "label": "Time-to-filter of the mixed liquor (last lab test)", "unit": "s"}, {"metric": "air_scour_nm3h", "path": "Air.ScourFlow", "label": "Membrane scour air flow", "unit": "Nm\u00b3/h"}, {"metric": "scour_blower_kw", "path": "Air.BlowerPower", "label": "Scour blower power", "unit": "kW"}, {"metric": "mc_flux_lmh", "path": "MC.Flux", "label": "Flux at which the last MC permeability check ran", "unit": "L/(m\u00b2\u00b7h)"}, {"metric": "mc_temp_c", "path": "MC.Temperature", "label": "Temperature during the last MC check", "unit": "\u00b0C"}, {"metric": "mc_tmp_before_kpa", "path": "MC.TMPBefore", "label": "TMP just before the last maintenance clean", "unit": "kPa"}, {"metric": "mc_tmp_after_kpa", "path": "MC.TMPAfter", "label": "TMP just after the last maintenance clean", "unit": "kPa"}, {"metric": "hours_since_mc", "path": "MC.HoursSince", "label": "Hours since the last maintenance clean", "unit": "h"}, {"metric": "rc_perm20_lmhbar", "path": "RC.Permeability20", "label": "Permeability at 20 \u00b0C measured after the last recovery clean", "unit": "L/(m\u00b2\u00b7h\u00b7bar)"}, {"metric": "hours_since_rc", "path": "RC.HoursSince", "label": "Hours since the last recovery clean", "unit": "h"}]}, "twin_model": {"limits": {"tmp_high_kpa": 40.0, "fouling_rate_alert_pct_d": 4.0, "days_to_rc_alert": 7.0, "mc_recovery_min_pct": 5.0, "irreversible_alert_pct": 30.0, "flux_ratio_alert": 1.15, "sadm_ratio_min": 0.8, "mlss_max_mgl": 12000.0, "ttf_max_s": 100.0, "turbidity_alert_ntu": 0.2, "turbidity_breach_ntu": 0.5, "mc_overdue_factor": 1.5, "rc_overdue_factor": 1.25}, "source": "Alert limits: assumption: typical value, replace with the supplier's process design / O&M manual for your train. TMP limit of the module: Veolia ZeeWeed 500D Module fact sheet FSpw500D-MOD_EN (MBR column) (55 kPa). Permeate turbidity below 0.5 NTU is Veolia's typical ZeeWeed MBR effluent claim; 0.2 NTU is an early-warning assumption."}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "irreversible_fouling": {"name": "Irreversible fouling (scale, organics the cleans no longer remove)", "part": "membrane", "symptoms": "permeability after cleans lower each time, maintenance clean recovers little", "rules": ["MBR_PERM_LOW", "MBR_MC_INEFFECTIVE", "MBR_IRREVERSIBLE_HIGH"], "default_ramp_min": 1.5}, "poor_filterability": {"name": "Poor sludge filterability (bulking, foaming, high SMP)", "part": "biology", "symptoms": "permeability falls fast between cleans, time-to-filter up", "rules": ["MBR_FOULING_FAST", "MBR_FILTERABILITY_POOR", "MBR_CLEAN_DUE_SOON"], "default_ramp_min": 1.5}, "air_scour_low": {"name": "Air scour reduced (blocked aerators, blower or valve fault)", "part": "air", "symptoms": "SADm low, permeability falls fast between cleans", "rules": ["MBR_SCOUR_LOW", "MBR_FOULING_FAST", "MBR_CLEAN_DUE_SOON"], "default_ramp_min": 1}, "fibre_breakage": {"name": "Broken fibres (integrity breach)", "part": "membrane", "symptoms": "permeate turbidity up, permeability normal", "rules": ["MBR_TURBIDITY_HIGH", "MBR_INTEGRITY_BREACH"], "default_ramp_min": 1}, "sludging": {"name": "Module sludging (solids packed between the fibres)", "part": "membrane", "symptoms": "MLSS high, TMP jumps, permeability very low", "rules": ["MBR_MLSS_HIGH", "MBR_PERM_VERY_LOW", "MBR_TMP_HIGH", "MBR_FOULING_FAST"], "default_ramp_min": 1.5}, "peak_flux": {"name": "Flux above design (storm flow with a cassette out)", "part": "operation", "symptoms": "flux per m\u00b2 in service above the design flux, TMP up, permeability normal", "rules": ["MBR_FLUX_HIGH"], "default_ramp_min": 1}, "mc_skipped": {"name": "Maintenance cleans skipped (sequence or dosing failure)", "part": "cleaning", "symptoms": "hours since the last MC grow, permeability drifts down", "rules": ["MBR_MC_OVERDUE"], "default_ramp_min": 0.5}}, "presentation": {"title": "MBR-5301 membrane bioreactor train", "dashboard": "MBR_MEMBRANE_TRAIN"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(6.5, 9.0, 9.0); ctl.target.set(0.4, 1.0, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 8, 6); scene.add(sun);
+scene.add(new THREE.GridHelper(18, 36, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xc4c9ce, { m: .7, r: .3 }), dark = M(0x3d4249), blueM = M(0x2f6db5, { m: .35 }), pipeM = M(0x8c97a3, { m: .5 });
+const cyl = (r1, r2, h, m, s = 24) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const tube = (pts, r, m) => new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, r, 8, false), m);
+
+// membrane tank: concrete walls (front wall hides in cutaway), mixed liquor
+const TL = 5.6, TWD = 2.8, TH = 3.0;                    // tank length (x), width (z), depth
+const concM = M(0x9a9a94, { m: .05, r: .95, ds: true }), frontM = M(0x9a9a94, { m: .05, r: .95, t: .35, ds: true });
+scene.add(at(box(TL + .4, .2, TWD + .4, concM), 0, -.1, 0));
+scene.add(at(box(TL + .4, TH, .2, concM), 0, TH / 2, -TWD / 2 - .1));
+scene.add(at(box(.2, TH, TWD + .4, concM), -TL / 2 - .1, TH / 2, 0));
+scene.add(at(box(.2, TH, TWD + .4, concM), TL / 2 + .1, TH / 2, 0));
+const front = at(box(TL + .4, TH, .2, frontM), 0, TH / 2, TWD / 2 + .1); frontM.depthWrite = false; scene.add(front);
+const liquorM = M(0x6b5a3a, { m: 0, r: .9, t: .55 });
+const liquor = at(box(TL, .02, TWD, liquorM), 0, TH - .35, 0); scene.add(liquor);
+// four cassettes: steel frame, modules as thin panels of vertical fibres
+const CASS = [], fibreMats = [], sludgeLumps = [];
+for (let c = 0; c < 4; c++) {
+  const g = new THREE.Group(), cx = -2.0 + c * 1.33; scene.add(at(g, cx, 0, 0));
+  const fr = M(0xb8bec4, { m: .7, r: .35 });
+  [[-.5, -1], [.5, -1], [-.5, 1], [.5, 1]].forEach(([x, z]) => g.add(at(box(.05, 2.4, .05, fr), x, 1.45, z)));
+  g.add(at(box(1.05, .06, 2.05, fr), 0, 2.65, 0)); g.add(at(box(1.05, .06, 2.05, fr), 0, .3, 0));
+  const fm = M(0xe8e4d8, { m: .05, r: .8 }); fibreMats.push(fm);
+  for (let i = 0; i < 12; i++) {                                    // 12 module panels drawn per cassette
+    const z = -.9 + i * .164;
+    g.add(at(box(.9, .06, .04, dark), 0, 2.55, z)); g.add(at(box(.9, .06, .04, dark), 0, .4, z));   // potting headers
+    for (let k = 0; k < 9; k++) g.add(at(cyl(.008, .008, 2.1, fm, 5), -.4 + k * .1, 1.48, z));
+  }
+  const sl = []; for (let i = 0; i < 10; i++) { const b = at(box(.14, .22, .1, M(0x4f3f28, { m: 0, r: 1 })), -.35 + (i % 5) * .18, .7 + (i % 3) * .5, -.7 + i * .15); b.visible = false; g.add(b); sl.push(b); }
+  sludgeLumps.push(sl);
+  // aerator pipes under the cassette
+  for (let i = 0; i < 4; i++) { const a = cyl(.03, .03, 2.0, pipeM, 8); a.rotation.x = Math.PI / 2; g.add(at(a, -.36 + i * .24, .18, 0)); }
+  CASS.push({ g, fr, fm, cx });
+}
+// rising bubbles
+const bubM = new THREE.MeshStandardMaterial({ color: 0xe8f4ff, transparent: true, opacity: .7, roughness: .2 });
+const bubbles = [];
+for (let i = 0; i < 160; i++) { const b = new THREE.Mesh(new THREE.SphereGeometry(.035, 8, 6), bubM); const c = i % 4; at(b, CASS[c].cx - .45 + Math.random() * .9, .2 + Math.random() * 2.4, -.95 + Math.random() * 1.9); b.userData = { c, v: .6 + Math.random() * .5 }; scene.add(b); bubbles.push(b); }
+// permeate header on top and the reversible permeate pump with VFD
+scene.add(tube([[-2.0, 2.75, 0], [-2.0, 3.35, 0], [2.0, 3.35, 0], [2.6, 3.35, 0], [3.4, 3.35, 0], [3.9, 2.0, 1.2], [4.2, .6, 1.8]], .09, pipeM));
+for (let c = 1; c < 4; c++) scene.add(at(cyl(.07, .07, .6, pipeM, 10), CASS[c].cx, 3.05, 0));
+const pump = new THREE.Group(); scene.add(at(pump, 4.4, .35, 1.9));
+pump.add(at(box(.9, .5, .55, blueM), 0, 0, 0)); const mot = cyl(.22, .22, .6, blueM); mot.rotation.z = Math.PI / 2; pump.add(at(mot, .7, .05, 0));
+const vfd = at(box(.45, .9, .3, M(0xdde1e6, { m: .2, r: .6 })), 5.6, .45, 1.9); scene.add(vfd);
+scene.add(tube([[4.0, .35, 1.9], [4.0, .35, 3.3], [3.0, .35, 3.6]], .08, pipeM));      // to permeate tank / disinfection
+const turbM = M(0x24a148, { m: .2 }); const turb = at(box(.25, .35, .2, turbM), 3.3, .55, 3.4); scene.add(turb);
+// scour blower and air header
+const blower = new THREE.Group(); scene.add(at(blower, -4.6, .45, -2.2));
+const bc = cyl(.42, .42, .5, M(0x8a3ffc, { m: .3 })); bc.rotation.x = Math.PI / 2; blower.add(bc); blower.add(at(box(.7, .45, .5, dark), .75, -.15, 0));
+scene.add(tube([[-4.6, .9, -2.2], [-4.6, 3.45, -2.2], [-3.3, 3.45, -1.6], [-3.3, 3.45, 1.2], [-2.6, 3.45, 1.2]], .1, M(0x8a3ffc, { m: .3 })));
+const airDrops = []; CASS.forEach(C => { const d = cyl(.05, .05, 3.2, M(0x8a3ffc, { m: .3 }), 8); scene.add(at(d, C.cx + .52, 1.85, 1.15)); airDrops.push(d); });
+scene.add(tube([[-2.6, 3.45, 1.2], [2.0, 3.45, 1.2]], .08, M(0x8a3ffc, { m: .3 })));
+// mixed liquor feed from the bioreactor and recycle back
+scene.add(tube([[-5.4, 2.6, 0.8], [-3.1, 2.6, 0.8]], .14, pipeM));
+scene.add(tube([[3.1, .5, -.9], [5.0, .5, -.9], [5.6, .5, -2.2]], .12, pipeM));
+// clean-in-place: hypochlorite and citric acid tanks with dosing line to the permeate header
+const naocl = at(cyl(.4, .4, 1.1, M(0xf1c21b, { m: .1, r: .6 })), 2.6, .55, -2.6); scene.add(naocl);
+const citric = at(cyl(.4, .4, 1.1, M(0xe8e8e8, { m: .1, r: .6 })), 3.6, .55, -2.6); scene.add(citric);
+const cipLine = tube([[2.6, 1.1, -2.6], [2.6, 3.1, -1.4], [2.6, 3.35, 0]], .03, M(0xf1c21b, { m: .2 })); scene.add(cipLine);
+// beacon
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.07, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, 3.0, 3.2, TWD / 2 + .2));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('perm', [4.4, .9, 1.9]); lbl('tmp', [1.4, 3.6, 0]); lbl('k20', [-.7, 2.9, 1.1]); lbl('air', [-4.6, 1.0, -2.2]); lbl('ml', [-4.6, 2.8, .8]);
+lbl('turb', [3.3, .85, 3.4]); lbl('mc', [3.1, 1.3, -2.6]); lbl('rc', [-2.0, .1, 1.4]); lbl('energy', [5.6, 1.0, 1.9]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let scour = 1, fouled = 0, sludge = 0, inService = 4;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design, P = d.permeability;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  scour = Math.max(0, t.sadm_ratio); fouled = Math.max(0, Math.min(1, t.reversible_loss_pct / 60)); inService = r.cassettes_in_service;
+  sludge = names.has('MBR_MLSS_HIGH') || names.has('MBR_PERM_VERY_LOW') ? 1 : 0;
+  setLbl('perm', `permeate · flux ${fmt(t.flux_lmh, 1)} L/(m²·h), ${fmt(t.flux_ratio * 100, 0)} % of design`, `${fmt(r.permeate_flow_m3h, 0)} m³/h · ${r.cassettes_in_service} cassettes`, st(false, names.has('MBR_FLUX_HIGH')));
+  setLbl('tmp', `TMP · clean-membrane TMP ${fmt(t.tmp_clean_kpa, 1)} kPa · limit ${d.module.tmp_max_kpa} kPa`, `${fmt(r.tmp_kpa, 1)} kPa`, st(names.has('MBR_TMP_HIGH'), r.tmp_kpa > 0.75 * L.tmp_high_kpa));
+  setLbl('k20', `permeability at 20 °C · after MC ${fmt(t.perm20_after_mc, 0)} · falls ${fmt(t.fouling_rate_pct_d, 1)} %/d`, `K20 ${fmt(t.perm20_lmh_bar, 0)} L/(m²·h·bar)`, st(names.has('MBR_PERM_VERY_LOW') || names.has('MBR_PERM_LOW'), names.has('MBR_FOULING_FAST') || names.has('MBR_CLEAN_DUE_SOON')));
+  setLbl('air', `scour air · design SADm ${d.aeration.sadm_design}`, `${fmt(r.air_scour_nm3h, 0)} Nm³/h · SADm ${fmt(t.sadm, 3)}`, st(names.has('MBR_SCOUR_LOW'), false));
+  setLbl('ml', `mixed liquor · TCF ${fmt(t.tcf, 3)} · time-to-filter ${fmt(r.sludge_ttf_s, 0)} s`, `${fmt(r.ml_temp_c, 1)} °C · MLSS ${fmt(r.mlss_mgl, 0)} mg/L`, st(names.has('MBR_MLSS_HIGH'), names.has('MBR_FILTERABILITY_POOR')));
+  setLbl('turb', 'permeate turbidity (fibre integrity)', `${fmt(r.permeate_turbidity_ntu, 3)} NTU`, st(names.has('MBR_INTEGRITY_BREACH'), names.has('MBR_TURBIDITY_HIGH')));
+  setLbl('mc', `last maintenance clean · ${fmt(r.hours_since_mc, 0)} h ago`, `recovered ${fmt(t.mc_recovery_pct, 1)} % · RC in ${t.days_to_rc > 0 ? fmt(Math.min(t.days_to_rc, 999), 1) + ' d' : 'due'}`, st(names.has('MBR_MC_INEFFECTIVE') || names.has('MBR_MC_OVERDUE'), names.has('MBR_CLEAN_DUE_SOON')));
+  setLbl('rc', `after the last recovery clean · ${fmt(r.hours_since_rc, 0)} h ago`, `K20 ${fmt(r.rc_perm20_lmhbar, 0)} · irreversible ${fmt(t.irreversible_loss_pct, 0)} %`, st(false, names.has('MBR_IRREVERSIBLE_HIGH')));
+  setLbl('energy', 'blower + permeate pump per m³', `${fmt(t.spec_energy_kwh_m3, 3)} kWh/m³ · SADp ${fmt(t.sadp, 1)}`, '');
+  $('k-health').textContent = ST.health; $('k-perm').textContent = fmt(t.perm20_lmh_bar, 0); $('k-tmp').textContent = fmt(r.tmp_kpa, 1) + ' kPa';
+  const low = t.perm20_lmh_bar < P.k_rc_trigger_lmhbar;
+  $('c-perm-t').textContent = low ? 'recovery clean due' : 'K20 ' + fmt(t.perm20_lmh_bar, 0);
+  $('c-perm').className = 'chip ' + (low ? 'bad' : names.has('MBR_CLEAN_DUE_SOON') || names.has('MBR_FOULING_FAST') ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Flux (L/(m²·h))', fmt(t.flux_lmh, 1), '≤ ' + fmt(d.operation.flux_design_lmh * L.flux_ratio_alert, 1), names.has('MBR_FLUX_HIGH')) +
+    row('TMP (kPa)', fmt(r.tmp_kpa, 1), fmt(t.tmp_clean_kpa, 1) + ' clean', names.has('MBR_TMP_HIGH')) +
+    row('K20 (L/(m²·h·bar))', fmt(t.perm20_lmh_bar, 0), '≥ ' + P.k_rc_trigger_lmhbar, names.has('MBR_PERM_LOW') || names.has('MBR_PERM_VERY_LOW')) +
+    row('Fouling rate (%/day)', fmt(t.fouling_rate_pct_d, 1), '≤ ' + L.fouling_rate_alert_pct_d, names.has('MBR_FOULING_FAST')) +
+    row('Days to recovery clean', t.days_to_rc > 0 ? fmt(Math.min(t.days_to_rc, 999), 1) : 'now', '≥ ' + L.days_to_rc_alert, names.has('MBR_CLEAN_DUE_SOON')) +
+    row('Last MC recovery (%)', fmt(t.mc_recovery_pct, 1), '≥ ' + L.mc_recovery_min_pct, names.has('MBR_MC_INEFFECTIVE')) +
+    row('Irreversible loss (%)', fmt(t.irreversible_loss_pct, 0), '≤ ' + L.irreversible_alert_pct, names.has('MBR_IRREVERSIBLE_HIGH')) +
+    row('SADm (Nm³/(m²·h))', fmt(t.sadm, 3), fmt(d.aeration.sadm_design, 3), names.has('MBR_SCOUR_LOW')) +
+    row('Turbidity (NTU)', fmt(r.permeate_turbidity_ntu, 3), '≤ ' + L.turbidity_alert_ntu, names.has('MBR_TURBIDITY_HIGH') || names.has('MBR_INTEGRITY_BREACH')) +
+    row('MLSS (mg/L)', fmt(r.mlss_mgl, 0), '≤ ' + L.mlss_max_mgl, names.has('MBR_MLSS_HIGH')) +
+    row('Time-to-filter (s)', fmt(r.sludge_ttf_s, 0), '≤ ' + L.ttf_max_s, names.has('MBR_FILTERABILITY_POOR')) +
+    row('Hours since MC', fmt(r.hours_since_mc, 0), '≤ ' + fmt(L.mc_overdue_factor * d.cleaning.mc_interval_h, 0), names.has('MBR_MC_OVERDUE'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the train behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  // visual cues: fibre colour (fouling), sludge lumps, isolated cassette, turbidity analyser
+  CASS.forEach((C, i) => {
+    const off = i >= inService;
+    C.fm.color.setRGB(.91 - .45 * fouled, .89 - .48 * fouled, .85 - .55 * fouled);
+    C.fr.color.setHex(off ? 0x6f6f6f : 0xb8bec4);
+    sludgeLumps[i].forEach(b => b.visible = !!sludge && !off);
+  });
+  turbM.color.setHex(names.has('MBR_INTEGRITY_BREACH') ? 0xda1e28 : names.has('MBR_TURBIDITY_HIGH') ? 0xf1c21b : 0x24a148);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-rc').onclick = () => post('/api/reset', {});
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  frontM.opacity = cut ? .05 : .35; frontM.depthWrite = false; liquorM.opacity = cut ? .2 : .55;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  bubbles.forEach((b, i) => {
+    const on = b.userData.c < inService && (i % 20) / 20 < Math.min(1, scour);
+    b.visible = on;
+    if (on) { b.position.y += b.userData.v * dt * 1.6; b.position.x += Math.sin(now / 300 + i) * .002; if (b.position.y > TH - .4) b.position.y = .2; }
+  });
+  mot.rotation.x += dt * 8;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

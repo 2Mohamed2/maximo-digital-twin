@@ -1,0 +1,143 @@
+"""Write twin/ls-5201.twin.json: the sewage lift station twin (LS-5201).
+
+    python build_twin.py
+
+LS-5201 is a municipal sewage pumping station (lift station): a round concrete wet well that collects the gravity sewer,
+two Flygt N-pumps (NP 3153, submersible, wet-well "P" installation on guide bars) in duty/standby, a swing check valve and an
+isolation valve per pump in a valve chamber, and a ductile iron rising main (force main) to a manhole on higher ground.
+The station PLC runs the pumps on the wet-well level, alternates duty and standby, and logs each pump cycle (the "drawdown
+test": how fast the well filled before the start, how fast it fell during the run, and the pressure and power at mid-run).
+
+Sources and assumptions (every number below is either from the source named or labelled as an assumption in "source"):
+  Flygt 3153, 50 Hz technical specification (Xylem, distributor copy): N-pump 3153.181 (cast iron) / 3153.185 (Hard-Iron),
+    installation P = semi-permanent wet well, pump on two guide bars with automatic connection to the discharge; liquid
+    temperature max 40 C; depth of immersion max 20 m; pH 5.5 to 14; liquid density max 1100 kg/m3; max 30 starts per hour;
+    thermal contacts open at 140 C; leakage sensor in the inspection chamber (FLS 10); 4-pole 50 Hz motor table:
+    13.5 kW, 1455 rpm, 27 A rated, 145 A starting, power factor 0.82.
+  Flygt N-technology brochure (Xylem): N-pumps 1.3 to 680 kW; self-cleaning N-impeller (guide pin, relief groove) for
+    "sustained high efficiency"; class H stator for up to 30 starts per hour; inspection chamber with leakage sensor.
+  ANSI/HI 9.8 (as reproduced by the Hydraulic Institute's pump fundamentals page): minimum submergence S = D (1 + 2.3 F_D).
+  Wet-well sizing (textbook / design guides): shortest pump cycle when inflow = half the pump flow, V = t Q / 4.
+  Joukowsky: pressure rise when a reverse flow of velocity v is stopped at once, dp = rho a v.
+  Duty point and curve, efficiencies, inlet size, well and pipe geometry, levels, inflows and alarm limits: ASSUMPTIONS of a
+  typical size, to be replaced by the pump curve of your impeller, the station drawings and the operating philosophy.
+"""
+import json
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with your"
+
+twin = {
+    "$comment": "LS-5201 sewage lift station twin (wet well + 2 x Flygt NP 3153 duty/standby + rising main). Expected values in Maximo Monitor from the pump data, the station drawings and the operating philosophy; the PLC sends only what it measures.",
+    "twin": {"id": "LS-5201", "name": "Sewage lift station LS-5201", "version": "1.0.0", "folder": "liftstation-twin"},
+    "identification": {
+        "asset": "LS-5201", "assetnum": "LS-5201", "manufacturer": "Xylem (Flygt)",
+        "model": "2 x Flygt NP 3153.181 submersible N-pump, duty/standby",
+        "description": "Municipal sewage lift station: wet well, two submersible pumps duty/standby, check valves, rising main",
+        "pumps": "Flygt NP 3153.181: submersible wastewater pump with self-cleaning N-impeller, installation P (guide bars, automatic discharge connection), 13.5 kW 4-pole 50 Hz",
+        "valves": "One swing check valve and one isolation valve per pump, in a dry valve chamber next to the wet well",
+        "main": "DN 250 ductile iron rising main, 1.8 km, to a receiving manhole on higher ground",
+        "control": "Station PLC with radar level transmitter and a backup high-level float; telemetry to the regional SCADA",
+    },
+    "design": {
+        "pump": {
+            "maker": {"model": "NP 3153.181", "rated_power_kw": 13.5, "speed_rpm": 1455, "rated_current_a": 27, "starting_current_a": 145,
+                      "power_factor": 0.82, "max_starts_h": 30, "liquid_temp_max_c": 40, "immersion_max_m": 20,
+                      "thermal_contacts_c": 140, "leakage_sensor": "FLS 10"},
+            "duty_flow_ls": 55.0, "duty_head_m": 13.0, "shutoff_head_m": 19.0, "eta_bep": 0.70, "motor_eff": 0.89,
+            "inlet_d_m": 0.25, "inlet_z_m": 0.15,
+            "source": "maker: Flygt 3153 50 Hz technical specification (N-pump, 4-pole 13.5 kW line of the motor table) and the Flygt "
+                      "N-technology brochure. Duty point 55 l/s at 13 m, shut-off head, hydraulic efficiency at the duty point (taken as "
+                      "the best efficiency point), motor efficiency, pump inlet diameter and its height above the wet-well floor: " + A
+                      + " pump curve for your impeller number (Xylem selection software) and the station drawing",
+        },
+        "well": {
+            "diameter_m": 3.0, "stop_m": 0.9, "start_m": 1.8, "start2_m": 2.1, "high_m": 2.4, "sewer_invert_m": 2.6, "spill_m": 3.2,
+            "source": "Levels are metres above the wet-well floor. Round wet well, pump stop, duty start, standby (assist) start, high level "
+                      "alarm (and backup float), invert of the incoming sewer and the emergency overflow weir: " + A + " station drawings and control philosophy",
+        },
+        "main": {
+            "inner_d_m": 0.24, "length_m": 1800.0, "outlet_z_m": 9.0, "gauge_z_m": 2.8, "wave_speed_ms": 1000.0, "rho_kg_m3": 1000.0,
+            "source": "Rising main inner diameter and length, outlet (receiving manhole) and pressure gauge heights above the wet-well floor, "
+                      "pressure wave speed in the full ductile iron main, sewage density taken as water: " + A + " rising main drawings and surge study",
+        },
+        "inflow": {
+            "dry_avg_ls": 27.0, "dry_amp_ls": 12.0, "storm_ls": 88.0,
+            "source": "Dry-weather inflow (mean and daily swing) and a design storm inflow: " + A + " catchment model or flow survey",
+        },
+        "demo": {"time_scale": 60,
+                 "note": "Demo only: the plant clock runs 60 times faster, so one day of inflow takes 24 minutes and a pump cycle a few seconds of real time."},
+    },
+    "telemetry": {
+        "event": "liftstation", "publish_every_s": 10, "device_type": "SEWAGE_LIFT_STATION",
+        "groups": {"Well": "Wet well level", "Pump1": "Pump P1", "Pump2": "Pump P2", "Main": "Rising main", "Cycle": "Last pump cycle (drawdown test by the PLC)"},
+        "points": [
+            {"metric": "level_m", "path": "Well.Level", "label": "Wet-well level (radar), above the floor", "unit": "m"},
+            {"metric": "level_rate_mm_min", "path": "Well.LevelRate", "label": "Rate of level change over the last minute (PLC)", "unit": "mm/min"},
+            {"metric": "float_high", "path": "Well.FloatHigh", "label": "Backup high-level float (1 = tripped)", "unit": "code"},
+            {"metric": "p1_running", "path": "Pump1.Running", "label": "P1 running (1 = running)", "unit": "code"},
+            {"metric": "p1_power_kw", "path": "Pump1.Power", "label": "P1 motor input power", "unit": "kW"},
+            {"metric": "p1_starts_1h", "path": "Pump1.StartsHour", "label": "P1 starts, last hour", "unit": "count"},
+            {"metric": "p1_run_h_7d", "path": "Pump1.RunHours7d", "label": "P1 run hours, last 7 days", "unit": "h"},
+            {"metric": "p1_leak", "path": "Pump1.Leakage", "label": "P1 leakage sensor FLS 10 (1 = water in the inspection chamber)", "unit": "code"},
+            {"metric": "p2_running", "path": "Pump2.Running", "label": "P2 running (1 = running)", "unit": "code"},
+            {"metric": "p2_power_kw", "path": "Pump2.Power", "label": "P2 motor input power", "unit": "kW"},
+            {"metric": "p2_starts_1h", "path": "Pump2.StartsHour", "label": "P2 starts, last hour", "unit": "count"},
+            {"metric": "p2_run_h_7d", "path": "Pump2.RunHours7d", "label": "P2 run hours, last 7 days", "unit": "h"},
+            {"metric": "p2_leak", "path": "Pump2.Leakage", "label": "P2 leakage sensor FLS 10 (1 = water in the inspection chamber)", "unit": "code"},
+            {"metric": "discharge_bar", "path": "Main.Pressure", "label": "Rising main pressure in the valve chamber", "unit": "bar g"},
+            {"metric": "main_flow_ls", "path": "Main.Flow", "label": "Rising main flow (magnetic flowmeter)", "unit": "l/s"},
+            {"metric": "cyc_pump", "path": "Cycle.Pump", "label": "Pump of the last cycle (1 or 2)", "unit": "code"},
+            {"metric": "cyc_fill_mm_min", "path": "Cycle.FillRate", "label": "Level rise rate in the minute before the start", "unit": "mm/min"},
+            {"metric": "cyc_draw_mm_min", "path": "Cycle.DrawRate", "label": "Level fall rate at mid-run", "unit": "mm/min"},
+            {"metric": "cyc_level_m", "path": "Cycle.Level", "label": "Wet-well level at mid-run", "unit": "m"},
+            {"metric": "cyc_discharge_bar", "path": "Cycle.Pressure", "label": "Rising main pressure at mid-run", "unit": "bar g"},
+            {"metric": "cyc_power_kw", "path": "Cycle.Power", "label": "Motor input power at mid-run", "unit": "kW"},
+            {"metric": "cyc_after_stop_mm_min", "path": "Cycle.AfterStopRate", "label": "Level rise rate in the minute after the stop", "unit": "mm/min"},
+            {"metric": "cyc_stop_peak_bar", "path": "Cycle.StopPeak", "label": "Peak pressure in the valve chamber at the stop (fast logger)", "unit": "bar g"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "spill_time_alert_min": 30.0, "inflow_ratio_alert": 1.0, "flow_ratio_alert": 0.85, "power_ratio_rag": 1.10,
+            "resistance_ratio_alert": 1.8, "backflow_alert_ls": 3.0, "reverse_velocity_alert_ms": 0.15, "starts_alert_h": 15,
+            "level_mismatch_m": 0.3, "imbalance_alert": 0.4, "submergence_margin_min": 1.0, "velocity_min_ms": 0.6,
+            "source": "Alarm levels: " + A + " operating philosophy. starts_alert_h is half the 30 starts per hour of the Flygt specification; "
+                      "velocity_min_ms is a commonly used self-cleansing velocity for rising mains; submergence margin 1.0 = the ANSI/HI 9.8 minimum.",
+        },
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "impeller_ragging": {"name": "Ragging: wipes and rags wrapped on the impeller", "part": "pump",
+                             "symptoms": "less flow and more power at the same head (drawdown test)",
+                             "rules": ["LS_PUMP_FLOW_LOW", "LS_RAGGING"], "default_ramp_min": 1.0},
+        "impeller_wear": {"name": "Impeller and insert ring wear (gap grows)", "part": "pump",
+                          "symptoms": "less flow at the same head, power at that head not higher",
+                          "rules": ["LS_PUMP_FLOW_LOW", "LS_PUMP_WEAR"], "default_ramp_min": 1.5},
+        "main_restriction": {"name": "Rising main partly blocked or air-locked", "part": "rising main",
+                             "symptoms": "higher head, lower flow along the pump curve; main resistance up",
+                             "rules": ["LS_MAIN_RESISTANCE_HIGH"], "default_ramp_min": 1.5},
+        "check_valve_passing": {"name": "Check valve passing (does not close tight)", "part": "check valve",
+                                "symptoms": "the main drains back after each stop: the well rises faster after the stop than before the start",
+                                "rules": ["LS_CHECK_VALVE_PASSING"], "default_ramp_min": 1.0},
+        "check_valve_slam": {"name": "Check valve slam (closes late, after reverse flow)", "part": "check valve",
+                             "symptoms": "pressure spike at every stop; reverse velocity from Joukowsky above the limit",
+                             "rules": ["LS_CHECK_VALVE_SLAM"], "default_ramp_min": 1.0},
+        "storm_inflow": {"name": "Storm or infiltration inflow above the station capacity", "part": "catchment",
+                         "symptoms": "both pumps running and the well still rising; time to spill counts down",
+                         "rules": ["LS_INFLOW_ABOVE_CAPACITY", "LS_LEVEL_HIGH", "LS_SPILL_RISK"], "default_ramp_min": 1.0},
+        "level_sensor_fault": {"name": "Level transmitter fouled (fat, foam): reads low", "part": "instrument",
+                               "symptoms": "backup float trips while the radar shows a normal level",
+                               "rules": ["LS_LEVEL_SENSOR_MISMATCH"], "default_ramp_min": 0.5},
+        "seal_leak": {"name": "Mechanical seal leak on P2", "part": "pump",
+                      "symptoms": "leakage sensor FLS 10 of P2 trips", "rules": ["LS_SEAL_LEAK"], "default_ramp_min": 0.5},
+    },
+    "presentation": {"title": "LS-5201 sewage lift station", "dashboard": "SEWAGE_LIFT_STATION"},
+}
+
+out = HERE / "twin" / "ls-5201.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out)
