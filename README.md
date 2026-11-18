@@ -1,6 +1,6 @@
 # Digital Twin for Maximo
 
-Code that goes with sixteen IBM Community posts on building physics-based digital twins of Maximo assets
+Code that goes with seventeen IBM Community posts on building physics-based digital twins of Maximo assets
 with standard Maximo Monitor and Maximo Manage features:
 
 | Asset | Twin folder | Post |
@@ -21,6 +21,7 @@ with standard Maximo Monitor and Maximo Manage features:
 | FLT-1401, dual-media rapid gravity filter on a Xylem Leopold underdrain | `filter-twin` | Rapid gravity filter digital twin |
 | PIPE-1501, 14 km DN 1200 ductile iron water transmission main | `pipeline-twin` | Water transmission main digital twin |
 | UV-1601, TrojanUVSwiftSC D12 UV disinfection reactor | `uv-twin` | UV disinfection digital twin |
+| ESDV-2101, 12 in Class 600 ball valve with spring-return actuator, final element of a SIL 2 SIF | `esdv-twin` | Emergency shutdown valve digital twin |
 
 The posts are on the IBM Community (Maximo group), by Mohamed Chihaoui.
 

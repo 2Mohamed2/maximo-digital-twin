@@ -1,0 +1,293 @@
+{
+ "$comment": "ESDV-2101 emergency shutdown valve twin. Expected values in Maximo Monitor from SRS, FMEDA and actuator sizing data; the device sends only what it measures.",
+ "twin": {
+  "id": "ESDV-2101",
+  "name": "Emergency shutdown valve ESDV-2101",
+  "version": "1.0.0",
+  "folder": "esdv-twin"
+ },
+ "identification": {
+  "asset": "ESDV-2101",
+  "description": "Unit feed emergency shutdown valve, final element of SIF-2101 (high-high feed pressure)",
+  "valve": "12 in ASME Class 600 trunnion-mounted ball valve, fire-safe, fail-close",
+  "actuator": "Pneumatic scotch-yoke spring-return actuator (spring to close)",
+  "controller": "SIS digital valve controller with partial stroke test and valve signature (for example Emerson Fisher DVC6200 SIS)",
+  "solenoid": "3-way solenoid valve, de-energise to trip"
+ },
+ "design": {
+  "sif": {
+   "name": "SIF-2101 high-high feed pressure: close ESDV-2101",
+   "sil_target": 2,
+   "architecture": "1oo1 final element",
+   "mode": "low demand",
+   "pfd_sensors": 0.0002,
+   "pfd_logic": 0.0001,
+   "process_safety_time_s": 30.0,
+   "required_closure_s": 15.0,
+   "source": "Safety requirements specification (SRS) of the SIF. Sensor (2oo3 transmitters) and logic-solver PFDavg: assumption: typical value, replace with your FMEDA certificate / sizing sheet"
+  },
+  "reliability": {
+   "lambda_du_per_h": 1e-06,
+   "split": {
+    "valve": 4.5e-07,
+    "actuator": 2.5e-07,
+    "solenoid": 3e-07
+   },
+   "pst_coverage": 0.65,
+   "proof_coverage": 0.95,
+   "pst_interval_h": 730.0,
+   "proof_interval_h": 35040.0,
+   "mission_time_h": 87600.0,
+   "source": "Dangerous undetected failure rate of valve + actuator + SOV, PST coverage (PSTC) and proof test coverage (PTC): assumption: typical value, replace with your FMEDA certificate / sizing sheet. PST monthly, proof test at the 4-year turnaround, overhaul (mission time) every 10 years."
+  },
+  "signature": {
+   "spring_open_bar": 3.0,
+   "friction0_bar": 0.3,
+   "friction_per_bar": 0.004,
+   "spring_end_ratio": 0.7,
+   "seat_ratio": 1.4,
+   "source": "Actuator spring and valve friction expressed in actuator pressure (bar): spring equivalent pressure at the open position (bench set), friction = f0 + k x line pressure (trunnion seats are pressure-energised), spring torque at the end of the closing stroke / at the start (scotch yoke), torque to seat / running friction torque: assumption: typical value, replace with your FMEDA certificate / sizing sheet"
+  },
+  "stroke": {
+   "close_baseline_s": 8.0,
+   "pst_target_travel_pct": 85.0,
+   "supply_nominal_bar": 5.5,
+   "source": "Factory acceptance test closing time and PST setup of the digital valve controller: assumption: typical value, replace with your FMEDA certificate / sizing sheet"
+  },
+  "line": {
+   "pressure_nominal_bar": 50.0,
+   "temp_nominal_c": 60.0
+  }
+ },
+ "telemetry": {
+  "event": "esdv",
+  "publish_every_s": 60,
+  "device_type": "ESD_VALVE_SIS",
+  "groups": {
+   "Travel": "Valve travel and limit switches",
+   "Air": "Actuator and supply pressure",
+   "Process": "Line conditions",
+   "PST": "Last partial stroke test",
+   "Stroke": "Last full stroke",
+   "SIS": "SIS logic solver and bypass",
+   "Test": "Test history"
+  },
+  "points": [
+   {
+    "metric": "travel_pct",
+    "path": "Travel.Position",
+    "label": "Valve travel (100 = open)",
+    "unit": "%"
+   },
+   {
+    "metric": "limit_open",
+    "path": "Travel.ZSO",
+    "label": "Open limit switch (ZSO)",
+    "unit": "code"
+   },
+   {
+    "metric": "limit_closed",
+    "path": "Travel.ZSC",
+    "label": "Closed limit switch (ZSC)",
+    "unit": "code"
+   },
+   {
+    "metric": "actuator_pressure_bar",
+    "path": "Air.Actuator",
+    "label": "Actuator pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "supply_pressure_bar",
+    "path": "Air.Supply",
+    "label": "Instrument air supply pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "line_pressure_bar",
+    "path": "Process.Pressure",
+    "label": "Line pressure upstream",
+    "unit": "bar g"
+   },
+   {
+    "metric": "line_temp_c",
+    "path": "Process.Temperature",
+    "label": "Line temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "sov_energized",
+    "path": "SIS.SOV",
+    "label": "Solenoid valve energised (1 = normal)",
+    "unit": "code"
+   },
+   {
+    "metric": "pst_result",
+    "path": "PST.Result",
+    "label": "Last PST result (1 pass, 0 fail)",
+    "unit": "code"
+   },
+   {
+    "metric": "pst_travel_reached_pct",
+    "path": "PST.TravelReached",
+    "label": "Lowest travel reached in the last PST",
+    "unit": "%"
+   },
+   {
+    "metric": "pst_p_close_start_bar",
+    "path": "PST.PressureMoveClose",
+    "label": "Actuator pressure when the valve starts to close",
+    "unit": "bar g"
+   },
+   {
+    "metric": "pst_p_open_end_bar",
+    "path": "PST.PressureBackOpen",
+    "label": "Actuator pressure when the valve is back open",
+    "unit": "bar g"
+   },
+   {
+    "metric": "pst_line_pressure_bar",
+    "path": "PST.LinePressure",
+    "label": "Line pressure during the last PST",
+    "unit": "bar g"
+   },
+   {
+    "metric": "pst_hours_since",
+    "path": "Test.HoursSincePST",
+    "label": "Hours since the last successful PST",
+    "unit": "h"
+   },
+   {
+    "metric": "pst_interval_achieved_h",
+    "path": "Test.PSTIntervalAchieved",
+    "label": "Mean interval between successful PSTs, last 12 months",
+    "unit": "h"
+   },
+   {
+    "metric": "proof_hours_since",
+    "path": "Test.HoursSinceProof",
+    "label": "Hours since the last full proof test",
+    "unit": "h"
+   },
+   {
+    "metric": "overhaul_hours_since",
+    "path": "Test.HoursSinceOverhaul",
+    "label": "Hours since the last overhaul (as new)",
+    "unit": "h"
+   },
+   {
+    "metric": "last_close_time_s",
+    "path": "Stroke.CloseTime",
+    "label": "Closing time of the last full stroke (trip or test)",
+    "unit": "s"
+   },
+   {
+    "metric": "bypass_active",
+    "path": "SIS.Bypass",
+    "label": "SIF bypass active (1 = bypassed)",
+    "unit": "code"
+   },
+   {
+    "metric": "bypass_active_h",
+    "path": "SIS.BypassDuration",
+    "label": "Duration of the current bypass",
+    "unit": "h"
+   },
+   {
+    "metric": "bypass_hours_365d",
+    "path": "SIS.BypassHours365",
+    "label": "Hours in bypass, last 365 days",
+    "unit": "h"
+   },
+   {
+    "metric": "demand_count",
+    "path": "SIS.Demands",
+    "label": "Real demands (trips) since commissioning",
+    "unit": "count"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "friction_ratio_alert": 1.5,
+   "spring_dev_alert_bar": -0.35,
+   "torque_margin_alert": 2.0,
+   "torque_margin_limit": 1.5,
+   "stroke_ratio_alert": 1.25,
+   "air_margin_alert_bar": 0.5,
+   "pst_overdue_factor": 1.5,
+   "bypass_alert_h": 8.0,
+   "travel_mismatch_pct": 5.0
+  }
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "stem_seat_sticking": {
+   "name": "Stem / seat sticking (galling, deposits, packing)",
+   "part": "valve",
+   "symptoms": "friction up, torque margin down, closing slower, later PST fails",
+   "rules": [
+    "ESD_FRICTION_HIGH",
+    "ESD_TORQUE_MARGIN_LOW",
+    "ESD_TORQUE_MARGIN_LIMIT",
+    "ESD_PST_FAILED"
+   ]
+  },
+  "spring_relaxation": {
+   "name": "Actuator spring relaxation or breakage",
+   "part": "actuator",
+   "symptoms": "signature shifts down, friction unchanged, torque margin down",
+   "rules": [
+    "ESD_SPRING_WEAK",
+    "ESD_TORQUE_MARGIN_LOW"
+   ]
+  },
+  "sov_exhaust_restriction": {
+   "name": "Solenoid valve or exhaust restriction",
+   "part": "solenoid",
+   "symptoms": "closing time up, signature normal",
+   "rules": [
+    "ESD_STROKE_SLOW",
+    "ESD_STROKE_TOO_SLOW"
+   ]
+  },
+  "air_supply_low": {
+   "name": "Instrument air supply low",
+   "part": "air",
+   "symptoms": "supply pressure close to the pressure needed to hold the valve open",
+   "rules": [
+    "ESD_AIR_MARGIN"
+   ]
+  },
+  "position_feedback": {
+   "name": "Limit switch or travel sensor fault",
+   "part": "feedback",
+   "symptoms": "ZSO/ZSC disagree with travel",
+   "rules": [
+    "ESD_POSITION_MISMATCH"
+   ]
+  },
+  "pst_not_run": {
+   "name": "Partial stroke tests skipped or failing",
+   "part": "testing",
+   "symptoms": "PST age and achieved interval grow, PFDavg drifts",
+   "rules": [
+    "ESD_PST_OVERDUE",
+    "ESD_SIL_DRIFT"
+   ]
+  },
+  "bypass_left_on": {
+   "name": "SIF bypass left on",
+   "part": "sis",
+   "symptoms": "bypass hours grow, PFDavg drifts",
+   "rules": [
+    "ESD_BYPASS_LONG",
+    "ESD_SIL_DRIFT"
+   ]
+  }
+ },
+ "presentation": {
+  "title": "ESDV-2101 emergency shutdown valve",
+  "dashboard": "ESD_VALVE_SIS"
+ }
+}
