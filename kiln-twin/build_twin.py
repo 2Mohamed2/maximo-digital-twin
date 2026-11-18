@@ -1,0 +1,208 @@
+"""Write twin/kl-4201.twin.json: the cement rotary kiln twin (KL-4201).
+
+    python build_twin.py
+
+KL-4201 is the clinker line of a dry-process cement plant: a 4.8 m x 74 m rotary kiln on three tyres (three-base design),
+with a 5-stage cyclone preheater and an in-line calciner at the inlet end and a reciprocating grate cooler at the outlet.
+Design output 5000 t of clinker per day.
+
+Sources and assumptions (every number below is either from a named source or labelled as an assumption in "source"):
+  Fuller Technologies (formerly FLSmidth Cement), 3-Base Kiln product page: three-base kilns from 3.6 m to 6.6 m in
+    diameter and 55 m to 104 m long; girth gear and pinion drive; graphite inlet and outlet seals; the Level II monitoring
+    package tracks kiln shell ovality. KL-4201 (4.8 m x 74 m) sits inside that range. It is NOT a Fuller model: typical
+    proportions only.
+  Commission Implementing Decision 2013/163/EU (BAT conclusions, cement, lime and magnesium oxide): BAT-associated thermal
+    energy consumption 2900 to 3300 MJ/t clinker for new dry kilns with multistage preheating and precalcination (BAT 6);
+    NOx BAT-AEL for preheater kilns < 200 to 450 mg/Nm3, daily average, dry, 273 K, 1013 hPa, 10 % O2 (BAT 19).
+  Directive 2010/75/EU Annex VI Part 7: emission concentration at the standard oxygen content
+    E_S = (21 - O_S) / (21 - O_M) x E_M; O_S = 10 % for cement kilns.
+  Theoretical heat of clinker formation: 1719 kJ/kg for the example clinker of cementkilns.co.uk (Thermochemistry page);
+    1720 kJ/kg is used here.
+  Tyre migration (creep) per revolution = pi x hot diametric gap between tyre bore and shell pads (common kiln practice);
+    allowable migration usually quoted as 6 to 8 mm per revolution, hot gap 3 to 4 mm (training material, secondary).
+  Ovality rule of thumb D/10 % (D in m), often attributed to Gebhart: secondary source, assumption.
+  Kiln speed and slope inside the ranges of the Wikipedia "Cement kiln" article (30 to 250 rev/h, 1 to 4 degrees).
+  Shell heat loss: Stefan-Boltzmann radiation + convection (textbook); emissivity, convection coefficient: assumptions.
+  Everything else (gas volumes, heat capacities, temperatures, brick data, limits): ASSUMPTIONS of a typical 5000 t/d
+  line, to be replaced by the kiln supplier's data sheets, the heat and mass balance of the performance test, the
+  refractory supplier's data and the plant's own operating limits.
+"""
+import json
+import math
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with your kiln supplier's data sheet / performance test"
+SB = 5.670e-8
+
+D, L = 4.8, 74.0
+CL_TPH = 5000 / 24
+
+# design heat balance (kJ per kg clinker), every term from the assumptions below
+H_THEOR, OTHER, COOLER_WALL = 1720.0, 230.0, 25.0
+PH_NM3, PH_T, CP_G = 1.40, 285.0, 1.45
+CE_NM3, CE_T, CP_A = 1.05, 260.0, 1.31
+CL_OUT, C_OUT, CL_IN, C_IN = 110.0, 0.80, 1400.0, 1.00
+SH_MEAN, AMB, EPS, HC = 270.0, 30.0, 0.90, 12.0
+q_shell = EPS * SB * ((SH_MEAN + 273.15) ** 4 - (AMB + 273.15) ** 4) + HC * (SH_MEAN - AMB)
+shell_kjkg = math.pi * D * L * q_shell / 1000 * 3600 / (CL_TPH * 1000)
+SHC_D = (H_THEOR + PH_NM3 * CP_G * (PH_T - AMB) + shell_kjkg + CE_NM3 * CP_A * (CE_T - AMB) + C_OUT * (CL_OUT - AMB)
+         + COOLER_WALL + OTHER)
+LHV = 26.0
+FUEL_TPH = SHC_D * CL_TPH / LHV / 1000
+
+twin = {
+    "$comment": "KL-4201 cement rotary kiln twin. Expected values in Maximo Monitor from the kiln data sheet, the design heat balance and textbook heat transfer; the device sends only what it measures.",
+    "twin": {"id": "KL-4201", "name": "Cement rotary kiln KL-4201", "version": "1.0.0", "folder": "kiln-twin"},
+    "identification": {
+        "asset": "KL-4201", "assetnum": "KL-4201", "manufacturer": "Three-base rotary kiln, 5-stage preheater,",
+        "model": "in-line calciner and grate cooler (5000 t/d)",
+        "description": "Clinker line rotary kiln, 4.8 m x 74 m on three tyres, 5-stage preheater with calciner, grate cooler",
+        "kiln": "Rotary kiln 4.8 m x 74 m, three tyres (floating tyres on shell pads), girth gear drive, graphite inlet and outlet seals",
+        "reference": "Dimensions inside the published range of three-base kilns (Fuller, formerly FLSmidth Cement: 3.6 to 6.6 m diameter, 55 to 104 m long); typical proportions, not a vendor model",
+        "preheater": "5-stage cyclone preheater, in-line calciner with tertiary air duct",
+        "cooler": "Reciprocating grate cooler",
+        "instruments": "Shell scanner (line-scan infrared), burning zone pyrometer, kiln inlet / calciner / preheater exit gas analysers, tyre migration and shell ovality sensors, stack CEMS",
+    },
+    "design": {
+        "kiln": {
+            "diameter_m": D, "length_m": L, "tyres": 3, "slope_pct": 3.5, "speed_design_rpm": 4.0, "capacity_tpd": 5000,
+            "clinker_design_tph": round(CL_TPH, 3),
+            "source": "Diameter and length: " + A + " (inside the 3.6 to 6.6 m x 55 to 104 m range of Fuller three-base kilns). "
+                      "Speed 4.0 rpm and slope 3.5 % (2 degrees): inside 30 to 250 rev/h and 1 to 4 degrees (Wikipedia, Cement kiln); " + A,
+        },
+        "heat_balance": {
+            "h_theor_kjkg": H_THEOR, "other_losses_kjkg": OTHER, "cooler_wall_kjkg": COOLER_WALL,
+            "ph_gas_nm3_kg": PH_NM3, "ph_exit_design_c": PH_T, "cp_gas_kj_nm3k": CP_G,
+            "cooler_exh_nm3_kg": CE_NM3, "cooler_exh_design_c": CE_T, "cp_air_kj_nm3k": CP_A,
+            "clinker_out_design_c": CL_OUT, "c_clinker_out_kj_kgk": C_OUT, "clinker_in_c": CL_IN, "c_clinker_in_kj_kgk": C_IN,
+            "ambient_design_c": AMB, "shc_design_kjkg": round(SHC_D, 1), "fuel_lhv_mj_kg": LHV, "calciner_share": 0.60,
+            "bat_shc_range_kjkg": [2900, 3300],
+            "source": "Theoretical heat of clinker formation 1720 kJ/kg (cementkilns.co.uk example clinker: 1719 kJ/kg). BAT range 2900 to 3300 MJ/t "
+                      "(2013/163/EU, BAT 6). Preheater exit gas volume and temperature, cooler exhaust air volume and temperature, mean heat "
+                      "capacities of the gases and of clinker, clinker temperature leaving the kiln and the cooler, cooler wall loss and the "
+                      "remaining losses (raw meal moisture, dust, preheater walls, unburnt fuel): " + A
+                      + f". Design specific heat consumption is the sum of the balance: {SHC_D:.0f} kJ/kg. Fuel: coal / petcoke blend, LHV 26 MJ/kg, 60 % to the calciner: " + A,
+        },
+        "shell": {
+            "emissivity": EPS, "h_conv_w_m2k": HC, "mean_design_c": SH_MEAN, "bz_max_design_c": 330.0, "hot_spot_pos_m": 22.0,
+            "lining_mm": 220.0, "k_brick_w_mk": 2.8, "hot_face_c": 1400.0,
+            "source": "Shell heat loss = area x [emissivity x Stefan-Boltzmann x (Ts^4 - Ta^4) + h x (Ts - Ta)] (textbook). Painted-steel "
+                      "emissivity 0.9, convection coefficient 12 W/m2K (light wind), mean and burning-zone shell temperatures with coating, "
+                      "220 mm magnesia-spinel lining in the burning zone with conductivity 2.8 W/m K and a 1400 C hot face: " + A
+                      + ". Equivalent lining thickness = k x (T_hot - Ts) / q(Ts): one-dimensional conduction through brick + coating.",
+        },
+        "burning_zone": {
+            "bzt_design_c": 1450.0, "nox_ref_ppm": 800.0, "nox_k_per_k": 0.010, "free_lime_design_pct": 1.2,
+            "source": "Burning zone material temperature about 1450 C (Wikipedia, Cement kiln: sintering zone charge around 1450 C; thermal NOx "
+                      "directly related to the flame temperature). Kiln inlet NOx at design, its sensitivity (NOx x e^(k x dT), k = 0.010 per K, "
+                      "about double per 70 K) and the design free lime: " + A,
+        },
+        "gas": {
+            "o2_inlet_design_pct": 2.5, "o2_calciner_design_pct": 2.8, "false_air_design_pct": 5.0, "co_inlet_design_ppm": 300.0,
+            "source": "Kiln inlet and calciner outlet O2, false air across the preheater (from O2 rise: (O2_exit - O2_calc) / (21 - O2_exit)): " + A,
+        },
+        "drive": {
+            "torque_design_pct": 62.0, "torque_empty_pct": 22.0, "rated_kw": 630.0, "rated_rpm": 4.5,
+            "source": "Main drive torque at design load (percent of rated) and of the empty kiln (friction of rollers and seals, even coating), "
+                      "rated motor power at maximum speed: " + A + ". Bed hold-up and its torque scale with output / speed.",
+        },
+        "tyres": {
+            "alpha_per_k": 1.2e-5, "cold_gap_mm": 11.0, "shell_under_tyre2_design_c": 330.0, "tyre2_design_c": 180.0,
+            "migration_t1_mm": 7.0, "migration_t3_mm": 6.5, "ovality_base_pct": 0.12, "ovality_per_gap_mm": 0.06,
+            "source": "Migration per revolution = pi x hot gap; hot gap = cold gap - alpha x D x (T_shell under the tyre - T_tyre); steel "
+                      "expansion 1.2e-5 per K (textbook). Cold gap, design temperatures, tyre 1 and 3 migration and the ovality-to-gap line: " + A,
+        },
+        "cooler": {"sec_air_design_c": 1100.0, "source": "Secondary air temperature: " + A},
+        "stack": {"nox_ref_design_mgnm3": 380.0, "o2_design_pct": 9.0, "o2_reference_pct": 10.0,
+                  "source": "Stack NOx after SNCR at 10 % O2 and stack O2: " + A + ". Reference O2 10 % for cement kilns (2013/163/EU; 2010/75/EU Annex VI)."},
+        "demo": {"time_scale": 60, "load_swing": 0.03, "load_period_s": 900,
+                 "note": "Demo only: the plant clock runs 60 times faster; output swings 3 % over 15 min and the kiln speed follows it."},
+    },
+    "telemetry": {
+        "event": "kiln", "publish_every_s": 10, "device_type": "CEMENT_ROTARY_KILN",
+        "groups": {"Production": "Clinker output and kiln speed", "Drive": "Kiln main drive", "Fuel": "Fuel to burner and calciner",
+                   "BurningZone": "Burning zone and laboratory", "Gas": "Gas analysers", "Preheater": "Preheater exit",
+                   "Scanner": "Shell scanner", "Tyres": "Tyres and shell ovality", "Cooler": "Grate cooler", "Stack": "Stack CEMS"},
+        "points": [
+            {"metric": "clinker_tph", "path": "Production.Clinker", "label": "Clinker output (kiln feed x clinker factor)", "unit": "t/h"},
+            {"metric": "kiln_speed_rpm", "path": "Production.KilnSpeed", "label": "Kiln speed", "unit": "rpm"},
+            {"metric": "drive_torque_pct", "path": "Drive.Torque", "label": "Main drive torque (VFD)", "unit": "% rated"},
+            {"metric": "drive_power_kw", "path": "Drive.Power", "label": "Main drive power", "unit": "kW"},
+            {"metric": "fuel_kiln_tph", "path": "Fuel.MainBurner", "label": "Fuel to the main burner", "unit": "t/h"},
+            {"metric": "fuel_calciner_tph", "path": "Fuel.Calciner", "label": "Fuel to the calciner", "unit": "t/h"},
+            {"metric": "fuel_lhv_mjkg", "path": "Fuel.LHV", "label": "Fuel lower heating value (lab)", "unit": "MJ/kg"},
+            {"metric": "bzt_c", "path": "BurningZone.Pyrometer", "label": "Burning zone temperature (pyrometer)", "unit": "°C"},
+            {"metric": "free_lime_pct", "path": "BurningZone.FreeLime", "label": "Clinker free lime (lab, hourly)", "unit": "%"},
+            {"metric": "nox_inlet_ppm", "path": "Gas.InletNOx", "label": "Kiln inlet NOx", "unit": "ppm"},
+            {"metric": "o2_inlet_pct", "path": "Gas.InletO2", "label": "Kiln inlet O2", "unit": "%"},
+            {"metric": "co_inlet_ppm", "path": "Gas.InletCO", "label": "Kiln inlet CO", "unit": "ppm"},
+            {"metric": "o2_calciner_pct", "path": "Gas.CalcinerO2", "label": "Calciner outlet O2", "unit": "%"},
+            {"metric": "o2_ph_exit_pct", "path": "Preheater.O2", "label": "Preheater exit O2", "unit": "%"},
+            {"metric": "ph_exit_temp_c", "path": "Preheater.Temperature", "label": "Preheater exit gas temperature", "unit": "°C"},
+            {"metric": "ph_exit_flow_knm3h", "path": "Preheater.GasFlow", "label": "Preheater exit gas flow", "unit": "kNm³/h"},
+            {"metric": "shell_max_c", "path": "Scanner.MaxTemp", "label": "Hottest shell temperature", "unit": "°C"},
+            {"metric": "shell_max_pos_m", "path": "Scanner.MaxPosition", "label": "Position of the hottest point from the outlet", "unit": "m"},
+            {"metric": "shell_mean_c", "path": "Scanner.MeanTemp", "label": "Mean shell temperature", "unit": "°C"},
+            {"metric": "ambient_c", "path": "Scanner.Ambient", "label": "Ambient temperature", "unit": "°C"},
+            {"metric": "tyre1_migration_mm", "path": "Tyres.Migration1", "label": "Tyre 1 (outlet) migration per revolution", "unit": "mm"},
+            {"metric": "tyre2_migration_mm", "path": "Tyres.Migration2", "label": "Tyre 2 (burning zone) migration per revolution", "unit": "mm"},
+            {"metric": "tyre3_migration_mm", "path": "Tyres.Migration3", "label": "Tyre 3 (inlet) migration per revolution", "unit": "mm"},
+            {"metric": "tyre2_temp_c", "path": "Tyres.Tyre2Temp", "label": "Tyre 2 temperature", "unit": "°C"},
+            {"metric": "shell_t2_c", "path": "Tyres.ShellUnderTyre2", "label": "Shell temperature next to tyre 2", "unit": "°C"},
+            {"metric": "ovality2_pct", "path": "Tyres.Ovality2", "label": "Shell ovality at tyre 2", "unit": "%"},
+            {"metric": "clinker_out_c", "path": "Cooler.ClinkerOut", "label": "Clinker temperature leaving the cooler", "unit": "°C"},
+            {"metric": "cooler_exh_temp_c", "path": "Cooler.ExhaustTemp", "label": "Cooler exhaust air temperature", "unit": "°C"},
+            {"metric": "cooler_exh_flow_knm3h", "path": "Cooler.ExhaustFlow", "label": "Cooler exhaust air flow", "unit": "kNm³/h"},
+            {"metric": "sec_air_c", "path": "Cooler.SecondaryAir", "label": "Secondary air temperature", "unit": "°C"},
+            {"metric": "stack_nox_mgnm3", "path": "Stack.NOx", "label": "Stack NOx as NO2, dry, as measured", "unit": "mg/Nm³"},
+            {"metric": "stack_o2_pct", "path": "Stack.O2", "label": "Stack O2, dry", "unit": "%"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "shell_hot_c": 400.0, "brick_min_mm": 100.0, "torque_ratio_alert": 1.25, "o2_inlet_low_pct": 1.0,
+            "false_air_alert_pct": 10.0, "cooler_eff_alert_pct": 65.0, "shc_excess_alert_kjkg": 150.0, "shc_mismatch_pct": 5.0,
+            "free_lime_alert_pct": 2.0, "nox_low_ppm": 450.0, "nox_ratio_band": 2.0, "migration_high_mm": 12.0,
+            "migration_low_mm": 3.0, "ovality_alert_pct": round(D / 10, 3), "stack_nox_limit_mgnm3": 450.0,
+            "source": "Shell hot spot 400 C and minimum equivalent lining 100 mm (refractory supplier and plant practice), torque, O2, false air, "
+                      "cooler efficiency, heat consumption, free lime, NOx and migration limits: " + A
+                      + ". Ovality D/10 % (rule of thumb). Stack NOx 450 mg/Nm3: the upper end of the BAT-AEL range used as the permit "
+                      "limit (assumption: use your own permit; the legal check is on the daily average).",
+        },
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "refractory_loss": {"name": "Coating loss / lining wear in the burning zone", "part": "refractory",
+                            "symptoms": "a hot spot on the shell scanner, equivalent lining thickness falls",
+                            "rules": ["KLN_SHELL_HOT", "KLN_LINING_THIN"], "default_ramp_min": 1.5},
+        "ring_formation": {"name": "Ring build-up in the transition zone", "part": "kiln",
+                           "symptoms": "drive torque above the load, kiln inlet O2 falls, CO rises",
+                           "rules": ["KLN_TORQUE_HIGH", "KLN_INLET_O2_LOW"], "default_ramp_min": 1.5},
+        "false_air": {"name": "False air into the preheater (worn flaps, open doors, seals)", "part": "preheater",
+                      "symptoms": "O2 rises from calciner outlet to preheater exit, more gas through the ID fan",
+                      "rules": ["KLN_FALSE_AIR_HIGH"], "default_ramp_min": 1},
+        "cooler_degradation": {"name": "Grate cooler recuperation loss (red river, worn plates)", "part": "cooler",
+                               "symptoms": "hotter clinker and exhaust air, cooler efficiency and heat consumption worse",
+                               "rules": ["KLN_COOLER_EFF_LOW", "KLN_SHC_HIGH"], "default_ramp_min": 1.5},
+        "tyre_pad_wear": {"name": "Tyre pad / filler bar wear at tyre 2", "part": "tyres",
+                          "symptoms": "gap and migration grow, shell ovality grows (lining loosens)",
+                          "rules": ["KLN_MIGRATION_HIGH", "KLN_OVALITY_HIGH"], "default_ramp_min": 1},
+        "burning_zone_cold": {"name": "Burning zone too cold (raw mix or flame change)", "part": "process",
+                              "symptoms": "pyrometer and NOx fall together, free lime rises",
+                              "rules": ["KLN_BZ_COLD", "KLN_FREE_LIME_HIGH"], "default_ramp_min": 1},
+        "pyrometer_fouling": {"name": "Burning zone pyrometer fouled or misaligned", "part": "instruments",
+                              "symptoms": "pyrometer falls, NOx and free lime do not follow",
+                              "rules": ["KLN_PYRO_MISMATCH"], "default_ramp_min": 0.5},
+        "fuel_meter_drift": {"name": "Calciner coal feeder reads low", "part": "instruments",
+                             "symptoms": "heat consumption from the fuel no longer matches the heat balance",
+                             "rules": ["KLN_SHC_MISMATCH"], "default_ramp_min": 1},
+    },
+    "presentation": {"title": "KL-4201 cement rotary kiln", "dashboard": "CEMENT_ROTARY_KILN"},
+}
+
+out = HERE / "twin" / "kl-4201.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out, f"design SHC {SHC_D:.1f} kJ/kg, fuel {FUEL_TPH:.2f} t/h, shell loss {shell_kjkg:.1f} kJ/kg")

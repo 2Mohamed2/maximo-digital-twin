@@ -1,0 +1,335 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AD-4901 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>AD-4901</b><span class="g">Mesophilic anaerobic digester · 3000 m³ · biogas CHP</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-stab"><span class="dot"></span><span id="c-stab-t">FOS/TAC –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Gas, stability and heat →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the digester model…</div>
+<div class="credit">Concrete digester, 16 m diameter, two draft-tube mixers, external heat exchanger, double-membrane gas holder and a biogas CHP container. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. In the cutaway the sludge is coloured by temperature (top, middle, bottom); grit shows in the cone, foam on top.</div>
+<aside>
+  <section>
+    <h2>AD-4901 twin</h2>
+    <p class="sub" id="sub">mesophilic anaerobic digester</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Biogas Nm³/h<b id="k-gas">–</b></div><div>FOS/TAC<b id="k-ft">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or two of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The plant sends only what it measures. The expected biogas, the VS reduction, the retention times, the heat demand and the CHP efficiency are computed from the twin file: the design data of the digester and the CHP data sheet.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for AD-4901: the digester, its feed, heat exchanger, mixers, gas line and CHP, with injectable faults.\n\nThe real plant sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages. Pure Python (math, random): it also runs in the browser.\n\"\"\"\nimport math\nimport random\n\n\ndef _hx(ua, m_s, t_s_in, m_w, t_w_in, cw):\n    \"\"\"Counter-flow heat exchanger, effectiveness-NTU. Flows in m3/h, cw in kWh/m3K. Returns heat (kW).\"\"\"\n    cs, cwat = m_s * cw, m_w * cw\n    cmin, cmax = min(cs, cwat), max(cs, cwat)\n    ntu, cr = ua / cmin, cmin / cmax\n    eff = (1 - math.exp(-ntu * (1 - cr))) / (1 - cr * math.exp(-ntu * (1 - cr)))\n    return eff * cmin * (t_w_in - t_s_in)\n\n\nclass Digester:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.tk, self.p, self.hx, self.mx, self.ch = d[\"tank\"], d[\"process\"], d[\"heat_exchanger\"], d[\"mixing\"], d[\"chp\"]\n        self.lhv = d[\"energy\"][\"ch4_lhv_kwh_m3\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.holder = 55.0\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # heating: the controller raises the hot water temperature until the heat matches the demand, up to its limit ---------\n    def heating(self, q, t_feed, t_amb):\n        p, hx, cw = self.p, self.hx, self.hx[\"water_heat_kwh_m3k\"]\n        ua = hx[\"ua_design_kw_k\"] * (1 - 0.6 * self.faults[\"hx_fouling\"])\n        m_s, m_w = hx[\"recirc_flow_m3h\"] + q / 24, hx[\"hw_flow_m3h\"]\n\n        def at(tdig):\n            t_in = (hx[\"recirc_flow_m3h\"] * tdig + q / 24 * t_feed) / m_s\n            need = q / 24 * cw * (tdig - t_feed) + self.tk[\"ua_wall_kw_k\"] * (tdig - t_amb)\n            return t_in, need\n        tdig = p[\"temp_set_c\"]\n        t_in, need = at(tdig)\n        lo, hi = t_in + 0.5, hx[\"hw_supply_max_c\"]\n        for _ in range(60):                      # supply temperature that delivers the demand at the set point\n            mid = (lo + hi) / 2\n            lo, hi = (mid, hi) if _hx(ua, m_s, t_in, m_w, mid, cw) < need else (lo, mid)\n        ts = (lo + hi) / 2\n        if _hx(ua, m_s, t_in, m_w, hx[\"hw_supply_max_c\"], cw) < need:   # cannot keep the set point: the tank cools\n            ts = hx[\"hw_supply_max_c\"]\n            a, b = t_feed + 1, p[\"temp_set_c\"]\n            for _ in range(60):\n                mid = (a + b) / 2\n                ti, nd = at(mid)\n                a, b = (mid, b) if _hx(ua, m_s, ti, m_w, ts, cw) > nd else (a, mid)\n            tdig = (a + b) / 2\n            t_in, need = at(tdig)\n        qh = _hx(ua, m_s, t_in, m_w, ts, cw)\n        return dict(tdig=tdig, t_in=t_in, t_out=t_in + qh / (m_s * cw), ts=ts, tr=ts - qh / (m_w * cw), m_s=m_s, m_w=m_w, q=qh)\n\n    def true_state(self):\n        f, p, ch = self.faults, self.p, self.ch\n        q = p[\"feed_flow_m3d\"] * (1 + self.n(0.012))\n        t_feed, t_amb = p[\"feed_temp_c\"] + self.n(0.3), self.tk[\"ambient_design_c\"] + self.n(0.8)\n        h = self.heating(q, t_feed, t_amb)\n        active = 95.0 - 27.0 * f[\"grit_accumulation\"]\n        vsr = p[\"vsr_design_pct\"] - 8.0 * f[\"souring\"] - 5.0 * f[\"grit_accumulation\"] - 1.5 * (p[\"temp_set_c\"] - h[\"tdig\"]) / 3\n        vin = p[\"feed_vs_pct\"]\n        vsl = q * p[\"sludge_density_kg_m3\"] / 1e4 * p[\"feed_ds_pct\"] * vin\n        gas = vsl * vsr / 100 * p[\"gas_yield_m3_kgvsd\"] / 24 * (1 - 0.38 * f[\"souring\"])\n        ch4 = p[\"ch4_design_pct\"] - 13.0 * f[\"souring\"]\n        full = ch[\"power_el_kw\"] / ch[\"eta_el\"] / (ch4 / 100 * self.lhv)          # CHP gas at full load\n        chp_gas = min(full, gas)\n        return dict(q=q, t_feed=t_feed, t_amb=t_amb, h=h, active=active, vsr=vsr, vin=vin, gas=gas, ch4=ch4, chp_gas=chp_gas,\n                    mix=1 - 0.65 * f[\"mixing_failure\"], foam=0.12 + 1.1 * f[\"foaming\"])\n\n    def measure(self, s=None):\n        s = s or self.true_state()\n        f, p, h = self.faults, self.p, s[\"h\"]\n        vi, vsr = s[\"vin\"] / 100, s[\"vsr\"] / 100\n        vo = vi * (1 - vsr) / (1 - vi * vsr)\n        strat = 0.4 + 4.3 * f[\"mixing_failure\"]\n        td = h[\"tdig\"]\n        eff = self.ch[\"eta_el\"] * (1 - 0.17 * f[\"chp_degradation\"])\n        fuel = s[\"chp_gas\"] * s[\"ch4\"] / 100 * self.lhv\n        self.holder = max(5.0, min(95.0, self.holder + self.n(0.4)))\n        return {\n            \"feed_flow_m3d\": round(s[\"q\"], 2), \"feed_ds_pct\": round(p[\"feed_ds_pct\"] + self.n(0.05), 3),\n            \"feed_vs_pct\": round(s[\"vin\"] + self.n(0.15), 2), \"feed_temp_c\": round(s[\"t_feed\"], 2),\n            \"temp_top_c\": round(td + 0.25 * strat + self.n(0.05), 2), \"temp_mid_c\": round(td - 0.05 * strat + self.n(0.05), 2),\n            \"temp_bottom_c\": round(td - 0.75 * strat + self.n(0.05), 2),\n            \"ph\": round(7.15 - 0.62 * f[\"souring\"] + self.n(0.02), 2), \"foam_layer_m\": round(max(0.0, s[\"foam\"] + self.n(0.02)), 3),\n            \"fos_tac\": round(max(0.05, p[\"fostac_normal\"] + 0.6 * f[\"souring\"] + self.n(0.01)), 3),\n            \"digested_vs_pct\": round(100 * vo + self.n(0.15), 2), \"active_volume_pct\": round(s[\"active\"] + self.n(0.5), 1),\n            \"mixer_power_kw\": round(self.mx[\"power_design_kw\"] * s[\"mix\"] + self.n(0.15), 2),\n            \"biogas_flow_m3h\": round(s[\"gas\"] * (1 + self.n(0.01)), 2), \"ch4_pct\": round(s[\"ch4\"] + self.n(0.3), 2),\n            \"h2s_ppm\": round(max(0.0, 140 + 760 * f[\"h2s_high\"] + self.n(8)), 1), \"holder_fill_pct\": round(self.holder, 1),\n            \"hx_sludge_flow_m3h\": round(h[\"m_s\"] + self.n(0.2), 2), \"hx_sludge_in_c\": round(h[\"t_in\"] + self.n(0.03), 2),\n            \"hx_sludge_out_c\": round(h[\"t_out\"] + self.n(0.03), 2), \"hw_flow_m3h\": round(h[\"m_w\"] * (1 + self.n(0.004)), 3),\n            \"hw_supply_c\": round(h[\"ts\"] + self.n(0.05), 2), \"hw_return_c\": round(h[\"tr\"] + self.n(0.05), 2),\n            \"ambient_temp_c\": round(s[\"t_amb\"], 2), \"chp_gas_m3h\": round(s[\"chp_gas\"] * (1 + self.n(0.005)), 2),\n            \"chp_power_kw\": round(fuel * eff * (1 + self.n(0.006)), 1),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The digester runs at steady state; the faults ramp in and out. The clock (t) only moves the gas holder level and the\n    mixer angle for the 3D page: the process itself does not depend on the time of day.\n    \"\"\"\n\n    def __init__(self, twin, seed=4901):\n        self.twin = twin\n        self.d = Digester(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.angle = 0.0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.d.holder = 55.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.d.faults[k] = f.sev\n        self.t += dt\n        if dt >= 2.0:                            # browser warm-up: nothing to integrate, skip the heat balance\n            return None\n        s = self.d.true_state()\n        self.angle = (self.angle + dt * 2 * math.pi * 0.5 * s[\"mix\"]) % (2 * math.pi)\n        s[\"angle\"] = self.angle\n        return s\n\n    def measure(self, true):\n        return self.d.measure(true or self.d.true_state())\n", "twin_calc": "\"\"\"The anaerobic digester twin's expectations (AD-4901, mesophilic, sewage sludge).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nLoading and retention (V = working volume, Q = raw sludge fed per day, no sludge recycle so SRT = HRT):\n    HRT = V / Q                       SRT effective = V x active volume fraction (last tracer test) / Q\n    VS load (kg/d) = Q x density x DS x VS          OLR = VS load / V   (kg VS per m3 per day)\nVolatile solids reduction (Van Kleeck; fixed solids pass through unchanged), with VS as fractions of DS:\n    VSR = (VSin - VSout) / (VSin - VSin x VSout)\nExpected gas: biogas (Nm3/h) = VS load x VSR x yield (Nm3 per kg VS destroyed) / 24\n    gas yield ratio = measured / expected;  specific gas production SGP = biogas x 24 / VS load (Nm3 per kg VS fed)\nEnergy: methane power (kW) = biogas x CH4 x 9.97 kWh/Nm3 (lower heating value of methane)\n    CHP electrical efficiency = CHP power / (CHP gas x CH4 x 9.97);  CHP heat expected = CHP fuel x eta_th (data sheet)\nHeat: delivered = hot water flow x 1.163 x (supply - return)        (kW; 1.163 kWh/m3K for water)\n    demand expected = Q/24 x 1.163 x (T set - T feed) + UA wall x (T set - T outdoor)\n    heat exchanger UA = delivered / LMTD, LMTD = (dT1 - dT2) / ln(dT1 / dT2), dT1 = supply - sludge out, dT2 = return - sludge in\nMixing: specific power (W/m3) = mixer power / V; stratification = max - min of the top, middle and bottom temperatures.\nStability: FOS/TAC (volatile organic acids / total inorganic carbonate alkalinity, Nordmann titration) is read directly.\n\"\"\"\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    tk, p, e, hx, mx, ch = d[\"tank\"], d[\"process\"], d[\"energy\"], d[\"heat_exchanger\"], d[\"mixing\"], d[\"chp\"]\n    return dict(V=tk[\"volume_m3\"], uaw=tk[\"ua_wall_kw_k\"], tset=p[\"temp_set_c\"], rho=p[\"sludge_density_kg_m3\"],\n                y=p[\"gas_yield_m3_kgvsd\"], lhv=e[\"ch4_lhv_kwh_m3\"], ua=hx[\"ua_design_kw_k\"], cw=hx[\"water_heat_kwh_m3k\"],\n                pmix=mx[\"power_design_kw\"], eel=ch[\"eta_el\"], eth=ch[\"eta_th\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    V, rho = k[\"V\"], k[\"rho\"]\n    VSL = f\"(df['FEED_FLOW_M3D'] * {rho / 1e4:.6g} * df['FEED_DS_PCT'] * df['FEED_VS_PCT'])\"\n    VSR = (\"((df['FEED_VS_PCT'] / 100 - df['DIGESTED_VS_PCT'] / 100)\"\n           \" / (df['FEED_VS_PCT'] / 100 - df['FEED_VS_PCT'] * df['DIGESTED_VS_PCT'] / 10000))\")\n    GEX = f\"({VSL} * {VSR} * {k['y']} / 24)\"\n    HD = f\"(df['HW_FLOW_M3H'] * {k['cw']} * (df['HW_SUPPLY_C'] - df['HW_RETURN_C']))\"\n    HN = (f\"(df['FEED_FLOW_M3D'] / 24 * {k['cw']} * ({k['tset']} - df['FEED_TEMP_C'])\"\n          f\" + {k['uaw']} * ({k['tset']} - df['AMBIENT_TEMP_C']))\")\n    D1 = \"(df['HW_SUPPLY_C'] - df['HX_SLUDGE_OUT_C'])\"\n    D2 = \"(df['HW_RETURN_C'] - df['HX_SLUDGE_IN_C'])\"\n    LM = f\"(({D1} - {D2}) / np.log({D1} / {D2}))\"\n    TM = \"((df['TEMP_TOP_C'] + df['TEMP_MID_C'] + df['TEMP_BOTTOM_C']) / 3)\"\n    TS = (\"(np.maximum(np.maximum(df['TEMP_TOP_C'], df['TEMP_MID_C']), df['TEMP_BOTTOM_C'])\"\n          \" - np.minimum(np.minimum(df['TEMP_TOP_C'], df['TEMP_MID_C']), df['TEMP_BOTTOM_C']))\")\n    CF = f\"(df['CHP_GAS_M3H'] * df['CH4_PCT'] / 100 * {k['lhv']})\"\n    SRT = f\"({V} * df['ACTIVE_VOLUME_PCT'] / 100 / df['FEED_FLOW_M3D'])\"\n    return dict(k=k, VSL=VSL, VSR=VSR, GEX=GEX, HD=HD, HN=HN, LM=LM, TM=TM, TS=TS, CF=CF, SRT=SRT)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    V = k[\"V\"]\n    return [\n        (\"HRT_D\", f\"{V} / df['FEED_FLOW_M3D']\"),\n        (\"SRT_EFFECTIVE_D\", p[\"SRT\"]),\n        (\"VS_LOAD_KGD\", p[\"VSL\"]),\n        (\"OLR_KGVS_M3D\", f\"{p['VSL']} / {V}\"),\n        (\"VSR_PCT\", f\"100 * {p['VSR']}\"),\n        (\"VS_DESTROYED_KGD\", f\"{p['VSL']} * {p['VSR']}\"),\n        (\"BIOGAS_EXPECTED_M3H\", p[\"GEX\"]),\n        (\"GAS_YIELD_RATIO\", f\"df['BIOGAS_FLOW_M3H'] / {p['GEX']}\"),\n        (\"SGP_M3_KGVS\", f\"df['BIOGAS_FLOW_M3H'] * 24 / {p['VSL']}\"),\n        (\"METHANE_POWER_KW\", f\"df['BIOGAS_FLOW_M3H'] * df['CH4_PCT'] / 100 * {k['lhv']}\"),\n        (\"TEMP_MEAN_C\", p[\"TM\"]),\n        (\"TEMP_SPREAD_K\", p[\"TS\"]),\n        (\"MIXING_W_M3\", f\"df['MIXER_POWER_KW'] * 1000 / {V}\"),\n        (\"HEAT_DELIVERED_KW\", p[\"HD\"]),\n        (\"HEAT_DEMAND_KW\", p[\"HN\"]),\n        (\"HX_UA_RATIO\", f\"{p['HD']} / {p['LM']} / {k['ua']}\"),\n        (\"CHP_EFF_EL\", f\"df['CHP_POWER_KW'] / {p['CF']}\"),\n        (\"CHP_HEAT_EXPECTED_KW\", f\"{p['CF']} * {k['eth']}\"),\n        (\"HEAT_COVER_RATIO\", f\"{p['CF']} * {k['eth']} / {p['HN']}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    import math\n    k = _k(twin)\n    V = k[\"V\"]\n    vsl = r[\"feed_flow_m3d\"] * k[\"rho\"] / 1e4 * r[\"feed_ds_pct\"] * r[\"feed_vs_pct\"]\n    vi, vo = r[\"feed_vs_pct\"] / 100, r[\"digested_vs_pct\"] / 100\n    vsr = (vi - vo) / (vi - r[\"feed_vs_pct\"] * r[\"digested_vs_pct\"] / 10000)\n    gex = vsl * vsr * k[\"y\"] / 24\n    hd = r[\"hw_flow_m3h\"] * k[\"cw\"] * (r[\"hw_supply_c\"] - r[\"hw_return_c\"])\n    hn = r[\"feed_flow_m3d\"] / 24 * k[\"cw\"] * (k[\"tset\"] - r[\"feed_temp_c\"]) + k[\"uaw\"] * (k[\"tset\"] - r[\"ambient_temp_c\"])\n    d1, d2 = r[\"hw_supply_c\"] - r[\"hx_sludge_out_c\"], r[\"hw_return_c\"] - r[\"hx_sludge_in_c\"]\n    lm = (d1 - d2) / math.log(d1 / d2)\n    ts = (r[\"temp_top_c\"], r[\"temp_mid_c\"], r[\"temp_bottom_c\"])\n    cf = r[\"chp_gas_m3h\"] * r[\"ch4_pct\"] / 100 * k[\"lhv\"]\n    return {\n        \"hrt_d\": V / r[\"feed_flow_m3d\"],\n        \"srt_effective_d\": V * r[\"active_volume_pct\"] / 100 / r[\"feed_flow_m3d\"],\n        \"vs_load_kgd\": vsl, \"olr_kgvs_m3d\": vsl / V, \"vsr_pct\": 100 * vsr, \"vs_destroyed_kgd\": vsl * vsr,\n        \"biogas_expected_m3h\": gex, \"gas_yield_ratio\": r[\"biogas_flow_m3h\"] / gex, \"sgp_m3_kgvs\": r[\"biogas_flow_m3h\"] * 24 / vsl,\n        \"methane_power_kw\": r[\"biogas_flow_m3h\"] * r[\"ch4_pct\"] / 100 * k[\"lhv\"],\n        \"temp_mean_c\": (ts[0] + ts[1] + ts[2]) / 3, \"temp_spread_k\": max(ts) - min(ts),\n        \"mixing_w_m3\": r[\"mixer_power_kw\"] * 1000 / V,\n        \"heat_delivered_kw\": hd, \"heat_demand_kw\": hn, \"hx_ua_ratio\": hd / lm / k[\"ua\"],\n        \"chp_eff_el\": r[\"chp_power_kw\"] / cf, \"chp_heat_expected_kw\": cf * k[\"eth\"], \"heat_cover_ratio\": cf * k[\"eth\"] / hn,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"DIG_FOSTAC_HIGH\", f\"df['FOS_TAC'] >= {L['fostac_high']}\", \"High\", \"souring\"),\n        (\"DIG_PH_LOW\", f\"df['PH'] < {L['ph_low']}\", \"High\", \"souring\"),\n        (\"DIG_TEMP_LOW\", f\"{p['TM']} < {k['tset'] - L['temp_low_k']}\", \"High\", \"hx_fouling\"),\n        (\"DIG_SRT_LOW\", f\"{p['SRT']} < {L['srt_min_d']}\", \"High\", \"grit_accumulation\"),\n        (\"DIG_FOAM_HIGH\", f\"df['FOAM_LAYER_M'] > {L['foam_max_m']}\", \"High\", \"foaming\"),\n        (\"DIG_FOSTAC_RISING\", f\"(df['FOS_TAC'] >= {L['fostac_warn']}) & (df['FOS_TAC'] < {L['fostac_high']})\", \"Medium\", \"souring\"),\n        (\"DIG_CH4_LOW\", f\"df['CH4_PCT'] < {L['ch4_low_pct']}\", \"Medium\", \"souring\"),\n        (\"DIG_GAS_YIELD_LOW\", f\"df['BIOGAS_FLOW_M3H'] / {p['GEX']} < {L['gas_ratio_low']}\", \"Medium\", \"souring\"),\n        (\"DIG_HX_FOULED\", f\"{p['HD']} / {p['LM']} / {k['ua']} < {L['ua_ratio_low']}\", \"Medium\", \"hx_fouling\"),\n        (\"DIG_STRATIFIED\", f\"{p['TS']} > {L['spread_k']}\", \"Medium\", \"mixing_failure\"),\n        (\"DIG_MIXING_LOW\", f\"df['MIXER_POWER_KW'] < {L['mixing_ratio_low'] * k['pmix']:.6g}\", \"Medium\", \"mixing_failure\"),\n        (\"DIG_ACTIVE_VOLUME_LOW\", f\"df['ACTIVE_VOLUME_PCT'] < {L['active_volume_low_pct']}\", \"Medium\", \"grit_accumulation\"),\n        (\"DIG_VSR_LOW\", f\"100 * {p['VSR']} < {L['vsr_min_pct']}\", \"Medium\", None),\n        (\"DIG_H2S_HIGH\", f\"df['H2S_PPM'] > {L['h2s_max_ppm']}\", \"Medium\", \"h2s_high\"),\n        (\"DIG_CHP_EFF_LOW\", f\"df['CHP_POWER_KW'] / {p['CF']} < {L['chp_eff_ratio_low'] * k['eel']:.6g}\", \"Medium\", \"chp_degradation\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    ft = r[\"fos_tac\"]\n    add(ft >= L[\"fostac_high\"], \"DIG_FOSTAC_HIGH\", \"High\", f\"FOS/TAC {ft:.2f}: acids are winning over the buffer, cut the feed\", \"biology\", \"souring\")\n    add(r[\"ph\"] < L[\"ph_low\"], \"DIG_PH_LOW\", \"High\", f\"pH {r['ph']:.2f}, below {L['ph_low']}: methane formers inhibited\", \"biology\", \"souring\")\n    add(t[\"temp_mean_c\"] < k[\"tset\"] - L[\"temp_low_k\"], \"DIG_TEMP_LOW\", \"High\",\n        f\"Digester at {t['temp_mean_c']:.1f} \u00b0C, {k['tset'] - t['temp_mean_c']:.1f} K below the {k['tset']:.0f} \u00b0C set point\", \"heating\", \"hx_fouling\")\n    add(t[\"srt_effective_d\"] < L[\"srt_min_d\"], \"DIG_SRT_LOW\", \"High\",\n        f\"Effective SRT {t['srt_effective_d']:.1f} d, below the {L['srt_min_d']:.0f} d of 40 CFR 503 Appendix B\", \"tank\", \"grit_accumulation\")\n    add(r[\"foam_layer_m\"] > L[\"foam_max_m\"], \"DIG_FOAM_HIGH\", \"High\", f\"Foam layer {r['foam_layer_m']:.2f} m in the freeboard: gas line at risk\", \"tank\", \"foaming\")\n    add(L[\"fostac_warn\"] <= ft < L[\"fostac_high\"], \"DIG_FOSTAC_RISING\", \"Medium\", f\"FOS/TAC {ft:.2f}, above {L['fostac_warn']}: watch the feed\", \"biology\", \"souring\")\n    add(r[\"ch4_pct\"] < L[\"ch4_low_pct\"], \"DIG_CH4_LOW\", \"Medium\", f\"Methane {r['ch4_pct']:.1f} %, below {L['ch4_low_pct']:.0f} %\", \"gas\", \"souring\")\n    add(t[\"gas_yield_ratio\"] < L[\"gas_ratio_low\"], \"DIG_GAS_YIELD_LOW\", \"Medium\",\n        f\"Biogas {r['biogas_flow_m3h']:.0f} Nm\u00b3/h, {t['gas_yield_ratio'] * 100:.0f} % of the {t['biogas_expected_m3h']:.0f} expected from the VS destroyed\", \"biology\", \"souring\")\n    add(t[\"hx_ua_ratio\"] < L[\"ua_ratio_low\"], \"DIG_HX_FOULED\", \"Medium\", f\"Heat exchanger UA {t['hx_ua_ratio'] * 100:.0f} % of clean\", \"heating\", \"hx_fouling\")\n    add(t[\"temp_spread_k\"] > L[\"spread_k\"], \"DIG_STRATIFIED\", \"Medium\", f\"Top to bottom spread {t['temp_spread_k']:.1f} K: the tank is stratifying\", \"mixing\", \"mixing_failure\")\n    add(r[\"mixer_power_kw\"] < L[\"mixing_ratio_low\"] * k[\"pmix\"], \"DIG_MIXING_LOW\", \"Medium\",\n        f\"Mixers absorb {r['mixer_power_kw']:.1f} kW of {k['pmix']:.0f} kW ({t['mixing_w_m3']:.1f} W/m\u00b3)\", \"mixing\", \"mixing_failure\")\n    add(r[\"active_volume_pct\"] < L[\"active_volume_low_pct\"], \"DIG_ACTIVE_VOLUME_LOW\", \"Medium\",\n        f\"Tracer test: only {r['active_volume_pct']:.0f} % of the volume is active (grit, scum, dead zones)\", \"tank\", \"grit_accumulation\")\n    add(t[\"vsr_pct\"] < L[\"vsr_min_pct\"], \"DIG_VSR_LOW\", \"Medium\", f\"VS reduction {t['vsr_pct']:.1f} %, below the {L['vsr_min_pct']:.0f} % of 40 CFR 503.33(b)(1)\", \"biology\")\n    add(r[\"h2s_ppm\"] > L[\"h2s_max_ppm\"], \"DIG_H2S_HIGH\", \"Medium\", f\"H2S {r['h2s_ppm']:.0f} ppm, above the CHP limit {L['h2s_max_ppm']:.0f} ppm\", \"gas\", \"h2s_high\")\n    add(t[\"chp_eff_el\"] < L[\"chp_eff_ratio_low\"] * k[\"eel\"], \"DIG_CHP_EFF_LOW\", \"Medium\",\n        f\"CHP electrical efficiency {t['chp_eff_el'] * 100:.1f} %, data sheet {k['eel'] * 100:.1f} %\", \"chp\", \"chp_degradation\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "AD-4901 mesophilic anaerobic digester twin. Expected values in Maximo Monitor from the design data below; the plant sends only what it measures.", "twin": {"id": "AD-4901", "name": "Anaerobic digester AD-4901", "version": "1.0.0", "folder": "digester-twin"}, "identification": {"asset": "AD-4901", "assetnum": "AD-4901", "manufacturer": "Civil works + 2G Energy (CHP)", "model": "Mesophilic anaerobic digester, 3000 m3, with 2G agenitor 406 biogas CHP", "description": "Mesophilic anaerobic digester no. 1 of a municipal wastewater treatment plant (primary + surplus activated sludge)", "tank": "Cylindrical concrete tank with conical floor and fixed roof, 3000 m3 working volume, insulated", "mixing": "Two top-entry mechanical mixers in draft tubes", "heating": "External sludge / hot water heat exchanger on the recirculation loop, hot water from the CHP", "gas": "Double-membrane gas holder, gas to the CHP, surplus to a boiler or the flare", "chp": "2G agenitor 406 biogas CHP (ct135-B-0): 275 kW electrical, 260 kW thermal"}, "design": {"tank": {"volume_m3": 3000.0, "diameter_m": 16.0, "liquid_height_m": 15.0, "freeboard_m": 1.5, "ua_wall_kw_k": 0.7, "ambient_design_c": 10.0, "source": "Working volume, geometry, freeboard and heat loss coefficient of walls, roof and floor (about 1150 m2 at 0.6 W/m2K): assumption: typical value, replace with the design report / operating data of your own digester"}, "process": {"temp_set_c": 37.0, "feed_flow_m3d": 150.0, "feed_ds_pct": 5.0, "feed_vs_pct": 72.0, "feed_temp_c": 15.0, "sludge_density_kg_m3": 1000.0, "vsr_design_pct": 52.0, "gas_yield_m3_kgvsd": 0.94, "ch4_design_pct": 63.0, "fostac_normal": 0.22, "source": "Mesophilic set point, feed (thickened primary + surplus activated sludge), solids and VS contents, VS reduction, gas per kg VS destroyed and methane content: assumption: typical value, replace with the design report / operating data of your own digester. Checked against US EPA fact sheet EPA 832-F-06-031: single-stage mesophilic SRT about 20 d, VS loading 2.57 kg/m3.d on average, biogas 55-70 % methane, 14-16 ft3 gas per lb VS destroyed (0.87-1.0 m3/kg), optimum pH 6.8-7.2."}, "energy": {"ch4_lhv_kwh_m3": 9.97, "source": "Methane lower heating value 35.887 MJ/m3 at 0 C = 9.97 kWh per normal m3 (natural gas data, cementkilns.co.uk). Gas volumes in this twin are normal m3 (0 C, 1.013 bar)."}, "heat_exchanger": {"ua_design_kw_k": 9.0, "recirc_flow_m3h": 30.0, "hw_flow_m3h": 10.0, "hw_supply_c": 63.0, "hw_supply_max_c": 80.0, "water_heat_kwh_m3k": 1.163, "source": "External tube-in-tube heat exchanger: clean UA (sized with margin, so a clean exchanger holds 37 C with about 63 C hot water), sludge recirculation and hot water flows, hot water supply temperature and its limit: assumption: typical value, replace with the design report / operating data of your own digester. 1.163 kWh/m3K = volumetric heat capacity of water (4.187 MJ/m3K / 3.6)."}, "mixing": {"power_design_kw": 15.0, "n_mixers": 2, "source": "Two top-entry mixers, 15 kW absorbed in total (5 W/m3): assumption: typical value, replace with the design report / operating data of your own digester"}, "chp": {"model": "2G agenitor 406 biogas, configuration ct135-B-0", "power_el_kw": 275.0, "heat_kw": 260.0, "eta_el": 0.425, "eta_th": 0.402, "source": "2G Energy agenitor product page, biogas table: agenitor 406 ct135-B-0, 275 kW electrical, 260 kW thermal, electrical efficiency 42.5 %, thermal efficiency 40.2 % (400 V, NOx < 0.5 g/Nm3 at 5 % O2)."}, "demo": {"time_scale": 1, "note": "Demo only: the stand-in digester has no clock. Lab values (DS, VS, FOS/TAC) and the tracer-test active volume would change once a day or once a year on a real plant; in the demo they follow the injected faults within minutes."}}, "telemetry": {"event": "digester", "publish_every_s": 10, "device_type": "ANAEROBIC_DIGESTER", "groups": {"Feed": "Raw sludge feed (flow meter + daily lab)", "Digester": "Tank temperatures, pH and level", "Lab": "Daily lab values of the digester", "Mixing": "Mixers", "Gas": "Biogas line and gas holder", "Heating": "Heat exchanger and hot water", "CHP": "Combined heat and power unit", "Test": "Tracer test"}, "points": [{"metric": "feed_flow_m3d", "path": "Feed.Flow24h", "label": "Raw sludge fed, last 24 h", "unit": "m\u00b3/d"}, {"metric": "feed_ds_pct", "path": "Feed.DS", "label": "Feed dry solids (lab)", "unit": "%"}, {"metric": "feed_vs_pct", "path": "Feed.VS", "label": "Feed volatile solids, % of DS (lab)", "unit": "%"}, {"metric": "feed_temp_c", "path": "Feed.Temperature", "label": "Feed sludge temperature", "unit": "\u00b0C"}, {"metric": "temp_top_c", "path": "Digester.TempTop", "label": "Digester temperature, top", "unit": "\u00b0C"}, {"metric": "temp_mid_c", "path": "Digester.TempMid", "label": "Digester temperature, middle", "unit": "\u00b0C"}, {"metric": "temp_bottom_c", "path": "Digester.TempBottom", "label": "Digester temperature, bottom", "unit": "\u00b0C"}, {"metric": "ph", "path": "Digester.pH", "label": "Digester pH", "unit": "pH"}, {"metric": "foam_layer_m", "path": "Digester.Foam", "label": "Foam layer above the liquid (radar + foam probe)", "unit": "m"}, {"metric": "fos_tac", "path": "Lab.FOSTAC", "label": "FOS/TAC (volatile acids / alkalinity)", "unit": "ratio"}, {"metric": "digested_vs_pct", "path": "Lab.DigestedVS", "label": "Digested sludge volatile solids, % of DS", "unit": "%"}, {"metric": "active_volume_pct", "path": "Test.ActiveVolume", "label": "Active volume from the last tracer test", "unit": "%"}, {"metric": "mixer_power_kw", "path": "Mixing.Power", "label": "Mixers absorbed power, total", "unit": "kW"}, {"metric": "biogas_flow_m3h", "path": "Gas.Flow", "label": "Biogas production", "unit": "Nm\u00b3/h"}, {"metric": "ch4_pct", "path": "Gas.CH4", "label": "Methane in biogas", "unit": "%"}, {"metric": "h2s_ppm", "path": "Gas.H2S", "label": "Hydrogen sulphide in biogas", "unit": "ppm"}, {"metric": "holder_fill_pct", "path": "Gas.HolderFill", "label": "Gas holder filling", "unit": "%"}, {"metric": "hx_sludge_flow_m3h", "path": "Heating.SludgeFlow", "label": "Sludge through the heat exchanger", "unit": "m\u00b3/h"}, {"metric": "hx_sludge_in_c", "path": "Heating.SludgeIn", "label": "Sludge into the heat exchanger", "unit": "\u00b0C"}, {"metric": "hx_sludge_out_c", "path": "Heating.SludgeOut", "label": "Sludge out of the heat exchanger", "unit": "\u00b0C"}, {"metric": "hw_flow_m3h", "path": "Heating.WaterFlow", "label": "Hot water flow", "unit": "m\u00b3/h"}, {"metric": "hw_supply_c", "path": "Heating.WaterSupply", "label": "Hot water supply temperature", "unit": "\u00b0C"}, {"metric": "hw_return_c", "path": "Heating.WaterReturn", "label": "Hot water return temperature", "unit": "\u00b0C"}, {"metric": "ambient_temp_c", "path": "Heating.Ambient", "label": "Outdoor air temperature", "unit": "\u00b0C"}, {"metric": "chp_gas_m3h", "path": "CHP.GasFlow", "label": "Biogas to the CHP", "unit": "Nm\u00b3/h"}, {"metric": "chp_power_kw", "path": "CHP.Power", "label": "CHP electrical output", "unit": "kW"}]}, "twin_model": {"limits": {"fostac_warn": 0.4, "fostac_high": 0.6, "ph_low": 6.8, "ch4_low_pct": 55.0, "gas_ratio_low": 0.8, "temp_low_k": 1.5, "ua_ratio_low": 0.7, "spread_k": 2.0, "mixing_ratio_low": 0.6, "active_volume_low_pct": 85.0, "srt_min_d": 15.0, "vsr_min_pct": 38.0, "foam_max_m": 0.8, "h2s_max_ppm": 500.0, "chp_eff_ratio_low": 0.9, "source": "FOS/TAC 0.6: Hach paper (slow down or stop feeding above 0.6, empirical); pH 6.8: lower end of the optimum range in EPA 832-F-06-031; CH4 55 %: lower end of the 55-70 % range in the same fact sheet; SRT 15 d: 40 CFR 503 Appendix B (anaerobic digestion PSRP at 35-55 C); VSR 38 %: 40 CFR 503.33(b)(1). All other limits: assumption: typical value, replace with the design report / operating data of your own digester. H2S limit: replace with the fuel gas specification of your CHP maker."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "souring": {"name": "Souring (organic overload, VFA build-up)", "part": "biology", "symptoms": "FOS/TAC up, pH down, methane down, less gas than the VS destroyed should give", "rules": ["DIG_FOSTAC_RISING", "DIG_FOSTAC_HIGH", "DIG_PH_LOW", "DIG_CH4_LOW", "DIG_GAS_YIELD_LOW"], "default_ramp_min": 1.5}, "hx_fouling": {"name": "Heat exchanger fouling (sludge cake, scale)", "part": "heating", "symptoms": "UA of the heat exchanger down, hot water hotter, digester cools", "rules": ["DIG_HX_FOULED", "DIG_TEMP_LOW"], "default_ramp_min": 1.5}, "mixing_failure": {"name": "Mixing failure (mixer tripped, ragged impeller)", "part": "mixing", "symptoms": "mixer power down, temperature spread top to bottom up (stratification)", "rules": ["DIG_MIXING_LOW", "DIG_STRATIFIED"], "default_ramp_min": 1}, "grit_accumulation": {"name": "Grit and scum accumulation (lost volume)", "part": "tank", "symptoms": "tracer test active volume down, effective SRT below 15 days", "rules": ["DIG_ACTIVE_VOLUME_LOW", "DIG_SRT_LOW"], "default_ramp_min": 1.5}, "foaming": {"name": "Foaming (filaments, feed shock)", "part": "tank", "symptoms": "foam layer grows into the freeboard", "rules": ["DIG_FOAM_HIGH"], "default_ramp_min": 1}, "h2s_high": {"name": "Hydrogen sulphide high (iron dosing lost)", "part": "gas", "symptoms": "H2S in the biogas above the CHP limit", "rules": ["DIG_H2S_HIGH"], "default_ramp_min": 1}, "chp_degradation": {"name": "CHP efficiency loss (ignition, valves, turbocharger)", "part": "chp", "symptoms": "less electricity per kWh of methane", "rules": ["DIG_CHP_EFF_LOW"], "default_ramp_min": 1}}, "presentation": {"title": "AD-4901 anaerobic digester", "dashboard": "ANAEROBIC_DIGESTER"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (1 unit = 4 m) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(13, 10, 15.5); ctl.target.set(-.5, 2.2, 1.5); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(8, 14, 9); scene.add(sun);
+scene.add(new THREE.GridHelper(30, 30, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .2, roughness: o.r ?? .7, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), concrete = M(0xa9a59c, { r: .9, ds: true }), pipeM = M(0x8c97a3, { m: .5 });
+const cyl = (r1, r2, h, m, s = 40) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s, 1, false), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const R = 2.0, H = 3.75, CONE = .9, Y0 = CONE + .2;          // radius 8 m, wall 15 m, floor cone
+// tank shell (wall + cone + roof), sludge inside
+const wallMat = M(0xa9a59c, { r: .9, ds: true, t: 1 });
+const wall = at(cyl(R + .08, R + .08, H, wallMat, 56), 0, Y0 + H / 2, 0); wall.material.side = THREE.DoubleSide; scene.add(wall);
+const coneMat = M(0x8d8a83, { r: .9, ds: true, t: 1 });
+const cone = at(cyl(R + .08, .35, CONE, coneMat, 56), 0, Y0 - CONE / 2, 0); scene.add(cone);
+const roofMat = M(0x6f7a85, { m: .4, ds: true, t: 1 });
+const roof = at(cyl(.4, R + .15, .45, roofMat, 56), 0, Y0 + H + .22, 0); scene.add(roof);
+scene.add(at(cyl(.3, .3, .2, dark), 0, .1, 0));
+[0, 1, 2, 3, 4, 5].forEach(i => { const a = i * Math.PI / 3; scene.add(at(box(.18, Y0 - .1, .18, concrete), Math.cos(a) * 1.2, (Y0 - .1) / 2, Math.sin(a) * 1.2)); });
+// sludge: three temperature layers + grit cone + foam
+const layer = (y, h) => { const m = M(0x6b4f2a, { r: .95, t: .95 }); const o = at(cyl(R - .02, R - .02, h, m, 48), 0, y, 0); scene.add(o); return o; };
+const lTop = layer(Y0 + H * 5 / 6 - .1, H / 3 - .2), lMid = layer(Y0 + H / 2 - .1, H / 3), lBot = layer(Y0 + H / 6 - .05, H / 3);
+const sludgeCone = at(cyl(R - .02, .3, CONE - .02, M(0x5a4224, { r: .95 }), 48), 0, Y0 - CONE / 2, 0); scene.add(sludgeCone);
+const gritMat = M(0xc9b48a, { r: 1 }); const grit = at(cyl(.8, .3, .4, gritMat, 40), 0, Y0 - CONE + .2, 0); scene.add(grit);
+const foamMat = M(0xf2efe6, { r: 1, t: .95 }); const foam = at(cyl(R - .03, R - .03, .1, foamMat, 48), 0, Y0 + H - .1, 0); scene.add(foam);
+// mixers: motor on the roof, shaft, draft tube, impeller
+const imps = [];
+[-.9, .9].forEach(x => {
+  scene.add(at(box(.38, .45, .38, M(0x0f62fe, { m: .3 })), x, Y0 + H + .7, 0));
+  scene.add(at(cyl(.04, .04, H + .3, steel), x, Y0 + H / 2 + .2, 0));
+  scene.add(at(cyl(.32, .32, H * .7, M(0x55606b, { m: .5, t: .5 }), 28), x, Y0 + H * .45, 0));
+  const g = new THREE.Group(); at(g, x, Y0 + H * .78, 0);
+  for (let i = 0; i < 3; i++) { const b = box(.55, .04, .14, steel); b.rotation.y = i * 2 * Math.PI / 3; b.rotation.x = .35; g.add(b); }
+  scene.add(g); imps.push(g);
+});
+// temperature sensors on the wall
+[[Y0 + H * .85, 'top'], [Y0 + H * .5, 'mid'], [Y0 + H * .15, 'bot']].forEach(([y]) => scene.add(at(cyl(.06, .06, .25, M(0xda1e28)), R + .2, y, .4)));
+// heat exchanger skid, recirculation and hot water pipes
+const tube = (pts, c = 0x8c97a3, r = .07) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 50, r, 8, false); const m = new THREE.Mesh(g, M(c, { m: .5 })); scene.add(m); return m; };
+const hx = at(box(1.4, .55, .6, M(0xff832b, { m: .3 })), 4.2, .45, -2.2); scene.add(hx);
+tube([[R + .1, Y0 + .3, -1], [3.2, .5, -1.6], [3.5, .45, -2.2]], 0x6b4f2a);
+tube([[4.9, .45, -2.2], [5.3, 2.5, -1.4], [R + .1, Y0 + H * .6, -1.2]], 0x6b4f2a);
+const hwS = tube([[4.6, .75, -2.4], [6.2, 1, -3.6], [7.3, .9, -3.6]], 0xda1e28, .05);
+const hwR = tube([[3.8, .75, -2.4], [5.6, 1.2, -4.2], [7.3, .9, -4.2]], 0x0f62fe, .05);
+// gas line to the gas holder and CHP
+tube([[0, Y0 + H + .45, 0], [0, Y0 + H + 1.1, 0], [-3, Y0 + H + 1.1, 2.6], [-5, 1.2, 4.2]], 0xf1c21b, .07);
+scene.add(at(cyl(1.9, 1.9, .6, concrete, 48), -6.5, .3, 4.2));
+const membraneMat = M(0xdfe5ea, { r: .6 }); const membrane = new THREE.Mesh(new THREE.SphereGeometry(1.85, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), membraneMat); at(membrane, -6.5, .6, 4.2); scene.add(membrane);
+tube([[-5, 1.2, 4.2], [-3, .8, 6.5], [1, .8, 7]], 0xf1c21b, .06);
+const chp = at(box(3.0, 1.3, 1.25, M(0x24a148, { m: .3 })), 2.6, .65, 7); scene.add(chp);
+scene.add(at(cyl(.12, .12, 2.4, steel), 3.9, 2.0, 7.4));
+tube([[1.2, .9, 6.4], [6.5, 1, 4], [7.3, .9, -3.6]], 0xda1e28, .05);
+const flare = at(cyl(.12, .16, 2.6, steel), -9, 1.3, 1.5); scene.add(flare);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.18, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, 0, Y0 + H + 1.4, 0));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('gas', [-3.2, Y0 + H + 1.8, 2.6]); lbl('stab', [0, Y0 + H + 1.9, 0]); lbl('temp', [R + .3, Y0 + H * .85, .4]); lbl('spread', [R + .3, Y0 + H * .45, .4]);
+lbl('hx', [4.2, 1.0, -2.2]); lbl('feed', [-1.9, Y0 + .1, 2.1]); lbl('chp', [2.6, 1.5, 7]); lbl('holder', [-6.5, 2.6, 4.2]);
+lbl('mix', [-.9, Y0 + H + 1.0, 0]); lbl('srt', [1.2, Y0 - CONE, 1.6]); lbl('foam', [.9, Y0 + H + .6, 1.4]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+// temperature colour: 30 °C blue -> 37 °C orange -> 40 °C red
+const tcol = c => { const t = Math.max(0, Math.min(1, (c - 30) / 9)); return new THREE.Color().setHSL(.62 - .6 * t, .75, .45); };
+
+// ---------- live state ----------
+let mixSpeed = 1, foamH = .1, gritH = 0, fill = .55;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design, P = d.process;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  mixSpeed = r.mixer_power_kw / d.mixing.power_design_kw; foamH = r.foam_layer_m; gritH = Math.min(.9, Math.max(0, 95 - r.active_volume_pct) / 30); fill = r.holder_fill_pct / 100;
+  [[lTop, r.temp_top_c], [lMid, r.temp_mid_c], [lBot, r.temp_bottom_c]].forEach(([o, c]) => o.material.color.copy(tcol(c)));
+  setLbl('gas', 'biogas · expected from VS destroyed', `${fmt(r.biogas_flow_m3h, 0)} / ${fmt(t.biogas_expected_m3h, 0)} Nm³/h · CH4 ${fmt(r.ch4_pct, 1)} %`, st(names.has('DIG_GAS_YIELD_LOW') || names.has('DIG_CH4_LOW'), t.gas_yield_ratio < .9));
+  setLbl('stab', 'FOS/TAC · pH (lab / online)', `${fmt(r.fos_tac)} · pH ${fmt(r.ph)}`, st(names.has('DIG_FOSTAC_HIGH') || names.has('DIG_PH_LOW'), names.has('DIG_FOSTAC_RISING')));
+  setLbl('temp', `mean temperature (set ${P.temp_set_c} °C)`, `${fmt(t.temp_mean_c, 1)} °C`, st(names.has('DIG_TEMP_LOW'), t.temp_mean_c < P.temp_set_c - .8));
+  setLbl('spread', 'top · middle · bottom', `${fmt(r.temp_top_c, 1)} · ${fmt(r.temp_mid_c, 1)} · ${fmt(r.temp_bottom_c, 1)} °C (Δ ${fmt(t.temp_spread_k, 1)} K)`, st(names.has('DIG_STRATIFIED'), t.temp_spread_k > 1.2));
+  setLbl('hx', 'heat exchanger · UA of clean', `${fmt(t.heat_delivered_kw, 0)} kW · ${fmt(t.hx_ua_ratio * 100, 0)} % · HW ${fmt(r.hw_supply_c, 0)}/${fmt(r.hw_return_c, 0)} °C`, st(names.has('DIG_HX_FOULED'), t.hx_ua_ratio < .85));
+  setLbl('feed', 'feed · OLR', `${fmt(r.feed_flow_m3d, 0)} m³/d · ${fmt(r.feed_ds_pct, 1)} % DS · ${fmt(t.olr_kgvs_m3d)} kg VS/m³d`, '');
+  setLbl('chp', `CHP · electrical efficiency (data sheet ${(d.chp.eta_el * 100).toFixed(1)} %)`, `${fmt(r.chp_power_kw, 0)} kW · ${fmt(t.chp_eff_el * 100, 1)} %`, st(names.has('DIG_CHP_EFF_LOW')));
+  setLbl('holder', 'gas holder · H2S', `${fmt(r.holder_fill_pct, 0)} % · ${fmt(r.h2s_ppm, 0)} ppm`, st(names.has('DIG_H2S_HIGH'), r.h2s_ppm > L.h2s_max_ppm * .7));
+  setLbl('mix', 'mixers', `${fmt(r.mixer_power_kw, 1)} kW · ${fmt(t.mixing_w_m3, 1)} W/m³`, st(names.has('DIG_MIXING_LOW')));
+  setLbl('srt', 'effective SRT · active volume · VSR', `${fmt(t.srt_effective_d, 1)} d · ${fmt(r.active_volume_pct, 0)} % · ${fmt(t.vsr_pct, 1)} %`, st(names.has('DIG_SRT_LOW') || names.has('DIG_VSR_LOW'), names.has('DIG_ACTIVE_VOLUME_LOW')));
+  setLbl('foam', 'foam layer', `${fmt(r.foam_layer_m)} m`, st(names.has('DIG_FOAM_HIGH'), r.foam_layer_m > L.foam_max_m * .6));
+  $('k-health').textContent = ST.health; $('k-gas').textContent = fmt(r.biogas_flow_m3h, 0); $('k-ft').textContent = fmt(r.fos_tac);
+  $('c-stab-t').textContent = `FOS/TAC ${fmt(r.fos_tac)} · pH ${fmt(r.ph)}`; $('c-stab').className = 'chip ' + (r.fos_tac >= L.fostac_high || r.ph < L.ph_low ? 'bad' : r.fos_tac >= L.fostac_warn ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Biogas (Nm³/h)', fmt(r.biogas_flow_m3h, 1), fmt(t.biogas_expected_m3h, 1), names.has('DIG_GAS_YIELD_LOW')) +
+    row('Methane (%)', fmt(r.ch4_pct, 1), '≥ ' + L.ch4_low_pct, names.has('DIG_CH4_LOW')) +
+    row('FOS/TAC', fmt(r.fos_tac), '< ' + L.fostac_warn, r.fos_tac >= L.fostac_warn) +
+    row('pH', fmt(r.ph), '≥ ' + L.ph_low, names.has('DIG_PH_LOW')) +
+    row('VS reduction (%)', fmt(t.vsr_pct, 1), fmt(P.vsr_design_pct, 0) + ' (≥ ' + L.vsr_min_pct + ')', names.has('DIG_VSR_LOW')) +
+    row('Effective SRT (d)', fmt(t.srt_effective_d, 1), '≥ ' + L.srt_min_d, names.has('DIG_SRT_LOW')) +
+    row('OLR (kg VS/m³·d)', fmt(t.olr_kgvs_m3d), fmt(P.feed_flow_m3d * P.feed_ds_pct * P.feed_vs_pct / 10 / d.tank.volume_m3)) +
+    row('Mean temperature (°C)', fmt(t.temp_mean_c, 1), fmt(P.temp_set_c, 1), names.has('DIG_TEMP_LOW')) +
+    row('Top–bottom spread (K)', fmt(t.temp_spread_k, 1), '≤ ' + L.spread_k, names.has('DIG_STRATIFIED')) +
+    row('Heat delivered (kW)', fmt(t.heat_delivered_kw, 0), fmt(t.heat_demand_kw, 0)) +
+    row('Heat exchanger UA', fmt(t.hx_ua_ratio * 100, 0) + ' %', '≥ ' + L.ua_ratio_low * 100 + ' %', names.has('DIG_HX_FOULED')) +
+    row('CHP electrical efficiency', fmt(t.chp_eff_el * 100, 1) + ' %', (d.chp.eta_el * 100).toFixed(1) + ' %', names.has('DIG_CHP_EFF_LOW')) +
+    row('Methane power (kW)', fmt(t.methane_power_kw, 0), '–') +
+    row('CHP heat ÷ demand', fmt(t.heat_cover_ratio), '≥ 1');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the digester behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [wallMat, coneMat, roofMat].forEach(m => { m.transparent = true; m.opacity = cut ? .18 : 1; m.depthWrite = !cut; });
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), fShown = .1, gShown = 0, hShown = .55;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  imps.forEach((g, i) => g.rotation.y += dt * 3 * mixSpeed * (i ? -1 : 1));
+  fShown += (Math.max(.02, foamH / 4) - fShown) * Math.min(1, dt * 2);
+  foam.scale.y = fShown / .1; foam.position.y = Y0 + H - .2 + fShown / 2;
+  gShown += (gritH - gShown) * Math.min(1, dt * 2); grit.scale.set(1 + .9 * gShown, .25 + 2 * gShown, 1 + .9 * gShown); grit.position.y = Y0 - CONE + .4 * (.25 + 2 * gShown) / 2;
+  hShown += (fill - hShown) * Math.min(1, dt); membrane.scale.y = .45 + .55 * hShown;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

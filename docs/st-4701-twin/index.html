@@ -1,0 +1,339 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ST-4701 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>ST-4701</b><span class="g">Steam trap · TD52M thermodynamic · 10 bar g main · 800-trap population</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-pop"><span class="dot"></span><span id="c-pop-t">population –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Steam loss and survey interval →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the steam trap model…</div>
+<div class="credit">Steam main with drip pocket, isolation valve, strainer, 1/2 in thermodynamic trap and a clamp-on wireless acoustic transmitter, discharging to the condensate return. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The disc lifts to let condensate out and snaps shut on flash steam; a white plume that never stops is live steam blowing through.</div>
+<aside>
+  <section>
+    <h2>ST-4701 twin</h2>
+    <p class="sub" id="sub">drip-leg trap on the steam main</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Steam lost here<b id="k-loss">–</b></div><div>Population loss / y<b id="k-pop">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over about a minute of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The gateway sends only what is measured or counted. The saturation temperature, the expected acoustic level, the steam loss, its cost and CO₂, and the best survey interval are computed from the twin file: the trap data sheet, the steam tables, the orifice equation and the survey history.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for ST-4701: the steam main, the TD52M trap, its Rosemount 708 acoustic transmitter and the survey records\nof the 800-trap population, with injectable faults.\n\nThe real gateway sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings, trap\ncycles and fault fingerprints for the tests and the figures.\n\"\"\"\nimport math\nimport random\n\n_N = [0.0, 0.11670521452767e4, -0.72421316703206e6, -0.17073846940092e2, 0.12020824702470e5, -0.32325550322333e7,\n      0.14915108613530e2, -0.48232657361591e4, 0.40511340542057e6, -0.23855557567849, 0.65017534844798e3]\n\n\ndef tsat_c(p_barg, atm=1.01325):\n    b = ((p_barg + atm) / 10) ** 0.25\n    e = b * b + _N[3] * b + _N[6]\n    f = _N[1] * b * b + _N[4] * b + _N[7]\n    g = _N[2] * b * b + _N[5] * b + _N[8]\n    d = 2 * g / (-f - math.sqrt(f * f - 4 * e * g))\n    return (_N[10] + d - math.sqrt((_N[10] + d) ** 2 - 4 * (_N[9] + _N[10] * d))) / 2 - 273.15\n\n\nclass Trap:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.st, self.ac, self.th, self.cy, self.po = d[\"steam\"], d[\"acoustic\"], d[\"thermal\"], d[\"cycling\"], d[\"population\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def cycle_rate(self):\n        \"\"\"Cycles per minute: a worn disc cycles fast; a trap blowing open or held open by a heavy load stops cycling.\"\"\"\n        f = self.faults\n        c = self.cy[\"design_cycles_per_min\"] * (1 + 3.2 * f[\"disc_wear\"])\n        c *= (1 - f[\"failed_open\"]) * (1 - 0.9 * f[\"condensate_overload\"]) * (1 - f[\"blocked_cold\"]) * (1 - f[\"sensor_fault\"])\n        return max(0.0, c)\n\n    def leak_fraction(self):\n        f = self.faults\n        return min(1.0, 0.85 * f[\"failed_open\"] + 0.30 * f[\"disc_wear\"])\n\n    # one published message ------------------------------------------------------------------------------------------\n    def measure(self):\n        f = self.faults\n        p = self.st[\"line_pressure_barg\"] + self.n(0.08)\n        ts = tsat_c(p)\n        amb = 28.0 + self.n(0.5)\n        outlet = 0.4 + 8.2 * f[\"backpressure_high\"] + abs(self.n(0.03))\n        dp = p - outlet\n        ae = self.ac[\"a0_counts\"] + self.ac[\"a1_counts_per_bar\"] * dp\n        ao = self.ac[\"open0_counts\"] + self.ac[\"open1_counts_per_bar\"] * dp\n        lf = self.leak_fraction()\n        level = ae + lf * (ao - ae) + 0.25 * ae * f[\"condensate_overload\"] + self.n(2.0)\n        level = level * (1 - 0.75 * f[\"blocked_cold\"]) * (1 - 0.7 * f[\"sensor_fault\"])\n        # inlet temperature: saturation minus the clamp offset; condensate standing in the drip leg cools it\n        sub = self.th[\"surface_offset_c\"] + self.n(1.2) - 2.0 * f[\"failed_open\"]\n        sub += 20.0 * f[\"condensate_overload\"] + 18.0 * f[\"backpressure_high\"] + 60.0 * f[\"blocked_cold\"]\n        tin = ts - sub\n        tin = tin + (amb + 4.0 - tin) * f[\"sensor_fault\"]\n        days = 60.0 + 640.0 * f[\"survey_lapsed\"] + abs(self.n(5))\n        tot = self.po[\"traps_total\"]\n        new_open = tot * self.po[\"design_fail_open_rate_pct_y\"] / 100 * (1 + 1.1 * f[\"population_ageing\"]) + self.n(1.5)\n        r_cold = tot * self.po[\"design_fail_cold_rate_pct_y\"] / 100\n        return {\n            \"acoustic_level\": round(min(255.0, max(0.0, level)), 1), \"inlet_temp_c\": round(tin, 2),\n            \"cycle_rate_per_min\": round(max(0.0, self.cycle_rate() + self.n(0.15)), 2), \"outlet_pressure_barg\": round(outlet, 3),\n            \"line_pressure_barg\": round(p, 3), \"line_temp_c\": round(ts + 1.0 + self.n(0.4), 2), \"ambient_temp_c\": round(amb, 2),\n            \"pop_traps_total\": tot, \"pop_failed_open\": int(round(new_open * days / 365 + self.n(1))),\n            \"pop_failed_cold\": int(round(r_cold * days / 365 + abs(self.n(0.7)))),\n            \"pop_new_failed_open_365d\": int(round(new_open)), \"survey_days_since\": round(days, 1),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The steam main runs at its design pressure. The trap's disc lifts for a short discharge and snaps shut, at the cycling\n    rate of the trap model (faster with a worn disc); a failed-open trap blows continuously and a blocked trap stays shut.\n    The clock of the day is not used, so the warm-up of the in-browser shim does not matter.\n    \"\"\"\n    OPEN_S = 2.0\n\n    def __init__(self, twin, seed=4701):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.v = Trap(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.phase = 0.0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.phase = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.v.faults[k] = f.sev\n        self.t += dt * self.scale\n        rate = self.v.cycle_rate()\n        period = 60.0 / rate if rate > 0.05 else 1e9\n        self.phase = (self.phase + dt) % period if period < 1e8 else 0.0\n        blowing = self.v.faults[\"failed_open\"] > 0.5\n        disc_open = blowing or (period < 1e8 and self.phase < min(self.OPEN_S, period / 2))\n        return {\"disc_open\": disc_open, \"blowing\": blowing, \"cycle_period_s\": period if period < 1e8 else None}\n\n    def measure(self, true):\n        r = self.v.measure()\n        return r\n", "twin_calc": "\"\"\"The steam trap twin's expectations (ST-4701, Spirax Sarco TD52M thermodynamic trap, and its 800-trap population).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nSaturation temperature (IAPWS-IF97 region 4 backward equation, p in MPa, T in K):\n    beta = p^0.25;  E = beta^2 + n3 beta + n6;  F = n1 beta^2 + n4 beta + n7;  G = n2 beta^2 + n5 beta + n8\n    D = 2G / (-F - sqrt(F^2 - 4EG));  Ts = (n10 + D - sqrt((n10 + D)^2 - 4 (n9 + n10 D))) / 2\nIs the trap draining?  A healthy trap inlet sits at saturation (minus a small clamp-on offset):\n    subcooling = Ts - inlet temperature;  excess = subcooling - offset\n    excess > 12 K with flow noise: condensate backing up;  excess > 30 K and silent: blocked cold.\nIs the trap passing steam?  Rosemount 708 acoustic level against two lines that grow with the differential pressure dp:\n    expected (healthy) = a0 + a1 dp;   full open = open0 + open1 dp\n    leak fraction = clip((level - expected) / (full open - expected), 0, 1), counted as steam only when the inlet is at\n    saturation (a loud trap with a subcooled inlet is passing water, not steam).\nSteam loss (Napier, saturated steam through an orifice to atmosphere, US DOE tip sheet Cd 0.72):\n    W [lb/h] = 51.43 x Cd x A [sq.in] x P [psia]  ->  W [kg/h] = 0.5244 x Cd x A [mm2] x P [bar abs]\n    loss now = leak fraction x W(failed-open orifice);  cost = loss x hours x price;  CO2 = loss x hours x (hg - hfw) / eta x EF\nPopulation (trap survey records):\n    failed-open share = failed open / total;  population loss = failed open x W;  failure rate = new failed open in 365 d / total\n    best survey interval (failures appear at rate r per year, each costs c per year until found, a survey costs S):\n        yearly cost = r c T / 2 + S / T   ->   T* = sqrt(2 S / (r c))\n\"\"\"\nimport math\n\nN = [0.0, 0.11670521452767e4, -0.72421316703206e6, -0.17073846940092e2, 0.12020824702470e5, -0.32325550322333e7,\n     0.14915108613530e2, -0.48232657361591e4, 0.40511340542057e6, -0.23855557567849, 0.65017534844798e3]\nLB_KG, PSI_BAR, MM2_IN2 = 0.45359237, 14.503773773, 645.16\n\n\ndef tsat_k(p_mpa):\n    \"\"\"IAPWS-IF97 Eq. (31): saturation temperature (K) at pressure p (MPa).\"\"\"\n    b = p_mpa ** 0.25\n    e = b * b + N[3] * b + N[6]\n    f = N[1] * b * b + N[4] * b + N[7]\n    g = N[2] * b * b + N[5] * b + N[8]\n    d = 2 * g / (-f - math.sqrt(f * f - 4 * e * g))\n    return (N[10] + d - math.sqrt((N[10] + d) ** 2 - 4 * (N[9] + N[10] * d))) / 2\n\n\ndef napier_kgh(d_mm, p_bara, cd, c_lbh=51.43):\n    \"\"\"Saturated steam through an orifice of diameter d_mm at p_bara, discharging to atmosphere (kg/h).\"\"\"\n    k = c_lbh * LB_KG * PSI_BAR / MM2_IN2\n    return k * cd * math.pi / 4 * d_mm ** 2 * p_bara\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    st, lk, ac, th, cy, ec, po, tr = (d[\"steam\"], d[\"leak\"], d[\"acoustic\"], d[\"thermal\"], d[\"cycling\"], d[\"economics\"],\n                                      d[\"population\"], d[\"trap\"])\n    kflow = lk[\"napier_c_lbh\"] * LB_KG * PSI_BAR / MM2_IN2 * lk[\"cd\"] * math.pi / 4 * lk[\"orifice_mm\"] ** 2   # kg/h per bar abs\n    co2 = (st[\"hg_kj_kg\"] - st[\"h_feedwater_kj_kg\"]) / 1000 / ec[\"boiler_efficiency\"] * ec[\"ef_kg_co2_per_gj\"] / 1000  # kg CO2 / kg steam\n    return dict(atm=st[\"atm_bar\"], kflow=kflow, co2=co2, a0=ac[\"a0_counts\"], a1=ac[\"a1_counts_per_bar\"], o0=ac[\"open0_counts\"],\n                o1=ac[\"open1_counts_per_bar\"], off=th[\"surface_offset_c\"], cyc=cy[\"design_cycles_per_min\"],\n                price=ec[\"steam_price_per_t\"], hours=ec[\"hours_per_year\"], scost=ec[\"survey_cost_per_trap\"],\n                rate_open=po[\"design_fail_open_rate_pct_y\"], rate_cold=po[\"design_fail_cold_rate_pct_y\"],\n                total=po[\"traps_total\"], pline=st[\"line_pressure_barg\"], pmob=tr[\"pmob_pct\"], mindp=tr[\"min_dp_bar\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    n = N\n    B = f\"(((df['LINE_PRESSURE_BARG'] + {k['atm']}) / 10) ** 0.25)\"\n    E = f\"({B} ** 2 + {n[3]!r} * {B} + {n[6]!r})\"\n    F = f\"({n[1]!r} * {B} ** 2 + {n[4]!r} * {B} + {n[7]!r})\"\n    G = f\"({n[2]!r} * {B} ** 2 + {n[5]!r} * {B} + {n[8]!r})\"\n    D = f\"(2 * {G} / (-{F} - np.sqrt({F} ** 2 - 4 * {E} * {G})))\"\n    TS = f\"(({n[10]!r} + {D} - np.sqrt(({n[10]!r} + {D}) ** 2 - 4 * ({n[9]!r} + {n[10]!r} * {D}))) / 2 - 273.15)\"\n    SUB = f\"({TS} - df['INLET_TEMP_C'])\"\n    EXC = f\"({SUB} - {k['off']})\"\n    DP = \"(df['LINE_PRESSURE_BARG'] - df['OUTLET_PRESSURE_BARG'])\"\n    AE = f\"({k['a0']} + {k['a1']} * {DP})\"\n    AO = f\"({k['o0']} + {k['o1']} * {DP})\"\n    LF = f\"np.clip((df['ACOUSTIC_LEVEL'] - {AE}) / ({AO} - {AE}), 0, 1)\"\n    FULL = f\"({k['kflow']:.10g} * (df['LINE_PRESSURE_BARG'] + {k['atm']}))\"\n    LOSS = f\"({LF} * {FULL} * ({EXC} < {twin['twin_model']['limits']['backing_up_excess_c']}))\"\n    PLOSS = f\"(df['POP_FAILED_OPEN'] * {FULL})\"\n    CY = f\"({FULL} * {k['hours'] * k['price'] / 1000:.10g})\"\n    TSTAR = f\"(365 * np.sqrt(2 * {k['scost']} * df['POP_TRAPS_TOTAL'] / (np.maximum(df['POP_NEW_FAILED_OPEN_365D'], 1) * {CY})))\"\n    return dict(k=k, TS=TS, SUB=SUB, EXC=EXC, DP=DP, AE=AE, LF=LF, FULL=FULL, LOSS=LOSS, PLOSS=PLOSS, TSTAR=TSTAR)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    yr = k[\"hours\"] / 1000\n    return [\n        (\"TSAT_C\", p[\"TS\"]),\n        (\"SUBCOOL_C\", p[\"SUB\"]),\n        (\"SUBCOOL_EXCESS_C\", p[\"EXC\"]),\n        (\"DP_BAR\", p[\"DP\"]),\n        (\"BACKPRESSURE_PCT\", \"df['OUTLET_PRESSURE_BARG'] / df['LINE_PRESSURE_BARG'] * 100\"),\n        (\"ACOUSTIC_EXPECTED\", p[\"AE\"]),\n        (\"ACOUSTIC_RATIO\", f\"df['ACOUSTIC_LEVEL'] / {p['AE']}\"),\n        (\"LEAK_FRACTION\", p[\"LF\"]),\n        (\"CYCLE_RATIO\", f\"df['CYCLE_RATE_PER_MIN'] / {k['cyc']}\"),\n        (\"LOSS_FULL_OPEN_KGH\", p[\"FULL\"]),\n        (\"STEAM_LOSS_KGH\", p[\"LOSS\"]),\n        (\"STEAM_LOSS_COST_Y\", f\"{p['LOSS']} * {yr * k['price']:.10g}\"),\n        (\"STEAM_LOSS_CO2_T_Y\", f\"{p['LOSS']} * {yr * k['co2']:.10g}\"),\n        (\"POP_FAILED_OPEN_PCT\", \"df['POP_FAILED_OPEN'] / df['POP_TRAPS_TOTAL'] * 100\"),\n        (\"POP_FAILED_COLD_PCT\", \"df['POP_FAILED_COLD'] / df['POP_TRAPS_TOTAL'] * 100\"),\n        (\"POP_LOSS_KGH\", p[\"PLOSS\"]),\n        (\"POP_LOSS_COST_Y\", f\"{p['PLOSS']} * {yr * k['price']:.10g}\"),\n        (\"POP_CO2_T_Y\", f\"{p['PLOSS']} * {yr * k['co2']:.10g}\"),\n        (\"POP_FAIL_RATE_PCT_Y\", \"df['POP_NEW_FAILED_OPEN_365D'] / df['POP_TRAPS_TOTAL'] * 100\"),\n        (\"SURVEY_INTERVAL_OPT_D\", p[\"TSTAR\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    L = twin[\"twin_model\"][\"limits\"]\n    ts = tsat_k((r[\"line_pressure_barg\"] + k[\"atm\"]) / 10) - 273.15\n    sub = ts - r[\"inlet_temp_c\"]\n    exc = sub - k[\"off\"]\n    dp = r[\"line_pressure_barg\"] - r[\"outlet_pressure_barg\"]\n    ae, ao = k[\"a0\"] + k[\"a1\"] * dp, k[\"o0\"] + k[\"o1\"] * dp\n    lf = min(1.0, max(0.0, (r[\"acoustic_level\"] - ae) / (ao - ae)))\n    full = k[\"kflow\"] * (r[\"line_pressure_barg\"] + k[\"atm\"])\n    loss = lf * full * (1.0 if exc < L[\"backing_up_excess_c\"] else 0.0)\n    ploss = r[\"pop_failed_open\"] * full\n    yr = k[\"hours\"] / 1000\n    cy = full * k[\"hours\"] * k[\"price\"] / 1000\n    return {\n        \"tsat_c\": ts, \"subcool_c\": sub, \"subcool_excess_c\": exc, \"dp_bar\": dp,\n        \"backpressure_pct\": r[\"outlet_pressure_barg\"] / r[\"line_pressure_barg\"] * 100,\n        \"acoustic_expected\": ae, \"acoustic_ratio\": r[\"acoustic_level\"] / ae, \"leak_fraction\": lf,\n        \"cycle_ratio\": r[\"cycle_rate_per_min\"] / k[\"cyc\"], \"loss_full_open_kgh\": full, \"steam_loss_kgh\": loss,\n        \"steam_loss_cost_y\": loss * yr * k[\"price\"], \"steam_loss_co2_t_y\": loss * yr * k[\"co2\"],\n        \"pop_failed_open_pct\": r[\"pop_failed_open\"] / r[\"pop_traps_total\"] * 100,\n        \"pop_failed_cold_pct\": r[\"pop_failed_cold\"] / r[\"pop_traps_total\"] * 100,\n        \"pop_loss_kgh\": ploss, \"pop_loss_cost_y\": ploss * yr * k[\"price\"], \"pop_co2_t_y\": ploss * yr * k[\"co2\"],\n        \"pop_fail_rate_pct_y\": r[\"pop_new_failed_open_365d\"] / r[\"pop_traps_total\"] * 100,\n        \"survey_interval_opt_d\": 365 * math.sqrt(2 * k[\"scost\"] * r[\"pop_traps_total\"] / (max(r[\"pop_new_failed_open_365d\"], 1) * cy)),\n    }\n\n\ndef survey_cost_y(twin, t_days, new_open_per_y, total=None, full_kgh=None):\n    \"\"\"Yearly cost of failed-open traps (lost steam) + manual surveys for a survey interval of t_days.\"\"\"\n    k = _k(twin)\n    total = total or k[\"total\"]\n    full = full_kgh or k[\"kflow\"] * (k[\"pline\"] + k[\"atm\"])\n    c = full * k[\"hours\"] * k[\"price\"] / 1000\n    t = t_days / 365\n    return new_open_per_y * c * t / 2, k[\"scost\"] * total / t\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    OK = f\"(df['INLET_TEMP_C'] > df['AMBIENT_TEMP_C'] + {L['sensor_ambient_margin_c']})\"\n    STEAM = f\"({p['EXC']} < {L['backing_up_excess_c']})\"\n    LF, EXC = p[\"LF\"], p[\"EXC\"]\n    AR = f\"(df['ACOUSTIC_LEVEL'] / {p['AE']})\"\n    return [\n        (\"TRAP_BLOW_THROUGH\", f\"({LF} >= {L['leak_fraction_blow']}) & {STEAM} & {OK}\", \"High\", \"failed_open\"),\n        (\"TRAP_COLD\", f\"({EXC} > {L['cold_excess_c']}) & ({AR} < {L['cold_acoustic_ratio']}) & {OK}\", \"High\", \"blocked_cold\"),\n        (\"POP_FAILED_OPEN_HIGH\", f\"df['POP_FAILED_OPEN'] / df['POP_TRAPS_TOTAL'] * 100 > {L['failed_open_alert_pct']}\", \"High\", \"survey_lapsed\"),\n        (\"TRAP_LEAKING\", f\"({LF} >= {L['leak_fraction_alert']}) & ({LF} < {L['leak_fraction_blow']}) & {STEAM} & {OK}\", \"Medium\", \"disc_wear\"),\n        (\"TRAP_RAPID_CYCLING\", f\"df['CYCLE_RATE_PER_MIN'] / {k['cyc']} > {L['rapid_ratio_alert']}\", \"Medium\", \"disc_wear\"),\n        (\"TRAP_BACKING_UP\", f\"({EXC} > {L['backing_up_excess_c']}) & ({AR} >= {L['cold_acoustic_ratio']}) & {OK}\", \"Medium\", \"condensate_overload\"),\n        (\"TRAP_BACKPRESSURE_HIGH\", f\"df['OUTLET_PRESSURE_BARG'] / df['LINE_PRESSURE_BARG'] * 100 > {L['pmob_pct']}\", \"Medium\", \"backpressure_high\"),\n        (\"POP_FAILED_COLD_HIGH\", f\"df['POP_FAILED_COLD'] / df['POP_TRAPS_TOTAL'] * 100 > {L['failed_cold_alert_pct']}\", \"Medium\", \"survey_lapsed\"),\n        (\"POP_SURVEY_OVERDUE\", f\"df['SURVEY_DAYS_SINCE'] > {L['survey_overdue_factor']} * {p['TSTAR']}\", \"Medium\", \"survey_lapsed\"),\n        (\"POP_FAIL_RATE_HIGH\", f\"df['POP_NEW_FAILED_OPEN_365D'] / df['POP_TRAPS_TOTAL'] * 100 > {L['fail_rate_alert_factor'] * k['rate_open']}\", \"Medium\", \"population_ageing\"),\n        (\"TRAP_DP_LOW\", f\"{p['DP']} < {L['min_dp_bar']}\", \"Low\", None),\n        (\"TRAP_SENSOR_SUSPECT\", f\"df['INLET_TEMP_C'] <= df['AMBIENT_TEMP_C'] + {L['sensor_ambient_margin_c']}\", \"Low\", \"sensor_fault\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    ok = r[\"inlet_temp_c\"] > r[\"ambient_temp_c\"] + L[\"sensor_ambient_margin_c\"]\n    steam = t[\"subcool_excess_c\"] < L[\"backing_up_excess_c\"]\n    lf, exc, ar = t[\"leak_fraction\"], t[\"subcool_excess_c\"], t[\"acoustic_ratio\"]\n    add(lf >= L[\"leak_fraction_blow\"] and steam and ok, \"TRAP_BLOW_THROUGH\", \"High\",\n        f\"Blowing steam: leak fraction {lf:.2f}, about {t['steam_loss_kgh']:.1f} kg/h lost\", \"disc / seat\", \"failed_open\")\n    add(exc > L[\"cold_excess_c\"] and ar < L[\"cold_acoustic_ratio\"] and ok, \"TRAP_COLD\", \"High\",\n        f\"Silent and {t['subcool_c']:.0f} K below saturation: drip leg not draining\", \"strainer / inlet\", \"blocked_cold\")\n    add(t[\"pop_failed_open_pct\"] > L[\"failed_open_alert_pct\"], \"POP_FAILED_OPEN_HIGH\", \"High\",\n        f\"{t['pop_failed_open_pct']:.1f} % of traps failed open, {t['pop_loss_kgh'] / 1000:.2f} t/h of steam lost\", \"population\", \"survey_lapsed\")\n    add(L[\"leak_fraction_alert\"] <= lf < L[\"leak_fraction_blow\"] and steam and ok, \"TRAP_LEAKING\", \"Medium\",\n        f\"Passing steam: leak fraction {lf:.2f}, about {t['steam_loss_kgh']:.1f} kg/h\", \"disc\", \"disc_wear\")\n    add(t[\"cycle_ratio\"] > L[\"rapid_ratio_alert\"], \"TRAP_RAPID_CYCLING\", \"Medium\",\n        f\"Cycling {r['cycle_rate_per_min']:.1f} per minute, {t['cycle_ratio']:.1f} x design\", \"disc\", \"disc_wear\")\n    add(exc > L[\"backing_up_excess_c\"] and ar >= L[\"cold_acoustic_ratio\"] and ok, \"TRAP_BACKING_UP\", \"Medium\",\n        f\"Condensate backing up: inlet {t['subcool_c']:.0f} K below saturation\", \"application\", \"condensate_overload\")\n    add(t[\"backpressure_pct\"] > L[\"pmob_pct\"], \"TRAP_BACKPRESSURE_HIGH\", \"Medium\",\n        f\"Discharge at {t['backpressure_pct']:.0f} % of the steam pressure (TD52M limit {L['pmob_pct']:.0f} %)\", \"condensate return\", \"backpressure_high\")\n    add(t[\"pop_failed_cold_pct\"] > L[\"failed_cold_alert_pct\"], \"POP_FAILED_COLD_HIGH\", \"Medium\",\n        f\"{t['pop_failed_cold_pct']:.1f} % of traps failed cold\", \"population\", \"survey_lapsed\")\n    add(r[\"survey_days_since\"] > L[\"survey_overdue_factor\"] * t[\"survey_interval_opt_d\"], \"POP_SURVEY_OVERDUE\", \"Medium\",\n        f\"Last survey {r['survey_days_since']:.0f} d ago; best interval {t['survey_interval_opt_d']:.0f} d\", \"population\", \"survey_lapsed\")\n    add(t[\"pop_fail_rate_pct_y\"] > L[\"fail_rate_alert_factor\"] * k[\"rate_open\"], \"POP_FAIL_RATE_HIGH\", \"Medium\",\n        f\"{t['pop_fail_rate_pct_y']:.1f} % of traps failed open in 365 d (design {k['rate_open']:.0f} %)\", \"population\", \"population_ageing\")\n    add(t[\"dp_bar\"] < L[\"min_dp_bar\"], \"TRAP_DP_LOW\", \"Low\", f\"Differential {t['dp_bar']:.2f} bar, below the {L['min_dp_bar']} bar minimum\", \"application\")\n    add(not ok, \"TRAP_SENSOR_SUSPECT\", \"Low\", f\"Pipe temperature {r['inlet_temp_c']:.0f} \u00b0C near ambient: transmitter loose?\", \"monitor\", \"sensor_fault\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "ST-4701 steam trap twin. Expected values in Maximo Monitor from the trap data sheet, steam tables, the orifice equation and the trap survey history; the gateway sends only what is measured or counted.", "twin": {"id": "ST-4701", "name": "Steam trap ST-4701 and its trap population", "version": "1.0.0", "folder": "steamtrap-twin"}, "identification": {"asset": "ST-4701", "assetnum": "ST-4701", "manufacturer": "Spirax Sarco", "model": "TD52M 1/2 in thermodynamic steam trap (screwed, stainless steel)", "description": "Drip-leg trap on the 10 bar g saturated steam main, one of 800 traps on the site steam distribution system", "trap_class": "Thermodynamic (EN 26704 / ISO 6704 classification: actuated by fluid dynamics)", "monitor": "Emerson Rosemount 708 wireless acoustic transmitter (acoustic level and pipe temperature, WirelessHART)", "service": "Steam main drainage (drip leg), condensate discharged to the condensate return"}, "design": {"trap": {"size_in": 0.5, "pmo_barg": 42.0, "tmo_c": 425.0, "min_dp_bar": 0.25, "pmob_pct": 80.0, "hydro_test_barg": 95.0, "source": "Spirax Sarco TI-P068-18 TD52M, TD52MLC, TD52MA and TD52MLCA thermodynamic steam traps: sizes 3/8, 1/2, 3/4 and 1 in; PMO 42 bar g for saturated steam; TMO 425 C at 42 bar g; minimum operating differential 0.25 bar; back pressure not above 80 % of the upstream pressure; cold hydraulic test 95 bar g."}, "steam": {"line_pressure_barg": 10.0, "hg_kj_kg": 2780.65, "h_feedwater_kj_kg": 439.36, "atm_bar": 1.01325, "source": "Steam main design pressure 10 bar g (assumption: typical value, replace with your steam main). Steam tables (IAPWS-based): hg at 11 bar abs 2780.65 kJ/kg; feed water from a deaerator at about 105 C, hf at 1.2 bar abs 439.36 kJ/kg (assumption: typical value, replace with your feed water temperature)."}, "leak": {"orifice_mm": 3.175, "cd": 0.72, "napier_c_lbh": 51.43, "source": "Failed-open trap modelled as a 1/8 in (3.175 mm) re-entrant orifice discharging to atmosphere with a discharge coefficient of 0.72, as in the US DOE Steam Tip Sheet #1 table (Boiler Efficiency Institute). Napier: W = A x P / 70 lb/s (A sq.in, P psia), i.e. 51.43 x A x P lb/h. The equivalent orifice of a real failed trap is an assumption: typical value, replace with the orifice of your trap model or a measured leak."}, "acoustic": {"a0_counts": 25.0, "a1_counts_per_bar": 2.0, "open0_counts": 60.0, "open1_counts_per_bar": 9.0, "leak_fraction_alert": 0.15, "leak_fraction_blow": 0.5, "source": "Rosemount 708 acoustic level, 0 to 255 counts. Expected level of a healthy thermodynamic trap = a0 + a1 x differential pressure; level of a trap blowing fully open = open0 + open1 x differential pressure: assumption: typical value, replace with a baseline taken on your own trap when new and on a known failed trap of the same model."}, "thermal": {"surface_offset_c": 6.0, "backing_up_excess_c": 12.0, "cold_excess_c": 30.0, "sensor_ambient_margin_c": 15.0, "source": "Clamp-on pipe surface temperature of a healthy trap inlet sits a few kelvin below the saturation temperature (insulation and clamp losses): assumption: typical value, replace with the offset measured on your installation."}, "cycling": {"design_cycles_per_min": 2.0, "rapid_ratio_alert": 3.0, "source": "Cycling rate of a thermodynamic trap on a steam main drip leg at the design condensate load: assumption: typical value, replace with the rate counted on your trap when new. A worn disc makes the trap cycle much faster before it blows through."}, "economics": {"steam_price_per_t": 25.0, "hours_per_year": 8000.0, "boiler_efficiency": 0.85, "ef_kg_co2_per_gj": 56.1, "survey_cost_per_trap": 12.0, "source": "Steam price 25 per tonne (any currency; the DOE tip sheet example uses $10 per 1000 lb = $22 per tonne), 8000 h per year in service, gas-fired boiler efficiency 85 % on net calorific value, cost of one manual survey visit per trap 12: assumption: typical value, replace with your energy price, operating hours, boiler efficiency and survey contract. Emission factor of natural gas 56.1 kg CO2 per GJ (IPCC 2006 default, net calorific value)."}, "population": {"traps_total": 800, "design_fail_open_rate_pct_y": 6.0, "design_fail_cold_rate_pct_y": 3.0, "failed_open_alert_pct": 5.0, "failed_cold_alert_pct": 3.0, "survey_overdue_factor": 1.5, "source": "800 traps on the site steam distribution system, surveyed as one population. New failures per year: 6 % failed open and 3 % failed cold (assumption: typical value, replace with the rates from your own survey history). Alert when more than 5 % of the population is failed open: the US DOE tip sheet gives less than 5 % for a site with a regular programme and 15 to 30 % after 3 to 5 years without one. Failed-cold alert 3 %: assumption: typical value, replace with your own target."}, "demo": {"time_scale": 1, "note": "Demo only: the trap cycles in real time; the population counters come from the failure modes, not from the demo clock."}}, "telemetry": {"event": "steamtrap", "publish_every_s": 10, "device_type": "STEAM_TRAP_TD", "groups": {"Trap": "Rosemount 708 on the trap inlet and the trap discharge", "Steam": "Steam main", "Site": "Site conditions", "Population": "Trap survey and monitoring records of the 800 traps"}, "points": [{"metric": "acoustic_level", "path": "Trap.Acoustic", "label": "Acoustic level at the trap (Rosemount 708)", "unit": "counts"}, {"metric": "inlet_temp_c", "path": "Trap.InletTemperature", "label": "Pipe surface temperature at the trap inlet", "unit": "\u00b0C"}, {"metric": "cycle_rate_per_min", "path": "Trap.CycleRate", "label": "Trap cycles per minute (from the acoustic signal)", "unit": "1/min"}, {"metric": "outlet_pressure_barg", "path": "Trap.OutletPressure", "label": "Pressure in the trap discharge line", "unit": "bar g"}, {"metric": "line_pressure_barg", "path": "Steam.Pressure", "label": "Steam main pressure", "unit": "bar g"}, {"metric": "line_temp_c", "path": "Steam.Temperature", "label": "Steam main temperature", "unit": "\u00b0C"}, {"metric": "ambient_temp_c", "path": "Site.Ambient", "label": "Ambient temperature", "unit": "\u00b0C"}, {"metric": "pop_traps_total", "path": "Population.Total", "label": "Traps in the population", "unit": "count"}, {"metric": "pop_failed_open", "path": "Population.FailedOpen", "label": "Traps failed open (blowing or leaking) now", "unit": "count"}, {"metric": "pop_failed_cold", "path": "Population.FailedCold", "label": "Traps failed cold (blocked) now", "unit": "count"}, {"metric": "pop_new_failed_open_365d", "path": "Population.NewFailedOpen365", "label": "New failed-open traps found in the last 365 days", "unit": "count"}, {"metric": "survey_days_since", "path": "Population.DaysSinceSurvey", "label": "Days since the last full trap survey", "unit": "d"}]}, "twin_model": {"limits": {"leak_fraction_alert": 0.15, "leak_fraction_blow": 0.5, "backing_up_excess_c": 12.0, "cold_excess_c": 30.0, "cold_acoustic_ratio": 0.5, "sensor_ambient_margin_c": 15.0, "rapid_ratio_alert": 3.0, "pmob_pct": 80.0, "min_dp_bar": 0.25, "failed_open_alert_pct": 5.0, "failed_cold_alert_pct": 3.0, "survey_overdue_factor": 1.5, "fail_rate_alert_factor": 1.5}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "failed_open": {"name": "Trap failed open (blowing steam)", "part": "disc / seat", "symptoms": "acoustic level near the full-open level, inlet at saturation temperature, no cycling", "rules": ["TRAP_BLOW_THROUGH"], "default_ramp_min": 1}, "disc_wear": {"name": "Disc and seat wear (rapid cycling, leaking)", "part": "disc", "symptoms": "cycling several times faster than design, acoustic level above expected, inlet at saturation", "rules": ["TRAP_RAPID_CYCLING", "TRAP_LEAKING"], "default_ramp_min": 1.5}, "blocked_cold": {"name": "Trap blocked cold (dirt, strainer, closed valve)", "part": "strainer / inlet", "symptoms": "no sound, inlet far below saturation: condensate stands in the drip leg", "rules": ["TRAP_COLD"], "default_ramp_min": 1}, "condensate_overload": {"name": "Condensate load above trap capacity", "part": "application", "symptoms": "trap stays open, water noise, inlet subcooled: condensate backing up", "rules": ["TRAP_BACKING_UP"], "default_ramp_min": 1}, "backpressure_high": {"name": "High back pressure in the discharge line", "part": "condensate return", "symptoms": "discharge pressure above 80 % of the steam pressure, condensate backing up", "rules": ["TRAP_BACKPRESSURE_HIGH", "TRAP_BACKING_UP"], "default_ramp_min": 1}, "sensor_fault": {"name": "Acoustic transmitter loose or detached", "part": "monitor", "symptoms": "pipe temperature reads ambient, acoustic level at the floor", "rules": ["TRAP_SENSOR_SUSPECT"], "default_ramp_min": 0.5}, "survey_lapsed": {"name": "Trap survey lapsed (population)", "part": "population", "symptoms": "days since survey grow; failed-open and failed-cold traps accumulate", "rules": ["POP_SURVEY_OVERDUE", "POP_FAILED_OPEN_HIGH", "POP_FAILED_COLD_HIGH"], "default_ramp_min": 1}, "population_ageing": {"name": "Population failure rate rising (ageing, poor steam quality)", "part": "population", "symptoms": "new failed-open traps per year well above the design rate", "rules": ["POP_FAIL_RATE_HIGH"], "default_ramp_min": 1}}, "presentation": {"title": "ST-4701 steam trap and population", "dashboard": "STEAM_TRAP_TD"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const money = v => (v == null || isNaN(v)) ? '–' : Math.round(v).toLocaleString('en-US');
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(2.2, 1.6, 2.6); ctl.target.set(0.15, 0.75, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+scene.add(new THREE.GridHelper(12, 48, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), lagging = M(0xc9c3b4, { m: .05, r: .9 }), cs = M(0x6f7a85, { m: .5 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const pipeX = (r, len, m, x, y, z) => { const p = cyl(r, r, len, m); p.rotation.z = Math.PI / 2; return at(p, x, y, z); };
+const pipeZ = (r, len, m, x, y, z) => { const p = cyl(r, r, len, m); p.rotation.x = Math.PI / 2; return at(p, x, y, z); };
+// steam main (DN100, lagged) on two pipe supports
+scene.add(pipeX(.12, 4.2, lagging, 0, 1.5, 0));
+[-1.4, 1.4].forEach(x => { scene.add(at(box(.08, 1.38, .08, dark), x, .69, 0)); scene.add(at(box(.4, .05, .3, dark), x, 1.36, 0)); });
+// drip pocket (equal tee + pocket) under the main
+scene.add(at(cyl(.07, .07, .62, cs), 0, 1.08, 0));
+scene.add(at(cyl(.08, .08, .04, steel), 0, .76, 0));
+// branch to the trap: 1/2 in line, isolation valve, strainer, trap, then down to the return
+const small = M(0x8c97a3, { m: .55 });
+scene.add(pipeZ(.022, .5, small, 0, .9, .25));
+scene.add(at(box(.07, .09, .07, M(0xb3262d, { m: .3 })), 0, .9, .32));                      // isolation valve
+scene.add(at(cyl(.008, .008, .12, steel), 0, .99, .32));
+const wheel = new THREE.Mesh(new THREE.TorusGeometry(.04, .007, 8, 24), M(0xb3262d)); wheel.rotation.x = Math.PI / 2; scene.add(at(wheel, 0, 1.05, .32));
+const strainer = cyl(.032, .032, .13, cs); strainer.rotation.x = Math.PI / 4; scene.add(at(strainer, 0, .86, .46)); // Y strainer leg
+scene.add(pipeZ(.032, .1, cs, 0, .9, .46));
+// the TD trap: hex body + round cap, disc inside
+const trapG = new THREE.Group(); at(trapG, 0, .9, .62); scene.add(trapG);
+const bodyMat = M(0x9aa3ad, { m: .7, r: .28 }), capMat = M(0xc5ccd3, { m: .75, r: .22 });
+const tbody = new THREE.Mesh(new THREE.CylinderGeometry(.045, .045, .13, 6), bodyMat); tbody.rotation.x = Math.PI / 2; trapG.add(tbody);
+const tcap = cyl(.04, .04, .06, capMat); trapG.add(at(tcap, 0, .075, 0));
+trapG.add(at(cyl(.044, .044, .012, dark, 6), 0, .045, 0));
+const disc = cyl(.03, .03, .006, M(0xd9dde2, { m: .9, r: .15 })); trapG.add(at(disc, 0, .05, 0));
+// discharge: down to the condensate return header
+scene.add(pipeZ(.022, .2, small, 0, .9, .78));
+scene.add(at(cyl(.022, .022, .5, small), 0, .65, .88));
+scene.add(pipeX(.06, 4.2, M(0x56718f, { m: .4 }), 0, .4, .88));
+// Rosemount-708-like transmitter clamped on the inlet: housing, clamp, antenna
+const tx = new THREE.Group(); at(tx, 0, 1.0, .52); scene.add(tx);
+tx.add(at(cyl(.035, .035, .1, M(0x0f62fe, { m: .3 })), 0, .07, 0));
+tx.add(at(cyl(.04, .04, .03, dark), 0, .13, 0));
+tx.add(at(cyl(.006, .006, .12, dark), 0, .2, 0));
+tx.add(at(box(.05, .02, .03, steel), 0, .02, 0));
+const txLed = new THREE.Mesh(new THREE.SphereGeometry(.012, 12, 8), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); tx.add(at(txLed, 0, .265, 0));
+// main pressure transmitter
+scene.add(at(cyl(.025, .025, .14, M(0x0f62fe)), -.9, 1.69, 0)); scene.add(at(new THREE.Mesh(new THREE.SphereGeometry(.045, 16, 12), M(0x0f62fe)), -.9, 1.79, 0));
+// test tee with a small open vent on the discharge: where a site sees the flash steam (and live steam from a failed trap)
+scene.add(pipeZ(.012, .14, small, 0, .75, .95));
+// steam / flash plume from a vent tee on the discharge (visual)
+const puffs = [];
+const puffMat = new THREE.MeshStandardMaterial({ color: 0xf4f4f4, transparent: true, opacity: .0, roughness: 1, metalness: 0 });
+for (let i = 0; i < 26; i++) { const p = new THREE.Mesh(new THREE.SphereGeometry(.03, 10, 8), puffMat.clone()); p.userData = { life: Math.random() }; scene.add(p); puffs.push(p); }
+// condensate in the pocket (visible in cutaway), rises when the trap backs up
+const water = cyl(.065, .065, .1, M(0x4589ff, { m: .1, r: .3, t: .85 })); scene.add(at(water, 0, .82, 0)); water.visible = false;
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('line', [-.9, 1.9, 0]); lbl('ac', [0, 1.3, .52]); lbl('temp', [.55, 1.05, .45]); lbl('cyc', [0, 1.05, .7]);
+lbl('loss', [.45, .82, .95]); lbl('bp', [1.3, .5, .88]); lbl('pocket', [-.45, 1.0, 0]); lbl('pop', [1.4, 1.75, 0]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let cycRate = 2, blowing = false, backing = 0, silent = false;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  cycRate = r.cycle_rate_per_min; blowing = t.leak_fraction >= L.leak_fraction_blow && t.subcool_excess_c < L.backing_up_excess_c;
+  backing = Math.max(0, Math.min(1, t.subcool_excess_c / L.cold_excess_c)); silent = t.acoustic_ratio < L.cold_acoustic_ratio;
+  setLbl('line', 'steam main · saturation', `${fmt(r.line_pressure_barg)} bar g · ${fmt(t.tsat_c, 1)} °C`, '');
+  setLbl('ac', 'acoustic · expected · leak fraction', `${fmt(r.acoustic_level, 0)} · ${fmt(t.acoustic_expected, 0)} counts · ${fmt(t.leak_fraction)}`,
+    st(names.has('TRAP_BLOW_THROUGH') || names.has('TRAP_SENSOR_SUSPECT'), names.has('TRAP_LEAKING')));
+  setLbl('temp', 'trap inlet · below saturation', `${fmt(r.inlet_temp_c, 1)} °C · ${fmt(t.subcool_c, 1)} K`, st(names.has('TRAP_COLD'), names.has('TRAP_BACKING_UP')));
+  setLbl('cyc', 'cycles / min · × design', `${fmt(r.cycle_rate_per_min, 1)} · ${fmt(t.cycle_ratio, 1)} ×`, st(false, names.has('TRAP_RAPID_CYCLING')));
+  setLbl('loss', 'steam lost at this trap', `${fmt(t.steam_loss_kgh, 1)} kg/h · ${money(t.steam_loss_cost_y)} / y`, st(names.has('TRAP_BLOW_THROUGH'), names.has('TRAP_LEAKING')));
+  setLbl('bp', `discharge · limit ${d.trap.pmob_pct} % of upstream`, `${fmt(r.outlet_pressure_barg)} bar g · ${fmt(t.backpressure_pct, 0)} %`, st(names.has('TRAP_BACKPRESSURE_HIGH')));
+  setLbl('pocket', 'drip pocket', backing > .3 ? 'condensate backing up' : 'draining', st(names.has('TRAP_COLD'), names.has('TRAP_BACKING_UP')));
+  setLbl('pop', `population · survey ${fmt(r.survey_days_since, 0)} d ago (best ${fmt(t.survey_interval_opt_d, 0)} d)`,
+    `${fmt(t.pop_failed_open_pct, 1)} % open · ${fmt(t.pop_failed_cold_pct, 1)} % cold · ${fmt(t.pop_loss_kgh / 1000, 2)} t/h`,
+    st(names.has('POP_FAILED_OPEN_HIGH'), names.has('POP_FAILED_COLD_HIGH') || names.has('POP_SURVEY_OVERDUE') || names.has('POP_FAIL_RATE_HIGH')));
+  $('k-health').textContent = ST.health; $('k-loss').textContent = fmt(t.steam_loss_kgh, 1) + ' kg/h'; $('k-pop').textContent = money(t.pop_loss_cost_y);
+  const popBad = names.has('POP_FAILED_OPEN_HIGH'), popWarn = [...names].some(n => n.startsWith('POP_'));
+  $('c-pop-t').textContent = `${fmt(t.pop_failed_open_pct, 1)} % failed open`; $('c-pop').className = 'chip ' + (popBad ? 'bad' : popWarn ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Trap inlet (°C)', fmt(r.inlet_temp_c, 1), fmt(t.tsat_c - d.thermal.surface_offset_c, 1), names.has('TRAP_COLD') || names.has('TRAP_BACKING_UP')) +
+    row('Acoustic level (counts)', fmt(r.acoustic_level, 0), fmt(t.acoustic_expected, 0), names.has('TRAP_BLOW_THROUGH') || names.has('TRAP_LEAKING')) +
+    row('Leak fraction', fmt(t.leak_fraction), '< ' + L.leak_fraction_alert, t.leak_fraction >= L.leak_fraction_alert) +
+    row('Cycles per minute', fmt(r.cycle_rate_per_min, 1), fmt(d.cycling.design_cycles_per_min, 1), names.has('TRAP_RAPID_CYCLING')) +
+    row('Back pressure (% of upstream)', fmt(t.backpressure_pct, 0), '≤ ' + d.trap.pmob_pct, names.has('TRAP_BACKPRESSURE_HIGH')) +
+    row('Differential (bar)', fmt(t.dp_bar), '≥ ' + d.trap.min_dp_bar, names.has('TRAP_DP_LOW')) +
+    row('Loss if blowing (kg/h)', fmt(t.loss_full_open_kgh, 1), '–') +
+    row('CO₂ from this trap (t/y)', fmt(t.steam_loss_co2_t_y, 1), '0') +
+    row('Population failed open (%)', fmt(t.pop_failed_open_pct, 1), '≤ ' + L.failed_open_alert_pct, names.has('POP_FAILED_OPEN_HIGH')) +
+    row('Population failure rate (%/y)', fmt(t.pop_fail_rate_pct_y, 1), fmt(TW.design.population.design_fail_open_rate_pct_y, 1), names.has('POP_FAIL_RATE_HIGH')) +
+    row('Population CO₂ (t/y)', fmt(t.pop_co2_t_y, 0), '–');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the trap and the population behave as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  txLed.material.color.setHex(names.has('TRAP_SENSOR_SUSPECT') ? 0xf1c21b : 0x24a148); txLed.material.emissive.copy(txLed.material.color);
+  bodyMat.color.setHex(names.has('TRAP_BLOW_THROUGH') ? 0xd06a6f : names.has('TRAP_COLD') ? 0x4d6fa8 : 0x9aa3ad);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [bodyMat, capMat, lagging].forEach(m => { m.transparent = true; m.opacity = cut ? .25 : 1; m.depthWrite = !cut; });
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), phase = 0;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  const period = cycRate > .05 ? 60 / cycRate : 1e9;
+  phase = period < 1e8 ? (phase + dt) % period : 0;
+  const open = blowing || (period < 1e8 && phase < Math.min(1.2, period / 2));
+  disc.position.y = .05 + (open ? .012 : 0);
+  // plume: puffs rise from the discharge while the disc is open (flash steam), continuously and larger when blowing
+  puffs.forEach((p, i) => {
+    p.userData.life += dt * (blowing ? 1.4 : .9);
+    if (p.userData.life > 1) p.userData.life = open && !silent ? 0 : 1.0001;
+    const l = p.userData.life, on = l <= 1;
+    p.position.set(Math.sin(i * 1.7) * .05 * l, .76 + l * (blowing ? .7 : .35), 1.03 + l * .12 + Math.cos(i * 2.3) * .04 * l);
+    const s = (blowing ? 1.8 : 1) * (.5 + l * 2.2); p.scale.set(s, s, s);
+    p.material.opacity = on ? (1 - l) * (blowing ? .55 : .3) : 0;
+  });
+  water.visible = cut && backing > .1; water.scale.y = .3 + 2.4 * backing; water.position.y = .79 + .05 * water.scale.y;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

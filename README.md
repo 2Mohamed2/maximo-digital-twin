@@ -1,6 +1,6 @@
 # Digital Twin for Maximo
 
-Code that goes with thirty-seven IBM Community posts on building physics-based digital twins of Maximo assets
+Code that goes with forty-seven IBM Community posts on building physics-based digital twins of Maximo assets
 with standard Maximo Monitor and Maximo Manage features:
 
 | Asset | Twin folder | Post |
@@ -42,6 +42,16 @@ with standard Maximo Monitor and Maximo Manage features:
 | ML-3901, Primary SAG mill of the SABC grinding circuit (SAG mill, pebble crusher, ball mill) | `sagmill-twin` | SAG mill digital twin in Maximo |
 | HT-4001, Rigid-frame mining haul truck, ore and waste haulage from the pit to the crusher and the | `haultruck-twin` | Mining haul truck digital twin in Maximo |
 | SP-4101, Flotation tailings pump, tailings sump to thickener, on a variable speed drive | `slurry-twin` | Slurry pump digital twin in Maximo |
+| KL-4201, Clinker line rotary kiln, 4.8 m x 74 m on three tyres, 5-stage preheater with calciner | `kiln-twin` | Cement rotary kiln digital twin in Maximo |
+| PM-4301, Dryer section of a testliner board machine: 50 steam-heated cylinders in 4 cascade steam | `dryer-twin` | Paper machine dryer section digital twin in Maximo |
+| EX-4401, Main extruder of a PE 100 pressure pipe line (pipe up to 250 mm) | `extruder-twin` | Single-screw extruder digital twin in Maximo |
+| BL-4501, Process steam boiler, gas-fired, 10 t/h saturated steam at 13 bar g, plant utilities | `boiler-twin` | Steam boiler digital twin in Maximo |
+| AC-4601, Base-load plant air compressor: oil-injected rotary screw, load/unload, with refrigerant | `aircomp-twin` | Rotary screw air compressor digital twin in Maximo |
+| ST-4701, Drip-leg trap on the 10 bar g saturated steam main, one of 800 traps on the site steam | `steamtrap-twin` | Steam trap digital twin in Maximo |
+| MC-4801, Main spindle of a 3-axis vertical machining centre (job shop, steel and aluminium parts) | `spindle-twin` | Machine tool spindle digital twin in Maximo |
+| AD-4901, Mesophilic anaerobic digester no. 1 of a municipal wastewater treatment plant (primary + | `digester-twin` | Anaerobic digester digital twin in Maximo |
+| BP-5001, Digested sludge dewatering press, municipal wastewater treatment plant, with polymer | `beltpress-twin` | Belt filter press digital twin in Maximo |
+| CL-5101, Chlorine contact tank (clearwell) after the filters of a surface water treatment works | `chlorine-twin` | Chlorine contact tank digital twin in Maximo |
 
 The posts are on the IBM Community (Maximo group), by Mohamed Chihaoui.
 

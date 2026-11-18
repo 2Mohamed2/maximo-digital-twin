@@ -1,0 +1,349 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MC-4801 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>MC-4801</b><span class="g">GMN HCS 230 motor spindle · main spindle twin</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-op"><span class="dot"></span><span id="c-op-t">operation –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Power, temperatures and vibration →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the spindle model…</div>
+<div class="credit">Vertical machining centre with a 230 mm motor spindle: HSK-A63 tool, front and rear angular contact bearings, built-in motor, drawbar with disc spring pack, rotary union and cooling jacket. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom; Cutaway shows the inside of the spindle.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Expected power comes from the Kienzle cutting force of the cut the CNC reports; expected temperatures and growth from the mean speed; vibration bands from the speed and the bearing geometry.</div>
+<aside>
+  <section>
+    <h2>MC-4801 twin</h2>
+    <p class="sub" id="sub">machining centre main spindle</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Power ÷ expected<b id="k-ratio">–</b></div><div>Front bearing residual<b id="k-front">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over half a minute to a minute and a half of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The machine sends only what it measures: speed and drive power, the active tool and cut from the CNC, temperatures, cooling, thermal growth, vibration, clamping force and shocks. Every expected value is computed from the twin file: the Kienzle cutting power of the cut, the spindle's S1 power, the thermal models and the bearing geometry.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for MC-4801: motor spindle, drive, tool, cut, cooling, lubrication, clamping and crash sensor, with injectable faults.\n\nThe real machine sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable CNC and sensor\nreadings and fault fingerprints for the tests, the figures and the live pages. Pure Python (math, random).\n\"\"\"\nimport math\nimport random\n\n\ndef op_speeds(op):\n    \"\"\"Spindle speed (rpm) and feed rate (mm/min) of one operation of the part program.\"\"\"\n    n = op[\"vc_m_min\"] * 1000 / (math.pi * op[\"dc_mm\"])\n    return n, op[\"fz_mm\"] * n * op[\"z\"]\n\n\ndef kienzle_kw(twin, op, n, vf):\n    \"\"\"True cutting power of the healthy tool (same physics the twin expects; the stand-in has no other source of truth).\"\"\"\n    m = twin[\"design\"][\"material\"]\n    ae, dc = op[\"ae_mm\"], op[\"dc_mm\"]\n    phi = math.acos(max(-1.0, min(1.0, 1 - 2 * ae / dc)))\n    hm = 2 * (vf / (n * op[\"z\"])) * ae / (dc * phi)\n    kc = m[\"kc1_n_mm2\"] * hm ** (-m[\"mc\"]) * (1 - op[\"rake_deg\"] / 100)\n    return ae * op[\"ap_mm\"] * vf * kc / 60e6\n\n\nclass Spindle:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.sp, self.dr, self.th, self.vb, self.co, self.cl = d[\"spindle\"], d[\"drive\"], d[\"thermal\"], d[\"vibration\"], d[\"cooling\"], d[\"clamping\"]\n        self.ops = d[\"program\"][\"operations\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.shocks = 2\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def idle_kw(self, n):\n        dr = self.dr\n        return dr[\"idle_p0_kw\"] + dr[\"idle_p1_kw_per_krpm\"] * n / 1000 + dr[\"idle_p2_kw_per_krpm2\"] * (n / 1000) ** 2\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def power_kw(self, op, n, in_cut):\n        if n <= 0:\n            return 0.0\n        _, vf = op_speeds(op)\n        pc = kienzle_kw(self.tw, op, n, vf) * (1 + 0.6 * self.faults[\"tool_wear\"]) if in_cut else 0.0\n        return pc / self.dr[\"eta\"] + self.idle_kw(n)\n\n    def thermal(self, navg, pavg, cin):\n        f, th = self.faults, self.th\n        bd, lu, co = f[\"bearing_damage\"], f[\"lubrication_starvation\"], f[\"cooling_failure\"]\n        x = navg / 1000\n        return {\"front\": cin + th[\"front_f0\"] + th[\"front_f1\"] * x + 9 * bd + 11 * lu + 3 * co,\n                \"rear\": cin + th[\"rear_r0\"] + th[\"rear_r1\"] * x + 10 * lu + 3 * co,\n                \"motor\": cin + th[\"motor_m0\"] + th[\"motor_m1\"] * pavg + 20 * co,\n                \"growth\": th[\"growth_g0_um\"] + th[\"growth_g1_um\"] * x + 3 * bd + 3 * lu + 16 * co}\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, op, n, in_cut, navg, pavg, clamp_kn):\n        f, vb, co = self.faults, self.vb, self.co\n        nn = self.n\n        p = self.power_kw(op, n, in_cut)\n        cin = co[\"inlet_c\"] + nn(0.2)\n        T = self.thermal(navg, pavg, cin)\n        flow = co[\"flow_nominal_lpm\"] - 6 * f[\"cooling_failure\"] + nn(0.1)\n        heat = 0.5 * self.idle_kw(navg) + 0.08 * pavg\n        _, vf = op_speeds(op)\n        env = (vb[\"env0_g\"] + vb[\"env1_g\"] * n / self.sp[\"n_max_rpm\"]) * (1 + 4 * f[\"bearing_damage\"] + 0.5 * f[\"lubrication_starvation\"])\n        v1x = (vb[\"v1x0_mms\"] + vb[\"v1x1_mms\"] * (n / 10000) ** 2) * (1 + 3 * f[\"tool_imbalance\"] + 2.5 * f[\"spindle_crash\"])\n        return {\n            \"speed_rpm\": round(n * (1 + nn(0.0005)), 1) if n > 0 else 0.0, \"speed_avg_rpm\": round(navg, 1),\n            \"power_kw\": round(p * (1 + nn(0.015)), 3) if n > 0 else 0.0, \"power_avg_kw\": round(pavg, 3),\n            \"running\": 1 if n > 0 else 0,\n            \"tool_number\": op[\"tool\"], \"tool_diameter_mm\": op[\"dc_mm\"], \"tool_teeth\": op[\"z\"], \"tool_rake_deg\": op[\"rake_deg\"],\n            \"tool_mass_kg\": op[\"mass_kg\"], \"in_cut\": 1 if (in_cut and n > 0) else 0,\n            \"ap_mm\": op[\"ap_mm\"], \"ae_mm\": op[\"ae_mm\"], \"feed_mm_min\": round(vf, 1) if n > 0 else 0.0,\n            \"front_brg_temp_c\": round(T[\"front\"] + nn(0.4), 2), \"rear_brg_temp_c\": round(T[\"rear\"] + nn(0.4), 2),\n            \"motor_temp_c\": round(T[\"motor\"] + nn(0.6), 2), \"coolant_in_c\": round(cin, 2),\n            \"coolant_out_c\": round(cin + heat / (max(flow, 0.5) / 60 * 4.18), 2), \"coolant_flow_lpm\": round(flow, 2),\n            \"oilair_pressure_bar\": round(co[\"oilair_nominal_bar\"] - 2 * f[\"lubrication_starvation\"] + nn(0.05), 3),\n            \"z_growth_um\": round(T[\"growth\"] + nn(1.0), 2),\n            \"vib_1x_mms\": round(v1x * (1 + nn(0.05)), 4) if n > 0 else 0.0,\n            \"vib_env_g\": round(env * (1 + nn(0.06)), 4) if n > 0 else 0.0,\n            \"clamp_force_kn\": round(clamp_kn, 2),\n            \"shock_max_g_24h\": round(1.2 + abs(nn(0.3)) + 30 * f[\"spindle_crash\"], 2),\n            \"shock_count_total\": self.shocks + (1 if f[\"spindle_crash\"] > 0.28 else 0),\n        }\n\n    def clamp_kn(self):\n        return self.cl[\"nominal_kn\"] * (1 - 0.4 * self.faults[\"clamping_force_loss\"]) + self.n(0.15)\n\n    def measure(self, op=None):\n        \"\"\"One steady-state reading in the middle of a cut (mean speed and power = the current ones).\"\"\"\n        op = op or self.rnd.choice(self.ops[:3])\n        n, _ = op_speeds(op)\n        p = self.power_kw(op, n, True)\n        return self.reading(op, n, True, n, p, self.clamp_kn())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    One real second is `demo.time_scale` machine seconds. The machine runs the part program of the twin file in a loop:\n    each operation cuts for `demo.op_s` machine seconds (approach and retract in air at both ends), then a tool change of\n    `demo.change_s` seconds with the spindle stopped; the clamping force is measured at each tool change. The edge keeps\n    exponential means of speed and power with the time constant `demo.mean_tau_s`.\n    \"\"\"\n\n    def __init__(self, twin, seed=4801):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.op_s, self.ch_s, self.tau = float(demo.get(\"op_s\", 90)), float(demo.get(\"change_s\", 10)), float(demo.get(\"mean_tau_s\", 300))\n        self.sp = Spindle(twin, seed)\n        self.ops = self.sp.ops\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.clock, self.navg, self.pavg = 0.0, None, None\n        self.clamp = self.sp.clamp_kn()\n        self.crashed = False\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.sp.faults[k] = f.sev\n        if self.sp.faults[\"spindle_crash\"] > 0.28 and not self.crashed:\n            self.crashed = True\n            self.sp.shocks += 1\n        elif self.sp.faults[\"spindle_crash\"] < 0.05:\n            self.crashed = False\n        h = dt * self.scale\n        self.t += h\n        cyc = self.op_s + self.ch_s\n        before = int(self.clock // cyc)\n        self.clock = (self.clock + h) % (cyc * len(self.ops))\n        i, tin = int(self.clock // cyc), self.clock % cyc\n        if i != before:\n            self.clamp = self.sp.clamp_kn()                     # new tool clamped: the force is measured\n        op = self.ops[i]\n        n, _ = op_speeds(op)\n        if tin >= self.op_s:                                     # tool change: spindle stopped, next tool shown\n            op, n, cut = self.ops[(i + 1) % len(self.ops)], 0.0, False\n        else:\n            cut = 6.0 <= tin <= self.op_s - 6.0\n        p = self.sp.power_kw(op, n, cut)\n        if self.navg is None:\n            self.navg, self.pavg = n, p\n        a = 1 - math.exp(-h / self.tau)\n        self.navg += a * (n - self.navg)\n        self.pavg += a * (p - self.pavg)\n        self.running = n > 0\n        return {\"op\": op, \"op_name\": op[\"op\"], \"n\": n, \"in_cut\": cut, \"power\": p, \"navg\": self.navg, \"pavg\": self.pavg,\n                \"phase\": \"tool change\" if n == 0 else (\"cutting\" if cut else \"air\")}\n\n    def measure(self, true):\n        return self.sp.reading(true[\"op\"], true[\"n\"], true[\"in_cut\"], true[\"navg\"], true[\"pavg\"], self.clamp)\n", "twin_calc": "\"\"\"The machining centre main spindle twin's expectations (MC-4801, GMN HCS 230 - 20000/40 HSK-A63 motor spindle).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nExpected spindle power for the cut the CNC reports (milling, Kienzle specific cutting force):\n    vc  = pi x Dc x n / 1000                      m/min\n    fz  = vf / (n x z)                            mm per tooth\n    phi = arccos(1 - 2 ae / Dc)                   engagement angle (rad), side or face milling with the tool centred\n    hm  = fz x (1 - cos phi) / phi = 2 fz ae / (Dc phi)       mean chip thickness over the arc (geometry)\n    kc  = kc1.1 x hm^(-mc) x (1 - gamma0 / 100)  N/mm2 (Kienzle, with the usual rake angle correction)\n    Pc  = ae x ap x vf x kc / (60 x 10^6)         kW (Sandvik Coromant milling formula); Q = ap ae vf / 1000 cm3/min\n    P expected = in_cut x Pc / eta + P idle(n),   P idle = p0 + p1 (n/1000) + p2 (n/1000)^2 (air-cut test)\n    power ratio = P measured / max(P expected, 0.5 kW): a worn tool needs more power for the same cut.\nAvailable power (S1): min(P rated, T rated x 2 pi n / 60): constant torque up to the base speed, then constant power.\nTorque from power (Sandvik): M = P x 30 x 10^3 / (pi n).\nTemperatures and growth against the 5-minute mean speed and power (the edge keeps the means, so each reading stands alone):\n    front bearing expected = T coolant in + f0 + f1 x n_mean/1000; rear the same with r0, r1\n    motor expected         = T coolant in + m0 + m1 x P_mean\n    Z growth expected      = g0 + g1 x n_mean/1000 (from the ISO 230-3 spindle thermal test)\nVibration:\n    BPFO = Z/2 x (1 - Dw/dm cos alpha) x n/60;  envelope ratio = measured / (e0 + e1 n/n_max)\n    1x ratio = measured 1x velocity / (v0 + v1 (n/10,000)^2)\nBalance (ISO 21940-11, as commonly applied): U per = 9549 x G x m / n  (g mm, m in kg, n in rpm).\nClamping: force ratio = measured clamping force / nominal force of the HSK-A63 clamping set.\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    sp, dr, ma, br, th, vb, cl, co = (d[\"spindle\"], d[\"drive\"], d[\"material\"], d[\"bearing\"], d[\"thermal\"], d[\"vibration\"],\n                                      d[\"clamping\"], d[\"cooling\"])\n    bpfo = br[\"balls\"] / 2 * (1 - br[\"ball_d_mm\"] / br[\"pitch_d_mm\"] * math.cos(math.radians(br[\"contact_deg\"])))\n    bpfi = br[\"balls\"] / 2 * (1 + br[\"ball_d_mm\"] / br[\"pitch_d_mm\"] * math.cos(math.radians(br[\"contact_deg\"])))\n    return dict(nmax=sp[\"n_max_rpm\"], prated=sp[\"p_rated_kw\"], tr=sp[\"t_rated_nm\"], nbase=sp[\"n_base_rpm\"],\n                eta=dr[\"eta\"], p0=dr[\"idle_p0_kw\"], p1=dr[\"idle_p1_kw_per_krpm\"], p2=dr[\"idle_p2_kw_per_krpm2\"],\n                kc1=ma[\"kc1_n_mm2\"], mc=ma[\"mc\"], bpfo=round(bpfo, 6), bpfi=round(bpfi, 6),\n                f0=th[\"front_f0\"], f1=th[\"front_f1\"], r0=th[\"rear_r0\"], r1=th[\"rear_r1\"], m0=th[\"motor_m0\"], m1=th[\"motor_m1\"],\n                g0=th[\"growth_g0_um\"], g1=th[\"growth_g1_um\"], e0=vb[\"env0_g\"], e1=vb[\"env1_g\"], v0=vb[\"v1x0_mms\"], v1=vb[\"v1x1_mms\"],\n                clamp=cl[\"nominal_kn\"], G=d[\"balance\"][\"grade_g\"], flow=co[\"flow_nominal_lpm\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    N = \"np.maximum(df['SPEED_RPM'], 1)\"\n    AE = \"np.maximum(df['AE_MM'], 0.01)\"\n    PHI = f\"np.arccos(np.clip(1 - 2 * {AE} / df['TOOL_DIAMETER_MM'], -1, 1))\"\n    FZ = f\"(df['FEED_MM_MIN'] / ({N} * df['TOOL_TEETH']))\"\n    HM = f\"np.maximum(2 * {FZ} * {AE} / (df['TOOL_DIAMETER_MM'] * {PHI}), 0.0001)\"\n    KC = f\"({k['kc1']} * {HM} ** (-{k['mc']}) * (1 - df['TOOL_RAKE_DEG'] / 100))\"\n    PC = f\"(df['AE_MM'] * df['AP_MM'] * df['FEED_MM_MIN'] * {KC} / 60000000)\"\n    PI = f\"({k['p0']} + {k['p1']} * df['SPEED_RPM'] / 1000 + {k['p2']} * (df['SPEED_RPM'] / 1000) ** 2)\"\n    PE = f\"(df['IN_CUT'] * {PC} / {k['eta']} + {PI})\"\n    PR = f\"(df['POWER_KW'] / np.maximum({PE}, 0.5))\"\n    PA = f\"np.minimum({k['prated']}, {k['tr']} * 2 * np.pi * df['SPEED_RPM'] / 60 / 1000)\"\n    FR = f\"(df['FRONT_BRG_TEMP_C'] - (df['COOLANT_IN_C'] + {k['f0']} + {k['f1']} * df['SPEED_AVG_RPM'] / 1000))\"\n    RR = f\"(df['REAR_BRG_TEMP_C'] - (df['COOLANT_IN_C'] + {k['r0']} + {k['r1']} * df['SPEED_AVG_RPM'] / 1000))\"\n    MR = f\"(df['MOTOR_TEMP_C'] - (df['COOLANT_IN_C'] + {k['m0']} + {k['m1']} * df['POWER_AVG_KW']))\"\n    GR = f\"(df['Z_GROWTH_UM'] - ({k['g0']} + {k['g1']} * df['SPEED_AVG_RPM'] / 1000))\"\n    ER = f\"(df['VIB_ENV_G'] / ({k['e0']} + {k['e1']} * df['SPEED_RPM'] / {k['nmax']}))\"\n    VR = f\"(df['VIB_1X_MMS'] / ({k['v0']} + {k['v1']} * (df['SPEED_RPM'] / 10000) ** 2))\"\n    return dict(k=k, N=N, FZ=FZ, HM=HM, KC=KC, PC=PC, PI=PI, PE=PE, PR=PR, PA=PA, FR=FR, RR=RR, MR=MR, GR=GR, ER=ER, VR=VR)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"CUT_SPEED_M_MIN\", \"np.pi * df['TOOL_DIAMETER_MM'] * df['SPEED_RPM'] / 1000\"),\n        (\"FEED_PER_TOOTH_MM\", p[\"FZ\"]),\n        (\"CHIP_THICK_MEAN_MM\", p[\"HM\"]),\n        (\"KC_N_MM2\", p[\"KC\"]),\n        (\"MRR_CM3_MIN\", \"df['IN_CUT'] * df['AP_MM'] * df['AE_MM'] * df['FEED_MM_MIN'] / 1000\"),\n        (\"CUT_POWER_KW\", p[\"PC\"]),\n        (\"IDLE_POWER_KW\", p[\"PI\"]),\n        (\"POWER_EXPECTED_KW\", p[\"PE\"]),\n        (\"POWER_RATIO\", p[\"PR\"]),\n        (\"POWER_AVAILABLE_KW\", p[\"PA\"]),\n        (\"SPINDLE_TORQUE_NM\", f\"df['POWER_KW'] * 30000 / (np.pi * {p['N']})\"),\n        (\"FRONT_BRG_RESIDUAL_C\", p[\"FR\"]),\n        (\"REAR_BRG_RESIDUAL_C\", p[\"RR\"]),\n        (\"MOTOR_TEMP_RESIDUAL_C\", p[\"MR\"]),\n        (\"GROWTH_RESIDUAL_UM\", p[\"GR\"]),\n        (\"BPFO_HZ\", f\"{k['bpfo']} * df['SPEED_RPM'] / 60\"),\n        (\"ENV_RATIO\", p[\"ER\"]),\n        (\"VIB_1X_RATIO\", p[\"VR\"]),\n        (\"UNBALANCE_PERMISSIBLE_GMM\", f\"9549 * {k['G']} * df['TOOL_MASS_KG'] / {p['N']}\"),\n        (\"CLAMP_FORCE_RATIO\", f\"df['CLAMP_FORCE_KN'] / {k['clamp']}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    n = max(r[\"speed_rpm\"], 1)\n    ae = max(r[\"ae_mm\"], 0.01)\n    dc = r[\"tool_diameter_mm\"]\n    phi = math.acos(min(1.0, max(-1.0, 1 - 2 * ae / dc)))\n    fz = r[\"feed_mm_min\"] / (n * r[\"tool_teeth\"])\n    hm = max(2 * fz * ae / (dc * phi), 0.0001)\n    kc = k[\"kc1\"] * hm ** (-k[\"mc\"]) * (1 - r[\"tool_rake_deg\"] / 100)\n    pc = r[\"ae_mm\"] * r[\"ap_mm\"] * r[\"feed_mm_min\"] * kc / 60000000\n    pi_ = k[\"p0\"] + k[\"p1\"] * r[\"speed_rpm\"] / 1000 + k[\"p2\"] * (r[\"speed_rpm\"] / 1000) ** 2\n    pe = r[\"in_cut\"] * pc / k[\"eta\"] + pi_\n    na = r[\"speed_avg_rpm\"] / 1000\n    return {\n        \"cut_speed_m_min\": math.pi * dc * r[\"speed_rpm\"] / 1000, \"feed_per_tooth_mm\": fz, \"chip_thick_mean_mm\": hm, \"kc_n_mm2\": kc,\n        \"mrr_cm3_min\": r[\"in_cut\"] * r[\"ap_mm\"] * r[\"ae_mm\"] * r[\"feed_mm_min\"] / 1000, \"cut_power_kw\": pc, \"idle_power_kw\": pi_,\n        \"power_expected_kw\": pe, \"power_ratio\": r[\"power_kw\"] / max(pe, 0.5),\n        \"power_available_kw\": min(k[\"prated\"], k[\"tr\"] * 2 * math.pi * r[\"speed_rpm\"] / 60 / 1000),\n        \"spindle_torque_nm\": r[\"power_kw\"] * 30000 / (math.pi * n),\n        \"front_brg_residual_c\": r[\"front_brg_temp_c\"] - (r[\"coolant_in_c\"] + k[\"f0\"] + k[\"f1\"] * na),\n        \"rear_brg_residual_c\": r[\"rear_brg_temp_c\"] - (r[\"coolant_in_c\"] + k[\"r0\"] + k[\"r1\"] * na),\n        \"motor_temp_residual_c\": r[\"motor_temp_c\"] - (r[\"coolant_in_c\"] + k[\"m0\"] + k[\"m1\"] * r[\"power_avg_kw\"]),\n        \"growth_residual_um\": r[\"z_growth_um\"] - (k[\"g0\"] + k[\"g1\"] * na),\n        \"bpfo_hz\": k[\"bpfo\"] * r[\"speed_rpm\"] / 60,\n        \"env_ratio\": r[\"vib_env_g\"] / (k[\"e0\"] + k[\"e1\"] * r[\"speed_rpm\"] / k[\"nmax\"]),\n        \"vib_1x_ratio\": r[\"vib_1x_mms\"] / (k[\"v0\"] + k[\"v1\"] * (r[\"speed_rpm\"] / 10000) ** 2),\n        \"unbalance_permissible_gmm\": 9549 * k[\"G\"] * r[\"tool_mass_kg\"] / n,\n        \"clamp_force_ratio\": r[\"clamp_force_kn\"] / k[\"clamp\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    RUN = f\"(df['SPEED_RPM'] > {L['running_rpm']})\"\n    CR = f\"(df['CLAMP_FORCE_KN'] / {k['clamp']})\"\n    return [\n        (\"SP_CRASH\", f\"df['SHOCK_MAX_G_24H'] > {L['crash_g']}\", \"Critical\", \"spindle_crash\"),\n        (\"SP_CLAMP_FORCE_LOW\", f\"{CR} < {L['clamp_low_ratio']}\", \"High\", \"clamping_force_loss\"),\n        (\"SP_BRG_ENV\", f\"{RUN} & ({p['ER']} > {L['env_ratio']})\", \"High\", \"bearing_damage\"),\n        (\"SP_OILAIR_LOW\", f\"df['OILAIR_PRESSURE_BAR'] < {L['oilair_min_bar']}\", \"High\", \"lubrication_starvation\"),\n        (\"SP_COOLING_FLOW_LOW\", f\"df['COOLANT_FLOW_LPM'] < {L['coolant_flow_min_lpm']}\", \"High\", \"cooling_failure\"),\n        (\"SP_POWER_ABOVE_AVAILABLE\", f\"{RUN} & (df['POWER_KW'] > {p['PA']})\", \"High\", None),\n        (\"SP_FRONT_BRG_TEMP\", f\"{p['FR']} > {L['front_residual_c']}\", \"Medium\", \"bearing_damage\"),\n        (\"SP_REAR_BRG_TEMP\", f\"{p['RR']} > {L['rear_residual_c']}\", \"Medium\", \"lubrication_starvation\"),\n        (\"SP_MOTOR_TEMP\", f\"{p['MR']} > {L['motor_residual_c']}\", \"Medium\", \"cooling_failure\"),\n        (\"SP_THERMAL_GROWTH\", f\"{p['GR']} > {L['growth_residual_um']}\", \"Medium\", \"cooling_failure\"),\n        (\"SP_IMBALANCE\", f\"{RUN} & ({p['VR']} > {L['v1x_ratio']})\", \"Medium\", \"tool_imbalance\"),\n        (\"SP_CLAMP_FORCE_WARN\", f\"({CR} < {L['clamp_warn_ratio']}) & ({CR} >= {L['clamp_low_ratio']})\", \"Medium\", \"clamping_force_loss\"),\n        (\"SP_TOOL_WEAR\", f\"{RUN} & (df['IN_CUT'] > 0.5) & ({p['PC']} >= {L['wear_min_cut_kw']}) & ({p['PR']} > {L['power_ratio_alert']})\", \"Medium\", \"tool_wear\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    run = r[\"speed_rpm\"] > L[\"running_rpm\"]\n    cr = t[\"clamp_force_ratio\"]\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    add(r[\"shock_max_g_24h\"] > L[\"crash_g\"], \"SP_CRASH\", \"Critical\",\n        f\"Shock of {r['shock_max_g_24h']:.0f} g at the spindle nose in the last 24 h (crash threshold {L['crash_g']:.0f} g)\", \"spindle\", \"spindle_crash\")\n    add(cr < L[\"clamp_low_ratio\"], \"SP_CLAMP_FORCE_LOW\", \"High\",\n        f\"Clamping force {r['clamp_force_kn']:.1f} kN, {cr * 100:.0f} % of the {k['clamp']:.0f} kN nominal\", \"clamping\", \"clamping_force_loss\")\n    add(run and t[\"env_ratio\"] > L[\"env_ratio\"], \"SP_BRG_ENV\", \"High\",\n        f\"Envelope at the front bearing outer-race frequency ({t['bpfo_hz']:.0f} Hz) {t['env_ratio']:.1f} \u00d7 baseline\", \"bearings\", \"bearing_damage\")\n    add(r[\"oilair_pressure_bar\"] < L[\"oilair_min_bar\"], \"SP_OILAIR_LOW\", \"High\",\n        f\"Oil-air pressure {r['oilair_pressure_bar']:.2f} bar, below {L['oilair_min_bar']} bar\", \"lubrication\", \"lubrication_starvation\")\n    add(r[\"coolant_flow_lpm\"] < L[\"coolant_flow_min_lpm\"], \"SP_COOLING_FLOW_LOW\", \"High\",\n        f\"Spindle cooling flow {r['coolant_flow_lpm']:.1f} L/min, below {L['coolant_flow_min_lpm']:.0f} L/min\", \"cooling\", \"cooling_failure\")\n    add(run and r[\"power_kw\"] > t[\"power_available_kw\"], \"SP_POWER_ABOVE_AVAILABLE\", \"High\",\n        f\"Spindle power {r['power_kw']:.1f} kW above the {t['power_available_kw']:.1f} kW available (S1) at {r['speed_rpm']:.0f} rpm\", \"spindle\")\n    add(t[\"front_brg_residual_c\"] > L[\"front_residual_c\"], \"SP_FRONT_BRG_TEMP\", \"Medium\",\n        f\"Front bearing {t['front_brg_residual_c']:+.1f} K above the speed model\", \"bearings\", \"bearing_damage\")\n    add(t[\"rear_brg_residual_c\"] > L[\"rear_residual_c\"], \"SP_REAR_BRG_TEMP\", \"Medium\",\n        f\"Rear bearing {t['rear_brg_residual_c']:+.1f} K above the speed model\", \"bearings\", \"lubrication_starvation\")\n    add(t[\"motor_temp_residual_c\"] > L[\"motor_residual_c\"], \"SP_MOTOR_TEMP\", \"Medium\",\n        f\"Motor winding {t['motor_temp_residual_c']:+.1f} K above the load model\", \"cooling\", \"cooling_failure\")\n    add(t[\"growth_residual_um\"] > L[\"growth_residual_um\"], \"SP_THERMAL_GROWTH\", \"Medium\",\n        f\"Spindle nose grew {t['growth_residual_um']:+.1f} \u00b5m more than the thermal model\", \"cooling\", \"cooling_failure\")\n    add(run and t[\"vib_1x_ratio\"] > L[\"v1x_ratio\"], \"SP_IMBALANCE\", \"Medium\",\n        f\"1x vibration {r['vib_1x_mms']:.2f} mm/s, {t['vib_1x_ratio']:.1f} \u00d7 the balanced baseline (tool T{r['tool_number']:.0f})\", \"tool\", \"tool_imbalance\")\n    add(L[\"clamp_low_ratio\"] <= cr < L[\"clamp_warn_ratio\"], \"SP_CLAMP_FORCE_WARN\", \"Medium\",\n        f\"Clamping force {r['clamp_force_kn']:.1f} kN, {cr * 100:.0f} % of nominal\", \"clamping\", \"clamping_force_loss\")\n    add(run and r[\"in_cut\"] > 0.5 and t[\"cut_power_kw\"] >= L[\"wear_min_cut_kw\"] and t[\"power_ratio\"] > L[\"power_ratio_alert\"], \"SP_TOOL_WEAR\", \"Medium\",\n        f\"Spindle power {r['power_kw']:.1f} kW is {t['power_ratio']:.2f} \u00d7 the {t['power_expected_kw']:.1f} kW this cut needs (tool T{r['tool_number']:.0f})\", \"tool\", \"tool_wear\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "MC-4801 machining centre main spindle twin. Expected cutting power from the Kienzle specific cutting force of the cut the CNC reports, expected temperatures and thermal growth from the mean speed, defect frequencies from the bearing geometry; the machine sends only what it measures.", "twin": {"id": "MC-4801", "name": "Machining centre MC-4801 main spindle", "version": "1.0.0", "folder": "spindle-twin"}, "identification": {"asset": "MC-4801", "assetnum": "MC-4801", "manufacturer": "GMN", "model": "HCS 230 - 20000/40 HSK-A63 motor spindle", "description": "Main spindle of a 3-axis vertical machining centre (job shop, steel and aluminium parts)", "spindle": "Motor spindle, 230 mm housing, built-in motor, oil-air lubricated angular contact ball bearings (70 mm bore at the front)", "tool_interface": "HSK-A63 (DIN 69893) with automatic clamping set (disc spring pack, drawbar, hydraulic release)", "cooling": "Water-cooled housing and motor from the machine's spindle chiller", "cnc": "CNC with an MTConnect agent or an OPC UA server for machine tools (OPC 40501-1)", "site": "A machining job shop (generic)"}, "design": {"spindle": {"n_max_rpm": 20000.0, "p_rated_kw": 40.0, "n_base_rpm": 4500.0, "t_rated_nm": 85.0, "housing_mm": 230.0, "bearing_bore_mm": 70.0, "lubrication": "oil-air", "interface": "HSK-A63", "source": "GMN milling spindles page (gmn.de), HCS series table, line HCS 230 - 20000 / 40. Above the base speed the twin takes constant power up to n max: assumption: typical value, replace with the S1 power curve of your spindle's data sheet (GMN's sister HCS 230 - 20000/25 shows power falling near n max)"}, "drive": {"eta": 0.9, "idle_p0_kw": 0.25, "idle_p1_kw_per_krpm": 0.03, "idle_p2_kw_per_krpm2": 0.004, "source": "Idle (no-load) power = p0 + p1 (n/1000) + p2 (n/1000)^2 from bearing friction and windage, and the motor efficiency at load: assumption: typical value, replace with an air-cut test of this spindle at five speeds at commissioning"}, "material": {"name": "C45 (1.0503) steel, normalised, ISO P", "kc1_n_mm2": 1700.0, "mc": 0.25, "source": "Kienzle coefficients kc1.1 and mc of the work material: assumption: typical value, replace with your tool maker's material data (they vary with the material and its heat treatment)"}, "bearing": {"type": "angular contact ball bearing, 70 mm bore (7014 size), hybrid (ceramic balls)", "balls": 21, "ball_d_mm": 11.1, "pitch_d_mm": 90.0, "contact_deg": 15.0, "source": "Bore 70 mm from the GMN milling spindles page (gmn.de), HCS series table, line HCS 230 - 20000 / 40. Ball count, ball diameter and contact angle: assumption: typical value, replace with the bearing maker's data or its published defect frequency factors"}, "thermal": {"front_f0": 4.0, "front_f1": 1.0, "rear_r0": 3.0, "rear_r1": 0.8, "motor_m0": 5.0, "motor_m1": 1.2, "growth_g0_um": 2.0, "growth_g1_um": 2.2, "source": "Expected bearing temperature = coolant inlet + c0 + c1 x (mean speed / 1000 rpm); motor = coolant inlet + m0 + m1 x mean power (kW); Z thermal growth of the spindle nose = g0 + g1 x (mean speed / 1000 rpm). assumption: typical value, replace with the spindle thermal test (ISO 230-3) and a fit on a few weeks of healthy data of this spindle"}, "vibration": {"env0_g": 0.3, "env1_g": 0.5, "v1x0_mms": 0.2, "v1x1_mms": 0.6, "source": "Envelope acceleration at the front bearing BPFO = e0 + e1 x (n / n max) (g); 1x vibration velocity = v0 + v1 x (n / 10,000 rpm)^2 (mm/s). assumption: typical value, replace with the baseline learnt with balanced tools on this spindle"}, "clamping": {"nominal_kn": 18.0, "actuating_kn": 6.0, "source": "Roehm HSK brochure, HSK A63 clamping set: clamping force 18 kN, actuating force 6 kN. The alarm fractions in twin_model.limits are assumptions"}, "cooling": {"flow_nominal_lpm": 8.0, "inlet_c": 22.0, "oilair_nominal_bar": 4.5, "source": "Spindle chiller flow, inlet set point and oil-air supply pressure: assumption: typical value, replace with the spindle maker's installation data"}, "balance": {"grade_g": 2.5, "source": "Balance quality grade G 2.5, commonly applied to machine tool spindles and tool assemblies (ISO 21940-11): assumption: typical value, replace with the grade in your tool balancing specification"}, "demo": {"time_scale": 10, "op_s": 90, "change_s": 10, "mean_tau_s": 300, "note": "Demo only: one real second is ten machine seconds. The stand-in machine runs a four-operation part program in a loop (roughing, face milling, pocketing, finishing, each 90 machine seconds plus a 10 s tool change); the edge keeps 5-minute mean speed and power."}, "program": {"operations": [{"op": "Rough side milling", "tool": 1, "dc_mm": 20.0, "z": 4, "mass_kg": 1.3, "rake_deg": 6.0, "vc_m_min": 200.0, "fz_mm": 0.08, "ap_mm": 20.0, "ae_mm": 6.0}, {"op": "Face milling", "tool": 2, "dc_mm": 63.0, "z": 5, "mass_kg": 2.4, "rake_deg": 6.0, "vc_m_min": 220.0, "fz_mm": 0.15, "ap_mm": 2.5, "ae_mm": 45.0}, {"op": "Pocket, trochoidal", "tool": 3, "dc_mm": 12.0, "z": 3, "mass_kg": 1.0, "rake_deg": 6.0, "vc_m_min": 250.0, "fz_mm": 0.06, "ap_mm": 18.0, "ae_mm": 1.2}, {"op": "Finish contour", "tool": 4, "dc_mm": 8.0, "z": 4, "mass_kg": 0.8, "rake_deg": 6.0, "vc_m_min": 300.0, "fz_mm": 0.04, "ap_mm": 10.0, "ae_mm": 0.3}], "source": "The stand-in part program (tools, cutting data, tool masses with HSK holder): assumption: typical value, replace with your CAM data; the CNC sends the values of the active cut"}}, "telemetry": {"event": "spindle", "publish_every_s": 10, "device_type": "CNC_MOTOR_SPINDLE", "groups": {"Spindle": "Spindle speed and drive power (CNC)", "Tool": "Active tool (CNC tool table)", "Cut": "Active cut (CNC program / CAM)", "Temp": "Spindle temperatures", "Cooling": "Spindle cooling and lubrication", "Thermal": "Thermal growth sensor", "Vib": "Spindle vibration sensor", "Clamp": "Tool clamping", "Shock": "Crash (shock) sensor"}, "points": [{"metric": "speed_rpm", "path": "Spindle.Speed", "label": "Spindle speed, actual", "unit": "rpm"}, {"metric": "speed_avg_rpm", "path": "Spindle.SpeedMean", "label": "Spindle speed, 5-minute mean", "unit": "rpm"}, {"metric": "power_kw", "path": "Spindle.Power", "label": "Spindle drive active power", "unit": "kW"}, {"metric": "power_avg_kw", "path": "Spindle.PowerMean", "label": "Spindle drive power, 5-minute mean", "unit": "kW"}, {"metric": "running", "path": "Spindle.Running", "label": "Spindle turning (1 = yes)", "unit": "code"}, {"metric": "tool_number", "path": "Tool.Number", "label": "Active tool number", "unit": "code"}, {"metric": "tool_diameter_mm", "path": "Tool.Diameter", "label": "Cutting diameter of the active tool", "unit": "mm"}, {"metric": "tool_teeth", "path": "Tool.Teeth", "label": "Number of teeth of the active tool", "unit": "count"}, {"metric": "tool_rake_deg", "path": "Tool.Rake", "label": "Rake angle of the active tool", "unit": "\u00b0"}, {"metric": "tool_mass_kg", "path": "Tool.Mass", "label": "Mass of the tool assembly (tool + HSK holder)", "unit": "kg"}, {"metric": "in_cut", "path": "Cut.InCut", "label": "Tool in the material (1 = cutting)", "unit": "code"}, {"metric": "ap_mm", "path": "Cut.Ap", "label": "Axial depth of cut of the active operation", "unit": "mm"}, {"metric": "ae_mm", "path": "Cut.Ae", "label": "Radial width of cut of the active operation", "unit": "mm"}, {"metric": "feed_mm_min", "path": "Cut.Feed", "label": "Path feed rate, actual", "unit": "mm/min"}, {"metric": "front_brg_temp_c", "path": "Temp.FrontBearing", "label": "Front bearing temperature", "unit": "\u00b0C"}, {"metric": "rear_brg_temp_c", "path": "Temp.RearBearing", "label": "Rear bearing temperature", "unit": "\u00b0C"}, {"metric": "motor_temp_c", "path": "Temp.Motor", "label": "Motor winding temperature (PT1000)", "unit": "\u00b0C"}, {"metric": "coolant_in_c", "path": "Cooling.InletTemp", "label": "Spindle cooling water inlet temperature", "unit": "\u00b0C"}, {"metric": "coolant_out_c", "path": "Cooling.OutletTemp", "label": "Spindle cooling water outlet temperature", "unit": "\u00b0C"}, {"metric": "coolant_flow_lpm", "path": "Cooling.Flow", "label": "Spindle cooling water flow", "unit": "L/min"}, {"metric": "oilair_pressure_bar", "path": "Cooling.OilAirPressure", "label": "Oil-air lubrication supply pressure", "unit": "bar"}, {"metric": "z_growth_um", "path": "Thermal.GrowthZ", "label": "Axial thermal growth of the spindle nose", "unit": "\u00b5m"}, {"metric": "vib_1x_mms", "path": "Vib.OneX", "label": "Vibration velocity at 1x spindle speed", "unit": "mm/s"}, {"metric": "vib_env_g", "path": "Vib.EnvelopeBPFO", "label": "Envelope acceleration at the front bearing outer-race frequency", "unit": "g"}, {"metric": "clamp_force_kn", "path": "Clamp.Force", "label": "Clamping force measured at the last tool change", "unit": "kN"}, {"metric": "shock_max_g_24h", "path": "Shock.Max24h", "label": "Highest shock at the spindle nose, last 24 h", "unit": "g"}, {"metric": "shock_count_total", "path": "Shock.Count", "label": "Shocks above the crash threshold since the last rebuild", "unit": "count"}]}, "twin_model": {"limits": {"power_ratio_alert": 1.3, "wear_min_cut_kw": 1.5, "front_residual_c": 6.0, "rear_residual_c": 6.0, "motor_residual_c": 10.0, "growth_residual_um": 8.0, "env_ratio": 3.0, "v1x_ratio": 2.5, "clamp_warn_ratio": 0.85, "clamp_low_ratio": 0.7, "coolant_flow_min_lpm": 5.0, "oilair_min_bar": 3.5, "crash_g": 10.0, "running_rpm": 100.0, "source": "Alarm limits: assumption: typical value, replace with your fleet statistics, the spindle maker's limits and the clamping set maker's minimum clamping force"}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "bearing_damage": {"name": "Front bearing damage (outer-race spall)", "part": "bearings", "symptoms": "envelope at the outer-race frequency grows, front bearing runs hotter than the speed model predicts", "rules": ["SP_BRG_ENV", "SP_FRONT_BRG_TEMP"], "default_ramp_min": 1.5}, "lubrication_starvation": {"name": "Oil-air lubrication starved (blocked line, empty tank)", "part": "lubrication", "symptoms": "oil-air pressure low, both bearings hotter than the model, vibration still normal", "rules": ["SP_OILAIR_LOW", "SP_FRONT_BRG_TEMP", "SP_REAR_BRG_TEMP"], "default_ramp_min": 1}, "cooling_failure": {"name": "Spindle cooling lost (chiller, hose, blocked jacket)", "part": "cooling", "symptoms": "cooling flow low, motor much hotter than its load explains, spindle grows more than the thermal model", "rules": ["SP_COOLING_FLOW_LOW", "SP_MOTOR_TEMP", "SP_THERMAL_GROWTH"], "default_ramp_min": 1}, "tool_imbalance": {"name": "Unbalanced tool assembly (or chips on the HSK taper)", "part": "tool", "symptoms": "vibration at 1x spindle speed well above the balanced baseline, bearings normal", "rules": ["SP_IMBALANCE"], "default_ramp_min": 0.5}, "clamping_force_loss": {"name": "Clamping force loss (disc springs fatigued, clamping set dry)", "part": "clamping", "symptoms": "clamping force at tool change falls below the clamping set's nominal value", "rules": ["SP_CLAMP_FORCE_WARN", "SP_CLAMP_FORCE_LOW"], "default_ramp_min": 1}, "tool_wear": {"name": "Worn cutting tool", "part": "tool", "symptoms": "spindle power above the Kienzle cutting power of the same cut, everything else normal", "rules": ["SP_TOOL_WEAR"], "default_ramp_min": 1}, "spindle_crash": {"name": "Spindle crash (collision of tool or head)", "part": "spindle", "symptoms": "shock above the crash threshold, then 1x vibration up (bent tool or holder, damaged taper)", "rules": ["SP_CRASH", "SP_IMBALANCE"], "default_ramp_min": 0.5}}, "presentation": {"title": "MC-4801 machining centre main spindle", "dashboard": "CNC_MOTOR_SPINDLE"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const sg = (v, d = 1) => (v == null || isNaN(v)) ? '–' : (v >= 0 ? '+' : '') + Number(v).toFixed(d);
+
+// ---------- scene (metres; the spindle is drawn at true size inside a smaller-than-life machine frame) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(38, 1, 0.01, 100);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(1.35, 1.25, 1.9); ctl.target.set(0, .78, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(3, 5, 4); scene.add(sun);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), paint = M(0xd9dde2, { m: .15, r: .6 }), blueP = M(0x2f5f9e, { m: .3 }), carbide = M(0x8d8f94, { m: .8, r: .25 });
+const cyl = (r1, r2, h, m, s = 40) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// machine frame: bed, table with vise and workpiece, column behind
+scene.add(at(box(1.6, .35, 1.0, paint), 0, .175, 0));
+const table = at(new THREE.Group(), 0, .38, .05); scene.add(table);
+table.add(at(box(1.1, .06, .5, dark), 0, 0, 0));
+for (let i = -2; i <= 2; i++) table.add(at(box(1.1, .012, .018, M(0x26292e)), 0, .031, i * .09));
+table.add(at(box(.34, .09, .16, blueP), 0, .075, 0));                                  // vise
+const work = at(box(.22, .07, .12, M(0x9aa1a8, { m: .7, r: .35 })), 0, .155, 0); table.add(work);
+scene.add(at(box(.7, 1.55, .45, paint), 0, 1.07, -.55));                               // column
+scene.add(at(box(.5, .05, .06, dark), 0, 1.1, -.31));                                  // Z guide
+// spindle head (moves in Z) with the motor spindle (axis vertical, nose down)
+const head = at(new THREE.Group(), 0, 1.0, -.05); scene.add(head);
+const headMat = M(0xd2d6db, { m: .2, r: .55, ds: true });
+head.add(at(box(.36, .55, .42, headMat), 0, .2, -.12));
+const houseMat = M(0x9aa3ad, { m: .5, r: .35, ds: true });
+const house = at(cyl(.115, .115, .52, houseMat, 48), 0, .0, 0); head.add(house);      // 230 mm housing
+const nose = at(cyl(.09, .1, .05, steel), 0, -.285, 0); head.add(nose);
+// inside parts (seen in cutaway)
+const inner = new THREE.Group(); head.add(inner);
+const shaft = at(cyl(.035, .035, .62, steel), 0, -.0, 0); inner.add(shaft);
+const frontBrg = new THREE.Group(); inner.add(frontBrg);
+[-.22, -.195].forEach(y => frontBrg.add(at(cyl(.055, .055, .02, M(0xd8a31a, { m: .5 })), 0, y, 0)));
+const rearBrg = at(cyl(.05, .05, .02, M(0xd8a31a, { m: .5 })), 0, .2, 0); inner.add(rearBrg);
+const motor = at(cyl(.085, .085, .2, M(0x2f6db5, { m: .35 })), 0, .02, 0); inner.add(motor);  // stator
+const rotor = at(cyl(.05, .05, .19, M(0x8a3ffc, { m: .3 })), 0, .02, 0); inner.add(rotor);
+const drawbar = at(cyl(.012, .012, .55, M(0xe0e0e0, { m: .7 })), 0, .03, 0); inner.add(drawbar);
+const springs = new THREE.Group(); inner.add(springs);
+for (let i = 0; i < 9; i++) springs.add(at(cyl(.026, .03, .008, M(0x24a148, { m: .4 })), 0, .13 + i * .012, 0));
+const union = at(cyl(.03, .03, .06, dark), 0, .3, 0); head.add(union);                 // rotary union on top
+const jacket = at(cyl(.105, .105, .42, M(0x78a9ff, { t: .25 })), 0, 0, 0); inner.add(jacket);
+inner.visible = false;
+// cooling and oil-air lines
+const tube = (pts, c) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, .008, 6, false); head.add(new THREE.Mesh(g, M(c, { m: .7 }))); };
+tube([[.115, .15, 0], [.2, .2, .05], [.2, .45, -.1]], 0x4589ff); tube([[.115, -.1, .02], [.22, -.05, .08], [.22, .45, -.05]], 0x4589ff);
+tube([[-.115, -.18, 0], [-.2, -.1, .05], [-.2, .45, -.1]], 0xc8a24a);
+const shock = at(box(.03, .03, .03, M(0xff832b)), -.1, -.24, .06); head.add(shock);     // crash / vibration sensor near the nose
+// tool: HSK holder + end mill (rotating)
+const toolG = at(new THREE.Group(), 0, -.31, 0); head.add(toolG);
+const holder = at(cyl(.032, .022, .07, steel), 0, -.035, 0); toolG.add(holder);
+let mill = null;
+function setTool(d_mm, len) {
+  if (mill) toolG.remove(mill);
+  mill = new THREE.Group();
+  const r = d_mm / 2000, L = len;
+  mill.add(at(cyl(r, r, L, carbide, 24), 0, -.07 - L / 2, 0));
+  for (let i = 0; i < 4; i++) { const f = at(box(r * .35, L * .6, r * 2.05, M(0x4d5157, { m: .8 })), 0, -.07 - L * .65, 0); f.rotation.y = i * Math.PI / 4; mill.add(f); }
+  toolG.add(mill);
+}
+setTool(20, .06);
+const chips = new THREE.Group(); scene.add(chips);
+for (let i = 0; i < 24; i++) chips.add(new THREE.Mesh(new THREE.BoxGeometry(.004, .004, .008), M(0x7a8088, { m: .8 })));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos, obj) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos), obj }; }
+lbl('speed', [0, .62, -.1], head); lbl('front', [.14, -.2, .08], head); lbl('rear', [-.14, .22, .08], head); lbl('motor', [.16, .05, .1], head);
+lbl('growth', [-.16, -.3, .05], head); lbl('vib', [-.12, -.12, .1], head); lbl('clamp', [.05, .36, .1], head);
+lbl('cool', [.24, .42, 0], head); lbl('tool', [.08, -.42, .05], head); lbl('shock', [-.32, .05, .1], head);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  head.updateMatrixWorld();
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().applyMatrix4(L.obj.matrixWorld).project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 0, inCut = 0, toolNo = 0;
+const opOf = n => (TW.design.program.operations.find(o => o.tool === n) || {});
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.speed_rpm; inCut = r.in_cut;
+  if (r.tool_number !== toolNo) { toolNo = r.tool_number; const o = opOf(toolNo); setTool(r.tool_diameter_mm, Math.min(.09, .03 + (o.ap_mm || 10) / 1000 * 1.6)); }
+  const op = opOf(r.tool_number);
+  setLbl('speed', 'speed · power · expected', `${fmt(r.speed_rpm, 0)} rpm · ${fmt(r.power_kw, 1)} · ${fmt(t.power_expected_kw, 1)} kW`, st(names.has('SP_TOOL_WEAR') || names.has('SP_POWER_ABOVE_AVAILABLE'), r.in_cut && t.power_ratio > 1.15));
+  setLbl('tool', `T${r.tool_number} Ø${fmt(r.tool_diameter_mm, 0)} · ap ${fmt(r.ap_mm, 1)} ae ${fmt(r.ae_mm, 1)}`, `${r.in_cut ? 'cutting' : r.running ? 'in air' : 'tool change'} · kc ${fmt(t.kc_n_mm2, 0)} N/mm²`, '');
+  setLbl('front', 'front bearing · residual', `${fmt(r.front_brg_temp_c, 1)} °C · ${sg(t.front_brg_residual_c)} K`, st(names.has('SP_FRONT_BRG_TEMP'), t.front_brg_residual_c > L.front_residual_c * .6));
+  setLbl('rear', 'rear bearing · residual', `${fmt(r.rear_brg_temp_c, 1)} °C · ${sg(t.rear_brg_residual_c)} K`, st(names.has('SP_REAR_BRG_TEMP'), t.rear_brg_residual_c > L.rear_residual_c * .6));
+  setLbl('motor', 'motor winding · residual', `${fmt(r.motor_temp_c, 1)} °C · ${sg(t.motor_temp_residual_c)} K`, st(names.has('SP_MOTOR_TEMP'), t.motor_temp_residual_c > L.motor_residual_c * .6));
+  setLbl('growth', 'Z growth · residual', `${fmt(r.z_growth_um, 1)} µm · ${sg(t.growth_residual_um)} µm`, st(names.has('SP_THERMAL_GROWTH'), t.growth_residual_um > L.growth_residual_um * .6));
+  setLbl('vib', `1x · envelope at BPFO ${fmt(t.bpfo_hz, 0)} Hz`, `${fmt(t.vib_1x_ratio, 1)}× · ${fmt(t.env_ratio, 1)}×`, st(names.has('SP_IMBALANCE') || names.has('SP_BRG_ENV'), t.vib_1x_ratio > L.v1x_ratio * .7 || t.env_ratio > L.env_ratio * .7));
+  setLbl('clamp', 'clamping force (last tool change)', `${fmt(r.clamp_force_kn, 1)} kN · ${fmt(t.clamp_force_ratio * 100, 0)} %`, st(names.has('SP_CLAMP_FORCE_LOW'), names.has('SP_CLAMP_FORCE_WARN')));
+  setLbl('cool', 'cooling flow · oil-air', `${fmt(r.coolant_flow_lpm, 1)} L/min · ${fmt(r.oilair_pressure_bar, 2)} bar`, st(names.has('SP_COOLING_FLOW_LOW') || names.has('SP_OILAIR_LOW')));
+  setLbl('shock', 'max shock 24 h · count', `${fmt(r.shock_max_g_24h, 1)} g · ${r.shock_count_total}`, st(names.has('SP_CRASH'), r.shock_max_g_24h > L.crash_g * .5));
+  $('k-health').textContent = ST.health; $('k-ratio').textContent = r.in_cut ? fmt(t.power_ratio) : 'air'; $('k-front').textContent = sg(t.front_brg_residual_c) + ' K';
+  $('c-op-t').textContent = r.running ? `${op.op || 'T' + r.tool_number} · ${fmt(r.speed_rpm, 0)} rpm` : 'tool change'; $('c-op').className = 'chip ' + (names.has('SP_CRASH') ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  const fe = r.front_brg_temp_c - t.front_brg_residual_c, re = r.rear_brg_temp_c - t.rear_brg_residual_c, me = r.motor_temp_c - t.motor_temp_residual_c, ge = r.z_growth_um - t.growth_residual_um;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Spindle power (kW)', fmt(r.power_kw, 2), fmt(t.power_expected_kw, 2), names.has('SP_TOOL_WEAR')) +
+    row('Power ÷ expected', r.in_cut ? fmt(t.power_ratio) : 'air', '≤ ' + L.power_ratio_alert, names.has('SP_TOOL_WEAR')) +
+    row('Available power S1 (kW)', fmt(r.power_kw, 1), '≤ ' + fmt(t.power_available_kw, 1), names.has('SP_POWER_ABOVE_AVAILABLE')) +
+    row('Front bearing (°C)', fmt(r.front_brg_temp_c, 1), fmt(fe, 1), names.has('SP_FRONT_BRG_TEMP')) +
+    row('Rear bearing (°C)', fmt(r.rear_brg_temp_c, 1), fmt(re, 1), names.has('SP_REAR_BRG_TEMP')) +
+    row('Motor winding (°C)', fmt(r.motor_temp_c, 1), fmt(me, 1), names.has('SP_MOTOR_TEMP')) +
+    row('Z thermal growth (µm)', fmt(r.z_growth_um, 1), fmt(ge, 1), names.has('SP_THERMAL_GROWTH')) +
+    row('1x vibration (×)', fmt(t.vib_1x_ratio), '≤ ' + L.v1x_ratio, names.has('SP_IMBALANCE')) +
+    row('Bearing envelope (×)', fmt(t.env_ratio), '≤ ' + L.env_ratio, names.has('SP_BRG_ENV')) +
+    row('Clamping force (kN)', fmt(r.clamp_force_kn, 1), '≥ ' + fmt(d.clamping.nominal_kn * L.clamp_warn_ratio, 1), names.has('SP_CLAMP_FORCE_LOW') || names.has('SP_CLAMP_FORCE_WARN')) +
+    row('Cooling flow (L/min)', fmt(r.coolant_flow_lpm, 1), '≥ ' + L.coolant_flow_min_lpm, names.has('SP_COOLING_FLOW_LOW')) +
+    row('Oil-air pressure (bar)', fmt(r.oilair_pressure_bar, 2), '≥ ' + L.oilair_min_bar, names.has('SP_OILAIR_LOW')) +
+    row('Max shock 24 h (g)', fmt(r.shock_max_g_24h, 1), '≤ ' + L.crash_g, names.has('SP_CRASH'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the spindle behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  const tint = (m, bad) => m.color.setHex(bad ? 0xda1e28 : m.userData.base);
+  [[house.material, names.has('SP_THERMAL_GROWTH') || names.has('SP_MOTOR_TEMP')], [frontBrg.children[0].material, names.has('SP_FRONT_BRG_TEMP') || names.has('SP_BRG_ENV')],
+   [rearBrg.material, names.has('SP_REAR_BRG_TEMP')], [springs.children[0].material, names.has('SP_CLAMP_FORCE_LOW') || names.has('SP_CLAMP_FORCE_WARN')],
+   [holder.material, names.has('SP_IMBALANCE')], [shock.material, names.has('SP_CRASH')]].forEach(([m, bad]) => tint(m, bad));
+}
+// shared materials so one tint colours the whole part
+frontBrg.children[1].material = frontBrg.children[0].material; springs.children.forEach(s => s.material = springs.children[0].material);
+[house, frontBrg.children[0], rearBrg, springs.children[0], holder, shock].forEach(o => { o.material.userData.base = o.material.color.getHex(); });
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = `${TW.identification.manufacturer} ${TW.identification.model} · ${TW.identification.tool_interface.split(' (')[0]}`;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [headMat, houseMat].forEach(m => { m.transparent = true; m.opacity = cut ? .15 : 1; m.depthWrite = !cut; });
+  inner.visible = cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), phase = 0, headY = 1.0;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  const spin = rpm / 60 * 2 * Math.PI * dt / 40;                 // shown 40 times slower so the flutes stay visible
+  toolG.rotation.y -= spin; shaft.rotation.y -= spin; rotor.rotation.y -= spin;
+  phase += dt * (inCut ? .35 : .1);
+  table.position.x = .08 * Math.sin(phase);                     // X feed: the table moves under the tool
+  const target = rpm > 0 ? (inCut ? .64 : .7) : .86;              // Z: down to cut, up for the tool change
+  headY += (target + .36 - headY) * Math.min(1, dt * 2); head.position.y = headY;
+  chips.visible = !!inCut;
+  if (inCut) chips.children.forEach((c, i) => { const a = now / 300 + i * 1.7; c.position.set(Math.cos(a) * (.04 + (i % 5) * .012), .58 + ((now / 900 + i * .13) % .12), .05 + Math.sin(a) * (.04 + (i % 5) * .012)); c.rotation.set(a, a * 1.3, 0); });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

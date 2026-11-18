@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PM-4301 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>PM-4301</b><span class="g">Board machine dryer section · 50 cylinders · cascade steam · closed hood</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-ssc"><span class="dot"></span><span id="c-ssc-t">steam –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Surface profile, syphons and steam →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the dryer section…</div>
+<div class="credit">Dryer section: 50 cylinders of 1.83 m in two tiers and four steam groups (wet end, intermediate, main, dry end), the sheet weaving between them, steam and condensate headers beside them, closed hood over the top. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-sheet">Sheet</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Cylinder colour follows the live surface temperature of its group: blue when cold, orange when hot. A flooded cylinder turns blue on its own.</div>
+<aside>
+  <section>
+    <h2>PM-4301 twin</h2>
+    <p class="sub" id="sub">dryer section</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Steam per kg water<b id="k-ssc">–</b></div><div>Steam cost<b id="k-cost">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The machine sends only what it measures. Every expected value (water evaporated, steam per kg of water, steam temperature of each group, blow-through the DP explains, drying coefficient, steam-side evaporation) is computed from the twin file: the machine design, the steam tables and the TAPPI dryer guidelines.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for PM-4301: the sheet, the four steam groups, the syphons, the vent, the hood and the instruments, with injectable faults.\n\nThe real machine sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and\nfault fingerprints for the tests and the figures. Pure Python (math, random): it also runs in the browser (Pyodide).\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\nG = (1, 2, 3, 4)\n\n\ndef p_for_tsat(k, t_c):\n    \"\"\"Gauge pressure (bar g) whose saturation temperature is t_c (inverse of the steam table).\"\"\"\n    return tc.interp(t_c, k[\"tt\"], k[\"tp\"]) - tc.P0\n\n\nclass Dryer:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        self.k = tc._k(twin)\n        d = twin[\"design\"]\n        self.m, self.s, self.h = d[\"machine\"], d[\"steam\"], d[\"hood\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        k = self.k\n        # the hood fans are set for the design evaporation and the design exhaust humidity\n        self.exh_d = k[\"evap_d\"] / 3600 / ((k[\"hum_d\"] - k[\"hum_s\"]) / 1000)\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ------------------------------------------------------------------------------------------------------\n    def true_state(self, speed_factor=1.0):\n        k, f, m, s = self.k, self.faults, self.m, self.s\n        speed = m[\"speed_mpm\"] * speed_factor\n        prod, fib, evap = tc.evaporation(speed, m[\"width_m\"], m[\"basis_weight_gsm\"], m[\"reel_moisture_pct\"], m[\"press_dryness_pct\"])\n        p = {g: s[\"p_barg\"][g - 1] for g in G}\n        dt = {g: s[\"dt_surface_c\"][g - 1] for g in G}\n        dp = {g: s[\"dp_kpa\"] for g in G}\n        # filled fabric: to hold the reel moisture the control raises groups 3 and 4 so their surfaces run 25 K hotter\n        for g in (3, 4):\n            p[g] = p_for_tsat(k, tc.tsat(k, p[g]) + 25.0 * f[\"fabric_filling\"])\n        dp[3] -= 21.0 * f[\"low_dp\"]\n        dt[3] += 16.0 * f[\"low_dp\"]\n        dt[4] += 6.0 * f[\"syphon_wear\"]\n        ts = {g: tc.tsat(k, p[g]) - dt[g] for g in G}\n        spread = {g: s[\"spread_design_k\"] + (3.0 * f[\"low_dp\"] if g == 3 else 0.0) for g in G}\n        # one flooded cylinder in group 3 (of 20): 45 K colder than its neighbours\n        drop = 45.0 * f[\"flooded_cylinder\"]\n        ts[3] -= drop / k[\"groups\"][2]\n        tsmin = {g: ts[g] - spread[g] for g in G}\n        tsmin[3] = min(tsmin[3], ts[3] + drop / k[\"groups\"][2] - drop)\n        # steam: useful steam follows the evaporation and the latent heat at the main group pressure\n        useful = evap * k[\"q\"] / tc.hfg(k, p[3])\n        vent_frac = (s[\"vent_design_pct\"] + 1.0 * f[\"syphon_wear\"] + 14.0 * f[\"vent_valve_passing\"]) / 100\n        total = useful / (1 - vent_frac)\n        heat = {g: k[\"ag\"][g - 1] * (ts[g] - k[\"tsh\"]) for g in G}\n        cond = {g: useful * heat[g] / sum(heat.values()) for g in G}\n        bt = {g: k[\"bt_d\"] * math.sqrt(max(dp[g], 0) / k[\"dp_ref\"]) for g in (3, 4)}\n        bt[3] *= 1 - f[\"low_dp\"]                          # condensate seals the syphon shoes: no steam blows through\n        bt[4] *= 1 + 2.5 * f[\"syphon_wear\"]               # eroded elbows and shoes let steam bypass\n        exh = self.exh_d * (1 + 0.5 * f[\"hood_exhaust_high\"] - 0.3 * f[\"hood_exhaust_low\"])\n        sup = self.exh_d * k[\"ratio_d\"]\n        return {\n            \"speed\": speed, \"prod\": prod, \"evap\": evap, \"p\": p, \"dp\": dp, \"ts\": ts, \"tsmin\": tsmin, \"total\": total,\n            \"vent\": total * vent_frac, \"cond_main\": cond[3] + cond[4], \"bt_main\": cond[3] * bt[3] / 100 + cond[4] * bt[4] / 100,\n            \"exh\": exh, \"sup\": sup, \"hum\": k[\"hum_s\"] + evap / 3600 / exh * 1000,\n            \"pocket\": self.h[\"pocket_humidity_gkg\"] + 100.0 * f[\"fabric_filling\"],\n        }\n\n    # one published message ---------------------------------------------------------------------------------------------\n    def measure(self, s=None):\n        s = s or self.true_state()\n        f, m = self.faults, self.m\n        r = {\n            \"speed_mpm\": round(s[\"speed\"] + self.n(0.3), 1),\n            \"basis_weight_gsm\": round(m[\"basis_weight_gsm\"] + self.n(0.3), 2),\n            \"reel_moisture_pct\": round(m[\"reel_moisture_pct\"] + self.n(0.08), 2),\n            \"press_dryness_pct\": round(m[\"press_dryness_pct\"] + self.n(0.1), 2),\n            \"steam_total_kgh\": round(s[\"total\"] * (1 - 0.15 * f[\"steam_meter_drift\"]) * (1 + self.n(0.003)), 0),\n            \"vent_kgh\": round(max(0.0, s[\"vent\"] * (1 + self.n(0.03))), 0),\n            \"cond_main_kgh\": round(s[\"cond_main\"] * (1 + self.n(0.006)), 0),\n            \"bt_main_kgh\": round(s[\"bt_main\"] * (1 + self.n(0.01)), 0),\n        }\n        for g in G:\n            ts = s[\"ts\"][g] + self.n(0.3)\n            r[f\"p{g}_barg\"] = round(s[\"p\"][g] + self.n(0.01), 3)\n            r[f\"dp{g}_kpa\"] = round(s[\"dp\"][g] + self.n(0.3), 2)\n            r[f\"ts{g}_c\"] = round(ts, 2)\n            r[f\"tsmin{g}_c\"] = round(min(ts - 0.5, s[\"tsmin\"][g] + (ts - s[\"ts\"][g]) + self.n(0.4)), 2)\n        r.update({\n            \"hood_humidity_gkg\": round(s[\"hum\"] + self.n(1.0), 1),\n            \"hood_exh_temp_c\": round(82.0 + 0.04 * (s[\"hum\"] - 160) + self.n(0.3), 1),\n            \"hood_exhaust_kgs\": round(s[\"exh\"] * (1 + self.n(0.005)), 2),\n            \"hood_supply_kgs\": round(s[\"sup\"] * (1 + self.n(0.005)), 2),\n            \"pv_air_temp_c\": round(self.h[\"pv_air_c\"] + self.n(0.4), 1),\n            \"pocket_humidity_gkg\": round(s[\"pocket\"] + self.n(2.0), 1),\n        })\n        return r\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The machine runs the design grade with a slow 2 % speed swing (demo.speed_swing over demo.speed_period_s real seconds);\n    the moisture control holds the reel moisture, so the evaporation and the steam follow the speed. The dryer section\n    does not depend on the time of day.\n    \"\"\"\n\n    def __init__(self, twin, seed=4301):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.swing = float(demo.get(\"speed_swing\", 0.02))\n        self.period = float(demo.get(\"speed_period_s\", 600))\n        self.d = Dryer(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.clock = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.clock = 0.0\n        self.running, self.trip = True, 0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.d.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.clock += dt\n        return self.d.true_state(1 + self.swing * math.sin(2 * math.pi * self.clock / self.period))\n\n    def measure(self, true):\n        return self.d.measure(true)\n", "twin_calc": "\"\"\"The paper machine dryer section twin's expectations (PM-4301, 50 cylinders, cascade steam system, closed hood).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nSheet side (what the sheet loses):\n    production P = speed (m/min) x 60 x width (m) x basis weight (g/m2) / 1e6               [t/h at the reel]\n    fibre F = P x 1000 x (1 - reel moisture / 100)                                            [kg/h bone dry]\n    water evaporated E = F x ((100 - d_in) / d_in - m / (100 - m))                            [kg/h]\n  d_in = dryness entering the dryers (%), m = reel moisture (%).\n    evaporation rate = E / (n x pi x D x face)                                                [kg/m2 h of cylinder shell]\n    specific steam consumption SSC = fresh steam / E                                          [kg steam / kg water]\n  TAPPI TIP 0404-33: top machines use about 1.3 kg/kg. Steam cost per tonne = fresh steam x price / P.\nSteam side (what the steam gives):\n    saturation temperature T_sat(p) and latent heat h_fg(p) from the IAPWS-IF97 steam table (np.interp on absolute pressure)\n    steam-side evaporation E_s = (fresh steam - vent) x h_fg(p3) / q,   q = SSC_design x h_fg(p3 design) x (1 - vent_design)\n    balance residual = E / E_s - 1: a meter (steam flow, QCS moisture, press dryness) is wrong when the two disagree.\nCondensate removal (TAPPI TIP 0404-31 and 0404-33):\n    steam-to-surface difference dT_g = T_sat(p_g) - mean surface temperature of group g     (well-performing: 15-30 C)\n    cold cylinder = group mean - coldest cylinder of the group                               (one flooded cylinder)\n    differential pressure of every group                                                     (stationary syphons: 15-35 kPa)\n    blow-through % = separator vapour / condensate of groups 3 and 4 x 100                  (typically 10-15 %)\n    expected blow-through = bt_design x sqrt(DP / DP_ref)       (orifice-like fit; replace with your syphon curve)\nDrying (fabric and pockets):\n    drying coefficient K = E / sum_g(A_g x (T_surface_g - T_sheet)), compared with its design value: the evaporation the\n    machine gets per degree of hot surface. A filled fabric or wet pockets lower it; a flooded group does not.\nHood: exhaust humidity, and the supply/exhaust air ratio of the closed hood.\n\"\"\"\nimport math\n\nP0 = 1.01325          # bar, atmosphere\nGROUPS = (1, 2, 3, 4)\n\n\ndef interp(x, xs, ys):\n    \"\"\"Linear interpolation clamped at the ends, the same as numpy.interp.\"\"\"\n    if x <= xs[0]:\n        return ys[0]\n    if x >= xs[-1]:\n        return ys[-1]\n    for i in range(1, len(xs)):\n        if x <= xs[i]:\n            return ys[i - 1] + (x - xs[i - 1]) * (ys[i] - ys[i - 1]) / (xs[i] - xs[i - 1])\n    return ys[-1]\n\n\ndef tsat(k, p_barg):\n    return interp(p_barg + P0, k[\"tp\"], k[\"tt\"])\n\n\ndef hfg(k, p_barg):\n    return interp(p_barg + P0, k[\"tp\"], k[\"th\"])\n\n\ndef evaporation(m_speed, width, bw, moist, dry_in):\n    \"\"\"(production t/h, fibre kg/h, water evaporated kg/h) from the sheet side.\"\"\"\n    prod = m_speed * 60 * width * bw / 1e6\n    fib = prod * 1000 * (1 - moist / 100)\n    return prod, fib, fib * ((100 - dry_in) / dry_in - moist / (100 - moist))\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    m, c, s, h, ec = d[\"machine\"], d[\"cylinders\"], d[\"steam\"], d[\"hood\"], d[\"economics\"]\n    k = dict(tp=s[\"table_p_bara\"], tt=s[\"table_tsat_c\"], th=s[\"table_hfg_kjkg\"])\n    acyl = math.pi * c[\"diameter_m\"] * c[\"face_m\"]\n    ag = [n * acyl for n in c[\"groups\"]]\n    prod_d, fib_d, evap_d = evaporation(m[\"speed_mpm\"], m[\"width_m\"], m[\"basis_weight_gsm\"], m[\"reel_moisture_pct\"], m[\"press_dryness_pct\"])\n    ts_d = [tsat(k, p) - dt for p, dt in zip(s[\"p_barg\"], s[\"dt_surface_c\"])]\n    kd_d = evap_d / sum(a * (t - s[\"t_sheet_c\"]) for a, t in zip(ag, ts_d))\n    q = s[\"ssc_design\"] * hfg(k, s[\"p_barg\"][2]) * (1 - s[\"vent_design_pct\"] / 100)\n    k.update(width=m[\"width_m\"], acyl=acyl, ag=ag, atot=sum(ag), prod_d=prod_d, fib_d=fib_d, evap_d=evap_d, ts_d=ts_d, kd_d=kd_d, q=q,\n             tsh=s[\"t_sheet_c\"], ssc_d=s[\"ssc_design\"], bt_d=s[\"bt_design_pct\"], dp_ref=s[\"bt_dp_ref_kpa\"], dp_d=s[\"dp_kpa\"],\n             dp_lo=s[\"dp_min_kpa\"], dp_hi=s[\"dp_max_kpa\"], vent_d=s[\"vent_design_pct\"], p_d=s[\"p_barg\"], dt_d=s[\"dt_surface_c\"],\n             price=ec[\"steam_price_usd_t\"], hy=ec[\"hours_per_year\"], mawp=c[\"mawp_barg\"], n=c[\"count\"], groups=c[\"groups\"],\n             hum_d=h[\"exhaust_humidity_gkg\"], hum_s=h[\"supply_humidity_gkg\"], ratio_d=h[\"supply_exhaust_ratio\"])\n    return k\n\n\ndef _parts(twin):\n    k = _k(twin)\n    TS = lambda g: f\"np.interp(df['P{g}_BARG'] + {P0}, {k['tp']}, {k['tt']})\"\n    HF = f\"np.interp(df['P3_BARG'] + {P0}, {k['tp']}, {k['th']})\"\n    PROD = f\"(df['SPEED_MPM'] * 60 * {k['width']} * df['BASIS_WEIGHT_GSM'] / 1000000)\"\n    FIB = f\"({PROD} * 1000 * (1 - df['REEL_MOISTURE_PCT'] / 100))\"\n    EV = f\"({FIB} * ((100 - df['PRESS_DRYNESS_PCT']) / df['PRESS_DRYNESS_PCT'] - df['REEL_MOISTURE_PCT'] / (100 - df['REEL_MOISTURE_PCT'])))\"\n    SSC = f\"(df['STEAM_TOTAL_KGH'] / {EV})\"\n    mx = lambda xs: xs[0] if len(xs) == 1 else f\"np.maximum({xs[0]}, {mx(xs[1:])})\"\n    mn = lambda xs: xs[0] if len(xs) == 1 else f\"np.minimum({xs[0]}, {mn(xs[1:])})\"\n    DT = mx([f\"({TS(g)} - df['TS{g}_C'])\" for g in (2, 3, 4)])\n    CC = mx([f\"(df['TS{g}_C'] - df['TSMIN{g}_C'])\" for g in GROUPS])\n    DPMIN = mn([f\"df['DP{g}_KPA']\" for g in GROUPS])\n    DPMAX = mx([f\"df['DP{g}_KPA']\" for g in GROUPS])\n    BT = \"(df['BT_MAIN_KGH'] / df['COND_MAIN_KGH'] * 100)\"\n    BTE = f\"({k['bt_d']} * np.sqrt(np.maximum((df['DP3_KPA'] + df['DP4_KPA']) / 2, 0) / {k['dp_ref']}))\"\n    BTR = f\"({BT} / {BTE})\"\n    VP = \"(df['VENT_KGH'] / df['STEAM_TOTAL_KGH'] * 100)\"\n    AB = \"(df['HOOD_SUPPLY_KGS'] / df['HOOD_EXHAUST_KGS'])\"\n    DEN = \"(\" + \" + \".join(f\"{a!r} * (df['TS{g}_C'] - {k['tsh']})\" for g, a in zip(GROUPS, k[\"ag\"])) + \")\"\n    KR = f\"({EV} / {DEN} / {k['kd_d']!r})\"\n    ES = f\"((df['STEAM_TOTAL_KGH'] - df['VENT_KGH']) * {HF} / {k['q']!r} / 1000)\"\n    RES = f\"(({EV} / 1000 / {ES} - 1) * 100)\"\n    return dict(k=k, TS=TS, HF=HF, PROD=PROD, FIB=FIB, EV=EV, SSC=SSC, DT=DT, CC=CC, DPMIN=DPMIN, DPMAX=DPMAX, BT=BT, BTE=BTE, BTR=BTR,\n                VP=VP, AB=AB, KR=KR, ES=ES, RES=RES)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"PRODUCTION_TH\", p[\"PROD\"]),\n        (\"FIBRE_TH\", f\"{p['FIB']} / 1000\"),\n        (\"EVAP_TH\", f\"{p['EV']} / 1000\"),\n        (\"EVAP_RATE_KGM2H\", f\"{p['EV']} / {k['atot']!r}\"),\n        (\"SPEC_STEAM_KGKG\", p[\"SSC\"]),\n        (\"STEAM_COST_USD_T\", f\"df['STEAM_TOTAL_KGH'] / 1000 * {k['price']} / {p['PROD']}\"),\n        (\"EXCESS_STEAM_KUSD_Y\", f\"(df['STEAM_TOTAL_KGH'] - {k['ssc_d']} * {p['EV']}) / 1000 * {k['price']} * {k['hy']} / 1000\"),\n        (\"TSAT_MAIN_C\", p[\"TS\"](3)),\n        (\"DT_SURF_MAX_C\", p[\"DT\"]),\n        (\"COLD_CYL_MAX_K\", p[\"CC\"]),\n        (\"DP_MIN_KPA\", p[\"DPMIN\"]),\n        (\"DP_MAX_KPA\", p[\"DPMAX\"]),\n        (\"BLOWTHROUGH_PCT\", p[\"BT\"]),\n        (\"BT_EXPECTED_PCT\", p[\"BTE\"]),\n        (\"BT_RATIO\", p[\"BTR\"]),\n        (\"VENT_PCT\", p[\"VP\"]),\n        (\"AIR_BALANCE\", p[\"AB\"]),\n        (\"DRY_COEF_RATIO\", p[\"KR\"]),\n        (\"EVAP_STEAMSIDE_TH\", p[\"ES\"]),\n        (\"BALANCE_RESIDUAL_PCT\", p[\"RES\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    prod, fib, ev = evaporation(r[\"speed_mpm\"], k[\"width\"], r[\"basis_weight_gsm\"], r[\"reel_moisture_pct\"], r[\"press_dryness_pct\"])\n    ts = {g: tsat(k, r[f\"p{g}_barg\"]) for g in GROUPS}\n    bt = r[\"bt_main_kgh\"] / r[\"cond_main_kgh\"] * 100\n    bte = k[\"bt_d\"] * math.sqrt(max((r[\"dp3_kpa\"] + r[\"dp4_kpa\"]) / 2, 0) / k[\"dp_ref\"])\n    den = sum(a * (r[f\"ts{g}_c\"] - k[\"tsh\"]) for g, a in zip(GROUPS, k[\"ag\"]))\n    es = (r[\"steam_total_kgh\"] - r[\"vent_kgh\"]) * hfg(k, r[\"p3_barg\"]) / k[\"q\"] / 1000\n    return {\n        \"production_th\": prod, \"fibre_th\": fib / 1000, \"evap_th\": ev / 1000, \"evap_rate_kgm2h\": ev / k[\"atot\"],\n        \"spec_steam_kgkg\": r[\"steam_total_kgh\"] / ev,\n        \"steam_cost_usd_t\": r[\"steam_total_kgh\"] / 1000 * k[\"price\"] / prod,\n        \"excess_steam_kusd_y\": (r[\"steam_total_kgh\"] - k[\"ssc_d\"] * ev) / 1000 * k[\"price\"] * k[\"hy\"] / 1000,\n        \"tsat_main_c\": ts[3],\n        \"dt_surf_max_c\": max(ts[g] - r[f\"ts{g}_c\"] for g in (2, 3, 4)),\n        \"cold_cyl_max_k\": max(r[f\"ts{g}_c\"] - r[f\"tsmin{g}_c\"] for g in GROUPS),\n        \"dp_min_kpa\": min(r[f\"dp{g}_kpa\"] for g in GROUPS), \"dp_max_kpa\": max(r[f\"dp{g}_kpa\"] for g in GROUPS),\n        \"blowthrough_pct\": bt, \"bt_expected_pct\": bte, \"bt_ratio\": bt / bte,\n        \"vent_pct\": r[\"vent_kgh\"] / r[\"steam_total_kgh\"] * 100,\n        \"air_balance\": r[\"hood_supply_kgs\"] / r[\"hood_exhaust_kgs\"],\n        \"dry_coef_ratio\": ev / den / k[\"kd_d\"],\n        \"evap_steamside_th\": es, \"balance_residual_pct\": (ev / 1000 / es - 1) * 100,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"DRY_COLD_CYLINDER\", f\"{p['CC']} > {L['cold_cyl_alert_k']}\", \"High\", \"flooded_cylinder\"),\n        (\"DRY_DP_LOW\", f\"{p['DPMIN']} < {k['dp_lo']}\", \"High\", \"low_dp\"),\n        (\"DRY_SURF_DT_HIGH\", f\"{p['DT']} > {L['dt_surface_alert_c']}\", \"Medium\", \"low_dp\"),\n        (\"DRY_DP_HIGH\", f\"{p['DPMAX']} > {k['dp_hi']}\", \"Medium\", None),\n        (\"DRY_BLOWTHROUGH_HIGH\", f\"{p['BTR']} > {L['bt_ratio_high']}\", \"Medium\", \"syphon_wear\"),\n        (\"DRY_BLOWTHROUGH_LOW\", f\"{p['BTR']} < {L['bt_ratio_low']}\", \"Medium\", \"low_dp\"),\n        (\"DRY_VENT_HIGH\", f\"{p['VP']} > {L['vent_alert_pct']}\", \"Medium\", \"vent_valve_passing\"),\n        (\"DRY_SSC_HIGH\", f\"{p['SSC']} > {L['ssc_alert']}\", \"Medium\", \"vent_valve_passing\"),\n        (\"DRY_RATE_LOW\", f\"{p['KR']} < {L['dry_coef_ratio_low']}\", \"Medium\", \"fabric_filling\"),\n        (\"DRY_POCKET_HUMID_HIGH\", f\"df['POCKET_HUMIDITY_GKG'] > {L['pocket_humidity_alert_gkg']}\", \"Medium\", \"fabric_filling\"),\n        (\"DRY_HOOD_HUMID_LOW\", f\"df['HOOD_HUMIDITY_GKG'] < {L['hood_humidity_low_gkg']}\", \"Medium\", \"hood_exhaust_high\"),\n        (\"DRY_HOOD_HUMID_HIGH\", f\"df['HOOD_HUMIDITY_GKG'] > {L['hood_humidity_high_gkg']}\", \"High\", \"hood_exhaust_low\"),\n        (\"DRY_AIR_BALANCE\", f\"({p['AB']} < {L['air_balance_low']}) | ({p['AB']} > {L['air_balance_high']})\", \"Medium\", \"hood_exhaust_high\"),\n        (\"DRY_BALANCE_MISMATCH\", f\"np.abs({p['RES']}) > {L['balance_mismatch_pct']}\", \"Medium\", \"steam_meter_drift\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    cold_g = max(GROUPS, key=lambda g: r[f\"ts{g}_c\"] - r[f\"tsmin{g}_c\"])\n    dt_g = max((2, 3, 4), key=lambda g: tsat(k, r[f\"p{g}_barg\"]) - r[f\"ts{g}_c\"])\n    dp_g = min(GROUPS, key=lambda g: r[f\"dp{g}_kpa\"])\n    hi_g = max(GROUPS, key=lambda g: r[f\"dp{g}_kpa\"])\n    ab = t[\"air_balance\"]\n    add(t[\"cold_cyl_max_k\"] > L[\"cold_cyl_alert_k\"], \"DRY_COLD_CYLINDER\", \"High\",\n        f\"A cylinder in group {cold_g} is {t['cold_cyl_max_k']:.0f} K colder than its group: flooded, check its syphon\", \"syphon\", \"flooded_cylinder\")\n    add(t[\"dp_min_kpa\"] < k[\"dp_lo\"], \"DRY_DP_LOW\", \"High\",\n        f\"Group {dp_g} differential pressure {t['dp_min_kpa']:.0f} kPa, below the {k['dp_lo']:.0f} kPa stationary syphons need\", \"steam\", \"low_dp\")\n    add(t[\"dt_surf_max_c\"] > L[\"dt_surface_alert_c\"], \"DRY_SURF_DT_HIGH\", \"Medium\",\n        f\"Group {dt_g} surface {t['dt_surf_max_c']:.0f} K below its steam temperature: condensate building up\", \"steam\", \"low_dp\")\n    add(t[\"dp_max_kpa\"] > k[\"dp_hi\"], \"DRY_DP_HIGH\", \"Medium\",\n        f\"Group {hi_g} differential pressure {t['dp_max_kpa']:.0f} kPa: more blow-through than needed\", \"steam\")\n    add(t[\"bt_ratio\"] > L[\"bt_ratio_high\"], \"DRY_BLOWTHROUGH_HIGH\", \"Medium\",\n        f\"Blow-through {t['blowthrough_pct']:.0f} % of the condensing load, {t['bt_ratio']:.1f} x what the DP explains: worn syphons\", \"syphon\", \"syphon_wear\")\n    add(t[\"bt_ratio\"] < L[\"bt_ratio_low\"], \"DRY_BLOWTHROUGH_LOW\", \"Medium\",\n        f\"Blow-through only {t['blowthrough_pct']:.1f} % ({t['bt_ratio']:.2f} x expected): syphons not passing steam\", \"steam\", \"low_dp\")\n    add(t[\"vent_pct\"] > L[\"vent_alert_pct\"], \"DRY_VENT_HIGH\", \"Medium\", f\"{t['vent_pct']:.1f} % of the steam vented to the condenser\", \"steam\", \"vent_valve_passing\")\n    add(t[\"spec_steam_kgkg\"] > L[\"ssc_alert\"], \"DRY_SSC_HIGH\", \"Medium\",\n        f\"{t['spec_steam_kgkg']:.2f} kg steam per kg water: {t['excess_steam_kusd_y']:.0f} k$ a year above design\", \"steam\", \"vent_valve_passing\")\n    add(t[\"dry_coef_ratio\"] < L[\"dry_coef_ratio_low\"], \"DRY_RATE_LOW\", \"Medium\",\n        f\"Evaporation per degree of hot surface {t['dry_coef_ratio']:.2f} x design: fabric or pockets holding the vapour\", \"fabric\", \"fabric_filling\")\n    add(r[\"pocket_humidity_gkg\"] > L[\"pocket_humidity_alert_gkg\"], \"DRY_POCKET_HUMID_HIGH\", \"Medium\",\n        f\"Pocket humidity {r['pocket_humidity_gkg']:.0f} g/kg: vapour not leaving the pockets\", \"fabric\", \"fabric_filling\")\n    add(r[\"hood_humidity_gkg\"] < L[\"hood_humidity_low_gkg\"], \"DRY_HOOD_HUMID_LOW\", \"Medium\",\n        f\"Hood exhaust humidity {r['hood_humidity_gkg']:.0f} g/kg: heating more air than the water needs\", \"hood\", \"hood_exhaust_high\")\n    add(r[\"hood_humidity_gkg\"] > L[\"hood_humidity_high_gkg\"], \"DRY_HOOD_HUMID_HIGH\", \"High\",\n        f\"Hood exhaust humidity {r['hood_humidity_gkg']:.0f} g/kg: condensation and drips in the hood\", \"hood\", \"hood_exhaust_low\")\n    add(ab < L[\"air_balance_low\"] or ab > L[\"air_balance_high\"], \"DRY_AIR_BALANCE\", \"Medium\",\n        f\"Supply/exhaust air {ab:.2f}, outside {L['air_balance_low']} to {L['air_balance_high']}\", \"hood\", \"hood_exhaust_high\")\n    add(abs(t[\"balance_residual_pct\"]) > L[\"balance_mismatch_pct\"], \"DRY_BALANCE_MISMATCH\", \"Medium\",\n        f\"Sheet-side evaporation {t['evap_th']:.1f} t/h vs steam-side {t['evap_steamside_th']:.1f} t/h: check the steam meter and the QCS\", \"instrument\", \"steam_meter_drift\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "PM-4301 dryer section twin. Expected values in Maximo Monitor from the machine design, the steam tables and TAPPI dryer guidelines; the machine sends only what it measures.", "twin": {"id": "PM-4301", "name": "Dryer section PM-4301", "version": "1.0.0", "folder": "dryer-twin"}, "identification": {"asset": "PM-4301", "assetnum": "PM-4301", "manufacturer": "Board machine dryer section, 50 cylinders, Kadant Johnson", "model": "PT2X steam joints with cantilever stationary syphons", "description": "Dryer section of a testliner board machine: 50 steam-heated cylinders in 4 cascade steam groups, closed hood", "cylinders": "50 cast iron dryer cylinders, 1.83 m (6 ft) diameter, 5.7 m face, single-tier and double-felted groups (typical design)", "steam_joints": "Kadant Johnson PT2X steam joint and cantilever stationary syphon on every cylinder", "steam_system": "Cascade: fresh steam to the main groups 3 and 4, their blow-through steam via a separator and thermocompressor to group 2, group 2 blow-through to group 1", "hood": "Closed hood with supply and exhaust fans, heat recovery and pocket ventilation (PV) air", "grade": "Testliner, 125 g/m2"}, "design": {"machine": {"speed_mpm": 750.0, "width_m": 5.5, "basis_weight_gsm": 125.0, "reel_moisture_pct": 8.0, "press_dryness_pct": 48.0, "source": "Design grade and speed of the machine: reel width (trim), speed, basis weight at the reel, reel moisture and sheet dryness after the press section: assumption: typical value, replace with your machine's data."}, "cylinders": {"count": 50, "diameter_m": 1.83, "face_m": 5.7, "groups": [6, 12, 20, 12], "mawp_barg": 11.0, "source": "1.83 m (6 ft) cylinders and the split into four steam groups (wet end, intermediate, main, dry end) are typical of a board machine: assumption: typical value, replace with your machine's data. Maximum allowable working pressure of the cylinders from their pressure vessel nameplate: assumption, set equal to the PT2X standard pressure (11 barg)."}, "steam_joint": {"model": "Kadant Johnson PT2X", "pressure_std_barg": 11.0, "pressure_max_barg": 14.0, "temp_std_c": 204.0, "temp_max_c": 232.0, "rpm_max": 500, "speed_max_mpm": 2500, "source": "Kadant Johnson PT2X steam joint and syphon system brochure (2020): standard pressure 160 psig (11 barg), upgradeable 200 psig (14 barg); standard temperature 400 F (204 C), upgradeable 450 F (232 C); 500 rpm; maximum design speed 8000 fpm (2500 m/min)."}, "steam": {"p_barg": [1.0, 2.5, 4.5, 4.0], "dp_kpa": 25.0, "dt_surface_c": [35.0, 22.0, 20.0, 18.0], "dp_min_kpa": 15.0, "dp_max_kpa": 35.0, "bt_design_pct": 12.5, "bt_dp_ref_kpa": 25.0, "ssc_design": 1.35, "vent_design_pct": 0.5, "t_sheet_c": 60.0, "spread_design_k": 5.0, "table_p_bara": [1.0, 1.5, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 10.0, 12.0, 14.0], "table_tsat_c": [99.61, 111.35, 120.21, 133.52, 143.61, 151.83, 158.83, 164.95, 170.41, 179.88, 187.96, 195.04], "table_hfg_kjkg": [2257.5, 2226.0, 2201.6, 2163.5, 2133.4, 2107.4, 2085.8, 2066.0, 2047.5, 2014.6, 1985.4, 1959.0], "source": "Group steam pressures and steam-to-surface temperature differences at design: assumption: typical value, replace with your machine's data (inside the 15-30 C of TAPPI TIP 0404-33 for groups 2 to 4; the wet-end group runs a larger difference, as the TIP notes). Differential pressure 25 kPa inside the 15-35 kPa TAPPI TIP 0404-31 gives for stationary syphons. Blow-through 12.5 % of the condensing load at 25 kPa (middle of the TIP's typical 10-15 %), scaled with the square root of the differential pressure: assumption (an orifice-like fit; replace with your syphon maker's performance curve). Specific steam consumption at design 1.35 kg/kg (TAPPI TIP 0404-33: top machines about 1.3): assumption. Normal venting 0.5 % of the steam: assumption. Sheet evaporation temperature 60 C used for the drying coefficient: assumption. Normal spread between a group's mean and its coldest cylinder 5 K: assumption. Steam table: IAPWS-IF97 saturation temperature and latent heat (textbook)."}, "hood": {"exhaust_humidity_gkg": 160.0, "supply_humidity_gkg": 15.0, "supply_exhaust_ratio": 0.8, "pv_air_c": 88.0, "pocket_humidity_gkg": 150.0, "source": "Hood exhaust humidity at design, supply air humidity after heat recovery, supply-to-exhaust air ratio of the closed hood (the rest of the exhaust is room air drawn in at the openings) and pocket humidity: assumption: typical value, replace with your machine's data. PV air temperature 88 C, inside the 82-93 C recommended by TAPPI TIP 0404-33."}, "economics": {"steam_price_usd_t": 25.0, "hours_per_year": 8400, "source": "Steam price and running hours per year: assumption, replace with your mill's steam cost and machine availability."}, "demo": {"time_scale": 60, "speed_swing": 0.02, "speed_period_s": 600, "note": "Demo only: the plant clock runs 60 times faster and the speed swings 2 % over 10 minutes so the curves move; faults ramp in over minutes, where a worn syphon or a filled fabric takes weeks."}}, "telemetry": {"event": "dryer", "publish_every_s": 10, "device_type": "PAPER_DRYER_SECTION", "groups": {"Machine": "Speed, grade and sheet moisture (QCS)", "Steam": "Fresh steam, vent, main condensate and blow-through", "G1": "Steam group 1 (wet end)", "G2": "Steam group 2 (intermediate)", "G3": "Steam group 3 (main)", "G4": "Steam group 4 (dry end)", "Hood": "Hood air and pocket ventilation"}, "points": [{"metric": "speed_mpm", "path": "Machine.Speed", "label": "Machine speed", "unit": "m/min"}, {"metric": "basis_weight_gsm", "path": "Machine.BasisWeight", "label": "Basis weight at the reel (QCS)", "unit": "g/m\u00b2"}, {"metric": "reel_moisture_pct", "path": "Machine.ReelMoisture", "label": "Moisture at the reel (QCS)", "unit": "%"}, {"metric": "press_dryness_pct", "path": "Machine.PressDryness", "label": "Sheet dryness entering the dryer section", "unit": "%"}, {"metric": "steam_total_kgh", "path": "Steam.Total", "label": "Fresh steam to the dryer section", "unit": "kg/h"}, {"metric": "vent_kgh", "path": "Steam.Vent", "label": "Steam vented to the vent condenser", "unit": "kg/h"}, {"metric": "cond_main_kgh", "path": "Steam.CondensateMain", "label": "Condensate from groups 3 and 4 (condensing load)", "unit": "kg/h"}, {"metric": "bt_main_kgh", "path": "Steam.BlowThroughMain", "label": "Blow-through steam from groups 3 and 4 (separator vapour)", "unit": "kg/h"}, {"metric": "p1_barg", "path": "G1.Pressure", "label": "Group 1 steam pressure", "unit": "bar g"}, {"metric": "dp1_kpa", "path": "G1.DP", "label": "Group 1 differential pressure (steam to condensate header)", "unit": "kPa"}, {"metric": "ts1_c", "path": "G1.SurfaceMean", "label": "Group 1 mean cylinder surface temperature", "unit": "\u00b0C"}, {"metric": "tsmin1_c", "path": "G1.SurfaceMin", "label": "Group 1 coldest cylinder surface temperature", "unit": "\u00b0C"}, {"metric": "p2_barg", "path": "G2.Pressure", "label": "Group 2 steam pressure", "unit": "bar g"}, {"metric": "dp2_kpa", "path": "G2.DP", "label": "Group 2 differential pressure (steam to condensate header)", "unit": "kPa"}, {"metric": "ts2_c", "path": "G2.SurfaceMean", "label": "Group 2 mean cylinder surface temperature", "unit": "\u00b0C"}, {"metric": "tsmin2_c", "path": "G2.SurfaceMin", "label": "Group 2 coldest cylinder surface temperature", "unit": "\u00b0C"}, {"metric": "p3_barg", "path": "G3.Pressure", "label": "Group 3 steam pressure", "unit": "bar g"}, {"metric": "dp3_kpa", "path": "G3.DP", "label": "Group 3 differential pressure (steam to condensate header)", "unit": "kPa"}, {"metric": "ts3_c", "path": "G3.SurfaceMean", "label": "Group 3 mean cylinder surface temperature", "unit": "\u00b0C"}, {"metric": "tsmin3_c", "path": "G3.SurfaceMin", "label": "Group 3 coldest cylinder surface temperature", "unit": "\u00b0C"}, {"metric": "p4_barg", "path": "G4.Pressure", "label": "Group 4 steam pressure", "unit": "bar g"}, {"metric": "dp4_kpa", "path": "G4.DP", "label": "Group 4 differential pressure (steam to condensate header)", "unit": "kPa"}, {"metric": "ts4_c", "path": "G4.SurfaceMean", "label": "Group 4 mean cylinder surface temperature", "unit": "\u00b0C"}, {"metric": "tsmin4_c", "path": "G4.SurfaceMin", "label": "Group 4 coldest cylinder surface temperature", "unit": "\u00b0C"}, {"metric": "hood_humidity_gkg", "path": "Hood.ExhaustHumidity", "label": "Hood exhaust humidity", "unit": "g/kg dry air"}, {"metric": "hood_exh_temp_c", "path": "Hood.ExhaustTemp", "label": "Hood exhaust temperature", "unit": "\u00b0C"}, {"metric": "hood_exhaust_kgs", "path": "Hood.ExhaustAir", "label": "Hood exhaust air (dry air)", "unit": "kg/s"}, {"metric": "hood_supply_kgs", "path": "Hood.SupplyAir", "label": "Hood supply air (dry air)", "unit": "kg/s"}, {"metric": "pv_air_temp_c", "path": "Hood.PVTemp", "label": "Pocket ventilation air temperature", "unit": "\u00b0C"}, {"metric": "pocket_humidity_gkg", "path": "Hood.PocketHumidity", "label": "Pocket humidity, main group", "unit": "g/kg dry air"}]}, "twin_model": {"limits": {"cold_cyl_alert_k": 12.0, "dt_surface_alert_c": 30.0, "bt_ratio_high": 1.5, "bt_ratio_low": 0.65, "vent_alert_pct": 2.0, "ssc_alert": 1.5, "dry_coef_ratio_low": 0.87, "pocket_humidity_alert_gkg": 200.0, "hood_humidity_low_gkg": 120.0, "hood_humidity_high_gkg": 200.0, "air_balance_low": 0.7, "air_balance_high": 0.9, "balance_mismatch_pct": 8.0}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "flooded_cylinder": {"name": "Flooded cylinder (broken or lifted syphon)", "part": "syphon", "symptoms": "one cylinder of group 3 runs far colder than the rest of its group; pressure and differential pressure normal", "rules": ["DRY_COLD_CYLINDER"], "default_ramp_min": 1}, "low_dp": {"name": "Differential pressure lost in group 3 (thermocompressor or DP control)", "part": "steam", "symptoms": "group 3 DP low, the whole group runs colder, blow-through falls", "rules": ["DRY_DP_LOW", "DRY_SURF_DT_HIGH", "DRY_BLOWTHROUGH_LOW"], "default_ramp_min": 1}, "syphon_wear": {"name": "Eroded syphon elbows and shoes in group 4", "part": "syphon", "symptoms": "blow-through well above what the DP explains; surfaces only slightly colder", "rules": ["DRY_BLOWTHROUGH_HIGH"], "default_ramp_min": 1.5}, "vent_valve_passing": {"name": "Vent valve passing (steam to the vent condenser)", "part": "steam", "symptoms": "vented steam up, specific steam consumption up, sheet-side and steam-side balance still agree", "rules": ["DRY_VENT_HIGH", "DRY_SSC_HIGH"], "default_ramp_min": 1}, "fabric_filling": {"name": "Dryer fabric filled (low permeability)", "part": "fabric", "symptoms": "pocket humidity up, steam pressure raised to hold reel moisture, less evaporation per degree of surface temperature", "rules": ["DRY_RATE_LOW", "DRY_POCKET_HUMID_HIGH"], "default_ramp_min": 1.5}, "hood_exhaust_high": {"name": "Too much hood exhaust air", "part": "hood", "symptoms": "exhaust humidity low (heating air that carries little water), supply/exhaust ratio low", "rules": ["DRY_HOOD_HUMID_LOW", "DRY_AIR_BALANCE"], "default_ramp_min": 1}, "hood_exhaust_low": {"name": "Hood exhaust fan short of air", "part": "hood", "symptoms": "exhaust humidity high (condensation and drips in the hood), supply/exhaust ratio above 1", "rules": ["DRY_HOOD_HUMID_HIGH", "DRY_AIR_BALANCE"], "default_ramp_min": 1}, "steam_meter_drift": {"name": "Fresh steam flow meter reading low", "part": "instrument", "symptoms": "specific steam consumption looks better than it is; sheet-side and steam-side evaporation disagree", "rules": ["DRY_BALANCE_MISMATCH"], "default_ramp_min": 1}}, "presentation": {"title": "PM-4301 dryer section", "dashboard": "PAPER_DRYER_SECTION"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (true) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, showSheet = true;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (1 unit = 1 m) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(6, 24, 68); ctl.target.set(0, 3, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(10, 30, 20); scene.add(sun);
+scene.add(new THREE.GridHelper(90, 45, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .5, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide, emissive: o.e ?? 0x000000 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// 50 cylinders of 1.83 m, 5.7 m face, top and bottom tier alternate along the machine (1.03 m between neighbours), gaps between steam groups
+const GROUPS = [6, 12, 20, 12], R = 0.915, FACE = 5.7, STEP = 1.03, YB = 1.5, YT = 3.9, GAP = 1.2;
+const FLOOD = 6 + 12 + 9;                     // the cylinder that floods in the demo: the 10th of group 3
+const xs = []; { let x = 0; GROUPS.forEach((n, g) => { for (let i = 0; i < n; i++) { xs.push(x); x += STEP + (i === n - 1 ? GAP : 0); } }); }
+const MID = (xs[0] + xs[xs.length - 1]) / 2, LEN = xs[xs.length - 1] - xs[0];
+const cyls = [], groupX = [[], [], [], []];
+let idx = 0;
+GROUPS.forEach((n, g) => {
+  for (let i = 0; i < n; i++, idx++) {
+    const top = idx % 2 === 0, x = xs[idx] - MID, mat = M(0x6f7f8f, { m: .7, r: .35 });
+    const c = cyl(R, R, FACE, mat); c.rotation.x = Math.PI / 2; scene.add(at(c, x, top ? YT : YB, 0));
+    const j = cyl(.12, .12, FACE + .9, M(0x3d4249), 12); j.rotation.x = Math.PI / 2; scene.add(at(j, x, top ? YT : YB, 0));
+    cyls.push({ mat, g, top, x }); groupX[g].push(x);
+  }
+});
+// frames on both sides (front = tending side, back = drive side)
+[-1, 1].forEach(sz => {
+  scene.add(at(box(LEN + 3, .3, .3, M(0x3d4249)), 0, YT + 1.2, sz * (FACE / 2 + .6)));
+  scene.add(at(box(LEN + 3, .3, .3, M(0x3d4249)), 0, .3, sz * (FACE / 2 + .6)));
+  for (let i = 0; i <= 12; i++) scene.add(at(box(.25, YT + 1.2, .25, M(0x3d4249)), -LEN / 2 - 1.2 + i * (LEN + 2.4) / 12, (YT + 1.2) / 2, sz * (FACE / 2 + .6)));
+});
+// sheet: a band from cylinder to cylinder, over the top tier and under the bottom tier
+const sheetMat = new THREE.MeshStandardMaterial({ color: 0xc8a97e, roughness: .9, side: THREE.DoubleSide });
+const sheetBand = [];
+cyls.forEach((c, i) => {
+  if (!i) return;
+  const p = cyls[i - 1], y1 = p.top ? YT + R : YB - R, y2 = c.top ? YT + R : YB - R;
+  const b = box(Math.hypot(c.x - p.x, y2 - y1), .02, FACE - .3, sheetMat);
+  b.rotation.z = Math.atan2(y2 - y1, c.x - p.x); scene.add(at(b, (c.x + p.x) / 2, (y1 + y2) / 2, 0)); sheetBand.push(b);
+});
+// steam headers (yellow) and condensate headers (blue) per group on the drive side, separator, thermocompressor, vent
+const steamMat = M(0xd8a31a, { m: .4 }), condMat = M(0x4589ff, { m: .4 });
+groupX.forEach(gx => {
+  const a = gx[0], b = gx[gx.length - 1];
+  const s = cyl(.14, .14, b - a + 1, steamMat, 12); s.rotation.z = Math.PI / 2; scene.add(at(s, (a + b) / 2, .9, -FACE / 2 - 1.4));
+  const c = cyl(.11, .11, b - a + 1, condMat, 12); c.rotation.z = Math.PI / 2; scene.add(at(c, (a + b) / 2, .45, -FACE / 2 - 1.8));
+});
+scene.add(at(cyl(.6, .6, 2.2, M(0x8c97a3)), groupX[2][0] - .6, 1.1, -FACE / 2 - 3.4));
+const tcomp = cyl(.18, .35, 1.4, M(0xb28600)); tcomp.rotation.z = Math.PI / 2; scene.add(at(tcomp, groupX[1][groupX[1].length - 1], 2.0, -FACE / 2 - 3.4));
+const ventMat = M(0xc0392b);
+scene.add(at(cyl(.14, .14, 3, ventMat), groupX[3][3], 1.5, -FACE / 2 - 3.4));
+// hood: closed hood over the section, exhaust stacks on the roof with a vapour plume
+const hoodMat = M(0x7d8792, { m: .3, t: 1, ds: true });
+scene.add(at(box(LEN + 6, 7.6, FACE + 3.4, hoodMat), 0, 3.8, 0));
+const plume = [];
+[-0.3, 0, 0.3].forEach(f => {
+  scene.add(at(cyl(.7, .7, 2.5, M(0x6f7f8f)), f * LEN, 8.8, 0));
+  const p = new THREE.Mesh(new THREE.SphereGeometry(.9, 12, 10), new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: .25 }));
+  scene.add(at(p, f * LEN, 10.6, 0)); plume.push(p);
+});
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.4, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(beacon, -LEN / 2 - 2.5, 8.2, 0));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+groupX.forEach((gx, g) => lbl('g' + (g + 1), [(gx[0] + gx[gx.length - 1]) / 2, YT + R + .4 + (g % 2) * 1.6, FACE / 2]));
+lbl('cold', [cyls[FLOOD].x, YB - R - .2, FACE / 2]);
+lbl('steam', [groupX[2][0] - .6, 2.3, -FACE / 2 - 3.4]); lbl('vent', [groupX[3][3], 3.1, -FACE / 2 - 3.4]);
+lbl('hood', [0, 10.2, 0]); lbl('sheet', [-LEN / 2, YB - .3, FACE / 2]); lbl('reel', [LEN / 2, YT + .2, FACE / 2]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); L.el.style.display = v.z < 1 ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+const P0 = 1.01325;
+function interp(x, xa, ya) { if (x <= xa[0]) return ya[0]; if (x >= xa[xa.length - 1]) return ya[ya.length - 1]; for (let i = 1; i < xa.length; i++) if (x <= xa[i]) return ya[i - 1] + (x - xa[i - 1]) * (ya[i] - ya[i - 1]) / (xa[i] - xa[i - 1]); return ya[ya.length - 1]; }
+const heat = (mat, tC) => { const k = Math.max(0, Math.min(1, (tC - 70) / 90)); mat.color.setRGB(.25 + .65 * k, .45 - .1 * k, .85 - .7 * k); };
+let humid = 160;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, s = TW.design.steam;
+  const tsat = p => interp(p + P0, s.table_p_bara, s.table_tsat_c);
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  [1, 2, 3, 4].forEach(g => {
+    const dt = tsat(r[`p${g}_barg`]) - r[`ts${g}_c`], spread = r[`ts${g}_c`] - r[`tsmin${g}_c`], dp = r[`dp${g}_kpa`];
+    setLbl('g' + g, `group ${g}: steam · DP · surface (below steam)`, `${fmt(r[`p${g}_barg`], 1)} bar g · ${fmt(dp, 0)} kPa · ${fmt(r[`ts${g}_c`], 0)} °C (${fmt(dt, 0)} K)`,
+      st(dp < s.dp_min_kpa || spread > L.cold_cyl_alert_k, (g > 1 && dt > L.dt_surface_alert_c) || dp > s.dp_max_kpa));
+  });
+  cyls.forEach((c, i) => heat(c.mat, i === FLOOD ? r.tsmin3_c : r[`ts${c.g + 1}_c`]));
+  const cold = r.ts3_c - r.tsmin3_c;
+  setLbl('cold', 'coldest cylinder, group 3', `${fmt(r.tsmin3_c, 0)} °C · ${fmt(cold, 0)} K below group`, st(cold > L.cold_cyl_alert_k, false));
+  setLbl('steam', 'fresh steam · blow-through (groups 3+4)', `${fmt(r.steam_total_kgh / 1000, 1)} t/h · BT ${fmt(t.blowthrough_pct, 1)} % (${fmt(t.bt_ratio, 2)} × expected)`,
+    st(false, names.has('DRY_BLOWTHROUGH_HIGH') || names.has('DRY_BLOWTHROUGH_LOW') || names.has('DRY_BALANCE_MISMATCH')));
+  setLbl('vent', 'vented steam', `${fmt(r.vent_kgh, 0)} kg/h · ${fmt(t.vent_pct, 1)} %`, st(false, names.has('DRY_VENT_HIGH')));
+  setLbl('hood', 'hood exhaust humidity · supply/exhaust air', `${fmt(r.hood_humidity_gkg, 0)} g/kg · ${fmt(t.air_balance, 2)}`,
+    st(names.has('DRY_HOOD_HUMID_HIGH'), names.has('DRY_HOOD_HUMID_LOW') || names.has('DRY_AIR_BALANCE')));
+  setLbl('sheet', 'sheet in: speed · dryness', `${fmt(r.speed_mpm, 0)} m/min · ${fmt(r.press_dryness_pct, 1)} %`, '');
+  setLbl('reel', 'reel: moisture · water evaporated', `${fmt(r.reel_moisture_pct, 1)} % · ${fmt(t.evap_th, 1)} t/h`, st(false, names.has('DRY_RATE_LOW') || names.has('DRY_POCKET_HUMID_HIGH')));
+  humid = r.hood_humidity_gkg;
+  $('k-health').textContent = ST.health; $('k-ssc').textContent = fmt(t.spec_steam_kgkg, 2); $('k-cost').textContent = fmt(t.steam_cost_usd_t, 1) + ' $/t';
+  $('c-ssc-t').textContent = `steam ${fmt(t.spec_steam_kgkg, 2)} kg/kg (design ${s.ssc_design})`; $('c-ssc').className = 'chip ' + (names.has('DRY_SSC_HIGH') ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Water evaporated (t/h)', fmt(t.evap_th, 1), fmt(t.evap_steamside_th, 1) + ' steam side', names.has('DRY_BALANCE_MISMATCH')) +
+    row('Steam per kg water', fmt(t.spec_steam_kgkg, 2), '≈ ' + s.ssc_design, names.has('DRY_SSC_HIGH')) +
+    row('Evaporation rate (kg/m² h)', fmt(t.evap_rate_kgm2h, 1), '–') +
+    row('Steam − surface, worst (K)', fmt(t.dt_surf_max_c, 0), '15 – 30', names.has('DRY_SURF_DT_HIGH')) +
+    row('Coldest cylinder below group (K)', fmt(t.cold_cyl_max_k, 1), '< ' + L.cold_cyl_alert_k, names.has('DRY_COLD_CYLINDER')) +
+    row('Differential pressure (kPa)', fmt(t.dp_min_kpa, 0) + ' – ' + fmt(t.dp_max_kpa, 0), s.dp_min_kpa + ' – ' + s.dp_max_kpa, names.has('DRY_DP_LOW') || names.has('DRY_DP_HIGH')) +
+    row('Blow-through (% of load)', fmt(t.blowthrough_pct, 1), fmt(t.bt_expected_pct, 1), names.has('DRY_BLOWTHROUGH_HIGH') || names.has('DRY_BLOWTHROUGH_LOW')) +
+    row('Vented steam (%)', fmt(t.vent_pct, 1), '< ' + L.vent_alert_pct, names.has('DRY_VENT_HIGH')) +
+    row('Drying coefficient ÷ design', fmt(t.dry_coef_ratio), '> ' + L.dry_coef_ratio_low, names.has('DRY_RATE_LOW')) +
+    row('Pocket humidity (g/kg)', fmt(r.pocket_humidity_gkg, 0), '< ' + L.pocket_humidity_alert_gkg, names.has('DRY_POCKET_HUMID_HIGH')) +
+    row('Hood exhaust humidity (g/kg)', fmt(r.hood_humidity_gkg, 0), L.hood_humidity_low_gkg + ' – ' + L.hood_humidity_high_gkg, names.has('DRY_HOOD_HUMID_LOW') || names.has('DRY_HOOD_HUMID_HIGH')) +
+    row('Supply ÷ exhaust air', fmt(t.air_balance), L.air_balance_low + ' – ' + L.air_balance_high, names.has('DRY_AIR_BALANCE')) +
+    row('Steam above design (k$/y)', fmt(t.excess_steam_kusd_y, 0), '≤ 0');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the dryer section behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  ventMat.emissive.setHex(names.has('DRY_VENT_HIGH') ? 0x801010 : 0x000000);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => { cut = !cut; $('t-cut').classList.toggle('on', cut); hoodMat.transparent = true; hoodMat.opacity = cut ? .1 : 1; hoodMat.depthWrite = !cut; };
+$('t-cut').click();
+$('t-sheet').onclick = () => { showSheet = !showSheet; $('t-sheet').classList.toggle('on', showSheet); sheetBand.forEach(b => b.visible = showSheet); };
+$('t-sheet').classList.add('on');
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+function tick(now) {
+  const a = Math.max(.08, Math.min(.6, humid / 400));
+  plume.forEach((p, i) => { p.material.opacity = a * (1 + .15 * Math.sin(now / 400 + i)); p.position.y = 10.6 + .3 * Math.sin(now / 700 + i); });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

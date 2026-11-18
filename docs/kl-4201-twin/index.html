@@ -1,0 +1,376 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>KL-4201 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.ramp{display:block;height:8px;margin:4px 0 2px;background:linear-gradient(90deg,#6f7682,#c8a04a,#e8711c,#da1e28,#ffd0c8)}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>KL-4201</b><span class="g">Cement rotary kiln · 4.8 m × 74 m · 5000 t/d</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-shc"><span class="dot"></span><span id="c-shc-t">SHC –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Heat balance, shell and burning zone →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the kiln model…</div>
+<div class="credit">Rotary kiln on three tyres with girth gear drive, 5-stage cyclone preheater with calciner, grate cooler. Typical proportions, not vendor CAD. The shell is coloured by the live shell scanner. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-spin" class="on">Rotate kiln</button><button id="t-view">Reset view</button></div>
+<div class="legend">Shell colour = scanner temperature<span class="ramp"></span>200 °C · 300 · 400 · 500 °C+<br>Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Cutaway shows the lining, thinner where the twin estimates wear.</div>
+<aside>
+  <section>
+    <h2>KL-4201 twin</h2>
+    <p class="sub" id="sub">clinker line</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Heat use kJ/kg<b id="k-shc">–</b></div><div>Lining mm<b id="k-lin">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The plant sends only what it measures. The heat balance, the cooler efficiency, false air, the lining estimate, the expected torque, NOx and tyre gap are computed from the twin file: the kiln data sheet and the design heat balance.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for KL-4201: the kiln, its drive, tyres, shell scanner, preheater, burning zone, grate cooler and stack, with\ninjectable faults.\n\nThe real plant sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and\nfault fingerprints for the tests and the figures. Pure Python (math, random): it also runs in the browser (Pyodide).\n\nThe fuel follows a heat balance: the true specific heat consumption is the sum of the true losses, so a healthy kiln\ncloses its balance and every fault that costs heat (cooler, false air, hot shell) also costs fuel.\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\nclass Kiln:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        self.k = tc._k(twin)\n        d = twin[\"design\"]\n        self.kl, self.hb, self.sh, self.bz, self.gs = d[\"kiln\"], d[\"heat_balance\"], d[\"shell\"], d[\"burning_zone\"], d[\"gas\"]\n        self.dr, self.ty, self.cool, self.st = d[\"drive\"], d[\"tyres\"], d[\"cooler\"], d[\"stack\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ------------------------------------------------------------------------------------------------------\n    def true_state(self, load=1.0, ambient=None):\n        k, f, hb, ty = self.k, self.faults, self.hb, self.ty\n        amb = hb[\"ambient_design_c\"] if ambient is None else ambient\n        da = amb - hb[\"ambient_design_c\"]\n        cl = k[\"cl_d\"] * load\n        speed = k[\"n_d\"] * load                      # the operators hold the kiln filling: speed follows the feed\n        # shell scanner\n        fr = f[\"refractory_loss\"]\n        s_max = self.sh[\"bz_max_design_c\"] + 205.0 * fr + 0.6 * da\n        s_mean = self.sh[\"mean_design_c\"] + 12.0 * fr + 0.6 * da\n        pos = 14.0 if fr > 0.15 else self.sh[\"hot_spot_pos_m\"]\n        # drive and ring\n        rg = f[\"ring_formation\"]\n        torque = (k[\"t_e\"] + (k[\"t_d\"] - k[\"t_e\"]) * load / (speed / k[\"n_d\"])) * (1 + 0.5 * rg)\n        o2_in = self.gs[\"o2_inlet_design_pct\"] - 2.0 * rg\n        co_in = self.gs[\"co_inlet_design_ppm\"] + 2500.0 * rg ** 2\n        # preheater and false air\n        fa_d = self.gs[\"false_air_design_pct\"] / 100\n        fa = fa_d + 0.15 * f[\"false_air\"]\n        o2c = self.gs[\"o2_calciner_design_pct\"]\n        o2x = (o2c + 21 * fa) / (1 + fa)\n        ph_flow = hb[\"ph_gas_nm3_kg\"] * cl * (1 + fa) / (1 + fa_d)\n        ph_t = hb[\"ph_exit_design_c\"] - 20.0 * f[\"false_air\"] + 0.3 * da\n        # cooler\n        fc = f[\"cooler_degradation\"]\n        ce_t = hb[\"cooler_exh_design_c\"] + 90.0 * fc + 0.5 * da\n        cl_out = hb[\"clinker_out_design_c\"] + 120.0 * fc + 0.8 * da\n        ce_flow = hb[\"cooler_exh_nm3_kg\"] * cl * (1 + 0.1 * fc)\n        sec = self.cool[\"sec_air_design_c\"] - 200.0 * fc\n        # burning zone\n        bzt = self.bz[\"bzt_design_c\"] - 70.0 * f[\"burning_zone_cold\"]\n        nox = k[\"nox_ref\"] * math.exp(k[\"knox\"] * (bzt - k[\"bzt_d\"])) * (1 - 0.15 * rg)\n        fl = self.bz[\"free_lime_design_pct\"] + 1.6 * f[\"burning_zone_cold\"]\n        # tyres\n        tsh = ty[\"shell_under_tyre2_design_c\"] + 0.6 * da\n        tty = ty[\"tyre2_design_c\"] + 0.6 * da\n        gap2 = ty[\"cold_gap_mm\"] + 5.0 * f[\"tyre_pad_wear\"] - k[\"alpha\"] * k[\"D\"] * 1000 * (tsh - tty)\n        s = {\"cl\": cl, \"speed\": speed, \"amb\": amb, \"s_max\": s_max, \"s_mean\": s_mean, \"pos\": pos, \"torque\": torque,\n             \"o2_in\": o2_in, \"co_in\": co_in, \"o2c\": o2c, \"o2x\": o2x, \"ph_flow\": ph_flow, \"ph_t\": ph_t, \"ce_t\": ce_t,\n             \"cl_out\": cl_out, \"ce_flow\": ce_flow, \"sec\": sec, \"bzt\": bzt, \"nox\": nox, \"fl\": fl, \"tsh\": tsh, \"tty\": tty,\n             \"gap2\": gap2, \"mig2\": math.pi * gap2, \"mig1\": ty[\"migration_t1_mm\"], \"mig3\": ty[\"migration_t3_mm\"],\n             \"ov2\": ty[\"ovality_base_pct\"] + ty[\"ovality_per_gap_mm\"] * gap2, \"lhv\": hb[\"fuel_lhv_mj_kg\"]}\n        # the true heat consumption is the true heat balance\n        r0 = self._reading(s, noise=False)\n        r0.update(fuel_kiln_tph=1.0, fuel_calciner_tph=0.0, fuel_lhv_mjkg=1.0)\n        shc = tc.evaluate(self.twin, r0)[\"shc_balance_kjkg\"]\n        s[\"shc\"] = shc\n        s[\"fuel\"] = shc * cl / s[\"lhv\"] / 1000\n        s[\"stack_ref\"] = self.st[\"nox_ref_design_mgnm3\"] * nox / k[\"nox_ref\"]\n        return s\n\n    def _reading(self, s, noise=True):\n        n = self.n if noise else (lambda x: 0.0)\n        f = self.faults\n        share = self.hb[\"calciner_share\"]\n        fuel = s.get(\"fuel\", 0.0)\n        o2s = self.st[\"o2_design_pct\"] + n(0.1)\n        return {\n            \"clinker_tph\": round(s[\"cl\"] * (1 + n(0.004)), 2), \"kiln_speed_rpm\": round(s[\"speed\"] + n(0.005), 3),\n            \"drive_torque_pct\": round(s[\"torque\"] * (1 + n(0.01)), 2),\n            \"drive_power_kw\": round(s[\"torque\"] / 100 * self.dr[\"rated_kw\"] * s[\"speed\"] / self.dr[\"rated_rpm\"] * (1 + n(0.01)), 1),\n            \"fuel_kiln_tph\": round(fuel * (1 - share) * (1 + n(0.006)), 3),\n            \"fuel_calciner_tph\": round(fuel * share * (1 - 0.15 * f[\"fuel_meter_drift\"]) * (1 + n(0.006)), 3),\n            \"fuel_lhv_mjkg\": round(s[\"lhv\"] + n(0.08), 3),\n            \"bzt_c\": round(s[\"bzt\"] - 110.0 * f[\"pyrometer_fouling\"] + n(4), 1),\n            \"free_lime_pct\": round(max(0.2, s[\"fl\"] + n(0.1)), 2),\n            \"nox_inlet_ppm\": round(s[\"nox\"] * (1 + n(0.03)), 0),\n            \"o2_inlet_pct\": round(max(0.1, s[\"o2_in\"] + n(0.08)), 2), \"co_inlet_ppm\": round(max(0.0, s[\"co_in\"] + n(25)), 0),\n            \"o2_calciner_pct\": round(s[\"o2c\"] + n(0.05), 2), \"o2_ph_exit_pct\": round(s[\"o2x\"] + n(0.05), 2),\n            \"ph_exit_temp_c\": round(s[\"ph_t\"] + n(1.0), 1), \"ph_exit_flow_knm3h\": round(s[\"ph_flow\"] * (1 + n(0.008)), 2),\n            \"shell_max_c\": round(s[\"s_max\"] + n(3), 1), \"shell_max_pos_m\": round(s[\"pos\"] + n(0.3), 1),\n            \"shell_mean_c\": round(s[\"s_mean\"] + n(1.5), 1), \"ambient_c\": round(s[\"amb\"] + n(0.2), 1),\n            \"tyre1_migration_mm\": round(s[\"mig1\"] + n(0.25), 2), \"tyre2_migration_mm\": round(s[\"mig2\"] + n(0.25), 2),\n            \"tyre3_migration_mm\": round(s[\"mig3\"] + n(0.25), 2), \"tyre2_temp_c\": round(s[\"tty\"] + n(1.0), 1),\n            \"shell_t2_c\": round(s[\"tsh\"] + n(1.5), 1), \"ovality2_pct\": round(s[\"ov2\"] + n(0.01), 3),\n            \"clinker_out_c\": round(s[\"cl_out\"] + n(2), 1), \"cooler_exh_temp_c\": round(s[\"ce_t\"] + n(1.5), 1),\n            \"cooler_exh_flow_knm3h\": round(s[\"ce_flow\"] * (1 + n(0.008)), 2), \"sec_air_c\": round(s[\"sec\"] + n(8), 0),\n            \"stack_nox_mgnm3\": round(s.get(\"stack_ref\", 0.0) * (21 - o2s) / 11 * (1 + n(0.02)), 1), \"stack_o2_pct\": round(o2s, 2),\n        }\n\n    # one published message ---------------------------------------------------------------------------------------------\n    def measure(self, s=None):\n        s = s or self.true_state()\n        return self._reading(s)\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The kiln runs at design output with a slow 3 % swing (demo.load_swing over demo.load_period_s real seconds); the kiln\n    speed follows the feed. The ambient swings 4 K over the plant day (only the shells and cooler see it).\n    \"\"\"\n\n    def __init__(self, twin, seed=4201):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.swing = float(demo.get(\"load_swing\", 0.03))\n        self.period = float(demo.get(\"load_period_s\", 900))\n        self.kiln = Kiln(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.clock = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.clock = 0.0\n        self.running, self.trip = True, 0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.kiln.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.clock += dt\n        load = 1 + self.swing * math.sin(2 * math.pi * self.clock / self.period)\n        amb = self.kiln.hb[\"ambient_design_c\"] + 4 * math.sin(2 * math.pi * (self.t / 86400 - 0.375))\n        return self.kiln.true_state(load, amb)\n\n    def measure(self, true):\n        return self.kiln.measure(true)\n", "twin_calc": "\"\"\"The cement rotary kiln twin's expectations (KL-4201: 4.8 m x 74 m kiln, 5-stage preheater + calciner, grate cooler).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nSpecific heat consumption (SHC), measured two ways (kJ per kg clinker):\n    from the fuel:  SHC_fuel = (fuel_kiln + fuel_calciner) [t/h] x LHV [MJ/kg] / clinker [t/h] x 1000\n    from a heat balance on measured losses:\n        SHC_bal = H_theor + preheater exit gas + shell + cooler exhaust air + clinker leaving the cooler + cooler wall + other\n        preheater exit gas  = V_gas [Nm3/h] x cp_gas x (T_exit - T_amb) / clinker [kg/h]\n        cooler exhaust air  = V_air [Nm3/h] x cp_air x (T_exh - T_amb) / clinker [kg/h]\n        clinker out         = c_out x (T_clinker_out - T_amb)\n        shell               = pi D L x q(T_mean) x 3.6 / clinker [t/h]          (q in kW/m2)\n        q(T)                = eps sigma (T^4 - Ta^4) + h (T - Ta)                (Stefan-Boltzmann + convection, kelvin)\n  The two must agree; when they do not, a meter is wrong (coal feeder, LHV, gas flow). SHC_fuel - design = excess.\nCooler efficiency (recuperation):\n    eta = 1 - (cooler exhaust air + clinker out + cooler wall) / (c_in x (T_clinker_in - T_amb))\nFalse air across the preheater (O2 balance, air at 21 % O2 mixing into the gas):\n    false air % of the calciner gas = (O2_exit - O2_calciner) / (21 - O2_exit) x 100\nLining at the hottest shell point (one-dimensional conduction, brick + coating in series):\n    equivalent lining = k_brick x (T_hot_face - T_shell_max) / q(T_shell_max)\nKiln drive: torque_expected = T_empty + (T_design - T_empty) x (output / output_design) x (speed_design / speed)\n  (the material hold-up is output x residence time, and the residence time scales with 1 / speed); ratio = measured / expected.\nBurning zone: NOx_expected = NOx_ref x exp(k (BZT - BZT_design)); ratio = NOx / NOx_expected.\n  Burning zone cold: both fall together (ratio near 1). Pyrometer fouled: BZT falls alone (ratio far from 1).\nTyre 2: hot gap = migration / pi; expected hot gap = cold gap - alpha x D x (T_shell - T_tyre).\nStack NOx at the reference O2 (2010/75/EU Annex VI Part 7): E_ref = E_meas x (21 - 10) / (21 - O2_meas).\n\"\"\"\nimport math\n\nSB = 5.670e-8\nC2K = 273.15\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    kl, hb, sh, bz, gs, dr, ty, st = (d[\"kiln\"], d[\"heat_balance\"], d[\"shell\"], d[\"burning_zone\"], d[\"gas\"], d[\"drive\"],\n                                      d[\"tyres\"], d[\"stack\"])\n    area = math.pi * kl[\"diameter_m\"] * kl[\"length_m\"]\n    return dict(D=kl[\"diameter_m\"], area=area, cl_d=kl[\"clinker_design_tph\"], n_d=kl[\"speed_design_rpm\"],\n                ht=hb[\"h_theor_kjkg\"], oth=hb[\"other_losses_kjkg\"], cw=hb[\"cooler_wall_kjkg\"], cpg=hb[\"cp_gas_kj_nm3k\"],\n                cpa=hb[\"cp_air_kj_nm3k\"], cout=hb[\"c_clinker_out_kj_kgk\"], cin=hb[\"c_clinker_in_kj_kgk\"], tin=hb[\"clinker_in_c\"],\n                shc_d=hb[\"shc_design_kjkg\"], eps=sh[\"emissivity\"], hc=sh[\"h_conv_w_m2k\"], kb=sh[\"k_brick_w_mk\"], thf=sh[\"hot_face_c\"],\n                bzt_d=bz[\"bzt_design_c\"], nox_ref=bz[\"nox_ref_ppm\"], knox=bz[\"nox_k_per_k\"],\n                t_d=dr[\"torque_design_pct\"], t_e=dr[\"torque_empty_pct\"], alpha=ty[\"alpha_per_k\"], gap0=ty[\"cold_gap_mm\"],\n                o2ref=st[\"o2_reference_pct\"])\n\n\ndef q_shell(k, ts, ta):\n    \"\"\"Heat flux from the shell to the surroundings, W/m2 (radiation + convection).\"\"\"\n    return k[\"eps\"] * SB * ((ts + C2K) ** 4 - (ta + C2K) ** 4) + k[\"hc\"] * (ts - ta)\n\n\ndef lining_mm(k, ts, ta):\n    return k[\"kb\"] * (k[\"thf\"] - ts) / q_shell(k, ts, ta) * 1000\n\n\ndef _parts(twin):\n    k = _k(twin)\n    CL = \"df['CLINKER_TPH']\"\n    TA = \"df['AMBIENT_C']\"\n\n    def Q(col):\n        return (f\"({k['eps'] * SB!r} * ((df['{col}'] + {C2K}) ** 4 - ({TA} + {C2K}) ** 4) + {k['hc']} * (df['{col}'] - {TA}))\")\n    SF = f\"((df['FUEL_KILN_TPH'] + df['FUEL_CALCINER_TPH']) * df['FUEL_LHV_MJKG'] / {CL} * 1000)\"\n    SL = f\"({k['area']!r} * {Q('SHELL_MEAN_C')} / 1000 * 3.6 / {CL})\"\n    PH = f\"(df['PH_EXIT_FLOW_KNM3H'] * {k['cpg']} * (df['PH_EXIT_TEMP_C'] - {TA}) / {CL})\"\n    CE = f\"(df['COOLER_EXH_FLOW_KNM3H'] * {k['cpa']} * (df['COOLER_EXH_TEMP_C'] - {TA}) / {CL})\"\n    CO = f\"({k['cout']} * (df['CLINKER_OUT_C'] - {TA}))\"\n    SB_ = f\"({k['ht']} + {PH} + {SL} + {CE} + {CO} + {k['cw'] + k['oth']})\"\n    CEF = f\"(100 * (1 - ({CE} + {CO} + {k['cw']}) / ({k['cin']} * ({k['tin']} - {TA}))))\"\n    FA = \"(100 * (df['O2_PH_EXIT_PCT'] - df['O2_CALCINER_PCT']) / (21 - df['O2_PH_EXIT_PCT']))\"\n    LN = f\"({k['kb']} * ({k['thf']} - df['SHELL_MAX_C']) / {Q('SHELL_MAX_C')} * 1000)\"\n    TE = f\"({k['t_e']} + {k['t_d'] - k['t_e']} * ({CL} / {k['cl_d']!r}) * ({k['n_d']} / df['KILN_SPEED_RPM']))\"\n    NE = f\"({k['nox_ref']} * np.exp({k['knox']} * (df['BZT_C'] - {k['bzt_d']})))\"\n    GE = f\"({k['gap0']} - {k['alpha'] * k['D'] * 1000!r} * (df['SHELL_T2_C'] - df['TYRE2_TEMP_C']))\"\n    MX = \"np.maximum(np.maximum(df['TYRE1_MIGRATION_MM'], df['TYRE2_MIGRATION_MM']), df['TYRE3_MIGRATION_MM'])\"\n    MN = \"np.minimum(np.minimum(df['TYRE1_MIGRATION_MM'], df['TYRE2_MIGRATION_MM']), df['TYRE3_MIGRATION_MM'])\"\n    SN = f\"(df['STACK_NOX_MGNM3'] * {21 - k['o2ref']} / (21 - df['STACK_O2_PCT']))\"\n    return dict(k=k, SF=SF, SL=SL, PH=PH, CE=CE, CO=CO, SB=SB_, CEF=CEF, FA=FA, LN=LN, TE=TE, NE=NE, GE=GE, MX=MX, MN=MN, SN=SN)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"SHC_FUEL_KJKG\", p[\"SF\"]),\n        (\"SHELL_LOSS_KJKG\", p[\"SL\"]),\n        (\"PH_EXIT_LOSS_KJKG\", p[\"PH\"]),\n        (\"COOLER_EXH_LOSS_KJKG\", p[\"CE\"]),\n        (\"CLINKER_OUT_LOSS_KJKG\", p[\"CO\"]),\n        (\"SHC_BALANCE_KJKG\", p[\"SB\"]),\n        (\"SHC_MISMATCH_PCT\", f\"100 * ({p['SF']} / {p['SB']} - 1)\"),\n        (\"SHC_EXCESS_KJKG\", f\"{p['SF']} - {k['shc_d']}\"),\n        (\"COOLER_EFF_PCT\", p[\"CEF\"]),\n        (\"FALSE_AIR_PCT\", p[\"FA\"]),\n        (\"LINING_EQ_MM\", p[\"LN\"]),\n        (\"TORQUE_EXPECTED_PCT\", p[\"TE\"]),\n        (\"TORQUE_RATIO\", f\"df['DRIVE_TORQUE_PCT'] / {p['TE']}\"),\n        (\"NOX_EXPECTED_PPM\", p[\"NE\"]),\n        (\"NOX_RATIO\", f\"df['NOX_INLET_PPM'] / {p['NE']}\"),\n        (\"TYRE2_GAP_MM\", \"df['TYRE2_MIGRATION_MM'] / 3.14159\"),\n        (\"TYRE2_GAP_EXPECTED_MM\", p[\"GE\"]),\n        (\"MIGRATION_MAX_MM\", p[\"MX\"]),\n        (\"MIGRATION_MIN_MM\", p[\"MN\"]),\n        (\"STACK_NOX_REF_MGNM3\", p[\"SN\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    cl, ta = r[\"clinker_tph\"], r[\"ambient_c\"]\n    sf = (r[\"fuel_kiln_tph\"] + r[\"fuel_calciner_tph\"]) * r[\"fuel_lhv_mjkg\"] / cl * 1000\n    sl = k[\"area\"] * q_shell(k, r[\"shell_mean_c\"], ta) / 1000 * 3.6 / cl\n    ph = r[\"ph_exit_flow_knm3h\"] * k[\"cpg\"] * (r[\"ph_exit_temp_c\"] - ta) / cl\n    ce = r[\"cooler_exh_flow_knm3h\"] * k[\"cpa\"] * (r[\"cooler_exh_temp_c\"] - ta) / cl\n    co = k[\"cout\"] * (r[\"clinker_out_c\"] - ta)\n    sb = k[\"ht\"] + ph + sl + ce + co + (k[\"cw\"] + k[\"oth\"])\n    te = k[\"t_e\"] + (k[\"t_d\"] - k[\"t_e\"]) * (cl / k[\"cl_d\"]) * (k[\"n_d\"] / r[\"kiln_speed_rpm\"])\n    ne = k[\"nox_ref\"] * math.exp(k[\"knox\"] * (r[\"bzt_c\"] - k[\"bzt_d\"]))\n    m = (r[\"tyre1_migration_mm\"], r[\"tyre2_migration_mm\"], r[\"tyre3_migration_mm\"])\n    return {\n        \"shc_fuel_kjkg\": sf, \"shell_loss_kjkg\": sl, \"ph_exit_loss_kjkg\": ph, \"cooler_exh_loss_kjkg\": ce, \"clinker_out_loss_kjkg\": co,\n        \"shc_balance_kjkg\": sb, \"shc_mismatch_pct\": 100 * (sf / sb - 1), \"shc_excess_kjkg\": sf - k[\"shc_d\"],\n        \"cooler_eff_pct\": 100 * (1 - (ce + co + k[\"cw\"]) / (k[\"cin\"] * (k[\"tin\"] - ta))),\n        \"false_air_pct\": 100 * (r[\"o2_ph_exit_pct\"] - r[\"o2_calciner_pct\"]) / (21 - r[\"o2_ph_exit_pct\"]),\n        \"lining_eq_mm\": lining_mm(k, r[\"shell_max_c\"], ta),\n        \"torque_expected_pct\": te, \"torque_ratio\": r[\"drive_torque_pct\"] / te,\n        \"nox_expected_ppm\": ne, \"nox_ratio\": r[\"nox_inlet_ppm\"] / ne,\n        \"tyre2_gap_mm\": r[\"tyre2_migration_mm\"] / 3.14159,\n        \"tyre2_gap_expected_mm\": k[\"gap0\"] - float(f\"{k['alpha'] * k['D'] * 1000!r}\") * (r[\"shell_t2_c\"] - r[\"tyre2_temp_c\"]),\n        \"migration_max_mm\": max(m), \"migration_min_mm\": min(m),\n        \"stack_nox_ref_mgnm3\": r[\"stack_nox_mgnm3\"] * (21 - k[\"o2ref\"]) / (21 - r[\"stack_o2_pct\"]),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    nb = L[\"nox_ratio_band\"]\n    NR = f\"(df['NOX_INLET_PPM'] / {p['NE']})\"\n    return [\n        (\"KLN_LINING_THIN\", f\"{p['LN']} < {L['brick_min_mm']}\", \"Critical\", \"refractory_loss\"),\n        (\"KLN_SHELL_HOT\", f\"df['SHELL_MAX_C'] > {L['shell_hot_c']}\", \"High\", \"refractory_loss\"),\n        (\"KLN_MIGRATION_LOW\", f\"{p['MN']} < {L['migration_low_mm']}\", \"High\", None),\n        (\"KLN_BZ_COLD\", f\"df['NOX_INLET_PPM'] < {L['nox_low_ppm']}\", \"High\", \"burning_zone_cold\"),\n        (\"KLN_NOX_STACK_HIGH\", f\"{p['SN']} > {L['stack_nox_limit_mgnm3']}\", \"High\", None),\n        (\"KLN_TORQUE_HIGH\", f\"(df['DRIVE_TORQUE_PCT'] / {p['TE']}) > {L['torque_ratio_alert']}\", \"Medium\", \"ring_formation\"),\n        (\"KLN_INLET_O2_LOW\", f\"df['O2_INLET_PCT'] < {L['o2_inlet_low_pct']}\", \"Medium\", \"ring_formation\"),\n        (\"KLN_FALSE_AIR_HIGH\", f\"{p['FA']} > {L['false_air_alert_pct']}\", \"Medium\", \"false_air\"),\n        (\"KLN_COOLER_EFF_LOW\", f\"{p['CEF']} < {L['cooler_eff_alert_pct']}\", \"Medium\", \"cooler_degradation\"),\n        (\"KLN_SHC_HIGH\", f\"({p['SF']} - {p['k']['shc_d']}) > {L['shc_excess_alert_kjkg']}\", \"Medium\", \"cooler_degradation\"),\n        (\"KLN_SHC_MISMATCH\", f\"np.abs(100 * ({p['SF']} / {p['SB']} - 1)) > {L['shc_mismatch_pct']}\", \"Medium\", \"fuel_meter_drift\"),\n        (\"KLN_FREE_LIME_HIGH\", f\"df['FREE_LIME_PCT'] > {L['free_lime_alert_pct']}\", \"Medium\", \"burning_zone_cold\"),\n        (\"KLN_PYRO_MISMATCH\", f\"({NR} > {nb}) | ({NR} < {1 / nb:.6g})\", \"Medium\", \"pyrometer_fouling\"),\n        (\"KLN_MIGRATION_HIGH\", f\"{p['MX']} > {L['migration_high_mm']}\", \"Medium\", \"tyre_pad_wear\"),\n        (\"KLN_OVALITY_HIGH\", f\"df['OVALITY2_PCT'] > {L['ovality_alert_pct']}\", \"Medium\", \"tyre_pad_wear\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    nb = L[\"nox_ratio_band\"]\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    add(t[\"lining_eq_mm\"] < L[\"brick_min_mm\"], \"KLN_LINING_THIN\", \"Critical\",\n        f\"Equivalent lining {t['lining_eq_mm']:.0f} mm at {r['shell_max_pos_m']:.0f} m: below {L['brick_min_mm']:.0f} mm\", \"refractory\", \"refractory_loss\")\n    add(r[\"shell_max_c\"] > L[\"shell_hot_c\"], \"KLN_SHELL_HOT\", \"High\",\n        f\"Shell hot spot {r['shell_max_c']:.0f} \u00b0C at {r['shell_max_pos_m']:.0f} m from the outlet\", \"refractory\", \"refractory_loss\")\n    add(t[\"migration_min_mm\"] < L[\"migration_low_mm\"], \"KLN_MIGRATION_LOW\", \"High\",\n        f\"Tyre migration only {t['migration_min_mm']:.1f} mm/rev: gap closing, shell constriction risk\", \"tyres\")\n    add(r[\"nox_inlet_ppm\"] < L[\"nox_low_ppm\"], \"KLN_BZ_COLD\", \"High\",\n        f\"Kiln inlet NOx {r['nox_inlet_ppm']:.0f} ppm: burning zone cooling\", \"process\", \"burning_zone_cold\")\n    add(t[\"stack_nox_ref_mgnm3\"] > L[\"stack_nox_limit_mgnm3\"], \"KLN_NOX_STACK_HIGH\", \"High\",\n        f\"Stack NOx {t['stack_nox_ref_mgnm3']:.0f} mg/Nm\u00b3 at 10 % O2, above {L['stack_nox_limit_mgnm3']:.0f}\", \"stack\")\n    add(t[\"torque_ratio\"] > L[\"torque_ratio_alert\"], \"KLN_TORQUE_HIGH\", \"Medium\",\n        f\"Drive torque {r['drive_torque_pct']:.0f} %, {t['torque_ratio']:.2f} x expected for the load\", \"kiln\", \"ring_formation\")\n    add(r[\"o2_inlet_pct\"] < L[\"o2_inlet_low_pct\"], \"KLN_INLET_O2_LOW\", \"Medium\",\n        f\"Kiln inlet O2 {r['o2_inlet_pct']:.1f} %, CO {r['co_inlet_ppm']:.0f} ppm\", \"kiln\", \"ring_formation\")\n    add(t[\"false_air_pct\"] > L[\"false_air_alert_pct\"], \"KLN_FALSE_AIR_HIGH\", \"Medium\",\n        f\"False air {t['false_air_pct']:.1f} % across the preheater (O2 {r['o2_calciner_pct']:.1f} \u2192 {r['o2_ph_exit_pct']:.1f} %)\", \"preheater\", \"false_air\")\n    add(t[\"cooler_eff_pct\"] < L[\"cooler_eff_alert_pct\"], \"KLN_COOLER_EFF_LOW\", \"Medium\",\n        f\"Cooler efficiency {t['cooler_eff_pct']:.1f} %, clinker out {r['clinker_out_c']:.0f} \u00b0C\", \"cooler\", \"cooler_degradation\")\n    add(t[\"shc_excess_kjkg\"] > L[\"shc_excess_alert_kjkg\"], \"KLN_SHC_HIGH\", \"Medium\",\n        f\"Heat consumption {t['shc_fuel_kjkg']:.0f} kJ/kg, {t['shc_excess_kjkg']:+.0f} vs design\", \"process\", \"cooler_degradation\")\n    add(abs(t[\"shc_mismatch_pct\"]) > L[\"shc_mismatch_pct\"], \"KLN_SHC_MISMATCH\", \"Medium\",\n        f\"Fuel says {t['shc_fuel_kjkg']:.0f}, heat balance says {t['shc_balance_kjkg']:.0f} kJ/kg ({t['shc_mismatch_pct']:+.1f} %)\", \"instruments\", \"fuel_meter_drift\")\n    add(r[\"free_lime_pct\"] > L[\"free_lime_alert_pct\"], \"KLN_FREE_LIME_HIGH\", \"Medium\",\n        f\"Free lime {r['free_lime_pct']:.1f} %\", \"process\", \"burning_zone_cold\")\n    add(t[\"nox_ratio\"] > nb or t[\"nox_ratio\"] < float(f\"{1 / nb:.6g}\"), \"KLN_PYRO_MISMATCH\", \"Medium\",\n        f\"NOx {r['nox_inlet_ppm']:.0f} ppm is {t['nox_ratio']:.2f} x what {r['bzt_c']:.0f} \u00b0C should give: check the pyrometer\", \"instruments\", \"pyrometer_fouling\")\n    add(t[\"migration_max_mm\"] > L[\"migration_high_mm\"], \"KLN_MIGRATION_HIGH\", \"Medium\",\n        f\"Tyre migration {t['migration_max_mm']:.1f} mm/rev (gap {t['migration_max_mm'] / math.pi:.1f} mm)\", \"tyres\", \"tyre_pad_wear\")\n    add(r[\"ovality2_pct\"] > L[\"ovality_alert_pct\"], \"KLN_OVALITY_HIGH\", \"Medium\",\n        f\"Shell ovality at tyre 2 {r['ovality2_pct']:.2f} %, above {L['ovality_alert_pct']} %\", \"tyres\", \"tyre_pad_wear\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "KL-4201 cement rotary kiln twin. Expected values in Maximo Monitor from the kiln data sheet, the design heat balance and textbook heat transfer; the device sends only what it measures.", "twin": {"id": "KL-4201", "name": "Cement rotary kiln KL-4201", "version": "1.0.0", "folder": "kiln-twin"}, "identification": {"asset": "KL-4201", "assetnum": "KL-4201", "manufacturer": "Three-base rotary kiln, 5-stage preheater,", "model": "in-line calciner and grate cooler (5000 t/d)", "description": "Clinker line rotary kiln, 4.8 m x 74 m on three tyres, 5-stage preheater with calciner, grate cooler", "kiln": "Rotary kiln 4.8 m x 74 m, three tyres (floating tyres on shell pads), girth gear drive, graphite inlet and outlet seals", "reference": "Dimensions inside the published range of three-base kilns (Fuller, formerly FLSmidth Cement: 3.6 to 6.6 m diameter, 55 to 104 m long); typical proportions, not a vendor model", "preheater": "5-stage cyclone preheater, in-line calciner with tertiary air duct", "cooler": "Reciprocating grate cooler", "instruments": "Shell scanner (line-scan infrared), burning zone pyrometer, kiln inlet / calciner / preheater exit gas analysers, tyre migration and shell ovality sensors, stack CEMS"}, "design": {"kiln": {"diameter_m": 4.8, "length_m": 74.0, "tyres": 3, "slope_pct": 3.5, "speed_design_rpm": 4.0, "capacity_tpd": 5000, "clinker_design_tph": 208.333, "source": "Diameter and length: assumption: typical value, replace with your kiln supplier's data sheet / performance test (inside the 3.6 to 6.6 m x 55 to 104 m range of Fuller three-base kilns). Speed 4.0 rpm and slope 3.5 % (2 degrees): inside 30 to 250 rev/h and 1 to 4 degrees (Wikipedia, Cement kiln); assumption: typical value, replace with your kiln supplier's data sheet / performance test"}, "heat_balance": {"h_theor_kjkg": 1720.0, "other_losses_kjkg": 230.0, "cooler_wall_kjkg": 25.0, "ph_gas_nm3_kg": 1.4, "ph_exit_design_c": 285.0, "cp_gas_kj_nm3k": 1.45, "cooler_exh_nm3_kg": 1.05, "cooler_exh_design_c": 260.0, "cp_air_kj_nm3k": 1.31, "clinker_out_design_c": 110.0, "c_clinker_out_kj_kgk": 0.8, "clinker_in_c": 1400.0, "c_clinker_in_kj_kgk": 1.0, "ambient_design_c": 30.0, "shc_design_kjkg": 3005.9, "fuel_lhv_mj_kg": 26.0, "calciner_share": 0.6, "bat_shc_range_kjkg": [2900, 3300], "source": "Theoretical heat of clinker formation 1720 kJ/kg (cementkilns.co.uk example clinker: 1719 kJ/kg). BAT range 2900 to 3300 MJ/t (2013/163/EU, BAT 6). Preheater exit gas volume and temperature, cooler exhaust air volume and temperature, mean heat capacities of the gases and of clinker, clinker temperature leaving the kiln and the cooler, cooler wall loss and the remaining losses (raw meal moisture, dust, preheater walls, unburnt fuel): assumption: typical value, replace with your kiln supplier's data sheet / performance test. Design specific heat consumption is the sum of the balance: 3006 kJ/kg. Fuel: coal / petcoke blend, LHV 26 MJ/kg, 60 % to the calciner: assumption: typical value, replace with your kiln supplier's data sheet / performance test"}, "shell": {"emissivity": 0.9, "h_conv_w_m2k": 12.0, "mean_design_c": 270.0, "bz_max_design_c": 330.0, "hot_spot_pos_m": 22.0, "lining_mm": 220.0, "k_brick_w_mk": 2.8, "hot_face_c": 1400.0, "source": "Shell heat loss = area x [emissivity x Stefan-Boltzmann x (Ts^4 - Ta^4) + h x (Ts - Ta)] (textbook). Painted-steel emissivity 0.9, convection coefficient 12 W/m2K (light wind), mean and burning-zone shell temperatures with coating, 220 mm magnesia-spinel lining in the burning zone with conductivity 2.8 W/m K and a 1400 C hot face: assumption: typical value, replace with your kiln supplier's data sheet / performance test. Equivalent lining thickness = k x (T_hot - Ts) / q(Ts): one-dimensional conduction through brick + coating."}, "burning_zone": {"bzt_design_c": 1450.0, "nox_ref_ppm": 800.0, "nox_k_per_k": 0.01, "free_lime_design_pct": 1.2, "source": "Burning zone material temperature about 1450 C (Wikipedia, Cement kiln: sintering zone charge around 1450 C; thermal NOx directly related to the flame temperature). Kiln inlet NOx at design, its sensitivity (NOx x e^(k x dT), k = 0.010 per K, about double per 70 K) and the design free lime: assumption: typical value, replace with your kiln supplier's data sheet / performance test"}, "gas": {"o2_inlet_design_pct": 2.5, "o2_calciner_design_pct": 2.8, "false_air_design_pct": 5.0, "co_inlet_design_ppm": 300.0, "source": "Kiln inlet and calciner outlet O2, false air across the preheater (from O2 rise: (O2_exit - O2_calc) / (21 - O2_exit)): assumption: typical value, replace with your kiln supplier's data sheet / performance test"}, "drive": {"torque_design_pct": 62.0, "torque_empty_pct": 22.0, "rated_kw": 630.0, "rated_rpm": 4.5, "source": "Main drive torque at design load (percent of rated) and of the empty kiln (friction of rollers and seals, even coating), rated motor power at maximum speed: assumption: typical value, replace with your kiln supplier's data sheet / performance test. Bed hold-up and its torque scale with output / speed."}, "tyres": {"alpha_per_k": 1.2e-05, "cold_gap_mm": 11.0, "shell_under_tyre2_design_c": 330.0, "tyre2_design_c": 180.0, "migration_t1_mm": 7.0, "migration_t3_mm": 6.5, "ovality_base_pct": 0.12, "ovality_per_gap_mm": 0.06, "source": "Migration per revolution = pi x hot gap; hot gap = cold gap - alpha x D x (T_shell under the tyre - T_tyre); steel expansion 1.2e-5 per K (textbook). Cold gap, design temperatures, tyre 1 and 3 migration and the ovality-to-gap line: assumption: typical value, replace with your kiln supplier's data sheet / performance test"}, "cooler": {"sec_air_design_c": 1100.0, "source": "Secondary air temperature: assumption: typical value, replace with your kiln supplier's data sheet / performance test"}, "stack": {"nox_ref_design_mgnm3": 380.0, "o2_design_pct": 9.0, "o2_reference_pct": 10.0, "source": "Stack NOx after SNCR at 10 % O2 and stack O2: assumption: typical value, replace with your kiln supplier's data sheet / performance test. Reference O2 10 % for cement kilns (2013/163/EU; 2010/75/EU Annex VI)."}, "demo": {"time_scale": 60, "load_swing": 0.03, "load_period_s": 900, "note": "Demo only: the plant clock runs 60 times faster; output swings 3 % over 15 min and the kiln speed follows it."}}, "telemetry": {"event": "kiln", "publish_every_s": 10, "device_type": "CEMENT_ROTARY_KILN", "groups": {"Production": "Clinker output and kiln speed", "Drive": "Kiln main drive", "Fuel": "Fuel to burner and calciner", "BurningZone": "Burning zone and laboratory", "Gas": "Gas analysers", "Preheater": "Preheater exit", "Scanner": "Shell scanner", "Tyres": "Tyres and shell ovality", "Cooler": "Grate cooler", "Stack": "Stack CEMS"}, "points": [{"metric": "clinker_tph", "path": "Production.Clinker", "label": "Clinker output (kiln feed x clinker factor)", "unit": "t/h"}, {"metric": "kiln_speed_rpm", "path": "Production.KilnSpeed", "label": "Kiln speed", "unit": "rpm"}, {"metric": "drive_torque_pct", "path": "Drive.Torque", "label": "Main drive torque (VFD)", "unit": "% rated"}, {"metric": "drive_power_kw", "path": "Drive.Power", "label": "Main drive power", "unit": "kW"}, {"metric": "fuel_kiln_tph", "path": "Fuel.MainBurner", "label": "Fuel to the main burner", "unit": "t/h"}, {"metric": "fuel_calciner_tph", "path": "Fuel.Calciner", "label": "Fuel to the calciner", "unit": "t/h"}, {"metric": "fuel_lhv_mjkg", "path": "Fuel.LHV", "label": "Fuel lower heating value (lab)", "unit": "MJ/kg"}, {"metric": "bzt_c", "path": "BurningZone.Pyrometer", "label": "Burning zone temperature (pyrometer)", "unit": "\u00b0C"}, {"metric": "free_lime_pct", "path": "BurningZone.FreeLime", "label": "Clinker free lime (lab, hourly)", "unit": "%"}, {"metric": "nox_inlet_ppm", "path": "Gas.InletNOx", "label": "Kiln inlet NOx", "unit": "ppm"}, {"metric": "o2_inlet_pct", "path": "Gas.InletO2", "label": "Kiln inlet O2", "unit": "%"}, {"metric": "co_inlet_ppm", "path": "Gas.InletCO", "label": "Kiln inlet CO", "unit": "ppm"}, {"metric": "o2_calciner_pct", "path": "Gas.CalcinerO2", "label": "Calciner outlet O2", "unit": "%"}, {"metric": "o2_ph_exit_pct", "path": "Preheater.O2", "label": "Preheater exit O2", "unit": "%"}, {"metric": "ph_exit_temp_c", "path": "Preheater.Temperature", "label": "Preheater exit gas temperature", "unit": "\u00b0C"}, {"metric": "ph_exit_flow_knm3h", "path": "Preheater.GasFlow", "label": "Preheater exit gas flow", "unit": "kNm\u00b3/h"}, {"metric": "shell_max_c", "path": "Scanner.MaxTemp", "label": "Hottest shell temperature", "unit": "\u00b0C"}, {"metric": "shell_max_pos_m", "path": "Scanner.MaxPosition", "label": "Position of the hottest point from the outlet", "unit": "m"}, {"metric": "shell_mean_c", "path": "Scanner.MeanTemp", "label": "Mean shell temperature", "unit": "\u00b0C"}, {"metric": "ambient_c", "path": "Scanner.Ambient", "label": "Ambient temperature", "unit": "\u00b0C"}, {"metric": "tyre1_migration_mm", "path": "Tyres.Migration1", "label": "Tyre 1 (outlet) migration per revolution", "unit": "mm"}, {"metric": "tyre2_migration_mm", "path": "Tyres.Migration2", "label": "Tyre 2 (burning zone) migration per revolution", "unit": "mm"}, {"metric": "tyre3_migration_mm", "path": "Tyres.Migration3", "label": "Tyre 3 (inlet) migration per revolution", "unit": "mm"}, {"metric": "tyre2_temp_c", "path": "Tyres.Tyre2Temp", "label": "Tyre 2 temperature", "unit": "\u00b0C"}, {"metric": "shell_t2_c", "path": "Tyres.ShellUnderTyre2", "label": "Shell temperature next to tyre 2", "unit": "\u00b0C"}, {"metric": "ovality2_pct", "path": "Tyres.Ovality2", "label": "Shell ovality at tyre 2", "unit": "%"}, {"metric": "clinker_out_c", "path": "Cooler.ClinkerOut", "label": "Clinker temperature leaving the cooler", "unit": "\u00b0C"}, {"metric": "cooler_exh_temp_c", "path": "Cooler.ExhaustTemp", "label": "Cooler exhaust air temperature", "unit": "\u00b0C"}, {"metric": "cooler_exh_flow_knm3h", "path": "Cooler.ExhaustFlow", "label": "Cooler exhaust air flow", "unit": "kNm\u00b3/h"}, {"metric": "sec_air_c", "path": "Cooler.SecondaryAir", "label": "Secondary air temperature", "unit": "\u00b0C"}, {"metric": "stack_nox_mgnm3", "path": "Stack.NOx", "label": "Stack NOx as NO2, dry, as measured", "unit": "mg/Nm\u00b3"}, {"metric": "stack_o2_pct", "path": "Stack.O2", "label": "Stack O2, dry", "unit": "%"}]}, "twin_model": {"limits": {"shell_hot_c": 400.0, "brick_min_mm": 100.0, "torque_ratio_alert": 1.25, "o2_inlet_low_pct": 1.0, "false_air_alert_pct": 10.0, "cooler_eff_alert_pct": 65.0, "shc_excess_alert_kjkg": 150.0, "shc_mismatch_pct": 5.0, "free_lime_alert_pct": 2.0, "nox_low_ppm": 450.0, "nox_ratio_band": 2.0, "migration_high_mm": 12.0, "migration_low_mm": 3.0, "ovality_alert_pct": 0.48, "stack_nox_limit_mgnm3": 450.0, "source": "Shell hot spot 400 C and minimum equivalent lining 100 mm (refractory supplier and plant practice), torque, O2, false air, cooler efficiency, heat consumption, free lime, NOx and migration limits: assumption: typical value, replace with your kiln supplier's data sheet / performance test. Ovality D/10 % (rule of thumb). Stack NOx 450 mg/Nm3: the upper end of the BAT-AEL range used as the permit limit (assumption: use your own permit; the legal check is on the daily average)."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "refractory_loss": {"name": "Coating loss / lining wear in the burning zone", "part": "refractory", "symptoms": "a hot spot on the shell scanner, equivalent lining thickness falls", "rules": ["KLN_SHELL_HOT", "KLN_LINING_THIN"], "default_ramp_min": 1.5}, "ring_formation": {"name": "Ring build-up in the transition zone", "part": "kiln", "symptoms": "drive torque above the load, kiln inlet O2 falls, CO rises", "rules": ["KLN_TORQUE_HIGH", "KLN_INLET_O2_LOW"], "default_ramp_min": 1.5}, "false_air": {"name": "False air into the preheater (worn flaps, open doors, seals)", "part": "preheater", "symptoms": "O2 rises from calciner outlet to preheater exit, more gas through the ID fan", "rules": ["KLN_FALSE_AIR_HIGH"], "default_ramp_min": 1}, "cooler_degradation": {"name": "Grate cooler recuperation loss (red river, worn plates)", "part": "cooler", "symptoms": "hotter clinker and exhaust air, cooler efficiency and heat consumption worse", "rules": ["KLN_COOLER_EFF_LOW", "KLN_SHC_HIGH"], "default_ramp_min": 1.5}, "tyre_pad_wear": {"name": "Tyre pad / filler bar wear at tyre 2", "part": "tyres", "symptoms": "gap and migration grow, shell ovality grows (lining loosens)", "rules": ["KLN_MIGRATION_HIGH", "KLN_OVALITY_HIGH"], "default_ramp_min": 1}, "burning_zone_cold": {"name": "Burning zone too cold (raw mix or flame change)", "part": "process", "symptoms": "pyrometer and NOx fall together, free lime rises", "rules": ["KLN_BZ_COLD", "KLN_FREE_LIME_HIGH"], "default_ramp_min": 1}, "pyrometer_fouling": {"name": "Burning zone pyrometer fouled or misaligned", "part": "instruments", "symptoms": "pyrometer falls, NOx and free lime do not follow", "rules": ["KLN_PYRO_MISMATCH"], "default_ramp_min": 0.5}, "fuel_meter_drift": {"name": "Calciner coal feeder reads low", "part": "instruments", "symptoms": "heat consumption from the fuel no longer matches the heat balance", "rules": ["KLN_SHC_MISMATCH"], "default_ramp_min": 1}}, "presentation": {"title": "KL-4201 cement rotary kiln", "dashboard": "CEMENT_ROTARY_KILN"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, spin = true;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (1 unit = 5 m; x from the kiln outlet (−) to the inlet (+)) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(-1, 11, 36); ctl.target.set(1.5, 5.5, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(6, 14, 9); scene.add(sun);
+scene.add(new THREE.GridHelper(48, 48, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .5, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), concrete = M(0x8a8d91, { m: .05, r: .9 }), dark = M(0x3d4249), struct = M(0x5b6b7c, { m: .3 }), duct = M(0x9aa3ad, { m: .4 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const U = 5, LEN = 74 / U, R = 2.4 / U, X0 = -LEN / 2 + 1.5, SLOPE = Math.atan(0.035);
+const xAt = m => X0 + m / U;                                   // m from the outlet -> scene x
+const yAt = m => 2.0 + (m / U) * Math.tan(SLOPE);              // the kiln rises towards the inlet
+// kiln group: built along +x, tilted by the slope
+const kiln = new THREE.Group(); at(kiln, X0, 2.0, 0); kiln.rotation.z = SLOPE; scene.add(kiln);
+const spinG = new THREE.Group(); kiln.add(spinG);
+// shell as one long cylinder with vertex colours from the scanner profile
+const SEG = 148;
+const shellGeo = new THREE.CylinderGeometry(R, R, LEN, 48, SEG, true); shellGeo.rotateZ(-Math.PI / 2); shellGeo.translate(LEN / 2, 0, 0);
+const colors = new Float32Array(shellGeo.attributes.position.count * 3); shellGeo.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+const shellMat = new THREE.MeshStandardMaterial({ vertexColors: true, metalness: .3, roughness: .6, side: THREE.DoubleSide, transparent: true, opacity: 1 });
+const shell = new THREE.Mesh(shellGeo, shellMat); spinG.add(shell);
+// lining (brick) inside, radius follows the twin's lining estimate around the hot spot
+const linGeo = new THREE.CylinderGeometry(R * .9, R * .9, LEN, 40, SEG, true); linGeo.rotateZ(-Math.PI / 2); linGeo.translate(LEN / 2, 0, 0);
+const lin0 = linGeo.attributes.position.array.slice();
+const lining = new THREE.Mesh(linGeo, M(0xb5562c, { m: .05, r: .95, ds: true })); lining.visible = false; spinG.add(lining);
+// stripes so the rotation is visible
+for (let i = 0; i < 4; i++) { const s = box(LEN * .98, .02, .03, dark); const a = i * Math.PI / 2; s.position.set(LEN / 2, Math.cos(a) * R * 1.005, Math.sin(a) * R * 1.005); s.rotation.x = a; spinG.add(s); }
+// tyres (6, 30, 62 m from the outlet), girth gear (36 m), piers with two rollers each
+const TYRES = [6, 30, 62];
+TYRES.forEach(m => {
+  const t = new THREE.Mesh(new THREE.TorusGeometry(R * 1.12, .09, 12, 48), steel); t.rotation.y = Math.PI / 2; kiln.add(at(t, m / U, 0, 0));
+  const pier = at(box(.8, yAt(m) - R * 1.2, 1.9, concrete), xAt(m), (yAt(m) - R * 1.2) / 2, 0); scene.add(pier);
+  [-1, 1].forEach(s => { const rl = cyl(.22, .22, .25, steel); rl.rotation.z = Math.PI / 2; scene.add(at(rl, xAt(m), yAt(m) - R * 1.2 + .08, s * .55)); });
+});
+const gear = new THREE.Mesh(new THREE.TorusGeometry(R * 1.18, .06, 8, 64), M(0x6f6f6f, { m: .7 })); gear.rotation.y = Math.PI / 2; kiln.add(at(gear, 36 / U, 0, 0));
+scene.add(at(box(.9, .5, .6, M(0x2f6db5, { m: .35 })), xAt(36), yAt(36) - .8, 1.6));          // drive motor + gearbox
+scene.add(at(box(.8, 1.0, 1.4, concrete), xAt(36), .5, 1.6));
+// cooler + hood at the outlet (left)
+const xo = xAt(0);
+scene.add(at(box(1.0, 2.0, 1.6, struct), xo - .4, 1.9, 0));                                       // kiln hood
+const cooler = at(box(6.0, 1.3, 1.8, M(0x56718f, { m: .35, t: 1 })), xo - 3.6, .65, 0); scene.add(cooler);
+const grate = at(box(5.8, .05, 1.6, M(0xff6a2a, { m: .1, r: .8 })), xo - 3.6, .55, 0); grate.material.emissive = new THREE.Color(0x661800); scene.add(grate);
+const burner = at(cyl(.06, .06, 2.4, steel), xo - 1.0, 2.3, 0); burner.rotation.z = Math.PI / 2; scene.add(burner);   // main burner pipe
+const tad = cyl(.3, .3, LEN * .55, duct, 20); tad.rotation.z = Math.PI / 2; scene.add(at(tad, xo + LEN * .27, 4.6, -1.4));  // tertiary air duct
+scene.add(at(cyl(.3, .3, 2.6, duct, 20), xo - .2, 3.3, -1.4));
+// preheater tower at the inlet (right): riser, calciner, five cyclone stages, ID fan and stack
+const xi = xAt(74) + 1.1, yi = yAt(74);
+scene.add(at(box(1.4, 1.6, 1.6, struct), xi - .4, yi, 0));                                         // kiln inlet chamber
+const tower = new THREE.Group(); at(tower, xi + 1.3, 0, 0); scene.add(tower);
+[[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(([a, b]) => tower.add(at(box(.12, 15, .12, struct), a * 1.3, 7.5, b * 1.3)));
+for (let lv = 0; lv < 6; lv++) tower.add(at(box(2.8, .06, 2.8, struct), 0, 2.6 + lv * 2.3, 0));
+const calc = cyl(.55, .55, 3.6, M(0xc7a35a, { m: .3 })); tower.add(at(calc, -.7, yi + 2.2, .5));
+const CYC = [];
+for (let st = 0; st < 5; st++) {
+  const y = yi + 1.6 + (4 - st) * 2.3 + (st === 0 ? 1.4 : 0), xs = st % 2 ? .55 : -.25;
+  const c = new THREE.Group(); c.add(cyl(.5, .5, 1.0, duct)); c.add(at(cyl(.5, .1, 1.0, duct), 0, -1.0, 0)); c.add(at(cyl(.12, .12, .6, dark), 0, .8, 0));
+  tower.add(at(c, xs, y, -.4)); CYC.push(c);
+}
+scene.add(at(box(.9, .9, .9, M(0x2f6db5, { m: .35 })), xi + 4.2, .45, 0));                    // ID fan
+scene.add(at(cyl(.35, .4, 12, concrete), xi + 5.4, 6, 0));                                       // stack
+const gasd = at(cyl(.12, .12, 3.2, duct, 16), xi + 3.3, yi + 13.4, -.4); gasd.rotation.z = Math.PI / 2; scene.add(gasd);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.18, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(beacon, xi + 1.3, 15.4, 0));
+
+// ---------- shell profile from the scanner (display: shape from the max, its position and the mean) ----------
+function baseProfile(m) {                                        // relative shape along the kiln, healthy coating
+  if (m < 8) return .72 + .2 * m / 8 + .08 * Math.exp(-(((m - 22) / 7) ** 2));
+  if (m < 28) return .92 + .08 * Math.exp(-(((m - 22) / 7) ** 2));
+  if (m < 45) return .958 - (m - 28) * .0075;
+  return .83 - (m - 45) * .006;
+}
+function profile(r) {                                            // base shape scaled to the mean, plus the hottest point
+  const n = 75, base = []; let s = 0;
+  for (let m = 0; m < n; m++) { base.push(baseProfile(m)); s += base[m]; }
+  const k = r.shell_mean_c / (s / n), p = Math.max(0, Math.min(n - 1, Math.round(r.shell_max_pos_m)));
+  const amp = r.shell_max_c - base[p] * k, w = amp > 40 ? 1.8 : 4;
+  return base.map((b, m) => b * k + amp * Math.exp(-(((m - r.shell_max_pos_m) / w) ** 2)));
+}
+function tcol(T) {                                               // grey -> amber -> orange -> red -> pale
+  const st = [[200, [.43, .46, .51]], [300, [.78, .63, .29]], [380, [.91, .44, .11]], [450, [.85, .12, .16]], [540, [1, .82, .78]]];
+  if (T <= st[0][0]) return st[0][1];
+  for (let i = 1; i < st.length; i++) if (T <= st[i][0]) { const [t0, c0] = st[i - 1], [t1, c1] = st[i], f = (T - t0) / (t1 - t0); return c0.map((c, j) => c + (c1[j] - c) * f); }
+  return st[st.length - 1][1];
+}
+function paint(r, t) {
+  const prof = profile(r), pos = shellGeo.attributes.position;
+  for (let i = 0; i < pos.count; i++) { const m = Math.max(0, Math.min(74, pos.getX(i) * U)); const T = prof[Math.round(m)]; const c = tcol(T); colors[i * 3] = c[0]; colors[i * 3 + 1] = c[1]; colors[i * 3 + 2] = c[2]; }
+  shellGeo.attributes.color.needsUpdate = true;
+  // lining: hot face moves outwards where the twin's equivalent lining is thin (thickness drawn x3)
+  const lp = linGeo.attributes.position, d = TW.design.shell, healthy = 300;
+  const thin = d.lining_mm * Math.min(1, Math.max(0, t.lining_eq_mm) / healthy);
+  for (let i = 0; i < lp.count; i++) {
+    const x = lin0[i * 3], y = lin0[i * 3 + 1], z = lin0[i * 3 + 2], m = x * U, g = Math.exp(-(((m - r.shell_max_pos_m) / 2.2) ** 2));
+    const thk = d.lining_mm + (thin - d.lining_mm) * g, rin = R - 3 * thk / 1000 / U, f = rin / (R * .9);
+    lp.setXYZ(i, x, y * f, z * f);
+  }
+  lp.needsUpdate = true;
+}
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('shell', [xAt(22), yAt(22) + 1.9, 0]); lbl('tyre', [xAt(30), yAt(30) - .2, .9]); lbl('drive', [xAt(40), yAt(36) - 1.0, 2.2]);
+lbl('bz', [xo - .4, 3.0, 0]); lbl('cooler', [xo - 4.4, 1.5, 0]); lbl('ph', [xi + 1.3, yi + 12.6, -.4]); lbl('calc', [xi + .6, yi + 3.6, .5]);
+lbl('inlet', [xi - .4, yi + 1.1, .4]); lbl('stack', [xi + 5.4, 12.4, 0]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 4;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.kiln_speed_rpm;
+  paint(r, t);
+  setLbl('shell', `shell scanner: hottest at ${fmt(r.shell_max_pos_m, 0)} m · mean ${fmt(r.shell_mean_c, 0)} °C`, `${fmt(r.shell_max_c, 0)} °C · lining ≈ ${fmt(t.lining_eq_mm, 0)} mm`,
+    st(names.has('KLN_SHELL_HOT') || names.has('KLN_LINING_THIN'), r.shell_max_c > L.shell_hot_c - 30));
+  setLbl('tyre', `tyre 2 migration · gap (expected ${fmt(t.tyre2_gap_expected_mm, 1)} mm) · ovality`, `${fmt(r.tyre2_migration_mm, 1)} mm/rev · ${fmt(t.tyre2_gap_mm, 1)} mm · ${fmt(r.ovality2_pct, 2)} %`,
+    st(names.has('KLN_MIGRATION_HIGH') || names.has('KLN_MIGRATION_LOW') || names.has('KLN_OVALITY_HIGH')));
+  setLbl('drive', `main drive · expected ${fmt(t.torque_expected_pct, 0)} %`, `${fmt(r.drive_torque_pct, 0)} % torque · ${fmt(t.torque_ratio)} ×`, st(names.has('KLN_TORQUE_HIGH'), t.torque_ratio > 1.12));
+  setLbl('bz', `burning zone · free lime ${fmt(r.free_lime_pct, 1)} %`, `${fmt(r.bzt_c, 0)} °C · NOx ${fmt(r.nox_inlet_ppm, 0)} ppm (${fmt(t.nox_ratio)} ×)`,
+    st(names.has('KLN_BZ_COLD') || names.has('KLN_PYRO_MISMATCH'), names.has('KLN_FREE_LIME_HIGH')));
+  setLbl('cooler', `grate cooler · clinker out ${fmt(r.clinker_out_c, 0)} °C · exhaust ${fmt(r.cooler_exh_temp_c, 0)} °C`, `efficiency ${fmt(t.cooler_eff_pct, 1)} %`, st(names.has('KLN_COOLER_EFF_LOW'), t.cooler_eff_pct < L.cooler_eff_alert_pct + 3));
+  setLbl('ph', `preheater exit · O2 ${fmt(r.o2_ph_exit_pct, 1)} % · ${fmt(r.ph_exit_temp_c, 0)} °C`, `false air ${fmt(t.false_air_pct, 1)} %`, st(names.has('KLN_FALSE_AIR_HIGH'), t.false_air_pct > L.false_air_alert_pct * .8));
+  setLbl('calc', 'calciner outlet O2 · fuel to calciner', `${fmt(r.o2_calciner_pct, 1)} % · ${fmt(r.fuel_calciner_tph, 1)} t/h`, st(names.has('KLN_SHC_MISMATCH')));
+  setLbl('inlet', 'kiln inlet O2 · CO', `${fmt(r.o2_inlet_pct, 1)} % · ${fmt(r.co_inlet_ppm, 0)} ppm`, st(names.has('KLN_INLET_O2_LOW'), r.o2_inlet_pct < L.o2_inlet_low_pct + .5));
+  setLbl('stack', 'stack NOx at 10 % O2', `${fmt(t.stack_nox_ref_mgnm3, 0)} mg/Nm³`, st(names.has('KLN_NOX_STACK_HIGH')));
+  $('k-health').textContent = ST.health; $('k-shc').textContent = fmt(t.shc_fuel_kjkg, 0); $('k-lin').textContent = fmt(t.lining_eq_mm, 0);
+  $('c-shc-t').textContent = `SHC ${fmt(t.shc_fuel_kjkg, 0)} kJ/kg`; $('c-shc').className = 'chip ' + (names.has('KLN_SHC_HIGH') || names.has('KLN_SHC_MISMATCH') ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Heat use from fuel (kJ/kg)', fmt(t.shc_fuel_kjkg, 0), fmt(t.shc_balance_kjkg, 0) + ' bal.', names.has('KLN_SHC_MISMATCH') || names.has('KLN_SHC_HIGH')) +
+    row('Heat use vs design (kJ/kg)', (t.shc_excess_kjkg >= 0 ? '+' : '') + fmt(t.shc_excess_kjkg, 0), fmt(d.heat_balance.shc_design_kjkg, 0), names.has('KLN_SHC_HIGH')) +
+    row('Cooler efficiency (%)', fmt(t.cooler_eff_pct, 1), '≥ ' + L.cooler_eff_alert_pct, names.has('KLN_COOLER_EFF_LOW')) +
+    row('False air, preheater (%)', fmt(t.false_air_pct, 1), fmt(d.gas.false_air_design_pct, 1), names.has('KLN_FALSE_AIR_HIGH')) +
+    row('Hottest shell (°C)', fmt(r.shell_max_c, 0), '≤ ' + L.shell_hot_c, names.has('KLN_SHELL_HOT')) +
+    row('Equivalent lining (mm)', fmt(t.lining_eq_mm, 0), '≥ ' + L.brick_min_mm, names.has('KLN_LINING_THIN')) +
+    row('Drive torque (%)', fmt(r.drive_torque_pct, 1), fmt(t.torque_expected_pct, 1), names.has('KLN_TORQUE_HIGH')) +
+    row('Kiln inlet NOx (ppm)', fmt(r.nox_inlet_ppm, 0), fmt(t.nox_expected_ppm, 0), names.has('KLN_PYRO_MISMATCH') || names.has('KLN_BZ_COLD')) +
+    row('Tyre 2 gap (mm)', fmt(t.tyre2_gap_mm, 2), fmt(t.tyre2_gap_expected_mm, 2), names.has('KLN_MIGRATION_HIGH')) +
+    row('Ovality tyre 2 (%)', fmt(r.ovality2_pct, 2), '≤ ' + L.ovality_alert_pct, names.has('KLN_OVALITY_HIGH')) +
+    row('Stack NOx @10 % O2', fmt(t.stack_nox_ref_mgnm3, 0), '≤ ' + L.stack_nox_limit_mgnm3, names.has('KLN_NOX_STACK_HIGH'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the kiln behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  const glow = Math.min(1, Math.max(0, (t.cooler_eff_pct < 66 ? .8 : .3)));
+  grate.material.emissive.setRGB(.4 * glow + .1, .1 * glow, 0);
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-spin').onclick = () => { spin = !spin; $('t-spin').classList.toggle('on', spin); };
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  shellMat.opacity = cut ? .22 : 1; shellMat.depthWrite = !cut; lining.visible = cut;
+  cooler.material.opacity = cut ? .3 : 1;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (spin) spinG.rotation.x += dt * rpm / 60 * 2 * Math.PI;      // real kiln speed
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

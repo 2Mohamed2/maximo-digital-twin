@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>EX-4401 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>EX-4401</b><span class="g">Single-screw pipe extruder · KraussMaffei KME 75-36 B/R · PE 100</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-sr"><span class="dot"></span><span id="c-sr-t">output per rpm –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Curves and energy →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the extruder model…</div>
+<div class="credit">75 mm single-screw extruder, 36 L/D, grooved feed bush, five heater bands with blowers, gearbox with thrust bearing, screen changer and pipe head. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Heater bands are coloured by zone temperature; a band that draws too little current turns red. The screw turns at the live screw speed (slowed down for the eye).</div>
+<aside>
+  <section>
+    <h2>EX-4401 twin</h2>
+    <p class="sub" id="sub">main extruder of a PE 100 pipe line</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>kWh/kg<b id="k-sec">–</b></div><div>Output per rpm<b id="k-srr">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The extruder sends only what it measures. Every expected value comes from the twin file: the maker's data, the commissioning test and the resin lot's melt flow rate.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for EX-4401: the screw, barrel heating, feed bush, screen changer, pipe head and gearbox, with injectable faults.\n\nThe real extruder sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests and the figures. Pure Python (math, random), so it also runs in the browser (Pyodide).\n\nThe line's weight control holds the throughput at its set point by trimming the screw speed, so a screw that conveys less\nper turn shows up as a higher screw speed at the same output.\n\"\"\"\nimport math\nimport random\n\nSQ3 = math.sqrt(3)\n\n\ndef _clamp(x, lo=0.0, hi=1.0):\n    return max(lo, min(hi, x))\n\n\nclass Extruder:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.d = d\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        h = d[\"heating\"]\n        self.ir = [kw * 1000.0 / (SQ3 * h[\"voltage_v\"]) for kw in h[\"zone_kw\"]]\n        lo, hi = d[\"line\"][\"lot_mfr_range\"]\n        self.mfr = 0.5 * (lo + hi)\n\n    def set_fault(self, name, severity):\n        self.faults[name] = _clamp(severity)\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def new_lot(self):\n        lo, hi = self.d[\"line\"][\"lot_mfr_range\"]\n        self.mfr = round(self.rnd.uniform(lo, hi), 3)\n\n    # true state ------------------------------------------------------------------------------------------------------\n    def bush_target(self):\n        return self.d[\"line\"][\"feed_bush_normal_c\"] + 50.0 * self.faults[\"feed_bush_cooling_loss\"]\n\n    def clearance_true(self):\n        return 1.0 + 2.8 * self.faults[\"screw_barrel_wear\"]\n\n    def state(self, n_rpm, bush_c):\n        \"\"\"Everything that follows from a screw speed and a feed bush temperature (iterated: pressure <-> leakage <-> melt).\"\"\"\n        d, f = self.d, self.faults\n        c, rh, me, w, th = d[\"conveying\"], d[\"rheology\"], d[\"melt\"], d[\"wear\"], d[\"thrust\"]\n        mat = d[\"material\"]\n        loss_feed = 0.12 * _clamp((bush_c - 50.0) / 35.0)\n        cl = self.clearance_true()\n        tm, ptip = rh[\"melt_t_ref_c\"], th[\"p_design_bar\"]\n        for _ in range(4):\n            loss_wear = w[\"leak_k\"] * (cl ** 3 - 1) * ptip / th[\"p_design_bar\"]\n            q = c[\"specific_rate_kg_h_rpm\"] * (1 - loss_wear - loss_feed) * n_rpm\n            flow = ((max(q, 1.0) / rh[\"q_ref_kg_h\"]) ** rh[\"power_law_n\"] * (mat[\"mfr_ref_g10min\"] / self.mfr) ** rh[\"mfr_exponent\"]\n                    * math.exp(-rh[\"temp_coeff_per_k\"] * (tm - rh[\"melt_t_ref_c\"])))\n            pdie = rh[\"die_p_ref_bar\"] * flow * (1 + 0.25 * f[\"die_restriction\"])\n            dp = rh[\"screen_dp_clean_bar\"] * flow * (1 + 6.0 * f[\"screen_pack_clogging\"])\n            ptip = pdie + dp\n            tm = (me[\"t0_c\"] + me[\"k_rpm\"] * (n_rpm - me[\"n_ref_rpm\"]) + dp * 1e5 / (mat[\"melt_density_kg_m3\"] * mat[\"melt_cp_kj_kgk\"] * 1000.0)\n                  + 11.0 * f[\"screw_barrel_wear\"])\n        return dict(n=n_rpm, bush=bush_c, q=q, loss_wear=loss_wear, loss_feed=loss_feed, pdie=pdie, dp=dp, ptip=ptip, tm=tm)\n\n    def steady_speed(self, bush_c):\n        \"\"\"Screw speed the weight control settles at to hold the set output.\"\"\"\n        qset, q0 = self.d[\"conveying\"][\"output_set_kg_h\"], self.d[\"conveying\"][\"specific_rate_kg_h_rpm\"]\n        nn = qset / q0\n        for _ in range(6):\n            s = self.state(nn, bush_c)\n            nn = qset / (q0 * (1 - s[\"loss_wear\"] - s[\"loss_feed\"]))\n        return nn\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, s):\n        d, f = self.d, self.faults\n        dr, h, ln, gb = d[\"drive\"], d[\"heating\"], d[\"line\"], d[\"gearbox\"]\n        fm = (d[\"material\"][\"mfr_ref_g10min\"] / self.mfr) ** dr[\"mfr_exponent\"]\n        p = ((dr[\"no_load_kw\"] + dr[\"drive_kwh_kg\"] * s[\"q\"] * fm) * (1 + 0.4 * s[\"loss_wear\"]) * (1 + 0.03 * f[\"die_restriction\"])\n             + self.n(0.6))\n        n_meas = s[\"n\"] + self.n(0.05)\n        torque = 9.549 * p * dr[\"efficiency\"] / s[\"n\"] * (1 + self.n(0.004))\n        amb = ln[\"ambient_c\"] + self.n(0.2)\n        shaft = p * dr[\"efficiency\"]\n        zones = [h[\"set_c\"][i] + self.n(0.5) for i in range(5)]\n        zones[2] -= 5.0 * f[\"heater_band_failure\"]\n        zones = [z - 2.0 * f[\"barrel_cooling_stuck\"] for z in zones]\n        amps = [self.ir[i] * (1 + self.n(0.008)) for i in range(5)]\n        amps[2] *= 1 - f[\"heater_band_failure\"] / 3.0\n        r = {\n            \"screw_speed_rpm\": round(n_meas, 2), \"motor_power_kw\": round(p, 2), \"motor_torque_knm\": round(torque, 3),\n            \"output_kg_h\": round(s[\"q\"] * (1 + self.n(0.002)), 1), \"feed_bush_temp_c\": round(s[\"bush\"] + self.n(0.3), 1),\n        }\n        for i in range(5):\n            r[f\"zone{i + 1}_temp_c\"] = round(zones[i], 1)\n        for i in range(5):\n            r[f\"zone{i + 1}_heater_a\"] = round(amps[i], 2)\n        r.update({\n            \"heater_power_kw\": round(h[\"heater_kw_at_rate\"] + 45.0 * f[\"barrel_cooling_stuck\"] + self.n(0.4), 2),\n            \"p_screen_in_bar\": round(s[\"ptip\"] * (1 + self.n(0.003)), 1), \"p_die_bar\": round(s[\"pdie\"] * (1 + self.n(0.003)), 1),\n            \"melt_temp_c\": round(s[\"tm\"] + self.n(0.3), 1),\n            \"gearbox_oil_temp_c\": round(amb + gb[\"oil_k_per_kw\"] * shaft + 12.0 * f[\"gearbox_bearing_damage\"] + self.n(0.3), 1),\n            \"gearbox_vib_mm_s\": round(max(0.2, 1.4 + 4.8 * f[\"gearbox_bearing_damage\"] + self.n(0.05)), 2),\n            \"ambient_temp_c\": round(amb, 1), \"lot_mfr_g10min\": self.mfr, \"running\": 1,\n        })\n        return r\n\n    def measure(self):\n        \"\"\"A steady reading at the current faults (new resin lot each time, as in a long history).\"\"\"\n        self.new_lot()\n        bush = self.bush_target()\n        return self.reading(self.state(self.steady_speed(bush), bush))\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = _clamp(target)\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The line holds its set output: the screw speed follows the weight control with a 5 s lag, the feed bush temperature\n    follows its cooling with a 20 s lag, and a new resin lot (another melt flow rate inside the grade's range) arrives every\n    10 minutes. The clock of day plays no part, so the page opens in a sensible state at any hour.\n    \"\"\"\n    TAU_N, TAU_BUSH, LOT_S = 5.0, 20.0, 600.0\n\n    def __init__(self, twin, seed=4401):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.x = Extruder(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.bush = self.x.bush_target()\n        self.n = self.x.steady_speed(self.bush)\n        self.lot_timer = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.x.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.lot_timer += dt\n        if self.lot_timer >= self.LOT_S:\n            self.lot_timer = 0.0\n            self.x.new_lot()\n        if dt > 0:\n            self.bush += min(1.0, dt / self.TAU_BUSH) * (self.x.bush_target() - self.bush)\n            self.n += min(1.0, dt / self.TAU_N) * (self.x.steady_speed(self.bush) - self.n)\n        return self.x.state(self.n, self.bush)\n\n    def measure(self, true):\n        return self.x.reading(true)\n", "twin_calc": "\"\"\"The single-screw pipe extruder twin's expectations (EX-4401, KraussMaffei KME 75-36 B/R on a PE 100 pipe line).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nConveying (grooved feed: output linear in screw speed, independent of the head pressure, as the maker states):\n    expected output       Q_exp = q0 x N                          q0 = specific rate at commissioning (kg/h per rpm)\n    specific rate ratio   SRR   = Q / (q0 x N)                    1.0 = as new; wear and a warm feed bush lower it\n    flight clearance      c/c0  = (1 + (1 - SRR) x p_d / (k x p_tip))^(1/3)\n      from the leakage model  1 - SRR = k x ((c/c0)^3 - 1) x p_tip / p_d  (leakage over the flights grows with the cube of\n      the gap and with the pressure the screw builds); c0 = D / 1000 per side when new, replace at about 4 x c0.\nDrive and energy:\n    expected drive power  P_exp = P0 + e_d x Q x (MFR_ref / MFR)^a        (stiffer resin, more shear work per kg)\n    torque use            T / T_rated,  T_rated = 9.549 x P_rated / N_rated  (kN\u00b7m with kW and rpm)\n    specific energy       SEC = (P_drive + P_heaters) / Q            kWh/kg; expected with P_exp and the heater power at rate\n    melt enthalpy         dh  = (cp x (T_melt - T_hall) + dH_fusion) / 3600   kWh/kg, the least energy the melt must receive\n    process efficiency    eta = dh / SEC\nMelt flow (power-law melt, viscosity ~ 1/MFR^m, Arrhenius temperature shift):\n    flow factor           F = (Q / Q_ref)^n x (MFR_ref / MFR)^m x exp(-b x (T_melt - T_ref))\n    die pressure          p_die,exp = p_ref x F;     screen pressure drop  dp_exp = dp_clean x F   (clean screen)\n    melt temperature      T_exp = T0 + k_N x (N - N_ref) + dp x 1e5 / (rho x cp_melt)   (adiabatic rise across the screen)\nHeating: current while the zone's contactor is on, against the rated current P_zone / (sqrt(3) x 400 V); one open band of\nthree gives about two thirds.\nThrust bearing (ISO 281, roller bearing L10 = (C/P)^(10/3) revolutions): the axial load is the tip pressure x screw area, so\nthe life used per hour, relative to the design point, is  (N / N_d) x (p_tip / p_d)^(10/3).\nGearbox: oil temperature against hall temperature + k x shaft power (shaft power = torque x N / 9.549).\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    m, c, dr, h, mat, rh, me, w, th, gb, ln = (d[\"machine\"], d[\"conveying\"], d[\"drive\"], d[\"heating\"], d[\"material\"], d[\"rheology\"],\n                                               d[\"melt\"], d[\"wear\"], d[\"thrust\"], d[\"gearbox\"], d[\"line\"])\n    ir = [kw * 1000.0 / (math.sqrt(3) * h[\"voltage_v\"]) for kw in h[\"zone_kw\"]]\n    return dict(D=m[\"screw_diameter_mm\"], q0=c[\"specific_rate_kg_h_rpm\"], nmax=c[\"max_speed_rpm\"], qset=c[\"output_set_kg_h\"],\n                prated=dr[\"rated_power_kw\"], nrated=dr[\"rated_speed_rpm\"], p0=dr[\"no_load_kw\"], ed=dr[\"drive_kwh_kg\"], ea=dr[\"mfr_exponent\"],\n                eff=dr[\"efficiency\"], trated=9.549 * dr[\"rated_power_kw\"] / dr[\"rated_speed_rpm\"],\n                tset=h[\"set_c\"], zkw=h[\"zone_kw\"], ir=ir, ph0=h[\"heater_kw_at_rate\"],\n                mfr=mat[\"mfr_ref_g10min\"], cp=mat[\"cp_kj_kgk\"], hf=mat[\"fusion_kj_kg\"], rho=mat[\"melt_density_kg_m3\"], cpm=mat[\"melt_cp_kj_kgk\"],\n                pref=rh[\"die_p_ref_bar\"], dp0=rh[\"screen_dp_clean_bar\"], qref=rh[\"q_ref_kg_h\"], n=rh[\"power_law_n\"], m=rh[\"mfr_exponent\"],\n                b=rh[\"temp_coeff_per_k\"], tref=rh[\"melt_t_ref_c\"],\n                t0=me[\"t0_c\"], nref=me[\"n_ref_rpm\"], kn=me[\"k_rpm\"],\n                c0=w[\"clearance_new_mm\"], kl=w[\"leak_k\"], crep=w[\"replace_ratio\"],\n                pd=th[\"p_design_bar\"], nd=th[\"n_design_rpm\"], x=th[\"life_exponent\"],\n                koil=gb[\"oil_k_per_kw\"], vib_a=gb[\"vib_alert_mm_s\"], vib_h=gb[\"vib_high_mm_s\"], amb=ln[\"ambient_c\"])\n\n\ndef dt_screen(k, dp):\n    \"\"\"Adiabatic melt temperature rise (K) for a pressure drop dp (bar).\"\"\"\n    return dp * 1e5 / (k[\"rho\"] * k[\"cpm\"] * 1000.0)\n\n\ndef flow_factor(k, q, mfr, tm):\n    return (q / k[\"qref\"]) ** k[\"n\"] * (k[\"mfr\"] / mfr) ** k[\"m\"] * math.exp(-k[\"b\"] * (tm - k[\"tref\"]))\n\n\ndef loss_from_clearance(k, ratio, p_tip):\n    \"\"\"Loss of specific rate for a clearance ratio c/c0 at tip pressure p_tip (the leakage model).\"\"\"\n    return k[\"kl\"] * (ratio ** 3 - 1) * p_tip / k[\"pd\"]\n\n\ndef _parts(twin):\n    k = _k(twin)\n    N = \"np.maximum(df['SCREW_SPEED_RPM'], 1.0)\"\n    Q = \"np.maximum(df['OUTPUT_KG_H'], 1.0)\"\n    SRR = f\"(df['OUTPUT_KG_H'] / ({k['q0']} * {N}))\"\n    FM = f\"(({k['mfr']} / df['LOT_MFR_G10MIN']) ** {k['ea']})\"\n    DPE = f\"({k['p0']} + {k['ed']} * df['OUTPUT_KG_H'] * {FM})\"\n    FLOW = (f\"((({Q} / {k['qref']}) ** {k['n']}) * (({k['mfr']} / df['LOT_MFR_G10MIN']) ** {k['m']})\"\n            f\" * np.exp(-{k['b']} * (df['MELT_TEMP_C'] - {k['tref']})))\")\n    SEC = f\"((df['MOTOR_POWER_KW'] + df['HEATER_POWER_KW']) / {Q})\"\n    SECE = f\"(({k['p0']} + {k['ed']} * {Q} * {FM} + {k['ph0']}) / {Q})\"\n    DH = f\"(({k['cp']} * (df['MELT_TEMP_C'] - df['AMBIENT_TEMP_C']) + {k['hf']}) / 3600)\"\n    PDE = f\"({k['pref']} * {FLOW})\"\n    DP = \"(df['P_SCREEN_IN_BAR'] - df['P_DIE_BAR'])\"\n    TME = f\"({k['t0']} + {k['kn']} * (df['SCREW_SPEED_RPM'] - {k['nref']}) + {DP} * 100000.0 / ({k['rho']} * {k['cpm']} * 1000.0))\"\n    CL = f\"((1 + np.maximum(0.0, 1 - {SRR}) * {k['pd']} / ({k['kl']} * np.maximum(df['P_SCREEN_IN_BAR'], 1.0))) ** (1 / 3))\"\n    HR = [f\"(df['ZONE{i + 1}_HEATER_A'] / {k['ir'][i]!r})\" for i in range(5)]\n    HMIN = HR[0]\n    for h in HR[1:]:\n        HMIN = f\"np.minimum({HMIN}, {h})\"\n    ZD = [f\"np.abs(df['ZONE{i + 1}_TEMP_C'] - {k['tset'][i]})\" for i in range(5)]\n    ZMAX = ZD[0]\n    for z in ZD[1:]:\n        ZMAX = f\"np.maximum({ZMAX}, {z})\"\n    TH = f\"(({N} / {k['nd']}) * (np.maximum(df['P_SCREEN_IN_BAR'], 0.0) / {k['pd']}) ** {k['x']!r})\"\n    OIL = f\"(df['GEARBOX_OIL_TEMP_C'] - (df['AMBIENT_TEMP_C'] + {k['koil']} * df['MOTOR_TORQUE_KNM'] * df['SCREW_SPEED_RPM'] / 9.549))\"\n    return dict(k=k, N=N, Q=Q, SRR=SRR, FM=FM, DPE=DPE, FLOW=FLOW, SEC=SEC, SECE=SECE, DH=DH, PDE=PDE, DP=DP, TME=TME, CL=CL,\n                HMIN=HMIN, ZMAX=ZMAX, TH=TH, OIL=OIL)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"OUTPUT_EXPECTED_KG_H\", f\"{k['q0']} * df['SCREW_SPEED_RPM']\"),\n        (\"SPECIFIC_RATE_RATIO\", p[\"SRR\"]),\n        (\"CLEARANCE_RATIO\", p[\"CL\"]),\n        (\"DRIVE_POWER_EXPECTED_KW\", p[\"DPE\"]),\n        (\"DRIVE_POWER_RATIO\", f\"df['MOTOR_POWER_KW'] / {p['DPE']}\"),\n        (\"TORQUE_PCT\", f\"df['MOTOR_TORQUE_KNM'] / {k['trated']!r} * 100\"),\n        (\"SEC_KWH_KG\", p[\"SEC\"]),\n        (\"SEC_EXPECTED_KWH_KG\", p[\"SECE\"]),\n        (\"MELT_ENTHALPY_KWH_KG\", p[\"DH\"]),\n        (\"PROCESS_EFFICIENCY\", f\"{p['DH']} / {p['SEC']}\"),\n        (\"DIE_PRESSURE_EXPECTED_BAR\", p[\"PDE\"]),\n        (\"DIE_PRESSURE_RATIO\", f\"df['P_DIE_BAR'] / {p['PDE']}\"),\n        (\"SCREEN_DP_BAR\", p[\"DP\"]),\n        (\"SCREEN_DP_RATIO\", f\"{p['DP']} / ({k['dp0']} * {p['FLOW']})\"),\n        (\"MELT_TEMP_EXPECTED_C\", p[\"TME\"]),\n        (\"MELT_TEMP_RESIDUAL_K\", f\"df['MELT_TEMP_C'] - {p['TME']}\"),\n        (\"HEATER_CURRENT_RATIO_MIN\", p[\"HMIN\"]),\n        (\"ZONE_TEMP_DEV_MAX_K\", p[\"ZMAX\"]),\n        (\"THRUST_LIFE_RATE\", p[\"TH\"]),\n        (\"GEARBOX_OIL_RESIDUAL_K\", p[\"OIL\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    n = max(r[\"screw_speed_rpm\"], 1.0)\n    q = max(r[\"output_kg_h\"], 1.0)\n    srr = r[\"output_kg_h\"] / (k[\"q0\"] * n)\n    fm = (k[\"mfr\"] / r[\"lot_mfr_g10min\"]) ** k[\"ea\"]\n    dpe = k[\"p0\"] + k[\"ed\"] * r[\"output_kg_h\"] * fm\n    flow = (q / k[\"qref\"]) ** k[\"n\"] * (k[\"mfr\"] / r[\"lot_mfr_g10min\"]) ** k[\"m\"] * math.exp(-k[\"b\"] * (r[\"melt_temp_c\"] - k[\"tref\"]))\n    sec = (r[\"motor_power_kw\"] + r[\"heater_power_kw\"]) / q\n    sece = (k[\"p0\"] + k[\"ed\"] * q * fm + k[\"ph0\"]) / q\n    dh = (k[\"cp\"] * (r[\"melt_temp_c\"] - r[\"ambient_temp_c\"]) + k[\"hf\"]) / 3600\n    pde = k[\"pref\"] * flow\n    dp = r[\"p_screen_in_bar\"] - r[\"p_die_bar\"]\n    tme = k[\"t0\"] + k[\"kn\"] * (r[\"screw_speed_rpm\"] - k[\"nref\"]) + dp * 100000.0 / (k[\"rho\"] * k[\"cpm\"] * 1000.0)\n    cl = (1 + max(0.0, 1 - srr) * k[\"pd\"] / (k[\"kl\"] * max(r[\"p_screen_in_bar\"], 1.0))) ** (1 / 3)\n    hmin = min(r[f\"zone{i + 1}_heater_a\"] / k[\"ir\"][i] for i in range(5))\n    zmax = max(abs(r[f\"zone{i + 1}_temp_c\"] - k[\"tset\"][i]) for i in range(5))\n    th = (n / k[\"nd\"]) * (max(r[\"p_screen_in_bar\"], 0.0) / k[\"pd\"]) ** k[\"x\"]\n    oil = r[\"gearbox_oil_temp_c\"] - (r[\"ambient_temp_c\"] + k[\"koil\"] * r[\"motor_torque_knm\"] * r[\"screw_speed_rpm\"] / 9.549)\n    return {\n        \"output_expected_kg_h\": k[\"q0\"] * r[\"screw_speed_rpm\"], \"specific_rate_ratio\": srr, \"clearance_ratio\": cl,\n        \"drive_power_expected_kw\": dpe, \"drive_power_ratio\": r[\"motor_power_kw\"] / dpe,\n        \"torque_pct\": r[\"motor_torque_knm\"] / k[\"trated\"] * 100,\n        \"sec_kwh_kg\": sec, \"sec_expected_kwh_kg\": sece, \"melt_enthalpy_kwh_kg\": dh, \"process_efficiency\": dh / sec,\n        \"die_pressure_expected_bar\": pde, \"die_pressure_ratio\": r[\"p_die_bar\"] / pde,\n        \"screen_dp_bar\": dp, \"screen_dp_ratio\": dp / (k[\"dp0\"] * flow),\n        \"melt_temp_expected_c\": tme, \"melt_temp_residual_k\": r[\"melt_temp_c\"] - tme,\n        \"heater_current_ratio_min\": hmin, \"zone_temp_dev_max_k\": zmax, \"thrust_life_rate\": th, \"gearbox_oil_residual_k\": oil,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    SRR, CL = p[\"SRR\"], p[\"CL\"]\n    TMR = f\"(df['MELT_TEMP_C'] - {p['TME']})\"\n    SDR = f\"({p['DP']} / ({k['dp0']} * {p['FLOW']}))\"\n    DPR = f\"(df['P_DIE_BAR'] / {p['PDE']})\"\n    return [\n        (\"EXT_HEAD_PRESSURE_HIGH\", f\"df['P_SCREEN_IN_BAR'] > {L['head_pressure_max_bar']}\", \"Critical\", \"screen_pack_clogging\"),\n        (\"EXT_SCREW_WORN\", f\"({CL} > {L['clearance_worn']}) & (df['FEED_BUSH_TEMP_C'] <= {L['feed_bush_max_c']})\", \"High\", \"screw_barrel_wear\"),\n        (\"EXT_FEED_BUSH_HOT\", f\"df['FEED_BUSH_TEMP_C'] > {L['feed_bush_max_c']}\", \"High\", \"feed_bush_cooling_loss\"),\n        (\"EXT_GEARBOX_VIB_HIGH\", f\"df['GEARBOX_VIB_MM_S'] > {k['vib_h']}\", \"High\", \"gearbox_bearing_damage\"),\n        (\"EXT_TORQUE_HIGH\", f\"df['MOTOR_TORQUE_KNM'] / {k['trated']!r} * 100 > {L['torque_pct_max']}\", \"High\", None),\n        (\"EXT_SPECIFIC_RATE_LOW\", f\"{SRR} < {L['specific_rate_low']}\", \"Medium\", \"screw_barrel_wear\"),\n        (\"EXT_MELT_TEMP_HIGH\", f\"{TMR} > {L['melt_temp_resid_k']}\", \"Medium\", \"screw_barrel_wear\"),\n        (\"EXT_SCREEN_CHANGE_DUE\", f\"{SDR} > {L['screen_dp_ratio_change']}\", \"Medium\", \"screen_pack_clogging\"),\n        (\"EXT_THRUST_LIFE_FAST\", f\"{p['TH']} > {L['thrust_rate_alert']}\", \"Medium\", \"screen_pack_clogging\"),\n        (\"EXT_DIE_PRESSURE_DEV\", f\"np.abs({DPR} - 1) > {L['die_pressure_dev']}\", \"Medium\", \"die_restriction\"),\n        (\"EXT_HEATER_BAND_FAILED\", f\"{p['HMIN']} < {L['heater_current_ratio_min']}\", \"Medium\", \"heater_band_failure\"),\n        (\"EXT_ZONE_TEMP_DEV\", f\"{p['ZMAX']} > {L['zone_dev_max_k']}\", \"Medium\", None),\n        (\"EXT_GEARBOX_VIB_ALERT\", f\"(df['GEARBOX_VIB_MM_S'] > {k['vib_a']}) & (df['GEARBOX_VIB_MM_S'] <= {k['vib_h']})\", \"Medium\", \"gearbox_bearing_damage\"),\n        (\"EXT_GEARBOX_OIL_HOT\", f\"{p['OIL']} > {L['gearbox_oil_resid_k']}\", \"Medium\", \"gearbox_bearing_damage\"),\n        (\"EXT_SEC_HIGH\", f\"({p['SEC']} / {p['SECE']}) > {L['sec_ratio_alert']}\", \"Medium\", \"barrel_cooling_stuck\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    bush_ok = r[\"feed_bush_temp_c\"] <= L[\"feed_bush_max_c\"]\n    sec_ratio = t[\"sec_kwh_kg\"] / t[\"sec_expected_kwh_kg\"]\n    add(r[\"p_screen_in_bar\"] > L[\"head_pressure_max_bar\"], \"EXT_HEAD_PRESSURE_HIGH\", \"Critical\",\n        f\"Pressure at the screw tip {r['p_screen_in_bar']:.0f} bar, above {L['head_pressure_max_bar']:.0f} bar (overpressure trip at {L['overpressure_trip_bar']:.0f})\",\n        \"screen changer\", \"screen_pack_clogging\")\n    add(t[\"clearance_ratio\"] > L[\"clearance_worn\"] and bush_ok, \"EXT_SCREW_WORN\", \"High\",\n        f\"Flight clearance about {t['clearance_ratio']:.1f} x new (replace near {k['crep']:.0f} x)\", \"screw\", \"screw_barrel_wear\")\n    add(not bush_ok, \"EXT_FEED_BUSH_HOT\", \"High\", f\"Grooved feed bush at {r['feed_bush_temp_c']:.0f} \u00b0C, above {L['feed_bush_max_c']:.0f} \u00b0C: check its cooling water\",\n        \"feed throat\", \"feed_bush_cooling_loss\")\n    add(r[\"gearbox_vib_mm_s\"] > k[\"vib_h\"], \"EXT_GEARBOX_VIB_HIGH\", \"High\", f\"Gearbox vibration {r['gearbox_vib_mm_s']:.1f} mm/s, above {k['vib_h']} mm/s\",\n        \"gearbox\", \"gearbox_bearing_damage\")\n    add(t[\"torque_pct\"] > L[\"torque_pct_max\"], \"EXT_TORQUE_HIGH\", \"High\", f\"Screw torque at {t['torque_pct']:.0f} % of rated\", \"drive\")\n    add(t[\"specific_rate_ratio\"] < L[\"specific_rate_low\"], \"EXT_SPECIFIC_RATE_LOW\", \"Medium\",\n        f\"Output per rpm {t['specific_rate_ratio'] * 100:.1f} % of commissioning ({r['output_kg_h'] / max(r['screw_speed_rpm'], 1.0):.2f} kg/h per rpm)\", \"screw\", \"screw_barrel_wear\")\n    add(t[\"melt_temp_residual_k\"] > L[\"melt_temp_resid_k\"], \"EXT_MELT_TEMP_HIGH\", \"Medium\",\n        f\"Melt {r['melt_temp_c']:.0f} \u00b0C, {t['melt_temp_residual_k']:+.1f} K above expected\", \"screw\", \"screw_barrel_wear\")\n    add(t[\"screen_dp_ratio\"] > L[\"screen_dp_ratio_change\"], \"EXT_SCREEN_CHANGE_DUE\", \"Medium\",\n        f\"Screen pressure drop {t['screen_dp_bar']:.0f} bar, {t['screen_dp_ratio']:.1f} x a clean screen\", \"screen changer\", \"screen_pack_clogging\")\n    add(t[\"thrust_life_rate\"] > L[\"thrust_rate_alert\"], \"EXT_THRUST_LIFE_FAST\", \"Medium\",\n        f\"Thrust bearing life used {t['thrust_life_rate']:.1f} x the design rate\", \"gearbox\", \"screen_pack_clogging\")\n    add(abs(t[\"die_pressure_ratio\"] - 1) > L[\"die_pressure_dev\"], \"EXT_DIE_PRESSURE_DEV\", \"Medium\",\n        f\"Pressure before the head {r['p_die_bar']:.0f} bar, {t['die_pressure_ratio']:.2f} x expected\", \"pipe head\", \"die_restriction\")\n    add(t[\"heater_current_ratio_min\"] < L[\"heater_current_ratio_min\"], \"EXT_HEATER_BAND_FAILED\", \"Medium\",\n        f\"A heating zone draws {t['heater_current_ratio_min'] * 100:.0f} % of its rated current while on: band open\", \"barrel heating\", \"heater_band_failure\")\n    add(t[\"zone_temp_dev_max_k\"] > L[\"zone_dev_max_k\"], \"EXT_ZONE_TEMP_DEV\", \"Medium\", f\"A barrel zone is {t['zone_temp_dev_max_k']:.0f} K off its set point\", \"barrel heating\")\n    add(k[\"vib_a\"] < r[\"gearbox_vib_mm_s\"] <= k[\"vib_h\"], \"EXT_GEARBOX_VIB_ALERT\", \"Medium\", f\"Gearbox vibration {r['gearbox_vib_mm_s']:.1f} mm/s, above {k['vib_a']} mm/s\",\n        \"gearbox\", \"gearbox_bearing_damage\")\n    add(t[\"gearbox_oil_residual_k\"] > L[\"gearbox_oil_resid_k\"], \"EXT_GEARBOX_OIL_HOT\", \"Medium\",\n        f\"Gearbox oil {t['gearbox_oil_residual_k']:+.1f} K above what the load explains\", \"gearbox\", \"gearbox_bearing_damage\")\n    add(sec_ratio > L[\"sec_ratio_alert\"], \"EXT_SEC_HIGH\", \"Medium\",\n        f\"Specific energy {t['sec_kwh_kg']:.3f} kWh/kg, {sec_ratio:.2f} x expected\", \"barrel cooling\", \"barrel_cooling_stuck\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "EX-4401 single-screw pipe extruder twin. Expected values in Maximo Monitor from the maker's data, the commissioning test and the resin data; the device sends only what it measures.", "twin": {"id": "EX-4401", "name": "Single-screw pipe extruder EX-4401", "version": "1.0.0", "folder": "extruder-twin"}, "identification": {"asset": "EX-4401", "assetnum": "EX-4401", "manufacturer": "KraussMaffei", "model": "KME 75-36 B/R single-screw extruder (75 mm, 36 L/D, grooved feed, barrier screw)", "description": "Main extruder of a PE 100 pressure pipe line (pipe up to 250 mm)", "screw": "Barrier screw, 75 mm, 36 L/D, in a bimetal cylinder with a deep-nitrided grooved feed bush", "drive": "Synchronous AC motor with variable-speed drive, gearbox with the screw thrust bearing", "melt_path": "Continuous screen changer, adapter, spiral mandrel pipe head", "material": "PE 100 pipe grade (HDPE), black compound"}, "design": {"machine": {"screw_diameter_mm": 75.0, "l_d": 36, "zones": 5, "max_output_hdpe_kg_h": [640.0, 700.0], "max_output_pp_kg_h": [440.0, 480.0], "extrusion_height_mm": 1000.0, "source": "KraussMaffei PO pipe brochure (EXT_BR_PO_pipe_en.pdf), technical data 36 L/D: screw diameter, L/D, 5/5 heating/cooling zones, maximum outputs for HDPE and PP, extrusion height."}, "conveying": {"specific_rate_kg_h_rpm": 5.5, "max_speed_rpm": 125.0, "output_set_kg_h": 600.0, "source": "Output rises linearly with screw speed, independent of counter-pressure (KraussMaffei PO pipe brochure (EXT_BR_PO_pipe_en.pdf), technical data 36 L/D, speed/throughput chart). Specific rate at commissioning and maximum screw speed: assumption: typical value, replace with the value from your machine's order documents or commissioning test. 5.5 kg/h per rpm x 125 rpm = 687 kg/h, inside the published 640-700 kg/h."}, "drive": {"rated_power_kw": 200.0, "rated_speed_rpm": 125.0, "no_load_kw": 8.0, "drive_kwh_kg": 0.2, "mfr_exponent": 0.3, "efficiency": 0.95, "source": "Motor rating, no-load power, drive energy per kg at the reference resin, effect of the resin's melt flow rate on it, motor and drive efficiency: assumption: typical value, replace with the value from your machine's order documents or commissioning test."}, "heating": {"set_c": [190.0, 200.0, 205.0, 210.0, 210.0], "zone_kw": [10.0, 12.0, 12.0, 12.0, 10.0], "voltage_v": 400.0, "heater_kw_at_rate": 15.0, "source": "Barrel set temperatures for PE 100, heater power per zone (three bands in delta on 400 V), total heater power at the set output once the screw makes most of the heat: assumption: typical value, replace with the value from your machine's order documents or commissioning test."}, "material": {"name": "PE 100 pipe compound", "mfr_ref_g10min": 0.25, "mfr_condition": "190 \u00b0C / 5 kg", "cp_kj_kgk": 2.2, "fusion_kj_kg": 200.0, "melt_density_kg_m3": 760.0, "melt_cp_kj_kgk": 2.6, "source": "Reference melt flow rate (ISO 1133-1, 190 \u00b0C / 5 kg) of a PE 100 pipe grade, mean specific heat from 25 \u00b0C to the melt, heat of fusion of ~70 % crystalline PE, melt density and melt specific heat: assumption: typical value, replace with the value from your machine's order documents or commissioning test (use your resin data sheet)."}, "rheology": {"die_p_ref_bar": 250.0, "screen_dp_clean_bar": 35.0, "q_ref_kg_h": 600.0, "power_law_n": 0.4, "mfr_exponent": 0.7, "temp_coeff_per_k": 0.014, "melt_t_ref_c": 215.0, "source": "Pressure before the pipe head and across a clean screen pack at the reference output, melt temperature and resin; power-law index n; pressure falls about 1.4 % per K (Arrhenius flow activation energy ~27 kJ/mol at 215 \u00b0C): assumption: typical value, replace with the value from your machine's order documents or commissioning test."}, "melt": {"t0_c": 213.2, "n_ref_rpm": 109.1, "k_rpm": 0.25, "source": "Melt temperature at the die at the reference screw speed with a clean screen, and its rise per rpm, from the commissioning test: assumption: typical value, replace with the value from your machine's order documents or commissioning test. The adiabatic rise across the screen, dp / (rho x cp), is added by the twin."}, "wear": {"clearance_new_mm": 0.075, "leak_k": 0.00238, "replace_ratio": 4.0, "source": "New flight clearance = diameter / 1000 per side (Spalding and Womer, Plastics Technology 2023); replacement rule of thumb at 4 x the original clearance (Surley, Plastics Technology 2018). Leakage model: loss of specific rate = k x ((clearance / new)^3 - 1) x head pressure / design pressure, with k so that 4 x the clearance costs about 15 % of the output per rpm: assumption: typical value, replace with the value from your machine's order documents or commissioning test (calibrate on your screw)."}, "thrust": {"p_design_bar": 300.0, "n_design_rpm": 110.0, "life_exponent": 3.3333333333333335, "source": "Thrust force = pressure at the screw tip x screw cross-section; ISO 281 basic rating life of a roller bearing L10 = (C/P)^(10/3) million revolutions. Design pressure and speed for the bearing's rated life: assumption: typical value, replace with the value from your machine's order documents or commissioning test."}, "gearbox": {"oil_k_per_kw": 0.25, "vib_alert_mm_s": 2.8, "vib_high_mm_s": 4.5, "source": "Oil temperature rise above ambient per kW of shaft power: assumption: typical value, replace with the value from your machine's order documents or commissioning test. Vibration limits: typical zone boundaries B/C and C/D for a 15-300 kW machine on a rigid foundation (ISO 20816-3, assumption: take the values for your machine group)."}, "line": {"ambient_c": 25.0, "feed_bush_normal_c": 35.0, "lot_mfr_range": [0.23, 0.27]}, "demo": {"time_scale": 1, "note": "The line holds 600 kg/h; screw speed follows the line's weight control. The clock of day plays no part."}}, "telemetry": {"event": "extruder", "publish_every_s": 10, "device_type": "PIPE_EXTRUDER", "groups": {"Drive": "Screw drive and motor", "Output": "Throughput", "Feed": "Feed throat and grooved bush", "Barrel": "Barrel heating zones", "Melt": "Melt pressure and temperature", "Gearbox": "Gearbox and thrust bearing", "Material": "Resin lot", "Line": "Line state"}, "points": [{"metric": "screw_speed_rpm", "path": "Drive.Speed", "label": "Screw speed", "unit": "rpm"}, {"metric": "motor_power_kw", "path": "Drive.Power", "label": "Drive input power", "unit": "kW"}, {"metric": "motor_torque_knm", "path": "Drive.Torque", "label": "Screw torque (from the drive)", "unit": "kN\u00b7m"}, {"metric": "output_kg_h", "path": "Output.Rate", "label": "Throughput (gravimetric)", "unit": "kg/h"}, {"metric": "feed_bush_temp_c", "path": "Feed.BushTemperature", "label": "Grooved feed bush temperature", "unit": "\u00b0C"}, {"metric": "zone1_temp_c", "path": "Barrel.Zone1Temperature", "label": "Barrel zone 1 temperature", "unit": "\u00b0C"}, {"metric": "zone2_temp_c", "path": "Barrel.Zone2Temperature", "label": "Barrel zone 2 temperature", "unit": "\u00b0C"}, {"metric": "zone3_temp_c", "path": "Barrel.Zone3Temperature", "label": "Barrel zone 3 temperature", "unit": "\u00b0C"}, {"metric": "zone4_temp_c", "path": "Barrel.Zone4Temperature", "label": "Barrel zone 4 temperature", "unit": "\u00b0C"}, {"metric": "zone5_temp_c", "path": "Barrel.Zone5Temperature", "label": "Barrel zone 5 temperature", "unit": "\u00b0C"}, {"metric": "zone1_heater_a", "path": "Barrel.Zone1HeaterCurrent", "label": "Zone 1 heater current while on", "unit": "A"}, {"metric": "zone2_heater_a", "path": "Barrel.Zone2HeaterCurrent", "label": "Zone 2 heater current while on", "unit": "A"}, {"metric": "zone3_heater_a", "path": "Barrel.Zone3HeaterCurrent", "label": "Zone 3 heater current while on", "unit": "A"}, {"metric": "zone4_heater_a", "path": "Barrel.Zone4HeaterCurrent", "label": "Zone 4 heater current while on", "unit": "A"}, {"metric": "zone5_heater_a", "path": "Barrel.Zone5HeaterCurrent", "label": "Zone 5 heater current while on", "unit": "A"}, {"metric": "heater_power_kw", "path": "Barrel.HeaterPower", "label": "Barrel heater power, all zones", "unit": "kW"}, {"metric": "p_screen_in_bar", "path": "Melt.PressureBeforeScreen", "label": "Melt pressure at the screw tip, before the screen", "unit": "bar"}, {"metric": "p_die_bar", "path": "Melt.PressureBeforeDie", "label": "Melt pressure after the screen, before the pipe head", "unit": "bar"}, {"metric": "melt_temp_c", "path": "Melt.Temperature", "label": "Melt temperature at the pipe head", "unit": "\u00b0C"}, {"metric": "gearbox_oil_temp_c", "path": "Gearbox.OilTemperature", "label": "Gearbox oil temperature", "unit": "\u00b0C"}, {"metric": "gearbox_vib_mm_s", "path": "Gearbox.Vibration", "label": "Gearbox vibration velocity (RMS)", "unit": "mm/s"}, {"metric": "ambient_temp_c", "path": "Line.AmbientTemperature", "label": "Hall temperature", "unit": "\u00b0C"}, {"metric": "lot_mfr_g10min", "path": "Material.LotMFR", "label": "Melt flow rate of the resin lot (certificate)", "unit": "g/10 min"}, {"metric": "running", "path": "Line.Running", "label": "Extruder running (1 = yes)", "unit": "code"}]}, "twin_model": {"limits": {"specific_rate_low": 0.95, "clearance_worn": 3.5, "melt_temp_resid_k": 8.0, "feed_bush_max_c": 60.0, "head_pressure_max_bar": 380.0, "screen_dp_ratio_change": 2.5, "thrust_rate_alert": 2.2, "die_pressure_dev": 0.2, "heater_current_ratio_min": 0.8, "zone_dev_max_k": 10.0, "gearbox_oil_resid_k": 8.0, "sec_ratio_alert": 1.15, "torque_pct_max": 90.0, "overpressure_trip_bar": 450.0}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "screw_barrel_wear": {"name": "Screw and barrel wear (flight clearance)", "part": "screw", "symptoms": "output per rpm falls, the line raises the screw speed to hold the rate, melt hotter than expected", "rules": ["EXT_SPECIFIC_RATE_LOW", "EXT_SCREW_WORN", "EXT_MELT_TEMP_HIGH"], "default_ramp_min": 1.5}, "screen_pack_clogging": {"name": "Screen pack clogging", "part": "screen changer", "symptoms": "pressure drop across the screen grows, head pressure and thrust load rise", "rules": ["EXT_SCREEN_CHANGE_DUE", "EXT_HEAD_PRESSURE_HIGH", "EXT_THRUST_LIFE_FAST"], "default_ramp_min": 1.5}, "heater_band_failure": {"name": "Heater band failure (one band of zone 3 open)", "part": "barrel heating", "symptoms": "zone current while on drops to two thirds; the zone may still hold its set point", "rules": ["EXT_HEATER_BAND_FAILED"], "default_ramp_min": 0.5}, "feed_bush_cooling_loss": {"name": "Grooved feed bush cooling loss", "part": "feed throat", "symptoms": "feed bush warms, the grooves lose their grip, output per rpm falls", "rules": ["EXT_FEED_BUSH_HOT", "EXT_SPECIFIC_RATE_LOW"], "default_ramp_min": 1}, "gearbox_bearing_damage": {"name": "Gearbox / thrust bearing damage", "part": "gearbox", "symptoms": "vibration rises, oil warmer than the load explains", "rules": ["EXT_GEARBOX_VIB_HIGH", "EXT_GEARBOX_OIL_HOT"], "default_ramp_min": 1.5}, "die_restriction": {"name": "Pipe head restriction (contamination, degraded melt, cold die)", "part": "pipe head", "symptoms": "pressure before the head above what output, resin and melt temperature explain", "rules": ["EXT_DIE_PRESSURE_DEV"], "default_ramp_min": 1}, "barrel_cooling_stuck": {"name": "Barrel cooling blower stuck on (heaters fight the fans)", "part": "barrel cooling", "symptoms": "heater power up, specific energy up, zones still at set point", "rules": ["EXT_SEC_HIGH"], "default_ramp_min": 1}}, "presentation": {"title": "EX-4401 single-screw pipe extruder", "dashboard": "PIPE_EXTRUDER"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(1.3, 3.3, 8.6); ctl.target.set(1.3, 0.9, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+const grid = new THREE.GridHelper(12, 24, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), frameM = M(0x2f3a48, { m: .3 }), blueM = M(0x2f6db5, { m: .35 }), dark = M(0x3d4249), black = M(0x1a1a1a, { m: .1, r: .8 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const alongX = o => { o.rotation.z = Math.PI / 2; return o; };
+const AX = 1.0;                                            // extrusion height 1000 mm (maker's table)
+// machine frame (base) under drive and barrel
+scene.add(at(box(4.4, .62, .7, frameM), -.2, .31, 0));
+// motor, coupling, gearbox with thrust housing
+scene.add(at(alongX(cyl(.3, .3, .9, blueM)), -2.05, AX, 0));
+scene.add(at(alongX(cyl(.32, .32, .06, dark)), -1.58, AX, 0));
+scene.add(at(box(.36, .3, .3, dark), -2.05, AX + .35, 0));                 // drive terminal box
+scene.add(at(alongX(cyl(.07, .07, .2, steel)), -1.45, AX, 0));
+const gearbox = at(box(.55, .78, .62, blueM), -1.05, AX - .05, 0); scene.add(gearbox);
+const thrust = at(alongX(cyl(.2, .2, .22, M(0x2f6db5, { m: .35, t: 1 }))), -.68, AX, 0); scene.add(thrust);
+// feed throat with grooved bush (cooled) and hopper
+const bushM = M(0x5a8fd6, { m: .4 });
+const bush = at(alongX(cyl(.16, .16, .3, bushM)), -.42, AX, 0); scene.add(bush);
+scene.add(at(box(.24, .28, .24, dark), -.42, AX + .28, 0));
+scene.add(at(cyl(.32, .12, .5, M(0x8c97a3, { m: .5 })), -.42, AX + .68, 0));
+scene.add(at(cyl(.32, .32, .25, M(0x8c97a3, { m: .5 })), -.42, AX + 1.05, 0));
+// barrel (36 D) with five heater bands and blower cowls
+const barrelM = M(0x9aa3ad, { m: .7, r: .3, t: 1 });
+const barrel = at(alongX(cyl(.1, .1, 2.75, barrelM)), 1.0, AX, 0); scene.add(barrel);
+const bands = [], X0 = -.15, ZL = .5;
+for (let i = 0; i < 5; i++) {
+  const x = X0 + ZL / 2 + i * ZL;
+  const b = at(alongX(cyl(.14, .14, ZL - .08, M(0xb57a2a, { m: .5, r: .4, t: 1 }))), x, AX, 0); scene.add(b); bands.push(b);
+  scene.add(at(box(ZL - .1, .2, .3, dark), x, AX - .3, 0));               // blower cowl
+  scene.add(at(cyl(.07, .07, .08, dark), x, AX - .44, 0));               // blower
+}
+// screw (helix flight on a root), visible in the cutaway
+const screwG = new THREE.Group(); at(screwG, -.3, AX, 0); scene.add(screwG);
+const root = alongX(cyl(.055, .055, 2.7, steel)); root.position.x = 1.35; screwG.add(root);
+{ const pts = []; const turns = 30, L = 2.62; for (let i = 0; i <= 1500; i++) { const t = i / 1500; pts.push(new THREE.Vector3(t * L, Math.cos(t * turns * 2 * Math.PI) * .075, Math.sin(t * turns * 2 * Math.PI) * .075)); }
+  const flight = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 1500, .014, 6, false), M(0xd9dde2, { m: .85, r: .2 })); flight.position.x = .03; screwG.add(flight); }
+// screen changer (slide plate), adapter, pipe head, pipe
+const scr = at(box(.24, .62, .36, M(0x6e4fa6, { m: .3 })), 2.52, AX, 0); scene.add(scr);
+const plate = at(box(.08, .9, .26, steel), 2.52, AX + .12, 0); scene.add(plate);
+scene.add(at(alongX(cyl(.1, .14, .25, dark)), 2.76, AX, 0));
+const head = at(alongX(cyl(.24, .24, .75, M(0x56718f, { m: .45 }))), 3.25, AX, 0); scene.add(head);
+for (let i = 0; i < 3; i++) scene.add(at(alongX(cyl(.26, .26, .06, M(0xb57a2a, { m: .5 }))), 3.0 + i * .25, AX, 0));
+scene.add(at(box(.5, AX - .26, .5, frameM), 3.2, (AX - .26) / 2, 0));
+const pipe = at(alongX(cyl(.125, .125, 1.6, black)), 4.4, AX, 0); scene.add(pipe);
+// melt pressure transducers and thermocouple
+const pt1 = at(cyl(.025, .025, .22, M(0x0f62fe)), 2.36, AX + .2, .08); scene.add(pt1);
+const pt2 = at(cyl(.025, .025, .22, M(0x0f62fe)), 2.7, AX + .2, .06); scene.add(pt2);
+scene.add(at(cyl(.02, .02, .3, M(0xda1e28)), 2.9, AX + .26, 0));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, -2.05, AX + .58, 0));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('drive', [-2.05, AX + .5, 0]); lbl('gear', [-1.05, AX + .8, .2]); lbl('bush', [-.42, AX + 1.25, 0]); lbl('rate', [.4, AX + .25, 0]);
+lbl('zones', [1.5, AX + .25, 0]); lbl('screen', [2.45, AX + .45, 0]); lbl('die', [3.3, AX + .75, 0]); lbl('melt', [4.7, AX + .2, 0]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 100;
+const tempColour = (t, set) => { const d = Math.max(-1, Math.min(1, (t - set) / 15)); const c = new THREE.Color(0xb57a2a); return d < 0 ? c.lerp(new THREE.Color(0x4589ff), -d) : c.lerp(new THREE.Color(0xff3b1f), d); };
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.screw_speed_rpm;
+  setLbl('drive', 'drive power · torque', `${fmt(r.motor_power_kw, 0)} kW · ${fmt(t.torque_pct, 0)} %`, st(names.has('EXT_TORQUE_HIGH'), t.torque_pct > 80));
+  setLbl('gear', 'gearbox vibration · oil vs expected', `${fmt(r.gearbox_vib_mm_s, 1)} mm/s · ${fmt(t.gearbox_oil_residual_k, 1)} K`,
+    st(names.has('EXT_GEARBOX_VIB_HIGH') || names.has('EXT_GEARBOX_OIL_HOT'), names.has('EXT_GEARBOX_VIB_ALERT')));
+  setLbl('bush', 'grooved feed bush', `${fmt(r.feed_bush_temp_c, 0)} °C`, st(names.has('EXT_FEED_BUSH_HOT'), r.feed_bush_temp_c > 50));
+  setLbl('rate', `output · ${fmt(r.screw_speed_rpm, 1)} rpm`, `${fmt(r.output_kg_h, 0)} kg/h · ${fmt(t.specific_rate_ratio * 100, 1)} % per rpm`,
+    st(names.has('EXT_SCREW_WORN'), names.has('EXT_SPECIFIC_RATE_LOW')));
+  setLbl('zones', 'heater current (min) · zone deviation', `${fmt(t.heater_current_ratio_min * 100, 0)} % · ${fmt(t.zone_temp_dev_max_k, 1)} K`,
+    st(names.has('EXT_HEATER_BAND_FAILED') || names.has('EXT_ZONE_TEMP_DEV'), names.has('EXT_SEC_HIGH')));
+  setLbl('screen', 'tip pressure · screen Δp', `${fmt(r.p_screen_in_bar, 0)} bar · ${fmt(t.screen_dp_bar, 0)} (${fmt(t.screen_dp_ratio, 1)}×)`,
+    st(names.has('EXT_HEAD_PRESSURE_HIGH'), names.has('EXT_SCREEN_CHANGE_DUE') || names.has('EXT_THRUST_LIFE_FAST')));
+  setLbl('die', 'pressure before the head · expected', `${fmt(r.p_die_bar, 0)} · ${fmt(t.die_pressure_expected_bar, 0)} bar`, st(names.has('EXT_DIE_PRESSURE_DEV')));
+  setLbl('melt', 'melt temperature · vs expected', `${fmt(r.melt_temp_c, 1)} °C · ${t.melt_temp_residual_k >= 0 ? '+' : ''}${fmt(t.melt_temp_residual_k, 1)} K`, st(names.has('EXT_MELT_TEMP_HIGH')));
+  $('k-health').textContent = ST.health; $('k-sec').textContent = fmt(t.sec_kwh_kg, 3); $('k-srr').textContent = fmt(t.specific_rate_ratio * 100, 1) + ' %';
+  $('c-sr-t').textContent = `clearance ≈ ${fmt(t.clearance_ratio, 1)} × new`; $('c-sr').className = 'chip ' + (names.has('EXT_SCREW_WORN') ? 'bad' : names.has('EXT_SPECIFIC_RATE_LOW') ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Output (kg/h)', fmt(r.output_kg_h, 0), fmt(t.output_expected_kg_h, 0), names.has('EXT_SPECIFIC_RATE_LOW')) +
+    row('Output per rpm (kg/h)', fmt(r.output_kg_h / Math.max(r.screw_speed_rpm, 1), 2), fmt(d.conveying.specific_rate_kg_h_rpm, 2), names.has('EXT_SPECIFIC_RATE_LOW')) +
+    row('Flight clearance (× new)', fmt(t.clearance_ratio, 2), '< ' + L.clearance_worn, names.has('EXT_SCREW_WORN')) +
+    row('Drive power (kW)', fmt(r.motor_power_kw, 0), fmt(t.drive_power_expected_kw, 0)) +
+    row('Torque (% of rated)', fmt(t.torque_pct, 0), '< ' + L.torque_pct_max, names.has('EXT_TORQUE_HIGH')) +
+    row('Specific energy (kWh/kg)', fmt(t.sec_kwh_kg, 3), fmt(t.sec_expected_kwh_kg, 3), names.has('EXT_SEC_HIGH')) +
+    row('Process efficiency', fmt(t.process_efficiency * 100, 0) + ' %', '–') +
+    row('Pressure before head (bar)', fmt(r.p_die_bar, 0), fmt(t.die_pressure_expected_bar, 0), names.has('EXT_DIE_PRESSURE_DEV')) +
+    row('Screen Δp (bar)', fmt(t.screen_dp_bar, 0), fmt(t.screen_dp_bar / Math.max(t.screen_dp_ratio, 1e-6), 0), names.has('EXT_SCREEN_CHANGE_DUE')) +
+    row('Tip pressure (bar)', fmt(r.p_screen_in_bar, 0), '< ' + L.head_pressure_max_bar, names.has('EXT_HEAD_PRESSURE_HIGH')) +
+    row('Melt temperature (°C)', fmt(r.melt_temp_c, 1), fmt(t.melt_temp_expected_c, 1), names.has('EXT_MELT_TEMP_HIGH')) +
+    row('Thrust life use (× design)', fmt(t.thrust_life_rate, 2), '< ' + L.thrust_rate_alert, names.has('EXT_THRUST_LIFE_FAST')) +
+    row('Gearbox oil (°C)', fmt(r.gearbox_oil_temp_c, 1), fmt(r.gearbox_oil_temp_c - t.gearbox_oil_residual_k, 1), names.has('EXT_GEARBOX_OIL_HOT')) +
+    row('Gearbox vibration (mm/s)', fmt(r.gearbox_vib_mm_s, 2), '< ' + d.gearbox.vib_alert_mm_s, names.has('EXT_GEARBOX_VIB_HIGH') || names.has('EXT_GEARBOX_VIB_ALERT')) +
+    row('Resin lot MFR (g/10 min)', fmt(r.lot_mfr_g10min, 3), fmt(d.material.mfr_ref_g10min, 2));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the extruder behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  // heater bands: colour by zone temperature, red when the zone current is low
+  bands.forEach((b, i) => {
+    const ratio = r[`zone${i + 1}_heater_a`] / (d.heating.zone_kw[i] * 1000 / (Math.sqrt(3) * d.heating.voltage_v));
+    b.material.color.copy(ratio < L.heater_current_ratio_min ? new THREE.Color(0xda1e28) : tempColour(r[`zone${i + 1}_temp_c`], d.heating.set_c[i]));
+  });
+  bushM.color.setHex(r.feed_bush_temp_c > L.feed_bush_max_c ? 0xda1e28 : r.feed_bush_temp_c > 50 ? 0xf1c21b : 0x5a8fd6);
+  scr.material.color.setHex(names.has('EXT_HEAD_PRESSURE_HIGH') ? 0xda1e28 : names.has('EXT_SCREEN_CHANGE_DUE') ? 0xd8a31a : 0x6e4fa6);
+  gearbox.material.color.setHex(names.has('EXT_GEARBOX_VIB_HIGH') || names.has('EXT_GEARBOX_OIL_HOT') ? 0xa2191f : 0x2f6db5);
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [barrelM, thrust.material, ...bands.map(b => b.material)].forEach(m => { m.transparent = true; m.opacity = cut ? .22 : 1; m.depthWrite = !cut; });
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  screwG.rotation.x -= (rpm / 60) * 2 * Math.PI * dt * 0.25;   // a quarter of the real speed
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
