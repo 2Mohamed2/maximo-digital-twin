@@ -1,0 +1,358 @@
+{
+ "$comment": "HYD-3601 Francis turbine-generator unit twin. Expected efficiency from the hill chart at the measured unit speed and unit flow, expected head loss from Darcy-Weisbach, plant sigma from the tailwater level; the unit sends only what it measures.",
+ "twin": {
+  "id": "HYD-3601",
+  "name": "Francis turbine-generator unit HYD-3601",
+  "version": "1.0.0",
+  "folder": "hydro-twin"
+ },
+ "identification": {
+  "asset": "HYD-3601",
+  "assetnum": "HYD-3601",
+  "manufacturer": "Custom-built vertical Francis unit (hydro units are designed per site: no public data sheet)",
+  "model": "Hill chart shape anchored on the public NTNU Francis-99 model turbine; prototype size is an assumption",
+  "description": "Unit 1 of a high-head storage hydro plant: vertical Francis turbine, 22-pole synchronous generator, digital governor, penstock",
+  "turbine": "Vertical-shaft Francis turbine, spiral case, 14 stay vanes, 28 guide vanes, runner 1.8 m (outlet), elbow draft tube",
+  "generator": "Synchronous generator, 22 poles, 50 Hz (272.7 rpm), umbrella type: thrust bearing below the rotor",
+  "governor": "Digital PID governor with an oil pressure unit (OPU) and two guide vane servomotors",
+  "waterway": "Intake with trash rack, steel penstock 900 m long, 3.2 m diameter, main inlet valve",
+  "site": "A storage hydro plant in a river valley (generic)"
+ },
+ "design": {
+  "hill_chart": {
+   "ned_bep": 0.18,
+   "qed_bep": 0.2,
+   "eta_model_max": 0.934,
+   "step_up": 0.016,
+   "a_part": 0.45,
+   "a_over": 0.6,
+   "b_speed": 1.2,
+   "tilt": 0.5,
+   "source": "NTNU Francis-99 model turbine (Waterpower Laboratory, NTNU), workshop data: peak model efficiency 93.4 % at nED = 0.18 and QED = 0.20 (BEP), reference diameter 0.349 m. Prototype peak = model peak + step-up (IEC 60193 gives step-up formulas): assumption: typical value, replace with your contract step-up. Ellipse coefficients of the iso-efficiency curves eta = eta_max - a (dq)^2 - b (dn)^2 with dq = QED/QED_bep - 1 - tilt x dn, dn = nED/nED_bep - 1: assumption: typical value, replace with the prototype hill chart from your model acceptance test (IEC 60193)"
+  },
+  "unit": {
+   "runner_d_m": 1.8,
+   "poles": 22,
+   "grid_hz": 50.0,
+   "speed_rpm": 272.73,
+   "rated_mw": 60.0,
+   "eta_gen": 0.982,
+   "gate_bep_pct": 72.0,
+   "rho": 1000.0,
+   "g": 9.81,
+   "source": "Runner reference (outlet) diameter, poles and generator efficiency: assumption: typical value, replace with your unit's data. Synchronous speed n = 120 f / poles = 272.73 rpm. Guide vane opening at the BEP: assumption: typical value, replace with the model test"
+  },
+  "levels": {
+   "headwater_m": 412.0,
+   "tailwater_m": 199.0,
+   "z_ref_m": 191.0,
+   "z_spiral_m": 191.0,
+   "source": "Reservoir and tailwater levels (m above sea level), runner reference elevation (8 m below normal tailwater) and spiral case inlet pressure tap elevation: assumption: typical value, replace with the plant's level survey"
+  },
+  "waterway": {
+   "length_m": 900.0,
+   "diameter_m": 3.2,
+   "friction_f": 0.012,
+   "k_minor": 0.6,
+   "spiral_inlet_d_m": 2.6,
+   "draft_outlet_m2": 30.0,
+   "source": "Penstock length, diameter and Darcy friction factor (welded steel), minor loss coefficients of intake, trash rack, bends and inlet valve, spiral inlet diameter and draft tube outlet area: assumption: typical value, replace with the waterway design report or a measured head loss curve"
+  },
+  "flow": {
+   "wk_k": 3.8,
+   "source": "Winter-Kennedy coefficient k in Q = k sqrt(dp), dp in kPa, Q in m3/s (exponent 0.5): assumption: typical value, replace with the calibration against an absolute flow measurement (IEC 60041 index test)"
+  },
+  "cavitation": {
+   "sigma_bep": 0.06,
+   "slope_over": 1.5,
+   "slope_part": 0.3,
+   "ambient_kpa": 98.9,
+   "source": "Required Thoma number from the model test, with its safety margin, as sigma_bep x (1 + 1.5 x overload + 0.3 x part load) in q = QED/QED_bep: assumption: typical value, replace with the sigma curves of your model acceptance test. Barometer about 98.9 kPa at a site about 200 m above sea level"
+  },
+  "draft_tube": {
+   "base_pct": 0.5,
+   "rope_pct": 4.0,
+   "rope_q": 0.6,
+   "rope_width": 0.12,
+   "rope_freq_ratio": 0.3,
+   "source": "Draft tube cone pressure pulsation, peak-to-peak in % of the net head: a base level plus a part-load vortex rope peak around q = 0.6. assumption: typical value, replace with the model test or a commissioning sweep of your unit. Vortex rope precession frequency 0.3 x runner frequency, inside the 0.2 to 0.4 band reported in the literature"
+  },
+  "bearings": {
+   "oil_a0": 18.0,
+   "oil_a1": 6.0,
+   "pad_b0": 10.0,
+   "pad_b1": 8.0,
+   "thrust_c0": 40.0,
+   "thrust_c1": 12.0,
+   "ggb_d0": 25.0,
+   "ggb_d1": 5.0,
+   "runout0_um": 70.0,
+   "runout_per_pct": 15.0,
+   "source": "Turbine guide bearing (TGB) oil = cooling water + a0 + a1 L; TGB pad = TGB oil + b0 + b1 L; thrust pad = cooling water + c0 + c1 L (L = P / rated). Shaft runout = r0 + r1 x draft tube pulsation. assumption: typical value, replace with a least-squares fit on a few months of healthy data of this unit"
+  },
+  "governor": {
+   "oil_nominal_bar": 40.0,
+   "source": "Oil pressure unit working pressure: assumption: typical value, replace with the governor data sheet"
+  },
+  "demo": {
+   "time_scale": 60,
+   "load_mean_mw": 52.0,
+   "load_min_mw": 45.0,
+   "load_max_mw": 60.0,
+   "cooling_water_c": 12.0,
+   "water_c": 10.0,
+   "rough_zone_mw": 30.0,
+   "note": "Demo only: one real second is one plant minute; one record every 10 real seconds. Dispatch moves the load slowly between 45 and 60 MW; the rough zone failure mode holds the unit at 30 MW."
+  }
+ },
+ "telemetry": {
+  "event": "hydro",
+  "publish_every_s": 10,
+  "device_type": "HYDRO_FRANCIS_UNIT",
+  "groups": {
+   "Reservoir": "Headwater (intake) level",
+   "Tailwater": "Tailwater level",
+   "Penstock": "Spiral case inlet",
+   "Flow": "Winter-Kennedy taps on the spiral case",
+   "Unit": "Speed, power and state",
+   "Governor": "Guide vanes and oil pressure unit",
+   "DraftTube": "Draft tube cone pressure",
+   "Water": "Water conditions",
+   "Ambient": "Powerhouse barometer",
+   "Bearings": "Bearing temperatures and cooling water",
+   "Vibration": "Shaft and head cover vibration"
+  },
+  "points": [
+   {
+    "metric": "headwater_level_m",
+    "path": "Reservoir.Level",
+    "label": "Headwater level at the intake (upstream of the trash rack)",
+    "unit": "m asl"
+   },
+   {
+    "metric": "tailwater_level_m",
+    "path": "Tailwater.Level",
+    "label": "Tailwater level",
+    "unit": "m asl"
+   },
+   {
+    "metric": "spiral_pressure_bar",
+    "path": "Penstock.SpiralPressure",
+    "label": "Spiral case inlet pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "wk_dp_kpa",
+    "path": "Flow.WinterKennedy",
+    "label": "Winter-Kennedy differential pressure",
+    "unit": "kPa"
+   },
+   {
+    "metric": "speed_rpm",
+    "path": "Unit.Speed",
+    "label": "Unit speed",
+    "unit": "rpm"
+   },
+   {
+    "metric": "active_power_mw",
+    "path": "Unit.ActivePower",
+    "label": "Generator active power",
+    "unit": "MW"
+   },
+   {
+    "metric": "unit_state",
+    "path": "Unit.State",
+    "label": "Unit state (1 = generating)",
+    "unit": "code"
+   },
+   {
+    "metric": "gate_setpoint_pct",
+    "path": "Governor.GateSetpoint",
+    "label": "Guide vane opening setpoint from the governor",
+    "unit": "%"
+   },
+   {
+    "metric": "gate_position_pct",
+    "path": "Governor.GatePosition",
+    "label": "Guide vane opening (servomotor stroke)",
+    "unit": "%"
+   },
+   {
+    "metric": "gov_oil_pressure_bar",
+    "path": "Governor.OilPressure",
+    "label": "Governor oil pressure unit pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "dt_pulsation_pct",
+    "path": "DraftTube.Pulsation",
+    "label": "Draft tube cone pressure pulsation, peak-to-peak in % of net head",
+    "unit": "%"
+   },
+   {
+    "metric": "water_temp_c",
+    "path": "Water.Temperature",
+    "label": "Water temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "ambient_pressure_kpa",
+    "path": "Ambient.Pressure",
+    "label": "Atmospheric pressure in the powerhouse",
+    "unit": "kPa"
+   },
+   {
+    "metric": "tgb_oil_temp_c",
+    "path": "Bearings.TGBOil",
+    "label": "Turbine guide bearing oil temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "tgb_pad_temp_c",
+    "path": "Bearings.TGBPad",
+    "label": "Turbine guide bearing pad temperature (hottest)",
+    "unit": "°C"
+   },
+   {
+    "metric": "thrust_pad_temp_c",
+    "path": "Bearings.ThrustPad",
+    "label": "Thrust bearing pad temperature (hottest)",
+    "unit": "°C"
+   },
+   {
+    "metric": "ggb_pad_temp_c",
+    "path": "Bearings.GenGuide",
+    "label": "Generator guide bearing pad temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "cooling_water_flow_pct",
+    "path": "Bearings.CoolingFlow",
+    "label": "Bearing cooling water flow, % of design",
+    "unit": "%"
+   },
+   {
+    "metric": "cooling_water_temp_c",
+    "path": "Bearings.CoolingTemp",
+    "label": "Cooling water inlet temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "shaft_runout_um",
+    "path": "Vibration.ShaftRunout",
+    "label": "Relative shaft displacement at the turbine guide bearing, peak-to-peak",
+    "unit": "µm"
+   },
+   {
+    "metric": "headcover_vib_mms",
+    "path": "Vibration.HeadCover",
+    "label": "Head cover vibration velocity, rms",
+    "unit": "mm/s"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "eff_deficit_pts": 1.5,
+   "eff_deficit_high_pts": 3.0,
+   "gate_flow_ratio": 1.05,
+   "gate_dev_pct": 2.0,
+   "gov_oil_min_bar": 34.0,
+   "sigma_margin_min": 1.1,
+   "rough_q_min": 0.4,
+   "rough_q_max": 0.7,
+   "dt_pulsation_pct": 2.5,
+   "tgb_pad_residual_c": 5.0,
+   "runout_um": 200.0,
+   "cooling_flow_min_pct": 70.0,
+   "thrust_pad_max_c": 80.0,
+   "head_loss_ratio": 1.5,
+   "head_loss_q_min": 0.6,
+   "source": "Alarm limits: assumption: typical value, replace with your unit's commissioning values and the bearing maker's pad temperature limits. The shaft runout limit stands for the zone boundary of ISO 20816-5 for this machine type and bearing position (read the value from the standard; its zones are for evaluation, not early diagnosis)."
+  }
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "runner_wear": {
+   "name": "Runner wear (cavitation erosion, sand abrasion, seal ring wear)",
+   "part": "runner",
+   "symptoms": "efficiency below the hill chart at the same nED and QED, more flow (more gate) for the same power, lost MW",
+   "rules": [
+    "HYD_EFF_DEFICIT",
+    "HYD_EFF_DEFICIT_HIGH"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "guide_vane_leakage": {
+   "name": "Guide vane wear and leakage (end and facing plate clearances)",
+   "part": "guide vanes",
+   "symptoms": "more flow than the gate opening explains, efficiency slightly lower, leakage at standstill",
+   "rules": [
+    "HYD_GATE_FLOW_HIGH"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "governor_servo_fault": {
+   "name": "Governor servomotor or oil pressure unit fault",
+   "part": "governor",
+   "symptoms": "guide vane position lags the governor setpoint, oil pressure unit pressure low",
+   "rules": [
+    "HYD_GATE_TRACKING",
+    "HYD_GOV_OIL_PRESSURE_LOW"
+   ],
+   "default_ramp_min": 1
+  },
+  "low_tailwater": {
+   "name": "Low tailwater: operation with too little submergence (cavitation risk)",
+   "part": "draft tube / runner",
+   "symptoms": "tailwater falls, plant sigma drops below the sigma the runner needs at this load",
+   "rules": [
+    "HYD_SIGMA_MARGIN_LOW"
+   ],
+   "default_ramp_min": 1
+  },
+  "rough_zone_operation": {
+   "name": "Operation in the part-load rough zone (draft tube vortex rope)",
+   "part": "draft tube",
+   "symptoms": "unit held at about half load, draft tube pressure pulsation high at 0.3 x runner frequency",
+   "rules": [
+    "HYD_ROUGH_ZONE",
+    "HYD_DT_PULSATION_HIGH"
+   ],
+   "default_ramp_min": 0.5
+  },
+  "guide_bearing_wear": {
+   "name": "Turbine guide bearing wear (clearance, pad damage)",
+   "part": "guide bearing",
+   "symptoms": "TGB pad hotter than its oil and load explain, shaft runout grows, oil normal",
+   "rules": [
+    "HYD_TGB_TEMP_RESIDUAL",
+    "HYD_SHAFT_RUNOUT_HIGH"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "bearing_cooling_loss": {
+   "name": "Bearing cooling water loss (strainer blocked, valve closed)",
+   "part": "cooling",
+   "symptoms": "cooling water flow low, every bearing oil and pad hotter together, pad-to-oil residual normal",
+   "rules": [
+    "HYD_COOLING_WATER_LOW",
+    "HYD_THRUST_BRG_TEMP_HIGH"
+   ],
+   "default_ramp_min": 1
+  },
+  "intake_head_loss": {
+   "name": "Trash rack clogging or penstock fouling",
+   "part": "waterway",
+   "symptoms": "head loss from the intake to the spiral case above Darcy-Weisbach, net head and power down",
+   "rules": [
+    "HYD_HEAD_LOSS_HIGH"
+   ],
+   "default_ramp_min": 1
+  }
+ },
+ "presentation": {
+  "title": "HYD-3601 Francis turbine-generator unit",
+  "dashboard": "HYDRO_FRANCIS_UNIT"
+ }
+}

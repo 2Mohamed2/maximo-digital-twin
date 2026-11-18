@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ML-3901 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>ML-3901</b><span class="g">SAG mill · ring gear drive · SABC circuit</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-load"><span class="dot"></span><span id="c-load-t">filling –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Power, specific energy and liners →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the mill model…</div>
+<div class="credit">9.0 m × 4.5 m EGL SAG mill on two trunnion bearings, ring gear and pinion, reducer and induction motor, feed chute and discharge trommel. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-spin">Pause rotation</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. In the cutaway the brown segment is the charge (rock, balls and slurry) at the filling the twin computes from the two bearing pressures.</div>
+<aside>
+  <section>
+    <h2>ML-3901 twin</h2>
+    <p class="sub" id="sub">SAG mill</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Power ÷ model<b id="k-pr">–</b></div><div>Filling<b id="k-j">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The mill sends only what it measures. The filling, the expected power, the expected specific energy and the reline date are computed from the twin file: the mill datasheet, the Austin power model, the Morrell SMC equation and the liner plan.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for ML-3901: the SAG mill, its charge, liners, trunnion bearings and ring gear drive, with injectable faults.\n\nThe real mill sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the expected\nvalues are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages.\n\nTrue state -> readings:\n  liner thickness from the tonnage (faster with 'liner_wear_fast'); diameter inside the liners from it;\n  power from the same Austin model at the TRUE filling, ball charge and diameter, times an overload factor\n  1 - 2.5 x (J - 0.34) above J = 0.34 (the charge stops lifting); bearing pressures from the true rotating mass;\n  feed rate = motor power / (Wa x efficiency loss), i.e. the control system feeds the mill to its power.\nPure Python (math, random), no numpy.\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\nclass Mill:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        self.k = tc._k(twin)\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.kt = 3000.0            # tonnes since reline (kt): half way through the planned life\n        self.scan_kt = 2900.0       # the last laser scan\n        self.mia = self.k[\"mia\"]\n        self.j_base = self.k[\"j\"]\n        k = self.k\n        d_nom = k[\"D\"] - 2 * (k[\"tn\"] - k[\"rate\"] * self.kt) / 1000\n        self.rpm = k[\"phi\"] * k[\"cc\"] / math.sqrt(d_nom)\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state --------------------------------------------------------------------------------------------------\n    def wear_factor(self):\n        return 1 + 0.8 * self.faults[\"liner_wear_fast\"]\n\n    def thickness(self, kt):\n        return self.k[\"tn\"] - self.k[\"rate\"] * kt * self.wear_factor()\n\n    def true_state(self, j=None):\n        k, f = self.k, self.faults\n        jb = k[\"jb\"] + 0.10 * f[\"ball_overcharge\"]\n        J = (self.j_base if j is None else j) + 0.12 * f[\"charge_overload\"] + 0.04 * f[\"ball_overcharge\"]\n        t = self.thickness(self.kt)\n        D = k[\"D\"] - 2 * t / 1000\n        sg = k[\"sg\"]\n        phi = self.rpm * math.sqrt(D) / k[\"cc\"]\n        over = 1 - 2.5 * max(0.0, J - 0.34)\n        p_motor = tc.austin_shell(k, D, J, jb, sg, phi) / k[\"eta\"] * over\n        v = math.pi / 4 * D ** 2 * k[\"L\"]\n        e = k[\"eps\"]\n        m_charge = v * ((1 - e) * (jb * k[\"rb\"] + (J - jb) * sg) + e * J * tc.pulp_density(k, sg))\n        m_total = k[\"me\"] + k[\"mln\"] * t / k[\"tn\"] + m_charge\n        w = tc.wa(k, self.mia, k[\"f80\"])\n        tph = p_motor / (k[\"share\"] * w * (1 + 0.35 * f[\"lifter_profile_loss\"]))\n        return {\"J\": J, \"jb\": jb, \"t_mm\": t, \"D\": D, \"phi\": phi, \"power\": p_motor, \"m_total\": m_total, \"m_charge\": m_charge,\n                \"tph\": tph, \"wa\": w, \"mia\": self.mia}\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, s):\n        k, f = self.k, self.faults\n        p_bar = s[\"m_total\"] / k[\"ct\"]\n        fe = p_bar / 2 * 1.0 + self.n(0.15)\n        de = p_bar / 2 * (1 - 0.3 * f[\"pocket_leak\"]) + self.n(0.15)\n        oil = k[\"oil\"] + self.n(0.2)\n        scan = k[\"tn\"] - k[\"rate\"] * self.scan_kt * self.wear_factor() + self.n(0.5)\n        return {\n            \"motor_power_kw\": round(s[\"power\"] * (1 + self.n(0.006)), 1),\n            \"mill_speed_rpm\": round(self.rpm + self.n(0.005), 3),\n            \"pinion_vib_mm_s\": round(2.0 + 6.5 * f[\"gear_misalignment\"] + abs(self.n(0.12)), 2),\n            \"motor_vib_mm_s\": round(1.5 + abs(self.n(0.08)), 2),\n            \"gear_dt_k\": round(3.0 + 11.0 * f[\"gear_misalignment\"] + self.n(0.3), 2),\n            \"brg_fe_pressure_bar\": round(fe, 2), \"brg_de_pressure_bar\": round(de, 2),\n            \"brg_fe_temp_c\": round(oil + 5.0 + 25.0 * f[\"bearing_lube\"] + self.n(0.3), 2),\n            \"brg_de_temp_c\": round(oil + 5.0 + self.n(0.3), 2),\n            \"lube_oil_temp_c\": round(oil, 2),\n            \"feed_tph\": round(s[\"tph\"] * (1 + self.n(0.006)), 1),\n            \"feed_f80_mm\": round(k[\"f80\"] + self.n(1.0), 1),\n            \"ore_mia\": round(s[\"mia\"], 2), \"ore_sg\": round(k[\"sg\"] + self.n(0.005), 3),\n            \"ball_charge_pct\": round(s[\"jb\"] * 100 + self.n(0.1), 2),\n            \"liner_kt\": round(self.kt, 2), \"liner_scan_mm\": round(scan, 1), \"liner_scan_kt\": self.scan_kt,\n        }\n\n    def measure(self):\n        return self.reading(self.true_state())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    One real second is `demo.time_scale` plant seconds. The ore hardness Mia wanders around its design value (blend\n    changes); the filling follows its target with a 20 s lag; the tonnage counter grows with the feed. The clock of day\n    plays no part, so the page opens in a sensible state at any hour.\n    \"\"\"\n    TAU_S = 20.0\n\n    def __init__(self, twin, seed=3901):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.m = Mill(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.J = self.m.k[\"j\"]\n        self.m.mia = self.m.k[\"mia\"]\n        self.temp_add = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.m.faults[k] = f.sev\n        self.t += dt * self.scale\n        r, k = self.m.rnd, self.m.k\n        self.m.mia += 0.01 * (k[\"mia\"] - self.m.mia) * dt + r.gauss(0, 0.04) * math.sqrt(dt)\n        self.m.mia = max(14.0, min(22.0, self.m.mia))\n        a = min(1.0, dt / self.TAU_S)\n        self.J += a * (k[\"j\"] - self.J)\n        s = self.m.true_state(self.J)\n        self.m.kt += s[\"tph\"] * dt * self.scale / 3600 / 1000\n        return s\n\n    def measure(self, true):\n        return self.m.reading(true)\n", "twin_calc": "\"\"\"The SAG mill twin's expectations (ML-3901, SAG mill of an SABC circuit, ring gear drive, trunnion bearings).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nLiners (wear assumed linear with tonnage since the last reline):\n    expected thickness  t = t_new - r x kt,  r = (t_new - t_min) / planned life (kt)\n    diameter inside the liners  D = D_shell - 2 t\n    measured wear rate from the last laser scan = (t_new - t_scan) / kt_scan; wear ratio = measured / planned rate\n    tonnes left = (t_scan - t_min) / measured rate - (kt - kt_scan);  days left = tonnes left / (feed rate x 24)\nCharge from the bearing pressures (hydrostatic lift pockets carry the whole rotating mass):\n    M_total = (p_FE + p_DE) x 1e5 x A_eff / g / 1000 (t);  M_charge = M_total - (M_empty + M_liner,new x t / t_new)\n    M_charge / V = (1 - eps)(Jb rho_b + (J - Jb) rho_s) + eps J rho_p   ->  solved for the total filling J\n    with V = pi/4 D^2 L and rho_p = 1 / (wc / rho_s + 1 - wc), the pulp that fills the voids.\nPower (Austin 1990, as written by Doll 2013; power at the mill shell, +5 % for the cone ends, / 0.931 to the motor):\n    P = K D^2.5 L (1 - A J) [(1 - eps)(rho_s / wc) J + 0.6 Jb (rho_b - rho_s / wc)] phi (1 - 0.1 / 2^(9 - 10 phi))\n    phi = speed / n_c,  n_c = 42.3 / sqrt(D) rpm\nSpecific energy against ore hardness (Morrell SMC equation for the coarse part, feed P80 down to 750 um):\n    Wa = K1 Mia 4 (750^f(750) - x1^f(x1)),  f(x) = -(0.295 + x / 1e6),  x1 = feed P80 in um\n    measured specific energy = motor power / feed rate;  ratio = measured / (wa_share x Wa)\nOverload: filling above about 35 % with the power below the model (the charge stops lifting: power falls as load rises).\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    m, pm, li, ms, ch, o, b, g = (d[\"mill\"], d[\"power_model\"], d[\"liners\"], d[\"mass\"], d[\"charge\"], d[\"ore\"], d[\"bearings\"], d[\"gear\"])\n    return dict(D=m[\"d_shell_m\"], L=m[\"egl_m\"], inst=m[\"installed_kw\"], cone=m[\"cone_allowance\"], cc=m[\"crit_const\"],\n                phi=m[\"speed_fraction_design\"], K=pm[\"K\"], A=pm[\"A\"], eps=pm[\"eps\"], wc=pm[\"wc\"], rb=pm[\"rho_ball\"], eta=pm[\"drive_eff\"],\n                tn=li[\"t_new_mm\"], tmin=li[\"t_min_mm\"], mln=li[\"mass_new_t\"], life=li[\"plan_life_kt\"],\n                rate=(li[\"t_new_mm\"] - li[\"t_min_mm\"]) / li[\"plan_life_kt\"], me=ms[\"empty_ex_liners_t\"], aeff=ms[\"a_eff_m2\"],\n                ct=ms[\"a_eff_m2\"] * 1e5 / 9.81 / 1000, j=ch[\"j_design\"], jb=ch[\"jb_design\"], jo=ch[\"j_overload\"],\n                mia=o[\"mia_design\"], sg=o[\"sg_design\"], f80=o[\"f80_mm_design\"], K1=o[\"K1\"], x2=o[\"x2_um\"], share=o[\"wa_share\"],\n                oil=b[\"lube_supply_c\"])\n\n\ndef fx(x):\n    return -(0.295 + x / 1e6)\n\n\ndef wa(k, mia, f80_mm):\n    \"\"\"Morrell coarse-particle specific energy (kWh/t) from feed P80 (mm) to 750 um.\"\"\"\n    x1 = f80_mm * 1000\n    return k[\"K1\"] * mia * 4 * (k[\"x2\"] ** fx(k[\"x2\"]) - x1 ** fx(x1))\n\n\ndef austin_shell(k, D, J, Jb, sg, phi):\n    \"\"\"Austin (1990) power at the mill shell (kW), cylinder + cone allowance.\"\"\"\n    w = k[\"wc\"]\n    return ((1 + k[\"cone\"]) * k[\"K\"] * D ** 2.5 * k[\"L\"] * (1 - k[\"A\"] * J) * ((1 - k[\"eps\"]) * (sg / w) * J + 0.6 * Jb * (k[\"rb\"] - sg / w))\n            * phi * (1 - 0.1 / 2 ** (9 - 10 * phi)))\n\n\ndef pulp_density(k, sg):\n    return 1 / (k[\"wc\"] / sg + 1 - k[\"wc\"])\n\n\ndef filling(k, m_charge, D, Jb, sg):\n    \"\"\"Total filling J from the charge mass (t), the diameter inside the liners and the ball filling.\"\"\"\n    v = math.pi / 4 * D ** 2 * k[\"L\"]\n    e = k[\"eps\"]\n    return (m_charge / v - (1 - e) * Jb * (k[\"rb\"] - sg)) / ((1 - e) * sg + e * pulp_density(k, sg))\n\n\ndef _parts(twin):\n    k = _k(twin)\n    e, w = k[\"eps\"], k[\"wc\"]\n    TE = f\"({k['tn']} - {k['rate']:.10g} * df['LINER_KT'])\"\n    D = f\"({k['D']} - 2 * {TE} / 1000)\"\n    PHI = f\"(df['MILL_SPEED_RPM'] * np.sqrt({D}) / {k['cc']})\"\n    MC = f\"((df['BRG_FE_PRESSURE_BAR'] + df['BRG_DE_PRESSURE_BAR']) * {k['ct']:.10g} - ({k['me']} + {k['mln'] / k['tn']:.10g} * {TE}))\"\n    SG = \"df['ORE_SG']\"\n    JB = \"(df['BALL_CHARGE_PCT'] / 100)\"\n    RP = f\"(1 / ({w} / {SG} + {1 - w:.10g}))\"\n    V = f\"({math.pi / 4 * k['L']:.10g} * {D} ** 2)\"\n    J = f\"(({MC} / {V} - {1 - e:.10g} * {JB} * ({k['rb']} - {SG})) / ({1 - e:.10g} * {SG} + {e} * {RP}))\"\n    PS = (f\"({(1 + k['cone']) * k['K'] * k['L']:.10g} * {D} ** 2.5 * (1 - {k['A']} * {J}) * ({1 - e:.10g} * ({SG} / {w}) * {J}\"\n          f\" + 0.6 * {JB} * ({k['rb']} - {SG} / {w})) * {PHI} * (1 - 0.1 / np.power(2, 9 - 10 * {PHI})))\")\n    PE = f\"({PS} / {k['eta']})\"\n    X1 = \"(df['FEED_F80_MM'] * 1000)\"\n    WA = f\"({k['K1'] * 4:.10g} * df['ORE_MIA'] * ({k['x2'] ** fx(k['x2']):.10g} - np.power({X1}, -(0.295 + {X1} / 1000000))))\"\n    SE = \"(df['MOTOR_POWER_KW'] / df['FEED_TPH'])\"\n    MR = f\"(({k['tn']} - df['LINER_SCAN_MM']) / df['LINER_SCAN_KT'])\"\n    REM = f\"((df['LINER_SCAN_MM'] - {k['tmin']}) / {MR} - (df['LINER_KT'] - df['LINER_SCAN_KT']))\"\n    RISE = \"(np.maximum(df['BRG_FE_TEMP_C'], df['BRG_DE_TEMP_C']) - df['LUBE_OIL_TEMP_C'])\"\n    SPLIT = \"((df['BRG_FE_PRESSURE_BAR'] - df['BRG_DE_PRESSURE_BAR']) / (df['BRG_FE_PRESSURE_BAR'] + df['BRG_DE_PRESSURE_BAR']))\"\n    return dict(k=k, TE=TE, D=D, PHI=PHI, MC=MC, J=J, PE=PE, WA=WA, SE=SE, MR=MR, REM=REM, RISE=RISE, SPLIT=SPLIT)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"LINER_EXPECTED_MM\", p[\"TE\"]),\n        (\"D_EFF_M\", p[\"D\"]),\n        (\"CRIT_SPEED_PCT\", f\"100 * {p['PHI']}\"),\n        (\"CHARGE_MASS_T\", p[\"MC\"]),\n        (\"FILLING_PCT\", f\"100 * {p['J']}\"),\n        (\"POWER_EXPECTED_KW\", p[\"PE\"]),\n        (\"POWER_RATIO\", f\"df['MOTOR_POWER_KW'] / {p['PE']}\"),\n        (\"SE_KWH_T\", p[\"SE\"]),\n        (\"WA_KWH_T\", p[\"WA\"]),\n        (\"SE_RATIO\", f\"{p['SE']} / ({k['share']} * {p['WA']})\"),\n        (\"THROUGHPUT_EXPECTED_TPH\", f\"df['MOTOR_POWER_KW'] / ({k['share']} * {p['WA']})\"),\n        (\"LINER_WEAR_RATIO\", f\"{p['MR']} / {k['rate']:.10g}\"),\n        (\"LINER_REMAINING_KT\", p[\"REM\"]),\n        (\"RELINE_DAYS\", f\"{p['REM']} * 1000 / (df['FEED_TPH'] * 24)\"),\n        (\"BRG_SPLIT\", p[\"SPLIT\"]),\n        (\"BRG_RISE_MAX_K\", p[\"RISE\"]),\n        (\"GEAR_LOAD_RATIO\", f\"df['MOTOR_POWER_KW'] / {k['inst']}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    te = k[\"tn\"] - k[\"rate\"] * r[\"liner_kt\"]\n    D = k[\"D\"] - 2 * te / 1000\n    phi = r[\"mill_speed_rpm\"] * math.sqrt(D) / k[\"cc\"]\n    mc = (r[\"brg_fe_pressure_bar\"] + r[\"brg_de_pressure_bar\"]) * k[\"ct\"] - (k[\"me\"] + k[\"mln\"] / k[\"tn\"] * te)\n    jb, sg = r[\"ball_charge_pct\"] / 100, r[\"ore_sg\"]\n    J = filling(k, mc, D, jb, sg)\n    pe = austin_shell(k, D, J, jb, sg, phi) / k[\"eta\"]\n    w = wa(k, r[\"ore_mia\"], r[\"feed_f80_mm\"])\n    se = r[\"motor_power_kw\"] / r[\"feed_tph\"]\n    mr = (k[\"tn\"] - r[\"liner_scan_mm\"]) / r[\"liner_scan_kt\"]\n    rem = (r[\"liner_scan_mm\"] - k[\"tmin\"]) / mr - (r[\"liner_kt\"] - r[\"liner_scan_kt\"])\n    fe, de = r[\"brg_fe_pressure_bar\"], r[\"brg_de_pressure_bar\"]\n    return {\n        \"liner_expected_mm\": te, \"d_eff_m\": D, \"crit_speed_pct\": 100 * phi, \"charge_mass_t\": mc, \"filling_pct\": 100 * J,\n        \"power_expected_kw\": pe, \"power_ratio\": r[\"motor_power_kw\"] / pe, \"se_kwh_t\": se, \"wa_kwh_t\": w,\n        \"se_ratio\": se / (k[\"share\"] * w), \"throughput_expected_tph\": r[\"motor_power_kw\"] / (k[\"share\"] * w),\n        \"liner_wear_ratio\": mr / k[\"rate\"], \"liner_remaining_kt\": rem, \"reline_days\": rem * 1000 / (r[\"feed_tph\"] * 24),\n        \"brg_split\": (fe - de) / (fe + de), \"brg_rise_max_k\": max(r[\"brg_fe_temp_c\"], r[\"brg_de_temp_c\"]) - r[\"lube_oil_temp_c\"],\n        \"gear_load_ratio\": r[\"motor_power_kw\"] / k[\"inst\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    JP, PR = f\"(100 * {p['J']})\", f\"(df['MOTOR_POWER_KW'] / {p['PE']})\"\n    TMAX = \"np.maximum(df['BRG_FE_TEMP_C'], df['BRG_DE_TEMP_C'])\"\n    return [\n        (\"SAG_POWER_DROP_LOADED\", f\"({JP} > {L['j_loaded_pct']}) & ({PR} < {L['power_ratio_low']})\", \"Critical\", \"charge_overload\"),\n        (\"SAG_OVERLOAD_RISK\", f\"{JP} > {L['j_overload_pct']}\", \"High\", \"charge_overload\"),\n        (\"SAG_RELINE_DUE\", f\"({p['REM']} * 1000 / (df['FEED_TPH'] * 24)) < {L['reline_days_alert']}\", \"High\", \"liner_wear_fast\"),\n        (\"SAG_BRG_TEMP_HIGH\", f\"{TMAX} > {L['brg_temp_limit_c']}\", \"High\", \"bearing_lube\"),\n        (\"SAG_PINION_VIB_HIGH\", f\"df['PINION_VIB_MM_S'] > {L['pinion_vib_limit']}\", \"High\", \"gear_misalignment\"),\n        (\"SAG_GEAR_OVERPOWER\", f\"df['MOTOR_POWER_KW'] > {k['inst']}\", \"High\", \"ball_overcharge\"),\n        (\"SAG_LINER_WEAR_FAST\", f\"({p['MR']} / {k['rate']:.10g}) > {L['liner_wear_ratio_high']}\", \"Medium\", \"liner_wear_fast\"),\n        (\"SAG_SE_HIGH\", f\"({p['SE']} / ({k['share']} * {p['WA']})) > {L['se_ratio_high']}\", \"Medium\", \"lifter_profile_loss\"),\n        (\"SAG_BRG_RISE_HIGH\", f\"({p['RISE']} > {L['brg_rise_alert_k']}) & ({TMAX} <= {L['brg_temp_limit_c']})\", \"Medium\", \"bearing_lube\"),\n        (\"SAG_BRG_SPLIT\", f\"np.abs({p['SPLIT']}) > {L['brg_split_alert']}\", \"Medium\", \"pocket_leak\"),\n        (\"SAG_GEAR_DT_HIGH\", f\"df['GEAR_DT_K'] > {L['gear_dt_alert_k']}\", \"Medium\", \"gear_misalignment\"),\n        (\"SAG_PINION_VIB_ALERT\", f\"(df['PINION_VIB_MM_S'] > {L['pinion_vib_alert']}) & (df['PINION_VIB_MM_S'] <= {L['pinion_vib_limit']})\", \"Medium\", \"gear_misalignment\"),\n        (\"SAG_BALL_CHARGE_HIGH\", f\"df['BALL_CHARGE_PCT'] > {L['ball_charge_high_pct']}\", \"Medium\", \"ball_overcharge\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    jp, pr = t[\"filling_pct\"], t[\"power_ratio\"]\n    tmax = max(r[\"brg_fe_temp_c\"], r[\"brg_de_temp_c\"])\n    v = r[\"pinion_vib_mm_s\"]\n    add(jp > L[\"j_loaded_pct\"] and pr < L[\"power_ratio_low\"], \"SAG_POWER_DROP_LOADED\", \"Critical\",\n        f\"Filling {jp:.1f} % and power only {pr:.2f} x the model: the mill is overloading, cut the feed\", \"charge\", \"charge_overload\")\n    add(jp > L[\"j_overload_pct\"], \"SAG_OVERLOAD_RISK\", \"High\", f\"Filling {jp:.1f} % from the bearing pressures, above {L['j_overload_pct']:.0f} %\", \"charge\", \"charge_overload\")\n    add(t[\"reline_days\"] < L[\"reline_days_alert\"], \"SAG_RELINE_DUE\", \"High\",\n        f\"Shell liners reach {k['tmin']:.0f} mm in {t['reline_days']:.0f} days at the current feed rate\", \"liners\", \"liner_wear_fast\")\n    add(tmax > L[\"brg_temp_limit_c\"], \"SAG_BRG_TEMP_HIGH\", \"High\", f\"Trunnion bearing at {tmax:.1f} \u00b0C, above {L['brg_temp_limit_c']:.0f} \u00b0C\", \"bearing\", \"bearing_lube\")\n    add(v > L[\"pinion_vib_limit\"], \"SAG_PINION_VIB_HIGH\", \"High\", f\"Pinion bearing vibration {v:.1f} mm/s, above {L['pinion_vib_limit']}\", \"gear\", \"gear_misalignment\")\n    add(r[\"motor_power_kw\"] > k[\"inst\"], \"SAG_GEAR_OVERPOWER\", \"High\",\n        f\"Motor power {r['motor_power_kw']:.0f} kW, above the {k['inst']:.0f} kW the gear set is rated for\", \"gear\", \"ball_overcharge\")\n    add(t[\"liner_wear_ratio\"] > L[\"liner_wear_ratio_high\"], \"SAG_LINER_WEAR_FAST\", \"Medium\",\n        f\"Last scan shows {t['liner_wear_ratio']:.2f} x the planned wear rate\", \"liners\", \"liner_wear_fast\")\n    add(t[\"se_ratio\"] > L[\"se_ratio_high\"], \"SAG_SE_HIGH\", \"Medium\",\n        f\"Specific energy {t['se_kwh_t']:.2f} kWh/t, {t['se_ratio']:.2f} x the SMC model for this ore\", \"liners\", \"lifter_profile_loss\")\n    add(t[\"brg_rise_max_k\"] > L[\"brg_rise_alert_k\"] and tmax <= L[\"brg_temp_limit_c\"], \"SAG_BRG_RISE_HIGH\", \"Medium\",\n        f\"Bearing {t['brg_rise_max_k']:.1f} K above the oil supply\", \"bearing\", \"bearing_lube\")\n    add(abs(t[\"brg_split\"]) > L[\"brg_split_alert\"], \"SAG_BRG_SPLIT\", \"Medium\",\n        f\"Bearing pressures FE {r['brg_fe_pressure_bar']:.1f} / DE {r['brg_de_pressure_bar']:.1f} bar: split {t['brg_split']:+.2f}\", \"bearing\", \"pocket_leak\")\n    add(r[\"gear_dt_k\"] > L[\"gear_dt_alert_k\"], \"SAG_GEAR_DT_HIGH\", \"Medium\", f\"Ring gear {r['gear_dt_k']:.1f} K hotter on one side of the face\", \"gear\", \"gear_misalignment\")\n    add(L[\"pinion_vib_alert\"] < v <= L[\"pinion_vib_limit\"], \"SAG_PINION_VIB_ALERT\", \"Medium\", f\"Pinion bearing vibration {v:.1f} mm/s\", \"gear\", \"gear_misalignment\")\n    add(r[\"ball_charge_pct\"] > L[\"ball_charge_high_pct\"], \"SAG_BALL_CHARGE_HIGH\", \"Medium\",\n        f\"Ball filling {r['ball_charge_pct']:.1f} %, above {L['ball_charge_high_pct']:.0f} %\", \"charge\", \"ball_overcharge\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "ML-3901 SAG mill twin. Expected values in Maximo Monitor from the mill datasheet, a published power model and the ore's SMC test results; the device sends only what it measures.", "twin": {"id": "ML-3901", "name": "SAG mill ML-3901", "version": "1.0.0", "folder": "sagmill-twin"}, "identification": {"asset": "ML-3901", "assetnum": "ML-3901", "manufacturer": "Metso Outotec", "model": "Select SAG mill, 9.0 m diameter x 4.5 m EGL class (top of the published Select range)", "description": "Primary SAG mill of the SABC grinding circuit (SAG mill, pebble crusher, ball mill)", "drive": "Ring gear and single pinion, main reducer, induction motor (fixed speed)", "bearings": "Two trunnion bearings with hydrostatic lift pockets, one lube system", "liners": "Steel shell liners with lifter bars, steel head liners, discharge grates and pulp lifters"}, "design": {"mill": {"d_shell_m": 9.0, "egl_m": 4.5, "installed_kw": 7800.0, "cone_allowance": 0.05, "speed_fraction_design": 0.75, "crit_const": 42.3, "source": "Metso Outotec Select horizontal grinding mills leaflet: SAG 3.80-9.00 m diameter, 1.90-4.50 m EGL, 400-7,800 kW installed; this mill is taken at the top of that range (assumption: typical value, replace with your mill datasheet). Critical speed n_c = 42.3 / sqrt(D) rpm (textbook). Cone-end allowance +5 % (Doll 2013). Design speed 75 % of critical: assumption: typical value, replace with your datasheet."}, "power_model": {"K": 10.6, "A": 1.03, "eps": 0.3, "wc": 0.8, "rho_ball": 7.8, "drive_eff": 0.931, "source": "Austin (1990) SAG power model with K = 10.6, A = 1.03, bed porosity 0.3, charge solids 0.80, balls 7.8 t/m3, as written by Doll (Procemin 2013); motor input to mill shell 0.931 (Doll). Power at the mill shell."}, "liners": {"t_new_mm": 150.0, "t_min_mm": 50.0, "mass_new_t": 140.0, "plan_life_kt": 6000.0, "source": "Effective shell liner thickness new and at the reline limit, liner mass new, planned liner life in kilotonnes milled (wear assumed linear with tonnage): assumption: typical value, replace with the liner supplier's design and your own wear scans."}, "mass": {"empty_ex_liners_t": 420.0, "a_eff_m2": 0.5, "source": "Rotating mass of the empty mill without liners, and the effective lift area of one trunnion bearing that turns pocket pressure into load: assumption: typical value, replace with the mill datasheet and a bearing pressure calibration at a grind-out (empty mill) and a crash stop."}, "charge": {"j_design": 0.28, "jb_design": 0.12, "j_overload": 0.35, "source": "Total filling and ball filling (fractions of mill volume) at design; filling above which the power falls as the load rises. 911metallurgist (AG/SAG control): power drops above about 35-37 % filling. Design fillings: assumption: typical value, replace with your process design."}, "ore": {"mia_design": 18.0, "sg_design": 2.75, "f80_mm_design": 120.0, "K1": 0.95, "x2_um": 750.0, "wa_share": 1.0, "source": "Morrell SMC equation Wa = K1 Mia 4 (750^f(750) - x1^f(x1)), f(x) = -(0.295 + x/1e6), K1 = 0.95 with a pebble crusher. Mia, ore density and feed F80 at design: assumption: typical value, replace with your SMC tests and the ore block model. wa_share = SAG mill specific energy (motor) divided by Wa at the commissioning survey: assumption: typical value, replace with your own survey."}, "bearings": {"lube_supply_c": 40.0, "rise_normal_k": 5.0, "source": "Lube oil supply temperature and normal bearing temperature rise above the oil: assumption: typical value, replace with the bearing maker's manual."}, "gear": {"pinion_vib_normal": 2.0, "gear_dt_normal_k": 3.0, "source": "Normal pinion bearing vibration and normal temperature difference across the ring gear face (infrared scanner): assumption: typical value, replace with your baseline."}, "demo": {"time_scale": 60, "note": "Demo only: the plant clock runs 60 times faster so the tonnage counter moves; the charge settles in about 20 s of real time."}}, "telemetry": {"event": "sagmill", "publish_every_s": 10, "device_type": "SAG_MILL", "groups": {"Drive": "Motor, speed and ring gear", "Bearing": "Trunnion bearings and lube oil", "Ore": "Feed and ore properties", "Charge": "Ball charge tracker", "Liner": "Liner wear counters and scans"}, "points": [{"metric": "motor_power_kw", "path": "Drive.Power", "label": "Mill motor power", "unit": "kW"}, {"metric": "mill_speed_rpm", "path": "Drive.Speed", "label": "Mill speed", "unit": "rpm"}, {"metric": "pinion_vib_mm_s", "path": "Drive.PinionVibration", "label": "Pinion bearing vibration velocity (RMS)", "unit": "mm/s"}, {"metric": "motor_vib_mm_s", "path": "Drive.MotorVibration", "label": "Motor bearing vibration velocity (RMS)", "unit": "mm/s"}, {"metric": "gear_dt_k", "path": "Drive.GearFaceDeltaT", "label": "Ring gear temperature difference across the face", "unit": "K"}, {"metric": "brg_fe_pressure_bar", "path": "Bearing.FeedEndPressure", "label": "Feed-end trunnion bearing pocket pressure", "unit": "bar"}, {"metric": "brg_de_pressure_bar", "path": "Bearing.DischargeEndPressure", "label": "Discharge-end trunnion bearing pocket pressure", "unit": "bar"}, {"metric": "brg_fe_temp_c", "path": "Bearing.FeedEndTemperature", "label": "Feed-end bearing temperature", "unit": "\u00b0C"}, {"metric": "brg_de_temp_c", "path": "Bearing.DischargeEndTemperature", "label": "Discharge-end bearing temperature", "unit": "\u00b0C"}, {"metric": "lube_oil_temp_c", "path": "Bearing.LubeSupplyTemperature", "label": "Lube oil supply temperature", "unit": "\u00b0C"}, {"metric": "feed_tph", "path": "Ore.FeedRate", "label": "Fresh feed rate (belt scale)", "unit": "t/h"}, {"metric": "feed_f80_mm", "path": "Ore.FeedF80", "label": "Feed P80 (image analysis on the feed belt)", "unit": "mm"}, {"metric": "ore_mia", "path": "Ore.Mia", "label": "Coarse ore work index Mia of the blend (ore tracking)", "unit": "kWh/t"}, {"metric": "ore_sg", "path": "Ore.Density", "label": "Ore density of the blend", "unit": "t/m\u00b3"}, {"metric": "ball_charge_pct", "path": "Charge.BallFilling", "label": "Ball filling (tracker: last grind-out + balls added - wear)", "unit": "%"}, {"metric": "liner_kt", "path": "Liner.TonnesSinceReline", "label": "Tonnes milled since the last reline", "unit": "kt"}, {"metric": "liner_scan_mm", "path": "Liner.ScanThickness", "label": "Shell liner thickness at the last laser scan", "unit": "mm"}, {"metric": "liner_scan_kt", "path": "Liner.ScanTonnes", "label": "Tonnes since reline at the last scan", "unit": "kt"}]}, "twin_model": {"limits": {"j_overload_pct": 35.0, "j_loaded_pct": 33.0, "power_ratio_low": 0.92, "se_ratio_high": 1.2, "liner_wear_ratio_high": 1.25, "reline_days_alert": 30.0, "brg_rise_alert_k": 10.0, "brg_temp_limit_c": 65.0, "brg_split_alert": 0.1, "gear_dt_alert_k": 8.0, "pinion_vib_alert": 4.5, "pinion_vib_limit": 7.1, "ball_charge_high_pct": 15.0, "source": "Alarm limits: assumption: typical value, replace with your operating practice. Vibration 4.5 / 7.1 mm/s are typical zone boundaries B/C and C/D of ISO 20816-3 for large rigidly mounted machines; take the values for your machine group and support from the standard."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "charge_overload": {"name": "Mill overload (charge builds up, slurry pools)", "part": "charge", "symptoms": "bearing pressure and filling rise while the power falls below the model", "rules": ["SAG_OVERLOAD_RISK", "SAG_POWER_DROP_LOADED"], "default_ramp_min": 1.5}, "liner_wear_fast": {"name": "Shell liners wearing faster than planned", "part": "liners", "symptoms": "laser scan thinner than the tonnage predicts; reline date moves forward", "rules": ["SAG_LINER_WEAR_FAST", "SAG_RELINE_DUE"], "default_ramp_min": 1}, "lifter_profile_loss": {"name": "Lifters worn flat or packed (grinding efficiency loss)", "part": "liners", "symptoms": "specific energy above the SMC model; throughput down at the same power", "rules": ["SAG_SE_HIGH"], "default_ramp_min": 1}, "ball_overcharge": {"name": "Ball charge too high", "part": "charge", "symptoms": "ball filling up, power above the drive rating, more liner and ball breakage", "rules": ["SAG_BALL_CHARGE_HIGH", "SAG_GEAR_OVERPOWER"], "default_ramp_min": 1}, "bearing_lube": {"name": "Trunnion bearing lubrication degraded (feed end)", "part": "bearing", "symptoms": "bearing temperature rises above the oil supply, then past its limit", "rules": ["SAG_BRG_TEMP_HIGH"], "default_ramp_min": 1}, "pocket_leak": {"name": "Bearing lift pocket leak or pressure transmitter drift", "part": "bearing", "symptoms": "one bearing pressure falls, the load split moves, the charge estimate goes wrong", "rules": ["SAG_BRG_SPLIT"], "default_ramp_min": 0.5}, "gear_misalignment": {"name": "Ring gear / pinion misalignment", "part": "gear", "symptoms": "temperature difference across the gear face and pinion vibration rise", "rules": ["SAG_GEAR_DT_HIGH", "SAG_PINION_VIB_HIGH"], "default_ramp_min": 1}}, "presentation": {"title": "ML-3901 SAG mill", "dashboard": "SAG_MILL"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (true) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, spin = true;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (1 unit = 1 m; mill axis along x) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(14, 13, 22); ctl.target.set(1, 4.5, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(10, 20, 14); scene.add(sun);
+scene.add(new THREE.GridHelper(40, 40, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), conc = M(0x8a8d91, { m: .05, r: .9 }), yellow = M(0xd8a31a, { m: .2, r: .5 }), blue = M(0x2f6db5, { m: .35 });
+const cyl = (r1, r2, h, m, s = 48) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s, 1, false), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const AXY = 5.6, R = 4.5, HL = 2.25;             // axis height, shell radius, half length (EGL 4.5 m)
+const alongX = o => { o.rotation.z = Math.PI / 2; return o; };
+// rotating group: shell, heads, ring gear, lifters
+const rot = new THREE.Group(); at(rot, 0, AXY, 0); scene.add(rot);
+const shellMat = M(0x4f6f8f, { m: .4, ds: true });
+const shell = alongX(cyl(R, R, 2 * HL, shellMat, 64)); rot.add(shell);
+const headMat = M(0x4f6f8f, { m: .4, ds: true });
+const headF = alongX(cyl(1.1, R, 1.3, headMat, 64)); headF.position.x = -HL - .65; rot.add(headF);
+const headD = alongX(cyl(R, 1.1, 1.3, headMat, 64)); headD.position.x = HL + .65; rot.add(headD);
+[-1, 1].forEach(s => { const tr = alongX(cyl(1.0, 1.0, 1.6, steel)); tr.position.x = s * (HL + 2.1); rot.add(tr); });
+for (let i = 0; i < 3; i++) { const fl = alongX(cyl(R + .08, R + .08, .12, dark)); fl.position.x = -HL + i * HL; rot.add(fl); }
+const ring = alongX(cyl(5.05, 5.05, .45, yellow, 96)); ring.position.x = HL - .5; rot.add(ring);
+// liners and lifters (seen in the cutaway)
+const linerMat = M(0x6b5d4f, { m: .6, r: .5 });
+const lifters = new THREE.Group(); rot.add(lifters);
+for (let i = 0; i < 36; i++) { const a = i / 36 * Math.PI * 2; const l = box(2 * HL - .1, .22, .16, linerMat); l.position.set(0, Math.cos(a) * (R - .26), Math.sin(a) * (R - .26)); l.rotation.x = -a; lifters.add(l); }
+const linerShell = alongX(cyl(R - .12, R - .12, 2 * HL - .05, M(0x5a5048, { m: .5, ds: true }), 64)); rot.add(linerShell);
+lifters.visible = false; linerShell.visible = false;
+// charge (does not rotate: it sits kidney-shaped on the rising side)
+const chargeMat = M(0x7a5232, { m: .1, r: .9 });
+let charge = null, chargeJ = -1;
+function segment(J) {             // circular segment with area fraction J, extruded along x
+  let th = Math.PI;               // central angle: (th - sin th) / (2 pi) = J
+  for (let i = 0; i < 40; i++) th -= (th - Math.sin(th) - 2 * Math.PI * J) / (1 - Math.cos(th));
+  const r = R - .3, sh = new THREE.Shape(), n = 40;
+  for (let i = 0; i <= n; i++) { const a = -Math.PI / 2 - th / 2 + th * i / n; i ? sh.lineTo(Math.cos(a) * r, Math.sin(a) * r) : sh.moveTo(Math.cos(a) * r, Math.sin(a) * r); }
+  const g = new THREE.ExtrudeGeometry(sh, { depth: 2 * HL - .3, bevelEnabled: false });
+  const m = new THREE.Mesh(g, chargeMat);
+  m.rotation.y = Math.PI / 2; m.position.set(-HL + .15, AXY, 0); m.rotation.x = 0;
+  const grp = new THREE.Group(); grp.add(m);
+  return grp;
+}
+function setCharge(J) {
+  if (Math.abs(J - chargeJ) < .004) return;
+  chargeJ = J; if (charge) scene.remove(charge);
+  charge = segment(Math.max(.05, Math.min(.5, J)));
+  charge.children[0].geometry.rotateZ(.6);       // toe and shoulder: the charge rides up the rising side
+  charge.visible = cut; scene.add(charge);
+}
+// bearings, pedestals, foundations
+[-1, 1].forEach(s => {
+  const x = s * (HL + 2.1);
+  scene.add(at(box(2.6, AXY - 1.0, 3.2, conc), x, (AXY - 1.0) / 2, 0));
+  scene.add(at(box(2.4, 1.0, 2.8, M(0x2f6db5, { m: .35 })), x, AXY - 1.0, 0));
+});
+// pinion, reducer, motor (on the +z side, below the axis)
+const pin = alongX(cyl(.6, .6, .55, steel)); at(pin, HL - .5, AXY - 2.8, 4.85); scene.add(pin);
+const pshaft = alongX(cyl(.18, .18, 5.0, steel)); at(pshaft, HL + 2.0, AXY - 2.8, 4.85); scene.add(pshaft);
+[[HL - 1.3], [HL + .3]].forEach(([x]) => scene.add(at(box(.6, AXY - 2.8, 1.2, conc), x, (AXY - 2.8) / 2, 4.85)));
+scene.add(at(box(2.2, 2.2, 2.2, blue), HL + 5.2, 1.6, 4.85));
+const motor = alongX(cyl(1.2, 1.2, 3.0, M(0x3a6f4b, { m: .3 }))); at(motor, HL + 8.4, 1.5, 4.85); scene.add(motor);
+scene.add(at(box(3.2, .5, 2.6, conc), HL + 8.4, .25, 4.85));
+const guard = new THREE.Mesh(new THREE.TorusGeometry(5.3, .35, 10, 80, Math.PI * 1.2), M(0x8d8d8d, { m: .3, t: .55 }));
+guard.rotation.y = Math.PI / 2; guard.rotation.z = -Math.PI * .1; at(guard, HL - .5, AXY, 0); scene.add(guard);
+// feed chute and discharge trommel
+const chute = cyl(.6, .9, 3.2, dark); chute.rotation.z = -Math.PI / 5; at(chute, -HL - 4.8, AXY + 1.4, 0); scene.add(chute);
+const trommel = alongX(cyl(1.0, 1.0, 3.0, M(0x9aa0a6, { m: .5, t: .8, ds: true }), 32)); at(trommel, HL + 4.6, AXY, 0); scene.add(trommel);
+scene.add(at(box(3.4, 2.4, 3.0, M(0x5a6068, { m: .2, t: .9 })), HL + 4.6, AXY - 2.6, 0));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('power', [HL + 8.4, 2.9, 4.85]); lbl('j', [0, AXY + R + .6, 0]); lbl('bfe', [-HL - 2.1, AXY + 1.3, 0]); lbl('bde', [HL + 2.1, AXY + 1.3, -1]);
+lbl('gear', [HL - .5, AXY - 4.2, 5.2]); lbl('feed', [-HL - 5.6, AXY + 3.2, 0]); lbl('se', [-1, AXY - R - .2, 3.4]); lbl('liner', [1.5, AXY + 2.6, 4.2]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); L.el.style.display = v.z < 1 ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 10.7;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.mill_speed_rpm;
+  setCharge(t.filling_pct / 100);
+  setLbl('power', `motor power · model ${fmt(t.power_expected_kw, 0)} kW`, `${fmt(r.motor_power_kw, 0)} kW · ${fmt(t.power_ratio)} ×`, st(names.has('SAG_POWER_DROP_LOADED') || names.has('SAG_GEAR_OVERPOWER'), t.power_ratio < 0.95));
+  setLbl('j', `filling from bearing pressures · balls ${fmt(r.ball_charge_pct, 1)} %`, `${fmt(t.filling_pct, 1)} % · ${fmt(t.charge_mass_t, 0)} t`, st(names.has('SAG_OVERLOAD_RISK'), t.filling_pct > L.j_loaded_pct || names.has('SAG_BALL_CHARGE_HIGH')));
+  setLbl('bfe', 'feed-end bearing', `${fmt(r.brg_fe_pressure_bar, 1)} bar · ${fmt(r.brg_fe_temp_c, 1)} °C`, st(names.has('SAG_BRG_TEMP_HIGH') || names.has('SAG_BRG_SPLIT'), names.has('SAG_BRG_RISE_HIGH')));
+  setLbl('bde', 'discharge-end bearing', `${fmt(r.brg_de_pressure_bar, 1)} bar · ${fmt(r.brg_de_temp_c, 1)} °C`, st(names.has('SAG_BRG_SPLIT'), false));
+  setLbl('gear', 'pinion vibration · gear face ΔT', `${fmt(r.pinion_vib_mm_s, 1)} mm/s · ${fmt(r.gear_dt_k, 1)} K`, st(names.has('SAG_PINION_VIB_HIGH'), names.has('SAG_PINION_VIB_ALERT') || names.has('SAG_GEAR_DT_HIGH')));
+  setLbl('feed', `feed · F80 ${fmt(r.feed_f80_mm, 0)} mm · Mia ${fmt(r.ore_mia, 1)}`, `${fmt(r.feed_tph, 0)} t/h (model ${fmt(t.throughput_expected_tph, 0)})`, st(names.has('SAG_SE_HIGH'), t.se_ratio > 1.1));
+  setLbl('se', 'specific energy · ÷ SMC model', `${fmt(t.se_kwh_t)} kWh/t · ${fmt(t.se_ratio)} ×`, st(names.has('SAG_SE_HIGH'), t.se_ratio > 1.1));
+  setLbl('liner', `liner scan · wear ${fmt(t.liner_wear_ratio)} × plan`, `${fmt(r.liner_scan_mm, 0)} mm · reline in ${fmt(t.reline_days, 0)} d`, st(names.has('SAG_RELINE_DUE'), names.has('SAG_LINER_WEAR_FAST')));
+  $('k-health').textContent = ST.health; $('k-pr').textContent = fmt(t.power_ratio); $('k-j').textContent = fmt(t.filling_pct, 1) + ' %';
+  $('c-load-t').textContent = `filling ${fmt(t.filling_pct, 1)} % (overload > ${L.j_overload_pct})`; $('c-load').className = 'chip ' + (names.has('SAG_OVERLOAD_RISK') ? 'bad' : t.filling_pct > L.j_loaded_pct ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Motor power (kW)', fmt(r.motor_power_kw, 0), fmt(t.power_expected_kw, 0), names.has('SAG_POWER_DROP_LOADED') || names.has('SAG_GEAR_OVERPOWER')) +
+    row('Filling (%)', fmt(t.filling_pct, 1), (d.charge.j_design * 100).toFixed(0), names.has('SAG_OVERLOAD_RISK')) +
+    row('Ball filling (%)', fmt(r.ball_charge_pct, 1), (d.charge.jb_design * 100).toFixed(0), names.has('SAG_BALL_CHARGE_HIGH')) +
+    row('Speed (% critical)', fmt(t.crit_speed_pct, 1), (d.mill.speed_fraction_design * 100).toFixed(0)) +
+    row('Specific energy (kWh/t)', fmt(t.se_kwh_t), fmt(t.wa_kwh_t * d.ore.wa_share), names.has('SAG_SE_HIGH')) +
+    row('Feed rate (t/h)', fmt(r.feed_tph, 0), fmt(t.throughput_expected_tph, 0), names.has('SAG_SE_HIGH')) +
+    row('Liner at last scan (mm)', fmt(r.liner_scan_mm, 0), fmt(d.liners.t_new_mm - (d.liners.t_new_mm - d.liners.t_min_mm) / d.liners.plan_life_kt * r.liner_scan_kt, 0), names.has('SAG_LINER_WEAR_FAST')) +
+    row('Days to reline limit', fmt(t.reline_days, 0), '≥ ' + L.reline_days_alert, names.has('SAG_RELINE_DUE')) +
+    row('Bearing split FE/DE', fmt(t.brg_split, 3), '0 ± ' + L.brg_split_alert, names.has('SAG_BRG_SPLIT')) +
+    row('Bearing rise over oil (K)', fmt(t.brg_rise_max_k, 1), d.bearings.rise_normal_k.toFixed(0), names.has('SAG_BRG_RISE_HIGH') || names.has('SAG_BRG_TEMP_HIGH')) +
+    row('Pinion vibration (mm/s)', fmt(r.pinion_vib_mm_s, 1), '< ' + L.pinion_vib_alert, names.has('SAG_PINION_VIB_HIGH')) +
+    row('Gear load (× rating)', fmt(t.gear_load_ratio), '≤ 1.00', names.has('SAG_GEAR_OVERPOWER'));
+  const order = ['Critical', 'High', 'Medium', 'Low'];
+  const al = (ST.conditions || []).slice().sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the mill behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-spin').onclick = () => { spin = !spin; $('t-spin').classList.toggle('on', !spin); $('t-spin').textContent = spin ? 'Pause rotation' : 'Resume rotation'; };
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [shellMat, headMat].forEach(m => { m.transparent = true; m.opacity = cut ? .18 : 1; m.depthWrite = !cut; });
+  lifters.visible = cut; linerShell.visible = cut; linerShell.material.transparent = true; linerShell.material.opacity = .35;
+  if (charge) charge.visible = cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (spin) { const w = rpm / 60 * 2 * Math.PI * dt; rot.rotation.x -= w; pin.rotation.x += w * 5.05 / .6; pshaft.rotation.x += w * 5.05 / .6; }
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

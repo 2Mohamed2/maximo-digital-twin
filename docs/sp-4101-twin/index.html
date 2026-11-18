@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SP-4101 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>SP-4101</b><span class="g">Tailings slurry pump · Warman 8/6 AH · VSD</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-line"><span class="dot"></span><span id="c-line-t">line –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Curves and line →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the pump model…</div>
+<div class="credit">Rubber-lined horizontal slurry pump of the Warman AH range, size 8/6, overhead motor with V-belts, tailings sump and discharge line. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-adj">Adjust impeller</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The head ratio compares the head measured by the two pressure gauges with the clear-water curve at the live speed, derated for the live slurry.</div>
+<aside>
+  <section>
+    <h2>SP-4101 twin</h2>
+    <p class="sub" id="sub">tailings sump to thickener</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Head ratio<b id="k-hr">–</b></div><div>V / V<sub>L</sub><b id="k-dm">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or two of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures. Every expected value comes from the twin file: the pump's clear-water curve, the Warman slurry correction, the Durand limit of the line and the limits.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for SP-4101: the tailings sump, the slurry pump on its VSD, the discharge line, the gland water and the\nbearings, with injectable faults.\n\nThe real device sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages.\n\nOperating point: the VSD holds the sump level, so over a few minutes the pump delivers what flows into the sump (the flow\nset point). The speed is the one at which the pump's slurry head at that flow equals what the system asks for:\n    wear x HR x s^2 (a + b Q/s + c Q^2/s^2) = static + K Q^2 + suction loss / (g SG)        s = n / n_ref\nwhich is a quadratic in s. Wear lowers the pump's head, so the VSD speeds up to keep the flow: the speed hides the wear,\nthe head ratio at the live speed does not.\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\nclass SlurryPump:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        d = twin[\"design\"]\n        self.k = tc._k(twin)\n        self.p, self.s, self.ln, self.gl, self.op = d[\"pump\"], d[\"slurry\"], d[\"line\"], d[\"gland\"], d[\"operation\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.hours = self.op[\"hours_since_adjust_start\"]\n        self.flow = self.op[\"flow_setpoint_m3h\"]\n        self.ambient = 30.0\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state -------------------------------------------------------------------------------------------------------\n    def flow_target(self):\n        return self.op[\"flow_setpoint_m3h\"] * (1 - 0.40 * self.faults[\"line_sanding\"])\n\n    def state(self, q=None):\n        k, f, ln = self.k, self.faults, self.ln\n        q = self.flow_target() if q is None else q\n        sg_design = 1 + (self.s[\"cw_design_pct\"] / 100 / k[\"ss\"]) / (self.s[\"cw_design_pct\"] / 100 / k[\"ss\"] + (1 - self.s[\"cw_design_pct\"] / 100)) * (k[\"ss\"] - 1)\n        sg = sg_design + (1.65 - sg_design) * f[\"density_high\"]\n        d50 = self.s[\"d50_um\"]\n        hr = tc.warman_hr(k, tc.cw_of_sg(k, sg), d50)\n        wear = 1 - 0.20 * f[\"impeller_wear\"]\n        kf = ln[\"friction_k\"] * (1 + 0.40 * f[\"line_sanding\"])\n        loss_kpa = 3.0 + 85.0 * f[\"suction_blockage\"]\n        h_need = ln[\"static_head_m\"] + kf * q * q + loss_kpa / (tc.G * sg)      # slurry head the pump must give\n        # wear*hr*(a s^2 + b q s + c q^2) = h_need  ->  A s^2 + B s + C = 0\n        A, B, C = wear * hr * k[\"a\"], wear * hr * k[\"b\"] * q, wear * hr * k[\"c\"] * q * q - h_need\n        s = (-B + math.sqrt(max(B * B - 4 * A * C, 0.0))) / (2 * A)\n        n = s * k[\"n0\"]\n        eff = hr * tc.water_eff(k, q, n) * (1 - 0.15 * f[\"impeller_wear\"])\n        kw = sg * tc.G * q / 3600 * h_need / max(eff, 0.05) / k[\"ed\"]\n        ps = sg * tc.G * ln[\"sump_level_m\"] - loss_kpa\n        pd = ps + sg * tc.G * h_need\n        gland_p = self.gl[\"supply_kpa\"] - 220 * f[\"gland_water_loss\"] - 30 * f[\"packing_wear\"]\n        gland_q = self.gl[\"flow_nominal_lpm\"] * (1 - 0.8 * f[\"gland_water_loss\"]) + 35 * f[\"packing_wear\"]\n        return {\n            \"q\": q, \"n\": n, \"sg\": sg, \"d50\": d50, \"hr\": hr, \"kw\": kw, \"ps\": ps, \"pd\": pd, \"eff\": eff, \"h\": h_need,\n            \"gland_p\": gland_p, \"gland_q\": gland_q,\n            \"t_de\": self.ambient + 22 + 40 * f[\"bearing_failure\"], \"t_nde\": self.ambient + 18,\n            \"vib\": 2.4 + 7.0 * f[\"bearing_failure\"] + 2.0 * f[\"suction_blockage\"],\n        }\n\n    # one published message ----------------------------------------------------------------------------------------------\n    def reading(self, s):\n        n = self.n\n        return {\n            \"running\": 1, \"speed_rpm\": round(s[\"n\"] + n(1.0), 1), \"motor_kw\": round(s[\"kw\"] * (1 + n(0.006)), 2),\n            \"flow_m3h\": round(s[\"q\"] * (1 + n(0.004)), 1), \"density_sg\": round(s[\"sg\"] + n(0.003), 3),\n            \"suction_kpa\": round(s[\"ps\"] + n(1.0), 1), \"discharge_kpa\": round(s[\"pd\"] + n(1.5), 1),\n            \"d50_um\": round(s[\"d50\"] + n(3.0), 1),\n            \"gland_flow_lpm\": round(max(0.0, s[\"gland_q\"] + n(0.3)), 2), \"gland_kpa\": round(s[\"gland_p\"] + n(2.0), 1),\n            \"bearing_de_c\": round(s[\"t_de\"] + n(0.4), 1), \"bearing_nde_c\": round(s[\"t_nde\"] + n(0.4), 1),\n            \"vibration_mms\": round(max(0.2, s[\"vib\"] + n(0.15)), 2), \"ambient_c\": round(self.ambient + n(0.2), 1),\n            \"hours_since_adjust\": round(self.hours, 1),\n        }\n\n    def measure(self):\n        return self.reading(self.state())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The VSD holds the sump level, so the flow follows the sump inflow with a lag of about 20 s; the speed is solved for\n    that flow every step. reset() stands for an impeller / throatbush adjustment: the wear is taken up and the hours since\n    the adjustment restart from zero.\n    \"\"\"\n    TAU = 20.0\n\n    def __init__(self, twin, seed=4101):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.p = SlurryPump(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.q = self.p.flow_target()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        \"\"\"Impeller adjustment: the gap is closed again.\"\"\"\n        w = self.faults[\"impeller_wear\"]\n        w.sev = w.target = 0.0\n        self.p.hours = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.p.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.p.hours += dt * self.scale / 3600\n        tgt = self.p.flow_target()\n        self.q += (tgt - self.q) * min(1.0, dt / self.TAU)\n        return self.p.state(self.q)\n\n    def measure(self, true):\n        return self.p.reading(true)\n", "twin_calc": "\"\"\"The slurry pump twin's expectations (SP-4101, Warman 8/6 AH tailings pump on a VSD).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nSlurry (from the density gauge and the last lab d50):\n    Cv = (SG - 1) / (Ss - 1)            solids by volume          Cw = 100 Cv Ss / SG   solids by mass, %\n    HR = 1 - 0.000385 (Ss - 1)(1 + 4/Ss) Cw ln(d50[mm] / 0.0227)   Warman correction; ER = HR\nClear-water curve at the live speed (affinity laws, s = n / n_ref):\n    Qref = Q / s,  x = Qref / Q_BEP      Hw = s^2 (a + b Qref + c Qref^2)      eta_w = eta_BEP (2x - x^2)\nExpected slurry head and efficiency at the measured flow and speed:   H_exp = HR Hw,  eta_exp = HR eta_w\nMeasured head from the two pressure gauges, in metres of slurry:      H = (Pd - Ps) / (g SG)\n    head ratio = H / H_exp: 1 for a pump as new, lower as the impeller-throatbush gap opens (wear).\n    wear rate = (1 - head ratio) x 100 / (hours since the last adjustment / 1000): % head lost per 1000 h.\nPower: expected VSD power = SG g Q H_exp / (3600 eta_exp eta_drive) kW; measured efficiency = (Pd - Ps) Q / 3600 / (kW eta_drive).\nLine: velocity V = Q / (3600 A); Durand limit deposit velocity VL = FL sqrt(2 g D (Ss - 1)); deposition margin = V / VL.\nSuction: NPSHa = (Ps + Patm - Pv) / (g SG); NPSHr = s^2 (r0 + r2 x^2); margin = NPSHa / NPSHr.\nGland: gland water pressure - discharge pressure (must stay positive, by a margin). Bearings: hotter one minus ambient.\nEach expression works on one reading (Monitor keeps no state for the twin); the hours since the adjustment come from the plant.\n\"\"\"\nimport math\n\nG = 9.80665\n\n\ndef _g(x):\n    \"\"\"A constant as written into the Monitor expression (8 significant digits), so Python and pandas use the same number.\"\"\"\n    return float(f\"{x:.8g}\")\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    p, s, ln, dr, si, gl = d[\"pump\"], d[\"slurry\"], d[\"line\"], d[\"drive\"], d[\"site\"], d[\"gland\"]\n    ss = s[\"solids_sg\"]\n    area = math.pi / 4 * ln[\"id_m\"] ** 2\n    return dict(n0=p[\"ref_speed_rpm\"], a=p[\"head_coef\"][0], b=p[\"head_coef\"][1], c=p[\"head_coef\"][2], qbep=p[\"q_bep_m3h\"],\n                eta=p[\"eff_bep\"], r0=p[\"npshr_coef\"][0], r2=p[\"npshr_coef\"][1], ss=ss, sf=s[\"carrier_sg\"],\n                cwar=_g(s[\"warman_k\"] * (ss - s[\"carrier_sg\"]) * (1 + 4 / ss)), sgmax=s[\"sg_max\"],\n                area=area, vl=_g(ln[\"durand_fl\"] * math.sqrt(2 * G * ln[\"id_m\"] * (ss - 1))), D=ln[\"id_m\"], fl=ln[\"durand_fl\"],\n                kw=dr[\"motor_kw\"], ed=dr[\"drive_eff\"], patm=si[\"patm_kpa\"], pv=si[\"vapour_kpa\"],\n                gmin=gl[\"flow_min_lpm\"], gmax=gl[\"flow_max_lpm\"], gdp=gl[\"dp_min_kpa\"])\n\n\n# shared pure-Python helpers (physics.py and the figures use them too) -------------------------------------------------\ndef warman_hr(k, cw_pct, d50_um):\n    return 1 - k[\"cwar\"] * cw_pct * math.log(max(d50_um / 1000 / 0.0227, 1.0))\n\n\ndef cw_of_sg(k, sg):\n    return 100 * (sg - 1) / (k[\"ss\"] - 1) * k[\"ss\"] / sg\n\n\ndef water_head(k, q, n):\n    s = max(n, 1.0) / k[\"n0\"]\n    qr = q / s\n    return s * s * (k[\"a\"] + k[\"b\"] * qr + k[\"c\"] * qr * qr)\n\n\ndef water_eff(k, q, n):\n    x = q / (max(n, 1.0) / k[\"n0\"]) / k[\"qbep\"]\n    return k[\"eta\"] * (2 * x - x * x)\n\n\ndef npshr(k, q, n):\n    s = max(n, 1.0) / k[\"n0\"]\n    x = q / s / k[\"qbep\"]\n    return s * s * (k[\"r0\"] + k[\"r2\"] * x * x)\n\n\ndef _parts(twin):\n    k = _k(twin)\n    SG = \"df['DENSITY_SG']\"\n    CW = f\"(100 * ({SG} - 1) / {k['ss'] - 1:.8g} * {k['ss']} / {SG})\"\n    HR = f\"(1 - {k['cwar']} * {CW} * np.log(np.maximum(df['D50_UM'] / {1000 * 0.0227:.8g}, 1)))\"\n    S = f\"(np.maximum(df['SPEED_RPM'], 1) / {k['n0']})\"\n    QR = f\"(df['FLOW_M3H'] / {S})\"\n    X = f\"({QR} / {k['qbep']})\"\n    HW = f\"({S} ** 2 * ({k['a']} + {k['b']} * {QR} + {k['c']:.8g} * {QR} ** 2))\"\n    HE = f\"({HR} * {HW})\"\n    HM = f\"((df['DISCHARGE_KPA'] - df['SUCTION_KPA']) / ({G} * {SG}))\"\n    HRAT = f\"({HM} / {HE})\"\n    EE = f\"(100 * {HR} * {k['eta']} * (2 * {X} - {X} ** 2))\"\n    PE = f\"({SG} * {G} * df['FLOW_M3H'] / 3600 * {HE} / ({EE} / 100) / {k['ed']})\"\n    V = f\"(df['FLOW_M3H'] / 3600 / {_g(k['area'])})\"\n    DM = f\"({V} / {k['vl']})\"\n    NA = f\"((df['SUCTION_KPA'] + {_g(k['patm'] - k['pv'])}) / ({G} * {SG}))\"\n    NR = f\"({S} ** 2 * ({k['r0']} + {k['r2']} * {X} ** 2))\"\n    WR = f\"((1 - {HRAT}) * 100 / np.maximum(df['HOURS_SINCE_ADJUST'] / 1000, 0.1))\"\n    return dict(k=k, CW=CW, HR=HR, QR=QR, X=X, HW=HW, HE=HE, HM=HM, HRAT=HRAT, EE=EE, PE=PE, V=V, DM=DM, NA=NA, NR=NR, WR=WR)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"CW_SOLIDS_PCT\", p[\"CW\"]),\n        (\"SLURRY_HR\", p[\"HR\"]),\n        (\"FLOW_REF_M3H\", p[\"QR\"]),\n        (\"BEP_RATIO\", p[\"X\"]),\n        (\"HEAD_WATER_EXPECTED_M\", p[\"HW\"]),\n        (\"HEAD_EXPECTED_M\", p[\"HE\"]),\n        (\"HEAD_MEASURED_M\", p[\"HM\"]),\n        (\"HEAD_RATIO\", p[\"HRAT\"]),\n        (\"EFF_EXPECTED_PCT\", p[\"EE\"]),\n        (\"PUMP_EFF_PCT\", f\"(df['DISCHARGE_KPA'] - df['SUCTION_KPA']) * df['FLOW_M3H'] / 3600 / (np.maximum(df['MOTOR_KW'], 0.1) * {k['ed']}) * 100\"),\n        (\"POWER_EXPECTED_KW\", p[\"PE\"]),\n        (\"MOTOR_LOAD_PCT\", f\"df['MOTOR_KW'] / {k['kw']} * 100\"),\n        (\"LINE_VELOCITY_MS\", p[\"V\"]),\n        (\"DEPOSITION_MARGIN\", p[\"DM\"]),\n        (\"NPSH_AVAILABLE_M\", p[\"NA\"]),\n        (\"NPSH_REQUIRED_M\", p[\"NR\"]),\n        (\"NPSH_MARGIN\", f\"{p['NA']} / {p['NR']}\"),\n        (\"GLAND_DP_KPA\", \"df['GLAND_KPA'] - df['DISCHARGE_KPA']\"),\n        (\"BEARING_RISE_K\", \"np.maximum(df['BEARING_DE_C'], df['BEARING_NDE_C']) - df['AMBIENT_C']\"),\n        (\"WEAR_RATE_PCT_KH\", p[\"WR\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    sg = r[\"density_sg\"]\n    cw = 100 * (sg - 1) / _g(k[\"ss\"] - 1) * k[\"ss\"] / sg\n    hr = 1 - k[\"cwar\"] * cw * math.log(max(r[\"d50_um\"] / _g(1000 * 0.0227), 1))\n    s = max(r[\"speed_rpm\"], 1) / k[\"n0\"]\n    qr = r[\"flow_m3h\"] / s\n    x = qr / k[\"qbep\"]\n    hw = s ** 2 * (k[\"a\"] + k[\"b\"] * qr + _g(k[\"c\"]) * qr ** 2)\n    he = hr * hw\n    hm = (r[\"discharge_kpa\"] - r[\"suction_kpa\"]) / (G * sg)\n    hrat = hm / he\n    ee = 100 * hr * k[\"eta\"] * (2 * x - x ** 2)\n    v = r[\"flow_m3h\"] / 3600 / _g(k[\"area\"])\n    na = (r[\"suction_kpa\"] + _g(k[\"patm\"] - k[\"pv\"])) / (G * sg)\n    nr = s ** 2 * (k[\"r0\"] + k[\"r2\"] * x ** 2)\n    return {\n        \"cw_solids_pct\": cw, \"slurry_hr\": hr, \"flow_ref_m3h\": qr, \"bep_ratio\": x, \"head_water_expected_m\": hw,\n        \"head_expected_m\": he, \"head_measured_m\": hm, \"head_ratio\": hrat, \"eff_expected_pct\": ee,\n        \"pump_eff_pct\": (r[\"discharge_kpa\"] - r[\"suction_kpa\"]) * r[\"flow_m3h\"] / 3600 / (max(r[\"motor_kw\"], 0.1) * k[\"ed\"]) * 100,\n        \"power_expected_kw\": sg * G * r[\"flow_m3h\"] / 3600 * he / (ee / 100) / k[\"ed\"],\n        \"motor_load_pct\": r[\"motor_kw\"] / k[\"kw\"] * 100, \"line_velocity_ms\": v, \"deposition_margin\": v / k[\"vl\"],\n        \"npsh_available_m\": na, \"npsh_required_m\": nr, \"npsh_margin\": na / nr,\n        \"gland_dp_kpa\": r[\"gland_kpa\"] - r[\"discharge_kpa\"],\n        \"bearing_rise_k\": max(r[\"bearing_de_c\"], r[\"bearing_nde_c\"]) - r[\"ambient_c\"],\n        \"wear_rate_pct_kh\": (1 - hrat) * 100 / max(r[\"hours_since_adjust\"] / 1000, 0.1),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    RUN = \"(df['RUNNING'] > 0.5)\"\n    HRAT, DM, X = p[\"HRAT\"], p[\"DM\"], p[\"X\"]\n    return [\n        (\"SLY_DEPOSITION_RISK\", f\"{RUN} & ({DM} < 1)\", \"High\", \"line_sanding\"),\n        (\"SLY_HEAD_LOSS_HIGH\", f\"{RUN} & ({HRAT} < {L['head_loss']})\", \"High\", \"impeller_wear\"),\n        (\"SLY_NPSH_LOW\", f\"{RUN} & (({p['NA']} / {p['NR']}) < {L['npsh_margin']})\", \"High\", \"suction_blockage\"),\n        (\"SLY_GLAND_PRESSURE_LOW\", f\"{RUN} & ((df['GLAND_KPA'] - df['DISCHARGE_KPA']) < {k['gdp']})\", \"High\", \"gland_water_loss\"),\n        (\"SLY_BEARING_TEMP_HIGH\", f\"(np.maximum(df['BEARING_DE_C'], df['BEARING_NDE_C']) - df['AMBIENT_C']) > {L['bearing_rise_k']}\", \"High\", \"bearing_failure\"),\n        (\"SLY_MOTOR_OVERLOAD\", f\"df['MOTOR_KW'] > {k['kw']}\", \"High\", None),\n        (\"SLY_DEPOSITION_MARGIN\", f\"{RUN} & ({DM} >= 1) & ({DM} < {L['deposition_margin']})\", \"Medium\", \"line_sanding\"),\n        (\"SLY_HEAD_LOW\", f\"{RUN} & ({HRAT} >= {L['head_loss']}) & ({HRAT} < {L['head_low']})\", \"Medium\", \"impeller_wear\"),\n        (\"SLY_WEAR_RATE_HIGH\", f\"{RUN} & (df['HOURS_SINCE_ADJUST'] > {L['wear_min_hours']}) & ({p['WR']} > {L['wear_rate_pct_kh']})\", \"Medium\", \"impeller_wear\"),\n        (\"SLY_BEP_LOW\", f\"{RUN} & ({X} < {L['bep_min']})\", \"Medium\", \"line_sanding\"),\n        (\"SLY_BEP_HIGH\", f\"{RUN} & ({X} > {L['bep_max']})\", \"Medium\", None),\n        (\"SLY_GLAND_FLOW_LOW\", f\"{RUN} & (df['GLAND_FLOW_LPM'] < {k['gmin']})\", \"Medium\", \"gland_water_loss\"),\n        (\"SLY_GLAND_FLOW_HIGH\", f\"df['GLAND_FLOW_LPM'] > {k['gmax']}\", \"Medium\", \"packing_wear\"),\n        (\"SLY_VIBRATION_HIGH\", f\"df['VIBRATION_MMS'] > {L['vibration_mms']}\", \"Medium\", \"bearing_failure\"),\n        (\"SLY_DENSITY_HIGH\", f\"df['DENSITY_SG'] > {k['sgmax']}\", \"Medium\", \"density_high\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    run = r[\"running\"] > 0.5\n    hr, dm, x = t[\"head_ratio\"], t[\"deposition_margin\"], t[\"bep_ratio\"]\n    add(run and dm < 1, \"SLY_DEPOSITION_RISK\", \"High\",\n        f\"Line velocity {t['line_velocity_ms']:.2f} m/s, below the Durand limit {k['vl']:.2f} m/s: solids settle, the line can sand up\", \"discharge line\", \"line_sanding\")\n    add(run and hr < L[\"head_loss\"], \"SLY_HEAD_LOSS_HIGH\", \"High\",\n        f\"Head {hr * 100:.0f} % of the derated curve at {r['speed_rpm']:.0f} rpm and {r['flow_m3h']:.0f} m\u00b3/h: adjust the throatbush or change the wet end\", \"wet end\", \"impeller_wear\")\n    add(run and t[\"npsh_margin\"] < L[\"npsh_margin\"], \"SLY_NPSH_LOW\", \"High\",\n        f\"NPSH available {t['npsh_available_m']:.1f} m, only {t['npsh_margin']:.2f} \u00d7 required (suction {r['suction_kpa']:.0f} kPa g)\", \"suction\", \"suction_blockage\")\n    add(run and t[\"gland_dp_kpa\"] < k[\"gdp\"], \"SLY_GLAND_PRESSURE_LOW\", \"High\",\n        f\"Gland water {r['gland_kpa']:.0f} kPa, {t['gland_dp_kpa']:+.0f} kPa against discharge {r['discharge_kpa']:.0f} kPa: slurry gets into the packing\", \"gland\", \"gland_water_loss\")\n    add(t[\"bearing_rise_k\"] > L[\"bearing_rise_k\"], \"SLY_BEARING_TEMP_HIGH\", \"High\",\n        f\"Bearing {t['bearing_rise_k']:.0f} K above ambient (DE {r['bearing_de_c']:.0f} \u00b0C, NDE {r['bearing_nde_c']:.0f} \u00b0C)\", \"bearings\", \"bearing_failure\")\n    add(r[\"motor_kw\"] > k[\"kw\"], \"SLY_MOTOR_OVERLOAD\", \"High\", f\"VSD power {r['motor_kw']:.0f} kW, above the {k['kw']:.0f} kW motor rating\", \"drive\")\n    add(run and 1 <= dm < L[\"deposition_margin\"], \"SLY_DEPOSITION_MARGIN\", \"Medium\",\n        f\"Line velocity {t['line_velocity_ms']:.2f} m/s, only {dm:.2f} \u00d7 the Durand limit\", \"discharge line\", \"line_sanding\")\n    add(run and L[\"head_loss\"] <= hr < L[\"head_low\"], \"SLY_HEAD_LOW\", \"Medium\",\n        f\"Head {hr * 100:.0f} % of the derated curve at {r['speed_rpm']:.0f} rpm and {r['flow_m3h']:.0f} m\u00b3/h\", \"wet end\", \"impeller_wear\")\n    add(run and r[\"hours_since_adjust\"] > L[\"wear_min_hours\"] and t[\"wear_rate_pct_kh\"] > L[\"wear_rate_pct_kh\"], \"SLY_WEAR_RATE_HIGH\", \"Medium\",\n        f\"Head lost {t['wear_rate_pct_kh']:.1f} % per 1000 h since the last adjustment ({r['hours_since_adjust']:.0f} h ago)\", \"wet end\", \"impeller_wear\")\n    add(run and x < L[\"bep_min\"], \"SLY_BEP_LOW\", \"Medium\", f\"Running at {x * 100:.0f} % of BEP flow: recirculation and wear in the wet end\", \"pump\", \"line_sanding\")\n    add(run and x > L[\"bep_max\"], \"SLY_BEP_HIGH\", \"Medium\", f\"Running at {x * 100:.0f} % of BEP flow\", \"pump\")\n    add(run and r[\"gland_flow_lpm\"] < k[\"gmin\"], \"SLY_GLAND_FLOW_LOW\", \"Medium\", f\"Gland water {r['gland_flow_lpm']:.1f} L/min, below {k['gmin']:.0f}\", \"gland\", \"gland_water_loss\")\n    add(r[\"gland_flow_lpm\"] > k[\"gmax\"], \"SLY_GLAND_FLOW_HIGH\", \"Medium\", f\"Gland water {r['gland_flow_lpm']:.0f} L/min, above {k['gmax']:.0f}: packing or sleeve worn\", \"gland\", \"packing_wear\")\n    add(r[\"vibration_mms\"] > L[\"vibration_mms\"], \"SLY_VIBRATION_HIGH\", \"Medium\", f\"Bearing housing vibration {r['vibration_mms']:.1f} mm/s\", \"bearings\", \"bearing_failure\")\n    add(r[\"density_sg\"] > k[\"sgmax\"], \"SLY_DENSITY_HIGH\", \"Medium\",\n        f\"Slurry SG {r['density_sg']:.2f} ({t['cw_solids_pct']:.0f} % solids), above the design {k['sgmax']:.2f}\", \"process\", \"density_high\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "SP-4101 slurry pump twin. Expected values in Maximo Monitor from the pump's clear-water curve, a published slurry correction and the line design; the device sends only what it measures.", "twin": {"id": "SP-4101", "name": "Tailings slurry pump SP-4101", "version": "1.0.0", "folder": "slurry-twin"}, "identification": {"asset": "SP-4101", "assetnum": "SP-4101", "manufacturer": "Weir Minerals", "model": "Warman 8/6 AH, rubber lined (curve: assumption inside the published AH 8/6 envelope)", "description": "Flotation tailings pump, tailings sump to thickener, on a variable speed drive", "pump": "Horizontal end-suction centrifugal slurry pump, Warman AH range, size 8/6 (8 in suction, 6 in discharge)", "wet_end": "Natural rubber liners (frame plate liner, cover plate liner), closed impeller, adjustable throatbush", "seal": "Packed gland with clean flushing water (full-flow gland)", "bearings": "Grease-lubricated roller bearing cartridge, drive end (DE) and non-drive end (NDE)", "drive": "Variable speed drive and induction motor through a V-belt drive; the VSD holds the sump level"}, "design": {"pump": {"ref_speed_rpm": 1000.0, "impeller_mm": 550.0, "head_coef": [50.0, 0.0, -9.876543209876543e-06], "q_bep_m3h": 900.0, "eff_bep": 0.75, "npshr_coef": [2.0, 2.5], "max_speed_rpm": 1150.0, "source": "Weir Minerals, Warman horizontal slurry pump brochure (AH range, quick selection guide), https://global.weir/globalassets/resources/product-pdfs/warman/warman-horizontal-slurry-pump-brochure.pdf. Range, duty class and the adjustable throatbush are from the brochure. head_coef: clear-water head H = a + b Q + c Q^2 (m, m3/h) at ref_speed_rpm, shut-off 50 m, BEP 900 m3/h at 42 m and 75 % efficiency; efficiency = eff_bep x (2x - x^2) with x = Q / Q_BEP; NPSHr = (r0 + r2 x^2) m: assumption: typical value, replace with the Weir curve sheet of your pump (impeller, speed, NPSHr). Affinity laws (Q ~ n, H ~ n^2): textbook."}, "slurry": {"solids_sg": 2.7, "d50_um": 100.0, "cw_design_pct": 45.0, "sg_max": 1.5, "carrier_sg": 1.0, "warman_k": 0.000385, "source": "AFT Impulse documentation, Slurry Pump De-rating (Warman method), https://docs.aft.com/impulse10/Slurry_Pump_De_rating.html. Warman correction HR = 1 - 0.000385 (Ss - Sf)(1 + 4/Ss) Cm ln(d50/0.0227), d50 in mm, Cm in % by mass; ER = HR (assumption). Solids SG 2.70 (silicate tailings), d50 100 um, 45 % solids by mass, maximum mixture SG 1.50: assumption: typical value, replace with your metallurgical design criteria and the lab results."}, "line": {"id_m": 0.254, "length_m": 1500.0, "static_head_m": 12.0, "friction_k": 3.673469387755102e-05, "durand_fl": 1.05, "sump_level_m": 2.3, "source": "assumption: typical value, replace with the line design: 10 in steel line (ID 254 mm), 1.5 km to the thickener, 12 m static lift, 18 m friction at 700 m3/h, sump level 2.3 m above the pump centreline. Durand FL = 1.05 read from the Durand chart for fine sand at this concentration (assumption); VL = FL sqrt(2 g D (Ss - 1)).", "note": "Durand limit deposit velocity for this line: 3.06 m/s"}, "drive": {"motor_kw": 200.0, "drive_eff": 0.94, "source": "assumption: typical value, replace with the motor nameplate and the VSD data (motor x VSD x belt efficiency at this load)."}, "site": {"patm_kpa": 101.3, "vapour_kpa": 3.17, "slurry_temp_c": 25.0, "source": "Vapour pressure of water at 25 \u00b0C, 3.17 kPa: steam tables. Atmospheric pressure 101.3 kPa (sea level): assumption: typical value, replace with the value at your plant's altitude."}, "gland": {"flow_nominal_lpm": 10.0, "flow_min_lpm": 4.0, "flow_max_lpm": 25.0, "dp_min_kpa": 20.0, "supply_kpa": 560.0, "source": "Flushed gland: 1-5 gpm (0.2-1 m3/h) at 3-5 psi (20-25 kPa) above pump discharge pressure, McLanahan slurry pump page (H-type gland), https://www.mclanahan.com/products/slurry-pumps; used as typical practice. Nominal 10 L/min and the alarm band 4-25 L/min: assumption: typical value, replace with your pump manual."}, "operation": {"flow_setpoint_m3h": 700.0, "hours_since_adjust_start": 600.0, "source": "assumption: typical value, replace with the plant's tailings flow at design throughput and the date of the last throatbush adjustment."}, "demo": {"time_scale": 60, "note": "Demo only: the plant clock runs 60 times faster, so the hours since the last impeller adjustment grow quickly."}}, "telemetry": {"event": "slurry", "publish_every_s": 10, "device_type": "SLURRY_PUMP_VSD", "groups": {"VSD": "Variable speed drive", "Process": "Flow, density and pressures", "Lab": "Last lab sample of the tailings", "Gland": "Gland flushing water", "Bearing": "Bearing housing", "Wear": "Wet end history"}, "points": [{"metric": "running", "path": "VSD.Running", "label": "Pump running (1 = yes)", "unit": "code"}, {"metric": "speed_rpm", "path": "VSD.PumpSpeed", "label": "Pump speed (VSD speed / belt ratio)", "unit": "rpm"}, {"metric": "motor_kw", "path": "VSD.OutputPower", "label": "VSD output power", "unit": "kW"}, {"metric": "flow_m3h", "path": "Process.Flow", "label": "Discharge flow (magnetic flow meter)", "unit": "m\u00b3/h"}, {"metric": "density_sg", "path": "Process.Density", "label": "Slurry density (SG, density gauge)", "unit": "SG"}, {"metric": "suction_kpa", "path": "Process.SuctionPressure", "label": "Suction pressure", "unit": "kPa g"}, {"metric": "discharge_kpa", "path": "Process.DischargePressure", "label": "Discharge pressure", "unit": "kPa g"}, {"metric": "d50_um", "path": "Lab.D50", "label": "Median particle size d50, last sample", "unit": "\u00b5m"}, {"metric": "gland_flow_lpm", "path": "Gland.Flow", "label": "Gland water flow", "unit": "L/min"}, {"metric": "gland_kpa", "path": "Gland.Pressure", "label": "Gland water pressure", "unit": "kPa g"}, {"metric": "bearing_de_c", "path": "Bearing.TempDE", "label": "Bearing temperature, drive end", "unit": "\u00b0C"}, {"metric": "bearing_nde_c", "path": "Bearing.TempNDE", "label": "Bearing temperature, non-drive end", "unit": "\u00b0C"}, {"metric": "vibration_mms", "path": "Bearing.Vibration", "label": "Bearing housing vibration (RMS velocity)", "unit": "mm/s"}, {"metric": "ambient_c", "path": "Bearing.Ambient", "label": "Ambient temperature at the pump", "unit": "\u00b0C"}, {"metric": "hours_since_adjust", "path": "Wear.HoursSinceAdjust", "label": "Running hours since the last impeller / throatbush adjustment", "unit": "h"}]}, "twin_model": {"limits": {"head_low": 0.93, "head_loss": 0.85, "wear_rate_pct_kh": 5.0, "wear_min_hours": 200.0, "bep_min": 0.7, "bep_max": 1.15, "deposition_margin": 1.1, "npsh_margin": 1.3, "bearing_rise_k": 45.0, "vibration_mms": 7.1, "source": "assumption: typical value, replace with your own operating practice and the vendor's allowable operating region (see the %BEP limits of your edition of ANSI/HI 12.1-12.6). Head ratio 0.93 / 0.85 of the derated curve, 5 % head lost per 1,000 h, 70 to 115 % of BEP flow, line velocity 10 % above the Durand limit, NPSH margin 1.3, bearing 45 K above ambient, 7.1 mm/s."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "impeller_wear": {"name": "Impeller and throatbush wear (gap opens)", "part": "wet end", "symptoms": "head down at the same speed and flow, the VSD speeds up to hold the flow, efficiency and margin to motor rating fall", "rules": ["SLY_HEAD_LOW", "SLY_HEAD_LOSS_HIGH", "SLY_WEAR_RATE_HIGH"], "default_ramp_min": 1.5}, "line_sanding": {"name": "Low throughput, line sanding", "part": "discharge line", "symptoms": "flow falls below the deposition velocity, a bed forms, friction rises, pump far left of BEP", "rules": ["SLY_DEPOSITION_MARGIN", "SLY_DEPOSITION_RISK", "SLY_BEP_LOW"], "default_ramp_min": 1.5}, "suction_blockage": {"name": "Suction blocked (tramp, rubber, scale in the suction spool)", "part": "suction", "symptoms": "suction pressure falls, NPSH available falls towards NPSH required", "rules": ["SLY_NPSH_LOW"], "default_ramp_min": 1}, "gland_water_loss": {"name": "Gland water lost (pump, strainer, valve)", "part": "gland", "symptoms": "gland water pressure below discharge pressure, flow low: slurry enters the packing", "rules": ["SLY_GLAND_PRESSURE_LOW", "SLY_GLAND_FLOW_LOW"], "default_ramp_min": 0.5}, "packing_wear": {"name": "Gland packing or shaft sleeve worn", "part": "gland", "symptoms": "gland water flow far above normal at normal pressure", "rules": ["SLY_GLAND_FLOW_HIGH"], "default_ramp_min": 1}, "bearing_failure": {"name": "Bearing damage (contamination, lubrication)", "part": "bearings", "symptoms": "drive-end bearing hotter than ambient explains, vibration up", "rules": ["SLY_BEARING_TEMP_HIGH", "SLY_VIBRATION_HIGH"], "default_ramp_min": 1}, "density_high": {"name": "Slurry density above design (thickener underflow or mill upset)", "part": "process", "symptoms": "SG above the design maximum, slurry correction lower, discharge pressure up", "rules": ["SLY_DENSITY_HIGH"], "default_ramp_min": 1}}, "presentation": {"title": "SP-4101 tailings slurry pump", "dashboard": "SLURRY_PUMP_VSD"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(3.2, 2.6, 4.6); ctl.target.set(-0.2, 0.9, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+scene.add(new THREE.GridHelper(12, 24, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), rubber = M(0x1e1e1e, { m: .05, r: .9 }), blueM = M(0x2f6db5, { m: .35 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const AXY = 0.75;   // shaft height
+// base plate and pedestal
+scene.add(at(box(2.1, .1, .9, dark), .15, .05, 0));
+scene.add(at(box(.8, .55, .5, blueM), .45, .38, 0));
+// bearing cartridge (DE near the coupling/pulley, NDE near the wet end... here DE = pulley end at +x)
+const brg = cyl(.16, .16, .9, blueM); brg.rotation.z = Math.PI / 2; scene.add(at(brg, .45, AXY, 0));
+const deH = cyl(.2, .2, .14, blueM); deH.rotation.z = Math.PI / 2; scene.add(at(deH, .88, AXY, 0));
+const ndeH = cyl(.2, .2, .14, blueM); ndeH.rotation.z = Math.PI / 2; scene.add(at(ndeH, .02, AXY, 0));
+const shaft = cyl(.05, .05, 2.0, steel); shaft.rotation.z = Math.PI / 2; scene.add(at(shaft, .15, AXY, 0));
+// pulley and belt guard, overhead motor
+const pul = cyl(.22, .22, .12, steel); pul.rotation.z = Math.PI / 2; scene.add(at(pul, 1.12, AXY, 0));
+const guard = at(box(.22, 1.1, .56, M(0xd8a31a, { m: .2, t: 1 })), 1.12, 1.25, 0); scene.add(guard);
+scene.add(at(box(.9, .06, .6, dark), .5, 1.55, 0));
+const motor = cyl(.25, .25, .8, M(0x4f6d8f, { m: .4 })); motor.rotation.z = Math.PI / 2; scene.add(at(motor, .55, 1.84, 0));
+for (let i = 0; i < 10; i++) { const fin = cyl(.265, .265, .02, dark); fin.rotation.z = Math.PI / 2; scene.add(at(fin, .25 + i * .065, 1.84, 0)); }
+// gland (stuffing box) between bearing frame and casing
+const gland = cyl(.12, .12, .16, steel); gland.rotation.z = Math.PI / 2; scene.add(at(gland, -.24, AXY, 0));
+// casing: thick disc, split into frame half and cover half, discharge up and tangential
+const casingMat = M(0x2f6db5, { m: .35, ds: true });
+const casing = cyl(.62, .62, .42, casingMat, 48); casing.rotation.z = Math.PI / 2; scene.add(at(casing, -.55, AXY, 0));
+for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2, bolt = cyl(.03, .03, .5, steel, 8); bolt.rotation.z = Math.PI / 2; scene.add(at(bolt, -.55, AXY + Math.cos(a) * .66, Math.sin(a) * .66)); }
+// rubber liner (visible in cutaway), impeller, throatbush
+const liner = new THREE.Mesh(new THREE.TorusGeometry(.48, .07, 12, 48), rubber); liner.rotation.y = Math.PI / 2; scene.add(at(liner, -.55, AXY, 0));
+const impG = new THREE.Group(); at(impG, -.53, AXY, 0); scene.add(impG);
+const shroud = cyl(.42, .42, .03, M(0x2a2a2a, { m: .1, r: .85 }), 40); shroud.rotation.z = Math.PI / 2; impG.add(at(shroud, .1, 0, 0));
+const shroud2 = new THREE.Mesh(new THREE.RingGeometry(.12, .42, 40), M(0x2a2a2a, { m: .1, r: .85, ds: true })); shroud2.rotation.y = Math.PI / 2; impG.add(at(shroud2, -.1, 0, 0));
+for (let i = 0; i < 5; i++) { const v = box(.2, .3, .04, M(0x333333, { m: .1, r: .8 })); const a = i / 5 * Math.PI * 2; v.position.set(0, Math.cos(a) * .25, Math.sin(a) * .25); v.rotation.x = -a + .5; impG.add(v); }
+const throat = new THREE.Mesh(new THREE.TorusGeometry(.15, .05, 12, 36), M(0x8a3ffc, { m: .2 })); throat.rotation.y = Math.PI / 2; scene.add(at(throat, -.72, AXY, 0));
+// suction spool to the sump and discharge riser
+const pipeMat = M(0x8c97a3, { m: .5 });
+const suc = cyl(.11, .11, .9, pipeMat); suc.rotation.z = Math.PI / 2; scene.add(at(suc, -1.2, AXY, 0));
+scene.add(at(box(.9, 1.4, 1.1, M(0x5a6068, { m: .2, t: .55 })), -2.1, .7, 0));
+const slurry = at(box(.86, 1.0, 1.06, M(0x8a7a5a, { m: .05, r: .9 })), -2.1, .52, 0); scene.add(slurry);
+const dis = cyl(.085, .085, .9, pipeMat); scene.add(at(dis, -.55, 1.82, .42));
+const bend = new THREE.Mesh(new THREE.TorusGeometry(.3, .085, 12, 24, Math.PI / 2), pipeMat); bend.rotation.set(0, -Math.PI / 2, 0); scene.add(at(bend, -.55, 2.27, .12));
+const line = cyl(.127, .127, 2.0, pipeMat); line.rotation.x = Math.PI / 2; scene.add(at(line, -.55, 2.57, -.9));
+// pressure gauges, flow meter, density gauge, gland water line
+const gauge = (x, y, z) => { scene.add(at(cyl(.015, .015, .15, steel, 8), x, y, z)); const g = cyl(.07, .07, .04, M(0xf4f4f4, { m: .1 })); g.rotation.x = Math.PI / 2; scene.add(at(g, x, y + .12, z)); };
+gauge(-1.05, AXY + .12, 0); gauge(-.55, 1.75, .52);
+const fm = cyl(.14, .14, .3, M(0x0f62fe, { m: .3 })); fm.rotation.x = Math.PI / 2; scene.add(at(fm, -.55, 2.57, -.7));
+scene.add(at(box(.2, .2, .2, M(0xb3262d, { m: .3 })), -.55, 2.8, -1.4));
+const tube = (pts, c = 0x9fb3c8, r = .012) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, r, 6, false); const m = new THREE.Mesh(g, M(c, { m: .5 })); scene.add(m); return m; };
+const glandLine = tube([[-.24, AXY + .13, 0], [-.24, 1.15, .1], [-.1, 1.3, .5], [.6, 1.3, .7]], 0x4589ff, .018);
+// beacon
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, .55, 2.15, 0));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('speed', [.55, 2.15, .3]); lbl('head', [-.55, 1.45, -.4]); lbl('pd', [-.55, 1.95, .55]); lbl('ps', [-1.05, 1.05, .1]);
+lbl('flow', [-.55, 2.8, -.7]); lbl('sg', [-.55, 3.0, -1.4]); lbl('gland', [-.24, 1.0, .5]); lbl('brg', [.88, 1.0, .25]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.running ? r.speed_rpm : 0;
+  setLbl('speed', 'pump speed · VSD power · motor load', `${fmt(r.speed_rpm, 0)} rpm · ${fmt(r.motor_kw, 0)} kW · ${fmt(t.motor_load_pct, 0)} %`, st(names.has('SLY_MOTOR_OVERLOAD')));
+  setLbl('head', `head measured / expected · ${fmt(r.hours_since_adjust, 0)} h since adjust`, `${fmt(t.head_measured_m, 1)} / ${fmt(t.head_expected_m, 1)} m · ${fmt(t.head_ratio * 100, 0)} %`, st(names.has('SLY_HEAD_LOSS_HIGH'), names.has('SLY_HEAD_LOW') || names.has('SLY_WEAR_RATE_HIGH')));
+  setLbl('pd', 'discharge pressure', `${fmt(r.discharge_kpa, 0)} kPa g`, '');
+  setLbl('ps', 'suction · NPSH margin', `${fmt(r.suction_kpa, 0)} kPa g · ${fmt(t.npsh_margin)}`, st(names.has('SLY_NPSH_LOW')));
+  setLbl('flow', `flow · line velocity (VL ${fmt(t.line_velocity_ms / t.deposition_margin)} m/s)`, `${fmt(r.flow_m3h, 0)} m³/h · ${fmt(t.line_velocity_ms)} m/s`, st(names.has('SLY_DEPOSITION_RISK'), names.has('SLY_DEPOSITION_MARGIN') || names.has('SLY_BEP_LOW')));
+  setLbl('sg', `density · solids · d50`, `SG ${fmt(r.density_sg, 3)} · ${fmt(t.cw_solids_pct, 0)} % · ${fmt(r.d50_um, 0)} µm`, st(false, names.has('SLY_DENSITY_HIGH')));
+  setLbl('gland', 'gland water · over discharge', `${fmt(r.gland_flow_lpm, 1)} L/min · ${t.gland_dp_kpa >= 0 ? '+' : ''}${fmt(t.gland_dp_kpa, 0)} kPa`, st(names.has('SLY_GLAND_PRESSURE_LOW'), names.has('SLY_GLAND_FLOW_LOW') || names.has('SLY_GLAND_FLOW_HIGH')));
+  setLbl('brg', 'bearings DE / NDE · vibration', `${fmt(r.bearing_de_c, 0)} / ${fmt(r.bearing_nde_c, 0)} °C · ${fmt(r.vibration_mms, 1)} mm/s`, st(names.has('SLY_BEARING_TEMP_HIGH'), names.has('SLY_VIBRATION_HIGH')));
+  $('k-health').textContent = ST.health; $('k-hr').textContent = fmt(t.head_ratio * 100, 0) + ' %'; $('k-dm').textContent = fmt(t.deposition_margin);
+  $('c-line-t').textContent = t.deposition_margin < 1 ? 'line settling' : t.deposition_margin < L.deposition_margin ? 'line near VL' : 'line above VL';
+  $('c-line').className = 'chip ' + (t.deposition_margin < 1 ? 'bad' : t.deposition_margin < L.deposition_margin ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Head (m of slurry)', fmt(t.head_measured_m, 1), fmt(t.head_expected_m, 1), names.has('SLY_HEAD_LOSS_HIGH') || names.has('SLY_HEAD_LOW')) +
+    row('Slurry head ratio HR', '', fmt(t.slurry_hr, 3)) +
+    row('Pump efficiency (%)', fmt(t.pump_eff_pct, 1), fmt(t.eff_expected_pct, 1)) +
+    row('VSD power (kW)', fmt(r.motor_kw, 0), fmt(t.power_expected_kw, 0), names.has('SLY_MOTOR_OVERLOAD')) +
+    row('Flow / BEP flow', fmt(t.bep_ratio), `${L.bep_min}–${L.bep_max}`, names.has('SLY_BEP_LOW') || names.has('SLY_BEP_HIGH')) +
+    row('Line velocity (m/s)', fmt(t.line_velocity_ms), '≥ ' + fmt(t.line_velocity_ms / t.deposition_margin * L.deposition_margin), t.deposition_margin < L.deposition_margin) +
+    row('NPSH available (m)', fmt(t.npsh_available_m, 1), '≥ ' + fmt(t.npsh_required_m * L.npsh_margin, 1), names.has('SLY_NPSH_LOW')) +
+    row('Gland over discharge (kPa)', fmt(t.gland_dp_kpa, 0), '≥ ' + d.gland.dp_min_kpa, names.has('SLY_GLAND_PRESSURE_LOW')) +
+    row('Bearing rise (K)', fmt(t.bearing_rise_k, 0), '≤ ' + L.bearing_rise_k, names.has('SLY_BEARING_TEMP_HIGH')) +
+    row('Head lost per 1000 h (%)', fmt(t.wear_rate_pct_kh, 1), '≤ ' + L.wear_rate_pct_kh, names.has('SLY_WEAR_RATE_HIGH'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the pump behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  glandLine.material.color.setHex(names.has('SLY_GLAND_PRESSURE_LOW') ? 0xda1e28 : 0x4589ff);
+  slurry.material.color.setHex(r.density_sg > d.slurry.sg_max ? 0x6b5a3a : 0x8a7a5a);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-adj').onclick = () => post('/api/reset', {});
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [casingMat, guard.material].forEach(m => { m.transparent = true; m.opacity = cut ? .22 : 1; m.depthWrite = !cut; });
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), shown = 0;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  shown += (rpm - shown) * Math.min(1, dt * 2);
+  const w = shown / 60 * 2 * Math.PI * 0.05;               // shown at 1/20 of the real speed so the vanes stay visible
+  impG.rotation.x += w * dt; shaft.rotation.x += w * dt; pul.rotation.x += w * dt;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

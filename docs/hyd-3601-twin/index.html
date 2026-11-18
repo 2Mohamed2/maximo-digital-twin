@@ -1,0 +1,345 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HYD-3601 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>HYD-3601</b><span class="g">Vertical Francis turbine-generator · unit twin</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-pwr"><span class="dot"></span><span id="c-pwr-t">power –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Hill chart and sigma →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the unit model…</div>
+<div class="credit">Vertical Francis unit: penstock and inlet valve, spiral case, guide vanes and servomotors, runner, elbow draft tube, turbine guide bearing, thrust bearing and generator. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-gen">Hide generator</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Expected efficiency comes from the hill chart at the measured unit speed nED and unit flow QED; plant sigma from the tailwater level.</div>
+<aside>
+  <section>
+    <h2>HYD-3601 twin</h2>
+    <p class="sub" id="sub">Francis turbine-generator unit</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Efficiency deficit<b id="k-def">–</b></div><div>Sigma margin<b id="k-sig">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time (an hour of plant time). The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The unit sends only what it measures: levels, spiral pressure, Winter-Kennedy differential pressure, power, guide vane opening, draft tube pulsation, bearing temperatures and shaft runout. Every expected value is computed from the twin file: the hill chart, Darcy-Weisbach for the penstock, the Thoma sigma curve and the bearing models.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for HYD-3601: waterway, Francis turbine, governor, bearings and draft tube, with injectable faults.\n\nThe real unit sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the expected\nvalues are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages. Pure Python (math, random).\n\"\"\"\nimport math\nimport random\n\n\nclass Unit:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.hc, self.u, self.lv, self.ww, self.fl, self.cv, self.dt, self.br, self.gv = (\n            d[\"hill_chart\"], d[\"unit\"], d[\"levels\"], d[\"waterway\"], d[\"flow\"], d[\"cavitation\"], d[\"draft_tube\"], d[\"bearings\"], d[\"governor\"])\n        self.demo = d.get(\"demo\", {})\n        self.g, self.rho = self.u[\"g\"], self.u[\"rho\"]\n        a = math.pi * self.ww[\"diameter_m\"] ** 2 / 4\n        self.kl = (self.ww[\"friction_f\"] * self.ww[\"length_m\"] / self.ww[\"diameter_m\"] + self.ww[\"k_minor\"]) / (2 * self.g * a ** 2)\n        self.ain = math.pi * self.ww[\"spiral_inlet_d_m\"] ** 2 / 4\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def hill(self, ned, qed):\n        hc = self.hc\n        dn = ned / hc[\"ned_bep\"] - 1\n        dq = qed / hc[\"qed_bep\"] - 1 - hc[\"tilt\"] * dn\n        return hc[\"eta_model_max\"] + hc[\"step_up\"] - hc[\"a_part\"] * min(dq, 0) ** 2 - hc[\"a_over\"] * max(dq, 0) ** 2 - hc[\"b_speed\"] * dn ** 2\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def true_state(self, load_mw, cw=12.0, water_c=10.0, amb_kpa=98.9):\n        f, g, rho, u = self.faults, self.g, self.rho, self.u\n        D, n = u[\"runner_d_m\"], u[\"speed_rpm\"]\n        hw = self.lv[\"headwater_m\"]\n        tw = self.lv[\"tailwater_m\"] - 6.0 * f[\"low_tailwater\"]\n        kl = self.kl * (1 + 1.4 * f[\"intake_head_loss\"])\n        adt = self.ww[\"draft_outlet_m2\"]\n        leak = 1 + 0.08 * f[\"guide_vane_leakage\"]\n        P = max(load_mw, 1.0) * 1e6\n        Q = 25.0\n        for _ in range(60):\n            H = hw - kl * Q * Q - tw - (Q / adt) ** 2 / (2 * g)\n            sq = math.sqrt(g * H)\n            ned, qed = n / 60 * D / sq, Q / (D * D * sq)\n            eta = self.hill(ned, qed) - 0.04 * f[\"runner_wear\"] - 0.003 * f[\"guide_vane_leakage\"]\n            Q = 0.5 * Q + 0.5 * P / (eta * u[\"eta_gen\"] * rho * g * H)\n        q = qed / self.hc[\"qed_bep\"]\n        gate = u[\"gate_bep_pct\"] * q / leak\n        hsp = hw - kl * Q * Q\n        p_bar = (hsp - self.lv[\"z_spiral_m\"] - (Q / self.ain) ** 2 / (2 * g)) * rho * g / 1e5\n        dt = self.dt\n        puls = dt[\"base_pct\"] + dt[\"rope_pct\"] * math.exp(-((q - dt[\"rope_q\"]) / dt[\"rope_width\"]) ** 2)\n        br = self.br\n        ld = load_mw / u[\"rated_mw\"]\n        oil = cw + br[\"oil_a0\"] + br[\"oil_a1\"] * ld + 15 * f[\"bearing_cooling_loss\"]\n        return {\n            \"load\": load_mw, \"ld\": ld, \"Q\": Q, \"H\": H, \"q\": q, \"eta\": eta, \"hw\": hw, \"tw\": tw, \"p_bar\": p_bar, \"wk_dp\": (Q / self.fl[\"wk_k\"]) ** 2,\n            \"speed\": n, \"gate\": gate, \"gate_sp\": gate + 4.0 * f[\"governor_servo_fault\"],\n            \"oil_bar\": self.gv[\"oil_nominal_bar\"] - 9.0 * f[\"governor_servo_fault\"], \"puls\": puls, \"water_c\": water_c, \"amb_kpa\": amb_kpa,\n            \"cw\": cw, \"cw_flow\": 100 - 55 * f[\"bearing_cooling_loss\"], \"tgb_oil\": oil,\n            \"tgb_pad\": oil + br[\"pad_b0\"] + br[\"pad_b1\"] * ld + 9 * f[\"guide_bearing_wear\"],\n            \"thrust\": cw + br[\"thrust_c0\"] + br[\"thrust_c1\"] * ld + 28 * f[\"bearing_cooling_loss\"],\n            \"ggb\": cw + br[\"ggb_d0\"] + br[\"ggb_d1\"] * ld + 12 * f[\"bearing_cooling_loss\"],\n            \"runout\": (br[\"runout0_um\"] + br[\"runout_per_pct\"] * puls) * (1 + 2.0 * f[\"guide_bearing_wear\"]),\n            \"hcv\": 0.8 + 0.25 * puls,\n        }\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, s):\n        n = self.n\n        return {\n            \"headwater_level_m\": round(s[\"hw\"] + n(0.02), 3), \"tailwater_level_m\": round(s[\"tw\"] + n(0.02), 3),\n            \"spiral_pressure_bar\": round(s[\"p_bar\"] + n(0.006), 4), \"wk_dp_kpa\": round(s[\"wk_dp\"] * (1 + n(0.003)), 3),\n            \"speed_rpm\": round(s[\"speed\"] * (1 + n(0.0002)), 3), \"active_power_mw\": round(s[\"load\"] * (1 + n(0.002)), 3),\n            \"unit_state\": 1, \"gate_setpoint_pct\": round(s[\"gate_sp\"] + n(0.08), 2), \"gate_position_pct\": round(s[\"gate\"] + n(0.08), 2),\n            \"gov_oil_pressure_bar\": round(s[\"oil_bar\"] + n(0.2), 2), \"dt_pulsation_pct\": round(s[\"puls\"] * (1 + n(0.05)), 3),\n            \"water_temp_c\": round(s[\"water_c\"] + n(0.05), 2), \"ambient_pressure_kpa\": round(s[\"amb_kpa\"] + n(0.05), 2),\n            \"tgb_oil_temp_c\": round(s[\"tgb_oil\"] + n(0.4), 2), \"tgb_pad_temp_c\": round(s[\"tgb_pad\"] + n(0.4), 2),\n            \"thrust_pad_temp_c\": round(s[\"thrust\"] + n(0.4), 2), \"ggb_pad_temp_c\": round(s[\"ggb\"] + n(0.4), 2),\n            \"cooling_water_flow_pct\": round(s[\"cw_flow\"] + n(1.0), 1), \"cooling_water_temp_c\": round(s[\"cw\"] + n(0.1), 2),\n            \"shaft_runout_um\": round(s[\"runout\"] * (1 + n(0.04)), 1), \"headcover_vib_mms\": round(s[\"hcv\"] * (1 + n(0.05)), 3),\n        }\n\n    def measure(self, load=None, cw=None):\n        dm = self.demo\n        load = self.rnd.uniform(dm.get(\"load_min_mw\", 45), dm.get(\"load_max_mw\", 60)) if load is None else load\n        load = load * (1 - self.faults[\"rough_zone_operation\"]) + dm.get(\"rough_zone_mw\", 30) * self.faults[\"rough_zone_operation\"]\n        cw = dm.get(\"cooling_water_c\", 12) + self.n(2.0) if cw is None else cw\n        return self.reading(self.true_state(load, cw, dm.get(\"water_c\", 10) + self.n(1.0), self.cv[\"ambient_kpa\"] + self.n(0.5)))\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    One real second is `demo.time_scale` plant seconds. Dispatch moves the load setpoint as a slow mean-reverting random\n    walk between load_min_mw and load_max_mw (no time-of-day dependence); the rough zone failure mode pulls it to\n    rough_zone_mw. Bearing temperatures follow their steady state with a short lag. Each measure() is one record.\n    \"\"\"\n    TAU_S = 3.0\n\n    def __init__(self, twin, seed=3601):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.lmean, self.lmin, self.lmax = float(demo.get(\"load_mean_mw\", 52)), float(demo.get(\"load_min_mw\", 45)), float(demo.get(\"load_max_mw\", 60))\n        self.rz = float(demo.get(\"rough_zone_mw\", 30))\n        self.cw0, self.wc = float(demo.get(\"cooling_water_c\", 12)), float(demo.get(\"water_c\", 10))\n        self.un = Unit(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.load = self.lmean\n        self.temps = None\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.un.faults[k] = f.sev\n        self.t += dt * self.scale\n        r = self.un.rnd\n        self.load += 0.03 * (self.lmean - self.load) * dt + r.gauss(0, 0.4) * math.sqrt(dt)\n        self.load = max(self.lmin, min(self.lmax, self.load))\n        frz = self.faults[\"rough_zone_operation\"].sev\n        target = self.load * (1 - frz) + self.rz * frz\n        s = self.un.true_state(target, self.cw0, self.wc, self.un.cv[\"ambient_kpa\"])\n        keys = (\"tgb_oil\", \"tgb_pad\", \"thrust\", \"ggb\")\n        if self.temps is None:\n            self.temps = {k: s[k] for k in keys}\n        a = min(1.0, dt / self.TAU_S)\n        for k in keys:\n            self.temps[k] += a * (s[k] - self.temps[k])\n            s[k] = self.temps[k]\n        self.running = True\n        return s\n\n    def measure(self, true):\n        return self.un.reading(true)\n", "twin_calc": "\"\"\"The Francis hydro unit twin's expectations (HYD-3601, vertical Francis turbine-generator).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nFlow (Winter-Kennedy, index method of IEC 60041):  Q = k sqrt(dp)            dp in kPa, Q in m3/s\nHeads (m of water, rho = 1000 kg/m3, g = 9.81 m/s2):\n    head at the spiral inlet  Hsp = z_spiral + p / (rho g) + v_in^2 / 2g           v_in = Q / A_spiral_inlet\n    net head                  H   = Hsp - (z_tailwater + v_out^2 / 2g)             v_out = Q / A_draft_tube_outlet\n    head loss intake->spiral  dH  = z_headwater - Hsp;  expected (Darcy-Weisbach) = (f L / D + sum K) / (2 g A^2) x Q^2\nHill chart (IEC 60193 factors, E = g H):\n    nED = n D / sqrt(E)  (n in rev/s),  QED = Q / (D^2 sqrt(E)),  q = QED / QED_bep\n    dn = nED / nED_bep - 1,  dq = q - 1 - tilt x dn\n    eta_expected = eta_max - a_part min(dq,0)^2 - a_over max(dq,0)^2 - b dn^2     (turbine efficiency)\n    eta_measured = P / (eta_gen rho g Q H);  deficit (points) = 100 (eta_expected - eta_measured)\n    P_expected = eta_expected eta_gen rho g Q H;  lost MW = P_expected - P\nGuide vanes: QED expected from the opening = QED_bep x opening / opening_bep; ratio = q / (opening / opening_bep).\nCavitation (Thoma number, IEC 60193): sigma_plant = (NPSE / g) / H\n    NPSE / g = (p_atm - p_vapour) / (rho g) - (z_runner - z_tailwater)          p_vapour by Tetens: 0.61078 exp(17.27 T / (T + 237.3)) kPa\n    sigma_required = sigma_bep (1 + s_over max(q-1, 0) + s_part max(1-q, 0));  margin = sigma_plant / sigma_required\nDraft tube: expected pulsation (% of H, peak-to-peak) = base + rope x exp(-((q - q_rope) / width)^2);\n    vortex rope precession frequency = 0.3 x n (0.2 to 0.4 x runner frequency in the literature).\nBearings (L = P / rated): TGB oil expected = cooling water + a0 + a1 L; TGB pad expected = TGB oil (measured) + b0 + b1 L.\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    hc, u, lv, ww, fl, cv, dt, br, gv = (d[\"hill_chart\"], d[\"unit\"], d[\"levels\"], d[\"waterway\"], d[\"flow\"], d[\"cavitation\"],\n                                         d[\"draft_tube\"], d[\"bearings\"], d[\"governor\"])\n    g, rho = u[\"g\"], u[\"rho\"]\n    a_pipe = math.pi * ww[\"diameter_m\"] ** 2 / 4\n    kl = (ww[\"friction_f\"] * ww[\"length_m\"] / ww[\"diameter_m\"] + ww[\"k_minor\"]) / (2 * g * a_pipe ** 2)\n    return dict(D=u[\"runner_d_m\"], n=u[\"speed_rpm\"], rated=u[\"rated_mw\"], eg=u[\"eta_gen\"], gate=u[\"gate_bep_pct\"], g=g, rho=rho,\n                ned=hc[\"ned_bep\"], qed=hc[\"qed_bep\"], emax=hc[\"eta_model_max\"] + hc[\"step_up\"], ap=hc[\"a_part\"], ao=hc[\"a_over\"],\n                bs=hc[\"b_speed\"], tilt=hc[\"tilt\"], zref=lv[\"z_ref_m\"], zsp=lv[\"z_spiral_m\"], hw=lv[\"headwater_m\"], tw=lv[\"tailwater_m\"],\n                kl=float(f\"{kl:.6g}\"), ain=float(f\"{math.pi * ww['spiral_inlet_d_m'] ** 2 / 4:.6g}\"), adt=ww[\"draft_outlet_m2\"],\n                wk=fl[\"wk_k\"], s0=cv[\"sigma_bep\"], so=cv[\"slope_over\"], sp=cv[\"slope_part\"],\n                base=dt[\"base_pct\"], rope=dt[\"rope_pct\"], rq=dt[\"rope_q\"], rw=dt[\"rope_width\"], rfr=dt[\"rope_freq_ratio\"],\n                a0=br[\"oil_a0\"], a1=br[\"oil_a1\"], b0=br[\"pad_b0\"], b1=br[\"pad_b1\"], c0=br[\"thrust_c0\"], c1=br[\"thrust_c1\"],\n                oil=gv[\"oil_nominal_bar\"])\n\n\ndef hill(k, ned, qed):\n    \"\"\"Expected turbine efficiency (fraction) at (nED, QED).\"\"\"\n    dn = ned / k[\"ned\"] - 1\n    dq = qed / k[\"qed\"] - 1 - k[\"tilt\"] * dn\n    return k[\"emax\"] - k[\"ap\"] * min(dq, 0) ** 2 - k[\"ao\"] * max(dq, 0) ** 2 - k[\"bs\"] * dn ** 2\n\n\ndef sigma_required(k, q):\n    return k[\"s0\"] * (1 + k[\"so\"] * max(q - 1, 0) + k[\"sp\"] * max(1 - q, 0))\n\n\ndef pv_kpa(t_c):\n    return 0.61078 * math.exp(17.27 * t_c / (t_c + 237.3))\n\n\ndef _parts(twin):\n    k = _k(twin)\n    g, rho = k[\"g\"], k[\"rho\"]\n    Q = f\"({k['wk']} * np.sqrt(df['WK_DP_KPA']))\"\n    HSP = f\"({k['zsp']} + df['SPIRAL_PRESSURE_BAR'] * 100000 / ({rho * g}) + ({Q} / {k['ain']}) ** 2 / {2 * g})\"\n    H = f\"({HSP} - (df['TAILWATER_LEVEL_M'] + ({Q} / {k['adt']}) ** 2 / {2 * g}))\"\n    LOSS = f\"(df['HEADWATER_LEVEL_M'] - {HSP})\"\n    LR = f\"({LOSS} / ({k['kl']} * {Q} ** 2))\"\n    NED = f\"(df['SPEED_RPM'] / 60 * {k['D']} / np.sqrt({g} * {H}))\"\n    QED = f\"({Q} / ({k['D'] ** 2:.6g} * np.sqrt({g} * {H})))\"\n    QR = f\"({QED} / {k['qed']})\"\n    DN = f\"({NED} / {k['ned']} - 1)\"\n    DQ = f\"({QR} - 1 - {k['tilt']} * {DN})\"\n    EE = f\"(100 * ({k['emax']:.6g} - {k['ap']} * np.minimum({DQ}, 0) ** 2 - {k['ao']} * np.maximum({DQ}, 0) ** 2 - {k['bs']} * {DN} ** 2))\"\n    EM = f\"(100 * df['ACTIVE_POWER_MW'] * 1000000 / ({k['eg'] * rho * g:.6g} * {Q} * {H}))\"\n    DEF = f\"({EE} - {EM})\"\n    PE = f\"({EE} / 100 * {k['eg'] * rho * g:.6g} * {Q} * {H} / 1000000)\"\n    GFR = f\"({QR} / (df['GATE_POSITION_PCT'] / {k['gate']}))\"\n    PV = \"(0.61078 * np.exp(17.27 * df['WATER_TEMP_C'] / (df['WATER_TEMP_C'] + 237.3)))\"\n    SIGP = f\"(((df['AMBIENT_PRESSURE_KPA'] - {PV}) * 1000 / {rho * g} - ({k['zref']} - df['TAILWATER_LEVEL_M'])) / {H})\"\n    SIGR = f\"({k['s0']} * (1 + {k['so']} * np.maximum({QR} - 1, 0) + {k['sp']} * np.maximum(1 - {QR}, 0)))\"\n    DTE = f\"({k['base']} + {k['rope']} * np.exp(-(({QR} - {k['rq']}) / {k['rw']}) ** 2))\"\n    LD = f\"(df['ACTIVE_POWER_MW'] / {k['rated']})\"\n    OILR = f\"(df['TGB_OIL_TEMP_C'] - (df['COOLING_WATER_TEMP_C'] + {k['a0']} + {k['a1']} * {LD}))\"\n    PADR = f\"(df['TGB_PAD_TEMP_C'] - (df['TGB_OIL_TEMP_C'] + {k['b0']} + {k['b1']} * {LD}))\"\n    return dict(k=k, Q=Q, H=H, LOSS=LOSS, LR=LR, NED=NED, QED=QED, QR=QR, EE=EE, EM=EM, DEF=DEF, PE=PE, GFR=GFR, SIGP=SIGP,\n                SIGR=SIGR, DTE=DTE, OILR=OILR, PADR=PADR)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"FLOW_M3S\", p[\"Q\"]),\n        (\"NET_HEAD_M\", p[\"H\"]),\n        (\"HEAD_LOSS_M\", p[\"LOSS\"]),\n        (\"HEAD_LOSS_RATIO\", p[\"LR\"]),\n        (\"N_ED\", p[\"NED\"]),\n        (\"Q_ED\", p[\"QED\"]),\n        (\"Q_RATIO\", p[\"QR\"]),\n        (\"EFF_EXPECTED_PCT\", p[\"EE\"]),\n        (\"EFF_MEASURED_PCT\", p[\"EM\"]),\n        (\"EFF_DEFICIT_PTS\", p[\"DEF\"]),\n        (\"POWER_EXPECTED_MW\", p[\"PE\"]),\n        (\"LOST_MW\", f\"{p['PE']} - df['ACTIVE_POWER_MW']\"),\n        (\"GATE_FLOW_RATIO\", p[\"GFR\"]),\n        (\"SIGMA_PLANT\", p[\"SIGP\"]),\n        (\"SIGMA_REQUIRED\", p[\"SIGR\"]),\n        (\"SIGMA_MARGIN\", f\"{p['SIGP']} / {p['SIGR']}\"),\n        (\"DT_PULSATION_EXPECTED_PCT\", p[\"DTE\"]),\n        (\"ROPE_FREQ_HZ\", f\"{k['rfr']} * df['SPEED_RPM'] / 60\"),\n        (\"TGB_OIL_RESIDUAL_C\", p[\"OILR\"]),\n        (\"TGB_PAD_RESIDUAL_C\", p[\"PADR\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    g, rho = k[\"g\"], k[\"rho\"]\n    Q = k[\"wk\"] * math.sqrt(r[\"wk_dp_kpa\"])\n    hsp = k[\"zsp\"] + r[\"spiral_pressure_bar\"] * 100000 / (rho * g) + (Q / k[\"ain\"]) ** 2 / (2 * g)\n    H = hsp - (r[\"tailwater_level_m\"] + (Q / k[\"adt\"]) ** 2 / (2 * g))\n    loss = r[\"headwater_level_m\"] - hsp\n    ned = r[\"speed_rpm\"] / 60 * k[\"D\"] / math.sqrt(g * H)\n    qed = Q / (float(f\"{k['D'] ** 2:.6g}\") * math.sqrt(g * H))\n    qr = qed / k[\"qed\"]\n    egrg = float(f\"{k['eg'] * rho * g:.6g}\")\n    k2 = dict(k, emax=float(f\"{k['emax']:.6g}\"))\n    ee = 100 * hill(k2, ned, qed)\n    em = 100 * r[\"active_power_mw\"] * 1000000 / (egrg * Q * H)\n    pe = ee / 100 * egrg * Q * H / 1000000\n    sigp = ((r[\"ambient_pressure_kpa\"] - pv_kpa(r[\"water_temp_c\"])) * 1000 / (rho * g) - (k[\"zref\"] - r[\"tailwater_level_m\"])) / H\n    sigr = sigma_required(k, qr)\n    ld = r[\"active_power_mw\"] / k[\"rated\"]\n    return {\n        \"flow_m3s\": Q, \"net_head_m\": H, \"head_loss_m\": loss, \"head_loss_ratio\": loss / (k[\"kl\"] * Q ** 2),\n        \"n_ed\": ned, \"q_ed\": qed, \"q_ratio\": qr, \"eff_expected_pct\": ee, \"eff_measured_pct\": em, \"eff_deficit_pts\": ee - em,\n        \"power_expected_mw\": pe, \"lost_mw\": pe - r[\"active_power_mw\"],\n        \"gate_flow_ratio\": qr / (r[\"gate_position_pct\"] / k[\"gate\"]),\n        \"sigma_plant\": sigp, \"sigma_required\": sigr, \"sigma_margin\": sigp / sigr,\n        \"dt_pulsation_expected_pct\": k[\"base\"] + k[\"rope\"] * math.exp(-((qr - k[\"rq\"]) / k[\"rw\"]) ** 2),\n        \"rope_freq_hz\": k[\"rfr\"] * r[\"speed_rpm\"] / 60,\n        \"tgb_oil_residual_c\": r[\"tgb_oil_temp_c\"] - (r[\"cooling_water_temp_c\"] + k[\"a0\"] + k[\"a1\"] * ld),\n        \"tgb_pad_residual_c\": r[\"tgb_pad_temp_c\"] - (r[\"tgb_oil_temp_c\"] + k[\"b0\"] + k[\"b1\"] * ld),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    RUN = \"(df['UNIT_STATE'] > 0.5)\"\n    return [\n        (\"HYD_EFF_DEFICIT_HIGH\", f\"{RUN} & ({p['DEF']} > {L['eff_deficit_high_pts']})\", \"High\", \"runner_wear\"),\n        (\"HYD_GOV_OIL_PRESSURE_LOW\", f\"df['GOV_OIL_PRESSURE_BAR'] < {L['gov_oil_min_bar']}\", \"High\", \"governor_servo_fault\"),\n        (\"HYD_SIGMA_MARGIN_LOW\", f\"{RUN} & (({p['SIGP']} / {p['SIGR']}) < {L['sigma_margin_min']})\", \"High\", \"low_tailwater\"),\n        (\"HYD_DT_PULSATION_HIGH\", f\"{RUN} & (df['DT_PULSATION_PCT'] > {L['dt_pulsation_pct']})\", \"High\", \"rough_zone_operation\"),\n        (\"HYD_SHAFT_RUNOUT_HIGH\", f\"{RUN} & (df['SHAFT_RUNOUT_UM'] > {L['runout_um']})\", \"High\", \"guide_bearing_wear\"),\n        (\"HYD_THRUST_BRG_TEMP_HIGH\", f\"df['THRUST_PAD_TEMP_C'] > {L['thrust_pad_max_c']}\", \"High\", \"bearing_cooling_loss\"),\n        (\"HYD_EFF_DEFICIT\", f\"{RUN} & ({p['DEF']} > {L['eff_deficit_pts']})\", \"Medium\", \"runner_wear\"),\n        (\"HYD_GATE_FLOW_HIGH\", f\"{RUN} & ({p['GFR']} > {L['gate_flow_ratio']})\", \"Medium\", \"guide_vane_leakage\"),\n        (\"HYD_GATE_TRACKING\", f\"{RUN} & (np.abs(df['GATE_SETPOINT_PCT'] - df['GATE_POSITION_PCT']) > {L['gate_dev_pct']})\", \"Medium\", \"governor_servo_fault\"),\n        (\"HYD_ROUGH_ZONE\", f\"{RUN} & ({p['QR']} >= {L['rough_q_min']}) & ({p['QR']} <= {L['rough_q_max']})\", \"Medium\", \"rough_zone_operation\"),\n        (\"HYD_TGB_TEMP_RESIDUAL\", f\"{RUN} & ({p['PADR']} > {L['tgb_pad_residual_c']})\", \"Medium\", \"guide_bearing_wear\"),\n        (\"HYD_COOLING_WATER_LOW\", f\"df['COOLING_WATER_FLOW_PCT'] < {L['cooling_flow_min_pct']}\", \"Medium\", \"bearing_cooling_loss\"),\n        (\"HYD_HEAD_LOSS_HIGH\", f\"{RUN} & ({p['QR']} >= {L['head_loss_q_min']}) & ({p['LR']} > {L['head_loss_ratio']})\", \"Medium\", \"intake_head_loss\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    run = r[\"unit_state\"] > 0.5\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    add(run and t[\"eff_deficit_pts\"] > L[\"eff_deficit_high_pts\"], \"HYD_EFF_DEFICIT_HIGH\", \"High\",\n        f\"Turbine efficiency {t['eff_measured_pct']:.1f} %, {t['eff_deficit_pts']:.1f} points below the hill chart: {t['lost_mw']:.1f} MW lost\", \"runner\", \"runner_wear\")\n    add(r[\"gov_oil_pressure_bar\"] < L[\"gov_oil_min_bar\"], \"HYD_GOV_OIL_PRESSURE_LOW\", \"High\",\n        f\"Governor oil pressure {r['gov_oil_pressure_bar']:.1f} bar, below {L['gov_oil_min_bar']:.0f} bar\", \"governor\", \"governor_servo_fault\")\n    add(run and t[\"sigma_margin\"] < L[\"sigma_margin_min\"], \"HYD_SIGMA_MARGIN_LOW\", \"High\",\n        f\"Plant sigma {t['sigma_plant']:.3f} is only {t['sigma_margin']:.2f} x the {t['sigma_required']:.3f} the runner needs (tailwater {r['tailwater_level_m']:.1f} m)\",\n        \"draft tube / runner\", \"low_tailwater\")\n    add(run and r[\"dt_pulsation_pct\"] > L[\"dt_pulsation_pct\"], \"HYD_DT_PULSATION_HIGH\", \"High\",\n        f\"Draft tube pulsation {r['dt_pulsation_pct']:.1f} % of head (vortex rope near {t['rope_freq_hz']:.2f} Hz)\", \"draft tube\", \"rough_zone_operation\")\n    add(run and r[\"shaft_runout_um\"] > L[\"runout_um\"], \"HYD_SHAFT_RUNOUT_HIGH\", \"High\",\n        f\"Shaft runout {r['shaft_runout_um']:.0f} \u00b5m p-p at the turbine guide bearing, above {L['runout_um']:.0f}\", \"guide bearing\", \"guide_bearing_wear\")\n    add(r[\"thrust_pad_temp_c\"] > L[\"thrust_pad_max_c\"], \"HYD_THRUST_BRG_TEMP_HIGH\", \"High\",\n        f\"Thrust pad {r['thrust_pad_temp_c']:.1f} \u00b0C, above {L['thrust_pad_max_c']:.0f} \u00b0C\", \"cooling\", \"bearing_cooling_loss\")\n    add(run and t[\"eff_deficit_pts\"] > L[\"eff_deficit_pts\"], \"HYD_EFF_DEFICIT\", \"Medium\",\n        f\"Turbine efficiency {t['eff_deficit_pts']:.1f} points below the hill chart at nED {t['n_ed']:.3f}, QED {t['q_ed']:.3f}\", \"runner\", \"runner_wear\")\n    add(run and t[\"gate_flow_ratio\"] > L[\"gate_flow_ratio\"], \"HYD_GATE_FLOW_HIGH\", \"Medium\",\n        f\"Flow {t['gate_flow_ratio']:.2f} x what the guide vane opening explains\", \"guide vanes\", \"guide_vane_leakage\")\n    add(run and abs(r[\"gate_setpoint_pct\"] - r[\"gate_position_pct\"]) > L[\"gate_dev_pct\"], \"HYD_GATE_TRACKING\", \"Medium\",\n        f\"Guide vanes at {r['gate_position_pct']:.1f} %, governor asks {r['gate_setpoint_pct']:.1f} %\", \"governor\", \"governor_servo_fault\")\n    add(run and L[\"rough_q_min\"] <= t[\"q_ratio\"] <= L[\"rough_q_max\"], \"HYD_ROUGH_ZONE\", \"Medium\",\n        f\"Unit at {t['q_ratio'] * 100:.0f} % of the BEP flow: inside the part-load rough zone\", \"draft tube\", \"rough_zone_operation\")\n    add(run and t[\"tgb_pad_residual_c\"] > L[\"tgb_pad_residual_c\"], \"HYD_TGB_TEMP_RESIDUAL\", \"Medium\",\n        f\"Turbine guide bearing pad {t['tgb_pad_residual_c']:+.1f} K above its oil + load model\", \"guide bearing\", \"guide_bearing_wear\")\n    add(r[\"cooling_water_flow_pct\"] < L[\"cooling_flow_min_pct\"], \"HYD_COOLING_WATER_LOW\", \"Medium\",\n        f\"Bearing cooling water at {r['cooling_water_flow_pct']:.0f} % of design\", \"cooling\", \"bearing_cooling_loss\")\n    add(run and t[\"q_ratio\"] >= L[\"head_loss_q_min\"] and t[\"head_loss_ratio\"] > L[\"head_loss_ratio\"], \"HYD_HEAD_LOSS_HIGH\", \"Medium\",\n        f\"Head loss intake to spiral {t['head_loss_m']:.2f} m, {t['head_loss_ratio']:.1f} x Darcy-Weisbach\", \"waterway\", \"intake_head_loss\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "HYD-3601 Francis turbine-generator unit twin. Expected efficiency from the hill chart at the measured unit speed and unit flow, expected head loss from Darcy-Weisbach, plant sigma from the tailwater level; the unit sends only what it measures.", "twin": {"id": "HYD-3601", "name": "Francis turbine-generator unit HYD-3601", "version": "1.0.0", "folder": "hydro-twin"}, "identification": {"asset": "HYD-3601", "assetnum": "HYD-3601", "manufacturer": "Custom-built vertical Francis unit (hydro units are designed per site: no public data sheet)", "model": "Hill chart shape anchored on the public NTNU Francis-99 model turbine; prototype size is an assumption", "description": "Unit 1 of a high-head storage hydro plant: vertical Francis turbine, 22-pole synchronous generator, digital governor, penstock", "turbine": "Vertical-shaft Francis turbine, spiral case, 14 stay vanes, 28 guide vanes, runner 1.8 m (outlet), elbow draft tube", "generator": "Synchronous generator, 22 poles, 50 Hz (272.7 rpm), umbrella type: thrust bearing below the rotor", "governor": "Digital PID governor with an oil pressure unit (OPU) and two guide vane servomotors", "waterway": "Intake with trash rack, steel penstock 900 m long, 3.2 m diameter, main inlet valve", "site": "A storage hydro plant in a river valley (generic)"}, "design": {"hill_chart": {"ned_bep": 0.18, "qed_bep": 0.2, "eta_model_max": 0.934, "step_up": 0.016, "a_part": 0.45, "a_over": 0.6, "b_speed": 1.2, "tilt": 0.5, "source": "NTNU Francis-99 model turbine (Waterpower Laboratory, NTNU), workshop data: peak model efficiency 93.4 % at nED = 0.18 and QED = 0.20 (BEP), reference diameter 0.349 m. Prototype peak = model peak + step-up (IEC 60193 gives step-up formulas): assumption: typical value, replace with your contract step-up. Ellipse coefficients of the iso-efficiency curves eta = eta_max - a (dq)^2 - b (dn)^2 with dq = QED/QED_bep - 1 - tilt x dn, dn = nED/nED_bep - 1: assumption: typical value, replace with the prototype hill chart from your model acceptance test (IEC 60193)"}, "unit": {"runner_d_m": 1.8, "poles": 22, "grid_hz": 50.0, "speed_rpm": 272.73, "rated_mw": 60.0, "eta_gen": 0.982, "gate_bep_pct": 72.0, "rho": 1000.0, "g": 9.81, "source": "Runner reference (outlet) diameter, poles and generator efficiency: assumption: typical value, replace with your unit's data. Synchronous speed n = 120 f / poles = 272.73 rpm. Guide vane opening at the BEP: assumption: typical value, replace with the model test"}, "levels": {"headwater_m": 412.0, "tailwater_m": 199.0, "z_ref_m": 191.0, "z_spiral_m": 191.0, "source": "Reservoir and tailwater levels (m above sea level), runner reference elevation (8 m below normal tailwater) and spiral case inlet pressure tap elevation: assumption: typical value, replace with the plant's level survey"}, "waterway": {"length_m": 900.0, "diameter_m": 3.2, "friction_f": 0.012, "k_minor": 0.6, "spiral_inlet_d_m": 2.6, "draft_outlet_m2": 30.0, "source": "Penstock length, diameter and Darcy friction factor (welded steel), minor loss coefficients of intake, trash rack, bends and inlet valve, spiral inlet diameter and draft tube outlet area: assumption: typical value, replace with the waterway design report or a measured head loss curve"}, "flow": {"wk_k": 3.8, "source": "Winter-Kennedy coefficient k in Q = k sqrt(dp), dp in kPa, Q in m3/s (exponent 0.5): assumption: typical value, replace with the calibration against an absolute flow measurement (IEC 60041 index test)"}, "cavitation": {"sigma_bep": 0.06, "slope_over": 1.5, "slope_part": 0.3, "ambient_kpa": 98.9, "source": "Required Thoma number from the model test, with its safety margin, as sigma_bep x (1 + 1.5 x overload + 0.3 x part load) in q = QED/QED_bep: assumption: typical value, replace with the sigma curves of your model acceptance test. Barometer about 98.9 kPa at a site about 200 m above sea level"}, "draft_tube": {"base_pct": 0.5, "rope_pct": 4.0, "rope_q": 0.6, "rope_width": 0.12, "rope_freq_ratio": 0.3, "source": "Draft tube cone pressure pulsation, peak-to-peak in % of the net head: a base level plus a part-load vortex rope peak around q = 0.6. assumption: typical value, replace with the model test or a commissioning sweep of your unit. Vortex rope precession frequency 0.3 x runner frequency, inside the 0.2 to 0.4 band reported in the literature"}, "bearings": {"oil_a0": 18.0, "oil_a1": 6.0, "pad_b0": 10.0, "pad_b1": 8.0, "thrust_c0": 40.0, "thrust_c1": 12.0, "ggb_d0": 25.0, "ggb_d1": 5.0, "runout0_um": 70.0, "runout_per_pct": 15.0, "source": "Turbine guide bearing (TGB) oil = cooling water + a0 + a1 L; TGB pad = TGB oil + b0 + b1 L; thrust pad = cooling water + c0 + c1 L (L = P / rated). Shaft runout = r0 + r1 x draft tube pulsation. assumption: typical value, replace with a least-squares fit on a few months of healthy data of this unit"}, "governor": {"oil_nominal_bar": 40.0, "source": "Oil pressure unit working pressure: assumption: typical value, replace with the governor data sheet"}, "demo": {"time_scale": 60, "load_mean_mw": 52.0, "load_min_mw": 45.0, "load_max_mw": 60.0, "cooling_water_c": 12.0, "water_c": 10.0, "rough_zone_mw": 30.0, "note": "Demo only: one real second is one plant minute; one record every 10 real seconds. Dispatch moves the load slowly between 45 and 60 MW; the rough zone failure mode holds the unit at 30 MW."}}, "telemetry": {"event": "hydro", "publish_every_s": 10, "device_type": "HYDRO_FRANCIS_UNIT", "groups": {"Reservoir": "Headwater (intake) level", "Tailwater": "Tailwater level", "Penstock": "Spiral case inlet", "Flow": "Winter-Kennedy taps on the spiral case", "Unit": "Speed, power and state", "Governor": "Guide vanes and oil pressure unit", "DraftTube": "Draft tube cone pressure", "Water": "Water conditions", "Ambient": "Powerhouse barometer", "Bearings": "Bearing temperatures and cooling water", "Vibration": "Shaft and head cover vibration"}, "points": [{"metric": "headwater_level_m", "path": "Reservoir.Level", "label": "Headwater level at the intake (upstream of the trash rack)", "unit": "m asl"}, {"metric": "tailwater_level_m", "path": "Tailwater.Level", "label": "Tailwater level", "unit": "m asl"}, {"metric": "spiral_pressure_bar", "path": "Penstock.SpiralPressure", "label": "Spiral case inlet pressure", "unit": "bar g"}, {"metric": "wk_dp_kpa", "path": "Flow.WinterKennedy", "label": "Winter-Kennedy differential pressure", "unit": "kPa"}, {"metric": "speed_rpm", "path": "Unit.Speed", "label": "Unit speed", "unit": "rpm"}, {"metric": "active_power_mw", "path": "Unit.ActivePower", "label": "Generator active power", "unit": "MW"}, {"metric": "unit_state", "path": "Unit.State", "label": "Unit state (1 = generating)", "unit": "code"}, {"metric": "gate_setpoint_pct", "path": "Governor.GateSetpoint", "label": "Guide vane opening setpoint from the governor", "unit": "%"}, {"metric": "gate_position_pct", "path": "Governor.GatePosition", "label": "Guide vane opening (servomotor stroke)", "unit": "%"}, {"metric": "gov_oil_pressure_bar", "path": "Governor.OilPressure", "label": "Governor oil pressure unit pressure", "unit": "bar g"}, {"metric": "dt_pulsation_pct", "path": "DraftTube.Pulsation", "label": "Draft tube cone pressure pulsation, peak-to-peak in % of net head", "unit": "%"}, {"metric": "water_temp_c", "path": "Water.Temperature", "label": "Water temperature", "unit": "\u00b0C"}, {"metric": "ambient_pressure_kpa", "path": "Ambient.Pressure", "label": "Atmospheric pressure in the powerhouse", "unit": "kPa"}, {"metric": "tgb_oil_temp_c", "path": "Bearings.TGBOil", "label": "Turbine guide bearing oil temperature", "unit": "\u00b0C"}, {"metric": "tgb_pad_temp_c", "path": "Bearings.TGBPad", "label": "Turbine guide bearing pad temperature (hottest)", "unit": "\u00b0C"}, {"metric": "thrust_pad_temp_c", "path": "Bearings.ThrustPad", "label": "Thrust bearing pad temperature (hottest)", "unit": "\u00b0C"}, {"metric": "ggb_pad_temp_c", "path": "Bearings.GenGuide", "label": "Generator guide bearing pad temperature", "unit": "\u00b0C"}, {"metric": "cooling_water_flow_pct", "path": "Bearings.CoolingFlow", "label": "Bearing cooling water flow, % of design", "unit": "%"}, {"metric": "cooling_water_temp_c", "path": "Bearings.CoolingTemp", "label": "Cooling water inlet temperature", "unit": "\u00b0C"}, {"metric": "shaft_runout_um", "path": "Vibration.ShaftRunout", "label": "Relative shaft displacement at the turbine guide bearing, peak-to-peak", "unit": "\u00b5m"}, {"metric": "headcover_vib_mms", "path": "Vibration.HeadCover", "label": "Head cover vibration velocity, rms", "unit": "mm/s"}]}, "twin_model": {"limits": {"eff_deficit_pts": 1.5, "eff_deficit_high_pts": 3.0, "gate_flow_ratio": 1.05, "gate_dev_pct": 2.0, "gov_oil_min_bar": 34.0, "sigma_margin_min": 1.1, "rough_q_min": 0.4, "rough_q_max": 0.7, "dt_pulsation_pct": 2.5, "tgb_pad_residual_c": 5.0, "runout_um": 200.0, "cooling_flow_min_pct": 70.0, "thrust_pad_max_c": 80.0, "head_loss_ratio": 1.5, "head_loss_q_min": 0.6, "source": "Alarm limits: assumption: typical value, replace with your unit's commissioning values and the bearing maker's pad temperature limits. The shaft runout limit stands for the zone boundary of ISO 20816-5 for this machine type and bearing position (read the value from the standard; its zones are for evaluation, not early diagnosis)."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "runner_wear": {"name": "Runner wear (cavitation erosion, sand abrasion, seal ring wear)", "part": "runner", "symptoms": "efficiency below the hill chart at the same nED and QED, more flow (more gate) for the same power, lost MW", "rules": ["HYD_EFF_DEFICIT", "HYD_EFF_DEFICIT_HIGH"], "default_ramp_min": 1.5}, "guide_vane_leakage": {"name": "Guide vane wear and leakage (end and facing plate clearances)", "part": "guide vanes", "symptoms": "more flow than the gate opening explains, efficiency slightly lower, leakage at standstill", "rules": ["HYD_GATE_FLOW_HIGH"], "default_ramp_min": 1.5}, "governor_servo_fault": {"name": "Governor servomotor or oil pressure unit fault", "part": "governor", "symptoms": "guide vane position lags the governor setpoint, oil pressure unit pressure low", "rules": ["HYD_GATE_TRACKING", "HYD_GOV_OIL_PRESSURE_LOW"], "default_ramp_min": 1}, "low_tailwater": {"name": "Low tailwater: operation with too little submergence (cavitation risk)", "part": "draft tube / runner", "symptoms": "tailwater falls, plant sigma drops below the sigma the runner needs at this load", "rules": ["HYD_SIGMA_MARGIN_LOW"], "default_ramp_min": 1}, "rough_zone_operation": {"name": "Operation in the part-load rough zone (draft tube vortex rope)", "part": "draft tube", "symptoms": "unit held at about half load, draft tube pressure pulsation high at 0.3 x runner frequency", "rules": ["HYD_ROUGH_ZONE", "HYD_DT_PULSATION_HIGH"], "default_ramp_min": 0.5}, "guide_bearing_wear": {"name": "Turbine guide bearing wear (clearance, pad damage)", "part": "guide bearing", "symptoms": "TGB pad hotter than its oil and load explain, shaft runout grows, oil normal", "rules": ["HYD_TGB_TEMP_RESIDUAL", "HYD_SHAFT_RUNOUT_HIGH"], "default_ramp_min": 1.5}, "bearing_cooling_loss": {"name": "Bearing cooling water loss (strainer blocked, valve closed)", "part": "cooling", "symptoms": "cooling water flow low, every bearing oil and pad hotter together, pad-to-oil residual normal", "rules": ["HYD_COOLING_WATER_LOW", "HYD_THRUST_BRG_TEMP_HIGH"], "default_ramp_min": 1}, "intake_head_loss": {"name": "Trash rack clogging or penstock fouling", "part": "waterway", "symptoms": "head loss from the intake to the spiral case above Darcy-Weisbach, net head and power down", "rules": ["HYD_HEAD_LOSS_HIGH"], "default_ramp_min": 1}}, "presentation": {"title": "HYD-3601 Francis turbine-generator unit", "dashboard": "HYDRO_FRANCIS_UNIT"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, genOn = true;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const sg = (v, d = 1) => (v == null || isNaN(v)) ? '–' : (v >= 0 ? '+' : '') + Number(v).toFixed(d);
+
+// ---------- scene (metres, y up, runner centre at the origin) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 500);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(19, 10, 24); ctl.target.set(0, 2.2, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(20, 30, 15); scene.add(sun);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), concrete = M(0x8d8f93, { m: .05, r: .9 }), water = M(0x2f6db5, { m: .1, r: .3, t: .55 });
+const cyl = (r1, r2, h, m, s = 40) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// powerhouse floor slabs
+scene.add(at(box(22, .4, 16, concrete), 0, -6.4, 0));
+scene.add(at(box(22, .3, 16, M(0x6f7277, { m: .05, r: .9, t: .25 })), 0, 1.6, 0));
+// spiral case: a torus whose section shrinks around the runner, penstock enters along -x
+const spiralMat = M(0x56718f, { m: .45, ds: true });
+const spiralG = new THREE.Group(); scene.add(spiralG);
+for (let i = 0; i < 24; i++) {
+  const a0 = i / 24 * Math.PI * 1.9, a1 = (i + 1) / 24 * Math.PI * 1.9, r = 1.25 - .8 * i / 24, R = 2.3 + r;
+  const seg = new THREE.Mesh(new THREE.TorusGeometry(R, r, 16, 6, a1 - a0 + .02), spiralMat);
+  seg.rotation.x = Math.PI / 2; seg.rotation.z = a0 - Math.PI / 2; spiralG.add(seg);
+}
+// penstock + inlet valve (along -x from the spiral entry)
+const penstock = cyl(1.3, 1.3, 12, M(0x6a7f96, { m: .5 })); penstock.rotation.z = Math.PI / 2; scene.add(at(penstock, -9.5, 0, 3.55));
+const miv = cyl(1.9, 1.9, 1.2, M(0x2f6db5, { m: .35 })); miv.rotation.z = Math.PI / 2; scene.add(at(miv, -5.2, 0, 3.55));
+// stay ring / head cover, guide vanes and runner (inside)
+scene.add(at(cyl(2.25, 2.25, .3, dark), 0, .85, 0));
+const headcover = at(cyl(2.1, 2.1, .25, steel), 0, 1.15, 0); scene.add(headcover);
+const gvG = new THREE.Group(); scene.add(gvG); const gvMat = M(0xd8a31a, { m: .3 });
+for (let i = 0; i < 28; i++) { const a = i / 28 * Math.PI * 2, v = box(.45, 1.3, .06, gvMat); v.position.set(1.95 * Math.cos(a), 0, 1.95 * Math.sin(a)); v.rotation.y = -a + .6; gvG.add(v); }
+const runnerG = new THREE.Group(); scene.add(runnerG); const runMat = M(0xc9a66b, { m: .7, r: .25 });
+runnerG.add(at(cyl(1.55, .95, 1.2, runMat, 30), 0, 0, 0));
+for (let i = 0; i < 15; i++) { const b = box(.08, 1.1, .7, runMat); const a = i / 15 * Math.PI * 2; b.position.set(1.1 * Math.cos(a), -.1, 1.1 * Math.sin(a)); b.rotation.y = -a; b.rotation.z = .5; runnerG.add(b); }
+// draft tube: cone down, elbow, horizontal diffuser to +x
+const dtMat = M(0x7b8794, { m: .3, ds: true });
+const cone = at(cyl(.95, 1.4, 2.6, dtMat), 0, -1.9, 0); scene.add(cone);
+const elbow = new THREE.Mesh(new THREE.TorusGeometry(1.8, 1.45, 16, 20, Math.PI / 2), dtMat); elbow.rotation.y = 0; at(elbow, 1.8, -3.2, 0); elbow.rotation.z = Math.PI; scene.add(elbow);
+const diff = new THREE.Mesh(new THREE.BoxGeometry(6, 2.8, 3.6), dtMat); scene.add(at(diff, 4.8, -5.0, 0));
+const tail = at(box(5, .1, 6, water), 9.5, -4.0, 0); scene.add(tail);
+const head = at(box(4, .1, 6, water), -14, 4.5, 3.55); scene.add(head);
+// shaft, turbine guide bearing, servomotors, OPU
+const shaft = at(cyl(.38, .38, 7.5, steel), 0, 4.6, 0); scene.add(shaft);
+const tgb = at(cyl(.85, .85, .6, M(0x8a3ffc, { m: .3 })), 0, 2.0, 0); scene.add(tgb);
+const servoMat = M(0x0f62fe, { m: .3 });
+[-1, 1].forEach(s => { const c = cyl(.28, .28, 2.2, servoMat); c.rotation.z = Math.PI / 2; scene.add(at(c, s * 1.2, 1.7, s * 2.6)); });
+const opu = at(box(1.6, 1.8, 1.2, M(0x24a148, { m: .2 })), 4.8, 2.5, -4.6); scene.add(opu);
+const opuPipe = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3([[4.8, 2.0, -4.0], [3, 1.8, -3.2], [1.4, 1.7, -2.6]].map(p => new THREE.Vector3(...p))), 30, .07, 6, false), M(0x6f6f6f));
+scene.add(opuPipe);
+// generator: stator frame, rotor, thrust bearing below (umbrella), upper bracket, slip ring
+const genG = new THREE.Group(); scene.add(genG);
+const genMat = M(0x2f6db5, { m: .35 });
+const stator = at(cyl(3.6, 3.6, 2.6, genMat, 56), 0, 6.4, 0); genG.add(stator);
+genG.add(at(cyl(3.75, 3.75, .3, dark, 56), 0, 7.85, 0));
+const thrust = at(cyl(1.4, 1.4, .7, M(0xff832b, { m: .3 })), 0, 4.55, 0); genG.add(thrust);
+const ggb = at(cyl(.9, .9, .4, M(0xa56eff, { m: .3 })), 0, 8.3, 0); genG.add(ggb);
+for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2, arm = box(3.2, .3, .35, dark); arm.position.set(1.8 * Math.cos(a), 4.55, 1.8 * Math.sin(a)); arm.rotation.y = -a; genG.add(arm); }
+const cooler = at(box(1.2, 1.6, .5, M(0x9aa3ad, { m: .3 })), 3.9, 6.4, 0); genG.add(cooler);
+// draft tube pressure sensor and runout probe markers
+const dtSensor = at(new THREE.Mesh(new THREE.SphereGeometry(.18, 16, 12), M(0xf1c21b, { m: .2 })), 1.25, -1.6, 0); scene.add(dtSensor);
+const probe = at(box(.25, .25, .5, M(0xf1c21b, { m: .2 })), .7, 2.4, .2); scene.add(probe);
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('hw', [-13, 5.2, 3.55]); lbl('loss', [-7.5, 1.6, 3.55]); lbl('head', [-2.2, 1.9, 3.4]); lbl('eff', [0, -.2, -2.4]); lbl('gate', [1.4, 2.6, 2.8]);
+lbl('tw', [9.5, -3.4, 0]); lbl('dt', [1.3, -1.2, 0]); lbl('tgb', [0, 2.7, 1.0]); lbl('thrust', [0, 4.9, 1.5]); lbl('gen', [-3.4, 8.2, 0]); lbl('opu', [4.8, 3.7, -4.6]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 0, gateOpen = .7;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.speed_rpm; gateOpen = r.gate_position_pct / 100;
+  setLbl('hw', 'headwater level', `${fmt(r.headwater_level_m, 2)} m`, '');
+  setLbl('loss', 'head loss · ÷ Darcy-Weisbach', `${fmt(t.head_loss_m, 2)} m · ${fmt(t.head_loss_ratio, 2)}×`, st(names.has('HYD_HEAD_LOSS_HIGH'), t.head_loss_ratio > L.head_loss_ratio * .85));
+  setLbl('head', 'spiral pressure · net head', `${fmt(r.spiral_pressure_bar, 2)} bar · ${fmt(t.net_head_m, 1)} m`, '');
+  setLbl('eff', `η measured · hill chart (nED ${fmt(t.n_ed, 3)}, QED ${fmt(t.q_ed, 3)})`, `${fmt(t.eff_measured_pct, 1)} · ${fmt(t.eff_expected_pct, 1)} %`,
+    st(names.has('HYD_EFF_DEFICIT') || names.has('HYD_EFF_DEFICIT_HIGH'), t.eff_deficit_pts > L.eff_deficit_pts * .6));
+  setLbl('gate', 'guide vanes · setpoint · flow ÷ gate', `${fmt(r.gate_position_pct, 1)} · ${fmt(r.gate_setpoint_pct, 1)} % · ${fmt(t.gate_flow_ratio, 2)}×`,
+    st(names.has('HYD_GATE_FLOW_HIGH') || names.has('HYD_GATE_TRACKING'), t.gate_flow_ratio > 1.03));
+  setLbl('tw', 'tailwater · plant σ ÷ required', `${fmt(r.tailwater_level_m, 2)} m · ${fmt(t.sigma_margin, 2)}×`, st(names.has('HYD_SIGMA_MARGIN_LOW'), t.sigma_margin < L.sigma_margin_min * 1.1));
+  setLbl('dt', `draft tube pulsation · rope ${fmt(t.rope_freq_hz, 2)} Hz`, `${fmt(r.dt_pulsation_pct, 2)} % · exp ${fmt(t.dt_pulsation_expected_pct, 2)}`,
+    st(names.has('HYD_DT_PULSATION_HIGH') || names.has('HYD_ROUGH_ZONE'), r.dt_pulsation_pct > L.dt_pulsation_pct * .7));
+  setLbl('tgb', 'TGB pad · residual · runout', `${fmt(r.tgb_pad_temp_c, 1)} °C · ${sg(t.tgb_pad_residual_c)} K · ${fmt(r.shaft_runout_um, 0)} µm`,
+    st(names.has('HYD_TGB_TEMP_RESIDUAL') || names.has('HYD_SHAFT_RUNOUT_HIGH'), r.shaft_runout_um > L.runout_um * .8));
+  setLbl('thrust', 'thrust pad · cooling water', `${fmt(r.thrust_pad_temp_c, 1)} °C · ${fmt(r.cooling_water_flow_pct, 0)} %`,
+    st(names.has('HYD_THRUST_BRG_TEMP_HIGH') || names.has('HYD_COOLING_WATER_LOW'), r.thrust_pad_temp_c > L.thrust_pad_max_c - 6));
+  setLbl('gen', 'generator · expected', `${fmt(r.active_power_mw, 1)} · ${fmt(t.power_expected_mw, 1)} MW`, st(names.has('HYD_EFF_DEFICIT_HIGH'), t.lost_mw > .5));
+  setLbl('opu', 'governor oil pressure', `${fmt(r.gov_oil_pressure_bar, 1)} bar`, st(names.has('HYD_GOV_OIL_PRESSURE_LOW'), r.gov_oil_pressure_bar < L.gov_oil_min_bar + 2));
+  $('k-health').textContent = ST.health; $('k-def').textContent = sg(t.eff_deficit_pts) + ' pts'; $('k-sig').textContent = fmt(t.sigma_margin) + '×';
+  $('c-pwr-t').textContent = `${fmt(r.active_power_mw, 1)} MW at ${fmt(t.net_head_m, 0)} m`; $('c-pwr').className = 'chip ' + (names.has('HYD_EFF_DEFICIT') ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Active power (MW)', fmt(r.active_power_mw, 2), fmt(t.power_expected_mw, 2), names.has('HYD_EFF_DEFICIT')) +
+    row('Turbine efficiency (%)', fmt(t.eff_measured_pct, 2), fmt(t.eff_expected_pct, 2), names.has('HYD_EFF_DEFICIT')) +
+    row('Flow (m³/s)', fmt(t.flow_m3s, 2), 'Winter-Kennedy', false) +
+    row('Net head (m)', fmt(t.net_head_m, 1), 'levels + pressure', false) +
+    row('Head loss ÷ design', fmt(t.head_loss_ratio), '≤ ' + L.head_loss_ratio, names.has('HYD_HEAD_LOSS_HIGH')) +
+    row('Flow ÷ gate opening', fmt(t.gate_flow_ratio, 3), '≤ ' + L.gate_flow_ratio, names.has('HYD_GATE_FLOW_HIGH')) +
+    row('Gate setpoint − position (%)', sg(r.gate_setpoint_pct - r.gate_position_pct), '± ' + L.gate_dev_pct, names.has('HYD_GATE_TRACKING')) +
+    row('Plant σ', fmt(t.sigma_plant, 4), '≥ ' + fmt(t.sigma_required * L.sigma_margin_min, 4), names.has('HYD_SIGMA_MARGIN_LOW')) +
+    row('Q ÷ Q at BEP', fmt(t.q_ratio), 'rough ' + L.rough_q_min + '–' + L.rough_q_max, names.has('HYD_ROUGH_ZONE')) +
+    row('Draft tube pulsation (%)', fmt(r.dt_pulsation_pct), fmt(t.dt_pulsation_expected_pct), names.has('HYD_DT_PULSATION_HIGH')) +
+    row('TGB pad residual (K)', sg(t.tgb_pad_residual_c), '≤ ' + L.tgb_pad_residual_c, names.has('HYD_TGB_TEMP_RESIDUAL')) +
+    row('Shaft runout (µm)', fmt(r.shaft_runout_um, 0), '≤ ' + L.runout_um, names.has('HYD_SHAFT_RUNOUT_HIGH')) +
+    row('Thrust pad (°C)', fmt(r.thrust_pad_temp_c, 1), '≤ ' + L.thrust_pad_max_c, names.has('HYD_THRUST_BRG_TEMP_HIGH')) +
+    row('Governor oil (bar)', fmt(r.gov_oil_pressure_bar, 1), '≥ ' + L.gov_oil_min_bar, names.has('HYD_GOV_OIL_PRESSURE_LOW'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the unit behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  const tint = (m, bad) => m.color.setHex(bad ? 0xda1e28 : m.userData.base);
+  [[runMat, names.has('HYD_EFF_DEFICIT')], [gvMat, names.has('HYD_GATE_FLOW_HIGH')], [servoMat, names.has('HYD_GATE_TRACKING')],
+   [opu.material, names.has('HYD_GOV_OIL_PRESSURE_LOW')], [dtMat, names.has('HYD_DT_PULSATION_HIGH') || names.has('HYD_SIGMA_MARGIN_LOW')],
+   [tgb.material, names.has('HYD_TGB_TEMP_RESIDUAL') || names.has('HYD_SHAFT_RUNOUT_HIGH')], [thrust.material, names.has('HYD_THRUST_BRG_TEMP_HIGH')],
+   [cooler.material, names.has('HYD_COOLING_WATER_LOW')], [penstock.material, names.has('HYD_HEAD_LOSS_HIGH')]].forEach(([m, bad]) => tint(m, bad));
+  tail.position.y = -4.0 + (r.tailwater_level_m - TW.design.levels.tailwater_m) * .4;
+}
+[runMat, gvMat, servoMat, opu.material, dtMat, tgb.material, thrust.material, cooler.material, penstock.material].forEach(m => { m.userData.base = m.color.getHex(); });
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = `${TW.identification.turbine}`;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [spiralMat, dtMat, genMat].forEach(m => { m.transparent = true; m.opacity = cut ? .15 : 1; m.depthWrite = !cut; });
+};
+$('t-gen').onclick = () => { genOn = !genOn; genG.visible = genOn; $('t-gen').classList.toggle('on', !genOn); $('t-gen').textContent = genOn ? 'Hide generator' : 'Show generator'; };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), shownGate = .7;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  const w = rpm / 60 * 2 * Math.PI * dt / 6;                 // shown 6x slower than the real 272.7 rpm so it stays visible
+  runnerG.rotation.y -= w; shaft.rotation.y -= w; stator.rotation.y += 0;
+  shownGate += (gateOpen - shownGate) * Math.min(1, dt * 2);
+  gvG.children.forEach((v, i) => { const a = i / 28 * Math.PI * 2; v.rotation.y = -a + .2 + shownGate * .9; });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

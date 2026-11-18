@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>BFP-3301 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>BFP-3301</b><span class="g">Boiler feed pump A · barrel pump on VSD · power unit</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-flow"><span class="dot"></span><span id="c-flow-t">minimum flow –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Pump curve, efficiency and NPSH →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the feed pump set…</div>
+<div class="credit">Motor, step-up gearbox and a multistage barrel pump (API 610 type BB5) with its balance drum leak-off and minimum-flow lines back to the deaerator. Typical proportions, not vendor CAD; the deaerator is drawn much lower than its real 25 m. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button><button id="t-pump">Look at the pump</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Dots in the pipes are water (speed follows the flow; red dots = balance leak-off); white dots in the suction are vapour bubbles when the NPSH margin is low.</div>
+<aside>
+  <section>
+    <h2>BFP-3301 twin</h2>
+    <p class="sub" id="sub">KSB CHTR barrel pump</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Efficiency %<b id="k-eff">–</b></div><div>Flow m³/h<b id="k-q">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures. Every expected value is computed from the twin file: the pump curve at the live speed, the ISO 5198 thermodynamic efficiency from the temperature rise, the balance leak-off and the NPSH from the deaerator.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for BFP-3301: deaerator, suction line, the barrel pump on its VSD, the minimum-flow valve, the balance drum\nleak-off and the bearings, with injectable faults.\n\nThe real device sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages.\n\nOperating point: the feedwater control (drum level) asks for a feed flow Qf to the boiler. The pump must give the head\nthe boiler path needs, Hreq = Hstatic + k Qf^2, while passing Q = Qf + recirculation + balance leak-off. The VSD finds the\nspeed ratio r where the pump curve meets it:  kh x (H0 r^2 + h2 Q^2) = Hreq.\nThe discharge temperature follows from the true efficiency with the same ISO 5198 energy balance the twin inverts:\n    cp (T2 - T1) = (p2 - p1) / rho / eta - a (p2 - p1)\nso, in this stand-in, the thermodynamic efficiency and the flow from shaft power agree exactly with the truth when no\nfault is active (a real pump adds the kinetic, elevation and heat-loss terms this simple balance leaves out).\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\nclass BFP:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        d = twin[\"design\"]\n        self.k = tc._k(twin)\n        self.p, self.b, self.dr, self.s, self.sy, self.br = d[\"pump\"], d[\"balance\"], d[\"drive\"], d[\"suction\"], d[\"system\"], d[\"bearings\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.ksys = (self.sy[\"h_at_rated_m\"] - self.sy[\"h_static_m\"]) / self.sy[\"q_rated_m3h\"] ** 2\n        self.t_suction = tc.tsat(self.k, self.s[\"da_pressure_bar\"] + tc.ATM) - 0.1     # stored water, just below saturation\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def state(self):\n        k, f, p = self.k, self.faults, self.p\n        qf = self.sy[\"load_flow_m3h\"] - f[\"minflow_valve_stuck\"] * (self.sy[\"load_flow_m3h\"] - 100.0)\n        hreq = self.sy[\"h_static_m\"] + self.ksys * qf * qf\n        kh = 1 - 0.08 * f[\"impeller_wear\"]\n        t1 = self.t_suction\n        ros = tc.rho(k, t1)\n        p_da = self.s[\"da_pressure_bar\"] - 1.1 * f[\"npsh_loss\"]\n        level = self.s[\"level_normal_m\"] - 1.2 * f[\"npsh_loss\"]\n        r, recirc_ctl, leak, q, ratio = 0.95, 0.0, self.b[\"leakoff_m3h\"], qf, 2.0\n        drift = 1 + 0.15 * f[\"flow_meter_drift\"]\n        for _ in range(8):\n            qmin = k[\"qmf\"] * k[\"qb\"] * r\n            q_meter = (qf + leak) * drift\n            if f[\"minflow_valve_stuck\"] > 0.0:\n                recirc_ctl = 0.0\n            elif q_meter < 1.1 * qmin:\n                recirc_ctl = 1.25 * qmin - (qf + leak)\n            else:\n                recirc_ctl = 0.0\n            recirc = recirc_ctl + 70.0 * f[\"recirc_valve_passing\"]\n            q = qf + leak + recirc\n            kcav = 1 - 0.5 * max(0.0, 1.0 - ratio)\n            r = math.sqrt(max((hreq / (kh * kcav) - k[\"h2\"] * q * q) / k[\"h0\"], 0.05))\n            dp = ros * tc.G * hreq / 1e5\n            leak = self.b[\"leakoff_m3h\"] * math.sqrt(dp / self.b[\"dp_ref_bar\"]) * (1 + 1.6 * f[\"balance_drum_wear\"])\n            strainer = 0.04 * (q / k[\"qb\"]) ** 2 + 0.9 * f[\"strainer_clogging\"]\n            ps = (p_da + ros * tc.G * (k[\"z\"] + level) / 1e5 - k[\"kf\"] * q * q * ros * tc.G / 1e5 - strainer)\n            npsha = (ps + tc.ATM - tc.pvap(k, t1)) * 1e5 / (ros * tc.G)\n            x = q / (r * k[\"qb\"])\n            ratio = npsha / tc.npsh3(k, x, r)\n        pd = ps + dp\n        eta = max(0.05, tc.eff_curve(k, x)) * (1 - 0.14 * f[\"impeller_wear\"]) * (1 - 0.02 * f[\"balance_drum_wear\"])\n        t2 = t1 + 3.0\n        for _ in range(6):                                    # energy balance at the mean temperature\n            tm = (t1 + t2) / 2\n            em = dp * 1e5 / tc.rho(k, tm) / eta\n            t2 = t1 + (em - tc.a_iso(k, tm) * dp * 1e5) / tc.cp(k, tm)\n        shaft_kw = q / 3600 * dp * 1e5 / eta / 1000\n        pos = min(100.0, recirc_ctl / (0.6 * k[\"qb\"]) * 100) if recirc_ctl > 0 else 0.0\n        oil = self.br[\"oil_c\"]\n        vib = (self.br[\"vib_base_mm_s\"] + 2.0 * max(0.0, 0.5 - x) + 12.0 * max(0.0, 1.3 - ratio) + 6.0 * f[\"bearing_degradation\"])\n        return {\n            \"qf\": qf, \"q\": q, \"q_meter\": q * drift, \"r\": r, \"rpm\": r * k[\"n0\"], \"ps\": ps, \"pd\": pd, \"dp\": dp, \"t1\": t1, \"t2\": t2,\n            \"eta\": eta, \"kw\": shaft_kw / k[\"ed\"], \"leak\": leak, \"recirc\": recirc, \"pos\": pos, \"strainer\": strainer,\n            \"p_da\": p_da, \"level\": level, \"npsha\": npsha, \"ratio\": ratio, \"x\": x, \"hreq\": hreq,\n            \"thrust\": oil + k[\"thr\"] * r * r + 18.0 * f[\"balance_drum_wear\"],\n            \"de\": oil + k[\"jr\"] * r * r + 16.0 * f[\"bearing_degradation\"], \"nde\": oil + (k[\"jr\"] - 2.0) * r * r,\n            \"oil\": oil, \"vib\": vib, \"mw\": self.sy[\"unit_mw\"] * qf / self.sy[\"q_rated_m3h\"],\n        }\n\n    # one published message ----------------------------------------------------------------------------------------------\n    def reading(self, s):\n        n = self.n\n        t1 = s[\"t1\"] + n(0.02)\n        return {\n            \"running\": 1, \"speed_rpm\": round(s[\"rpm\"] + n(2.0), 1), \"motor_kw\": round(s[\"kw\"] * (1 + n(0.003)), 1),\n            \"suction_flow_m3h\": round(s[\"q_meter\"] * (1 + n(0.004)), 1),\n            \"suction_pressure_bar\": round(s[\"ps\"] + n(0.01), 3), \"discharge_pressure_bar\": round(s[\"pd\"] + n(0.05), 2),\n            \"suction_temp_c\": round(t1, 3), \"discharge_temp_c\": round(t1 + (s[\"t2\"] - s[\"t1\"]) + n(0.005), 3),\n            \"leakoff_flow_m3h\": round(s[\"leak\"] * (1 + n(0.01)), 2), \"recirc_valve_pct\": round(s[\"pos\"], 1),\n            \"recirc_flow_m3h\": round(max(0.0, s[\"recirc\"] + n(0.3)), 1), \"strainer_dp_bar\": round(max(0.0, s[\"strainer\"] + n(0.005)), 3),\n            \"da_pressure_bar\": round(s[\"p_da\"] + n(0.005), 3), \"da_level_m\": round(s[\"level\"] + n(0.01), 3),\n            \"bearing_de_c\": round(s[\"de\"] + n(0.15), 2), \"bearing_nde_c\": round(s[\"nde\"] + n(0.15), 2),\n            \"thrust_bearing_c\": round(s[\"thrust\"] + n(0.15), 2), \"lube_oil_c\": round(s[\"oil\"] + n(0.1), 2),\n            \"vibration_mm_s\": round(max(0.2, s[\"vib\"] + n(0.08)), 2), \"unit_load_mw\": round(s[\"mw\"] + n(0.5), 1),\n        }\n\n    def measure(self):\n        return self.reading(self.state())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The unit runs at a steady load; the VSD finds the speed every step while the faults ramp. Nothing depends on the\n    time of day, so the in-browser warm-up and clock do not matter.\n    \"\"\"\n\n    def __init__(self, twin, seed=3301):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.e = BFP(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        for f in self.faults.values():\n            f.sev, f.target, f.rate = 0.0, 0.0, 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.e.faults[k] = f.sev\n        self.t += dt * self.scale\n        return self.e.state()\n\n    def measure(self, true):\n        return self.e.reading(true)\n", "twin_calc": "\"\"\"The boiler feed pump twin's expectations (BFP-3301, KSB CHTR barrel pump on a VSD, balance drum, minimum-flow valve).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nPump curve at the live speed (affinity laws, r = n / n_rated):\n    H expected = r^2 x H0 + h2 x Q^2            (= r^2 x H(Q / r) for the curve H = H0 + h2 Q^2 at rated speed)\n    x = Q / (r x Q_BEP)                         (position on the curve; BEP ratio)\n    eta expected = eta_BEP x (2x - x^2)         NPSH3 = r^2 x NPSH3_BEP x (c0 + c2 x^2)     Q_min = 35 % x Q_BEP x r\nMeasured head: H = (p2 - p1) / (rho g), rho of the water at the mean of the suction and discharge temperatures.\nThermodynamic efficiency (ISO 5198 clause 11, kinetic, elevation and secondary terms left out):\n    Eh = (p2 - p1) / rho                        hydraulic energy per kg (J/kg)\n    Em = a x (p2 - p1) + cp x (T2 - T1)         energy per kg the shaft gave the water; a = isothermal factor\n    eta = Eh / Em\n  a, cp and rho: straight lines through the ISO 5198 tables at 100 bar, 150 to 170 degC.\nFlow from the shaft power: Q_th = P_shaft x eta / (p2 - p1)   (P_shaft = VSD power x motor and gearbox efficiency).\n  Compared with the suction flow meter: a drifting meter shows up as a ratio away from 1.\nBalance drum leak-off: expected = q0 x sqrt(dp / dp_ref); worn drum clearance raises the ratio measured / expected.\nNPSH available at the suction flange: (p1 abs - p_vap(T1)) / (rho g), p_vap from the Antoine equation.\n  From the deaerator side: (p_DA abs - p_vap(T1)) / (rho g) + tank elevation + level - pipe loss(Q).\nBearings: temperature above the oil supply minus the commissioning rise x r^2 = excess.\nEach expression works on one reading (Monitor keeps no state for the twin).\n\"\"\"\nimport math\n\nG = 9.81\nATM = 1.01325           # bar\nMMHG = 0.00133322       # bar per mmHg\n\n\ndef _g(x):\n    \"\"\"A constant as written into the Monitor expression (8 significant digits), so Python and pandas use the same number.\"\"\"\n    return float(f\"{x:.8g}\")\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    p, b, dr, w, s = d[\"pump\"], d[\"balance\"], d[\"drive\"], d[\"water\"], d[\"suction\"]\n    br = d[\"bearings\"]\n    h2 = (p[\"h_bep_m\"] - p[\"h_shutoff_m\"]) / p[\"q_bep_m3h\"] ** 2\n    return dict(n0=p[\"rated_rpm\"], qb=p[\"q_bep_m3h\"], hb=p[\"h_bep_m\"], h0=p[\"h_shutoff_m\"], h2=_g(h2), eb=p[\"eff_bep\"],\n                qmf=p[\"q_min_frac\"], n3=p[\"npsh3_bep_m\"], c0=p[\"npsh3_shape\"][0], c2=p[\"npsh3_shape\"][1],\n                lo0=b[\"leakoff_m3h\"], dpr=b[\"dp_ref_bar\"], ed=dr[\"eff_motor_gear\"],\n                tr=w[\"t_ref_c\"], rho0=w[\"rho_ref\"], rhos=w[\"rho_slope\"], a0=w[\"a_ref\"], as_=w[\"a_slope\"], cp0=w[\"cp_ref\"], cps=w[\"cp_slope\"],\n                A=w[\"antoine\"][0], B=w[\"antoine\"][1], C=w[\"antoine\"][2],\n                z=s[\"deaerator_elev_m\"], kf=_g(s[\"pipe_loss_bep_m\"] / p[\"q_bep_m3h\"] ** 2),\n                toil=br[\"oil_c\"], thr=br[\"thrust_rise_k\"], jr=br[\"journal_rise_k\"])\n\n\n# shared pure-Python helpers (physics.py, the figures and the post use them too) -------------------------------------------\ndef rho(k, t):\n    return k[\"rho0\"] + k[\"rhos\"] * (t - k[\"tr\"])\n\n\ndef a_iso(k, t):\n    return k[\"a0\"] + k[\"as_\"] * (t - k[\"tr\"])\n\n\ndef cp(k, t):\n    return k[\"cp0\"] + k[\"cps\"] * (t - k[\"tr\"])\n\n\ndef pvap(k, t):\n    \"\"\"Vapour pressure of water (bar abs), Antoine equation 99..374 degC.\"\"\"\n    return 10 ** (k[\"A\"] - k[\"B\"] / (k[\"C\"] + t)) * MMHG\n\n\ndef tsat(k, p_abs):\n    \"\"\"Saturation temperature (degC) for a pressure in bar abs: the Antoine equation turned round.\"\"\"\n    return k[\"B\"] / (k[\"A\"] - math.log10(p_abs / MMHG)) - k[\"C\"]\n\n\ndef head_curve(k, q, r=1.0):\n    return k[\"h0\"] * r * r + k[\"h2\"] * q * q\n\n\ndef eff_curve(k, x):\n    return k[\"eb\"] * (2 * x - x * x)\n\n\ndef npsh3(k, x, r=1.0):\n    return r * r * k[\"n3\"] * (k[\"c0\"] + k[\"c2\"] * x * x)\n\n\ndef thermo_eff(k, dp_bar, t1, t2):\n    tm = (t1 + t2) / 2\n    dp = dp_bar * 1e5\n    return dp / rho(k, tm) / (a_iso(k, tm) * dp + cp(k, tm) * (t2 - t1))\n\n\ndef _parts(twin):\n    k = _k(twin)\n    R = f\"(np.maximum(df['SPEED_RPM'], 1) / {k['n0']})\"\n    Q = \"df['SUCTION_FLOW_M3H']\"\n    X = f\"({Q} / ({R} * {k['qb']}))\"\n    TM = \"((df['SUCTION_TEMP_C'] + df['DISCHARGE_TEMP_C']) / 2)\"\n    RHO = f\"({k['rho0']} + {k['rhos']} * ({TM} - {k['tr']}))\"\n    RHOS = f\"({k['rho0']} + {k['rhos']} * (df['SUCTION_TEMP_C'] - {k['tr']}))\"\n    DP = \"(df['DISCHARGE_PRESSURE_BAR'] - df['SUCTION_PRESSURE_BAR'])\"\n    DT = \"(df['DISCHARGE_TEMP_C'] - df['SUCTION_TEMP_C'])\"\n    HM = f\"({DP} * 100000 / ({RHO} * {G}))\"\n    HE = f\"({k['h0']} * {R} ** 2 + {k['h2']} * {Q} ** 2)\"\n    AI = f\"({k['a0']} + {k['as_']} * ({TM} - {k['tr']}))\"\n    CP = f\"({k['cp0']} + {k['cps']} * ({TM} - {k['tr']}))\"\n    ETA = f\"({DP} * 100000 / {RHO} / ({AI} * {DP} * 100000 + {CP} * {DT}))\"\n    EE = f\"({k['eb']} * (2 * {X} - {X} ** 2))\"\n    SH = f\"(df['MOTOR_KW'] * {k['ed']})\"\n    QTH = f\"({SH} * 1000 * {ETA} / np.maximum({DP} * 100000, 1) * 3600)\"\n    LE = f\"np.maximum({k['lo0']} * np.sqrt(np.maximum({DP}, 0) / {k['dpr']}), 0.1)\"\n    MINF = f\"({k['qmf'] * k['qb']:.8g} * {R})\"\n    PV = f\"(np.power(10, {k['A']} - {k['B']} / ({k['C']} + df['SUCTION_TEMP_C'])) * {MMHG})\"\n    NA = f\"((df['SUCTION_PRESSURE_BAR'] + {ATM} - {PV}) * 100000 / ({RHOS} * {G}))\"\n    NDA = (f\"((df['DA_PRESSURE_BAR'] + {ATM} - {PV}) * 100000 / ({RHOS} * {G}) + {k['z']} + df['DA_LEVEL_M'] - {k['kf']} * {Q} ** 2)\")\n    N3 = f\"({R} ** 2 * {k['n3']} * ({k['c0']} + {k['c2']} * {X} ** 2))\"\n    THX = f\"(df['THRUST_BEARING_C'] - df['LUBE_OIL_C'] - {k['thr']} * {R} ** 2)\"\n    JX = f\"(np.maximum(df['BEARING_DE_C'], df['BEARING_NDE_C']) - df['LUBE_OIL_C'] - {k['jr']} * {R} ** 2)\"\n    return dict(k=k, R=R, Q=Q, X=X, RHO=RHO, DP=DP, DT=DT, HM=HM, HE=HE, ETA=ETA, EE=EE, SH=SH, QTH=QTH, LE=LE, MINF=MINF,\n                NA=NA, NDA=NDA, N3=N3, THX=THX, JX=JX)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    return [\n        (\"BEP_RATIO\", p[\"X\"]),\n        (\"HEAD_MEASURED_M\", p[\"HM\"]),\n        (\"HEAD_EXPECTED_M\", p[\"HE\"]),\n        (\"HEAD_RATIO\", f\"{p['HM']} / {p['HE']}\"),\n        (\"TEMP_RISE_K\", p[\"DT\"]),\n        (\"EFF_THERMO_PCT\", f\"100 * {p['ETA']}\"),\n        (\"EFF_EXPECTED_PCT\", f\"100 * {p['EE']}\"),\n        (\"EFF_RATIO\", f\"{p['ETA']} / np.maximum({p['EE']}, 0.01)\"),\n        (\"SHAFT_POWER_KW\", p[\"SH\"]),\n        (\"FLOW_THERMO_M3H\", p[\"QTH\"]),\n        (\"FLOW_METER_RATIO\", f\"{p['Q']} / np.maximum({p['QTH']}, 1)\"),\n        (\"LEAKOFF_EXPECTED_M3H\", p[\"LE\"]),\n        (\"LEAKOFF_RATIO\", f\"df['LEAKOFF_FLOW_M3H'] / {p['LE']}\"),\n        (\"MIN_FLOW_M3H\", p[\"MINF\"]),\n        (\"NPSH_AVAILABLE_M\", p[\"NA\"]),\n        (\"NPSHA_DEAERATOR_M\", p[\"NDA\"]),\n        (\"NPSH3_M\", p[\"N3\"]),\n        (\"NPSH_RATIO\", f\"{p['NA']} / {p['N3']}\"),\n        (\"THRUST_EXCESS_K\", p[\"THX\"]),\n        (\"JOURNAL_EXCESS_K\", p[\"JX\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    rr = max(r[\"speed_rpm\"], 1) / k[\"n0\"]\n    q = r[\"suction_flow_m3h\"]\n    x = q / (rr * k[\"qb\"])\n    t1, t2 = r[\"suction_temp_c\"], r[\"discharge_temp_c\"]\n    tm = (t1 + t2) / 2\n    ro, ros = rho(k, tm), rho(k, t1)\n    dp = r[\"discharge_pressure_bar\"] - r[\"suction_pressure_bar\"]\n    hm = dp * 100000 / (ro * G)\n    he = head_curve(k, q, rr)\n    eta = dp * 100000 / ro / (a_iso(k, tm) * dp * 100000 + cp(k, tm) * (t2 - t1))\n    ee = k[\"eb\"] * (2 * x - x ** 2)\n    sh = r[\"motor_kw\"] * k[\"ed\"]\n    qth = sh * 1000 * eta / max(dp * 100000, 1) * 3600\n    le = max(k[\"lo0\"] * math.sqrt(max(dp, 0) / k[\"dpr\"]), 0.1)\n    pv = math.pow(10, k[\"A\"] - k[\"B\"] / (k[\"C\"] + t1)) * MMHG\n    na = (r[\"suction_pressure_bar\"] + ATM - pv) * 100000 / (ros * G)\n    nda = (r[\"da_pressure_bar\"] + ATM - pv) * 100000 / (ros * G) + k[\"z\"] + r[\"da_level_m\"] - k[\"kf\"] * q ** 2\n    n3 = rr ** 2 * k[\"n3\"] * (k[\"c0\"] + k[\"c2\"] * x ** 2)\n    return {\n        \"bep_ratio\": x, \"head_measured_m\": hm, \"head_expected_m\": he, \"head_ratio\": hm / he, \"temp_rise_k\": t2 - t1,\n        \"eff_thermo_pct\": 100 * eta, \"eff_expected_pct\": 100 * ee, \"eff_ratio\": eta / max(ee, 0.01),\n        \"shaft_power_kw\": sh, \"flow_thermo_m3h\": qth, \"flow_meter_ratio\": q / max(qth, 1),\n        \"leakoff_expected_m3h\": le, \"leakoff_ratio\": r[\"leakoff_flow_m3h\"] / le, \"min_flow_m3h\": _g(k[\"qmf\"] * k[\"qb\"]) * rr,\n        \"npsh_available_m\": na, \"npsha_deaerator_m\": nda, \"npsh3_m\": n3, \"npsh_ratio\": na / n3,\n        \"thrust_excess_k\": r[\"thrust_bearing_c\"] - r[\"lube_oil_c\"] - k[\"thr\"] * rr ** 2,\n        \"journal_excess_k\": max(r[\"bearing_de_c\"], r[\"bearing_nde_c\"]) - r[\"lube_oil_c\"] - k[\"jr\"] * rr ** 2,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    RUN = \"(df['RUNNING'] > 0.5)\"\n    Q, MINF = p[\"Q\"], p[\"MINF\"]\n    OKF = f\"({Q} >= {MINF})\"\n    HR = f\"({p['HM']} / {p['HE']})\"\n    ER = f\"({p['ETA']} / np.maximum({p['EE']}, 0.01))\"\n    LR = f\"(df['LEAKOFF_FLOW_M3H'] / {p['LE']})\"\n    NR = f\"({p['NA']} / {p['N3']})\"\n    FM = f\"({Q} / np.maximum({p['QTH']}, 1))\"\n    V = \"df['VIBRATION_MM_S']\"\n    return [\n        (\"BFP_MIN_FLOW_LOW\", f\"{RUN} & ({Q} < {MINF})\", \"High\", \"minflow_valve_stuck\"),\n        (\"BFP_NPSH_MARGIN_LIMIT\", f\"{RUN} & ({NR} < {L['npsh_limit']})\", \"High\", \"npsh_loss\"),\n        (\"BFP_LEAKOFF_LIMIT\", f\"{RUN} & ({LR} >= {L['leakoff_limit']})\", \"High\", \"balance_drum_wear\"),\n        (\"BFP_EFF_LOSS_HIGH\", f\"{RUN} & {OKF} & ({ER} < {L['eff_loss']})\", \"High\", \"impeller_wear\"),\n        (\"BFP_VIBRATION_LIMIT\", f\"{V} >= {L['vib_limit_mm_s']}\", \"High\", \"bearing_degradation\"),\n        (\"BFP_HEAD_LOW\", f\"{RUN} & {OKF} & ({HR} < {L['head_low']})\", \"Medium\", \"impeller_wear\"),\n        (\"BFP_EFF_LOW\", f\"{RUN} & {OKF} & ({ER} >= {L['eff_loss']}) & ({ER} < {L['eff_low']})\", \"Medium\", \"impeller_wear\"),\n        (\"BFP_LEAKOFF_HIGH\", f\"{RUN} & ({LR} >= {L['leakoff_alert']}) & ({LR} < {L['leakoff_limit']})\", \"Medium\", \"balance_drum_wear\"),\n        (\"BFP_NPSH_MARGIN_LOW\", f\"{RUN} & ({NR} >= {L['npsh_limit']}) & ({NR} < {L['npsh_alert']})\", \"Medium\", \"strainer_clogging\"),\n        (\"BFP_STRAINER_DP_HIGH\", f\"df['STRAINER_DP_BAR'] > {L['strainer_dp_bar']}\", \"Medium\", \"strainer_clogging\"),\n        (\"BFP_RECIRC_PASSING\", f\"(df['RECIRC_VALVE_PCT'] < {L['recirc_closed_pct']}) & (df['RECIRC_FLOW_M3H'] > {L['recirc_passing_m3h']})\", \"Medium\", \"recirc_valve_passing\"),\n        (\"BFP_FLOW_MISMATCH\", f\"{RUN} & {OKF} & (np.abs({FM} - 1) > {L['flow_mismatch']})\", \"Medium\", \"flow_meter_drift\"),\n        (\"BFP_THRUST_TEMP_HIGH\", f\"{p['THX']} > {L['thrust_excess_k']}\", \"Medium\", \"balance_drum_wear\"),\n        (\"BFP_JOURNAL_TEMP_HIGH\", f\"{p['JX']} > {L['journal_excess_k']}\", \"Medium\", \"bearing_degradation\"),\n        (\"BFP_VIBRATION_HIGH\", f\"({V} >= {L['vib_alert_mm_s']}) & ({V} < {L['vib_limit_mm_s']})\", \"Medium\", \"npsh_loss\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    run = r[\"running\"] > 0.5\n    q, minf = r[\"suction_flow_m3h\"], t[\"min_flow_m3h\"]\n    okf = q >= minf\n    hr, er, lr, nr, fm = t[\"head_ratio\"], t[\"eff_ratio\"], t[\"leakoff_ratio\"], t[\"npsh_ratio\"], t[\"flow_meter_ratio\"]\n    v = r[\"vibration_mm_s\"]\n    add(run and q < minf, \"BFP_MIN_FLOW_LOW\", \"High\",\n        f\"Flow through the pump {q:.0f} m\u00b3/h, below the {minf:.0f} m\u00b3/h minimum at {r['speed_rpm']:.0f} rpm; minimum-flow valve at {r['recirc_valve_pct']:.0f} %\",\n        \"recirculation valve\", \"minflow_valve_stuck\")\n    add(run and nr < L[\"npsh_limit\"], \"BFP_NPSH_MARGIN_LIMIT\", \"High\",\n        f\"NPSH available {t['npsh_available_m']:.1f} m is only {nr:.2f} \u00d7 NPSH3 ({t['npsh3_m']:.1f} m): cavitation risk\", \"suction\", \"npsh_loss\")\n    add(run and lr >= L[\"leakoff_limit\"], \"BFP_LEAKOFF_LIMIT\", \"High\",\n        f\"Balance leak-off {r['leakoff_flow_m3h']:.1f} m\u00b3/h, {lr:.2f} \u00d7 the {t['leakoff_expected_m3h']:.1f} m\u00b3/h expected\", \"balance drum\", \"balance_drum_wear\")\n    add(run and okf and er < L[\"eff_loss\"], \"BFP_EFF_LOSS_HIGH\", \"High\",\n        f\"Thermodynamic efficiency {t['eff_thermo_pct']:.1f} %, {er:.2f} \u00d7 the curve ({t['eff_expected_pct']:.1f} %)\", \"pump\", \"impeller_wear\")\n    add(v >= L[\"vib_limit_mm_s\"], \"BFP_VIBRATION_LIMIT\", \"High\", f\"Bearing housing vibration {v:.1f} mm/s\", \"bearings\", \"bearing_degradation\")\n    add(run and okf and hr < L[\"head_low\"], \"BFP_HEAD_LOW\", \"Medium\",\n        f\"Pump head {t['head_measured_m']:.0f} m, {hr * 100:.1f} % of the curve at {q:.0f} m\u00b3/h and {r['speed_rpm']:.0f} rpm\", \"pump\", \"impeller_wear\")\n    add(run and okf and L[\"eff_loss\"] <= er < L[\"eff_low\"], \"BFP_EFF_LOW\", \"Medium\",\n        f\"Thermodynamic efficiency {t['eff_thermo_pct']:.1f} %, {er:.2f} \u00d7 the curve ({t['eff_expected_pct']:.1f} %)\", \"pump\", \"impeller_wear\")\n    add(run and L[\"leakoff_alert\"] <= lr < L[\"leakoff_limit\"], \"BFP_LEAKOFF_HIGH\", \"Medium\",\n        f\"Balance leak-off {r['leakoff_flow_m3h']:.1f} m\u00b3/h, {lr:.2f} \u00d7 expected\", \"balance drum\", \"balance_drum_wear\")\n    add(run and L[\"npsh_limit\"] <= nr < L[\"npsh_alert\"], \"BFP_NPSH_MARGIN_LOW\", \"Medium\",\n        f\"NPSH margin ratio {nr:.2f} (available {t['npsh_available_m']:.1f} m, NPSH3 {t['npsh3_m']:.1f} m)\", \"suction\", \"strainer_clogging\")\n    add(r[\"strainer_dp_bar\"] > L[\"strainer_dp_bar\"], \"BFP_STRAINER_DP_HIGH\", \"Medium\",\n        f\"Suction strainer differential pressure {r['strainer_dp_bar']:.2f} bar\", \"suction\", \"strainer_clogging\")\n    add(r[\"recirc_valve_pct\"] < L[\"recirc_closed_pct\"] and r[\"recirc_flow_m3h\"] > L[\"recirc_passing_m3h\"], \"BFP_RECIRC_PASSING\", \"Medium\",\n        f\"{r['recirc_flow_m3h']:.0f} m\u00b3/h back to the deaerator with the minimum-flow valve shut\", \"recirculation valve\", \"recirc_valve_passing\")\n    add(run and okf and abs(fm - 1) > L[\"flow_mismatch\"], \"BFP_FLOW_MISMATCH\", \"Medium\",\n        f\"Flow meter {q:.0f} m\u00b3/h against {t['flow_thermo_m3h']:.0f} m\u00b3/h from shaft power and efficiency ({fm:.2f} \u00d7)\", \"instrument\", \"flow_meter_drift\")\n    add(t[\"thrust_excess_k\"] > L[\"thrust_excess_k\"], \"BFP_THRUST_TEMP_HIGH\", \"Medium\",\n        f\"Thrust bearing {r['thrust_bearing_c']:.1f} \u00b0C, {t['thrust_excess_k']:.1f} K above its normal rise\", \"bearings\", \"balance_drum_wear\")\n    add(t[\"journal_excess_k\"] > L[\"journal_excess_k\"], \"BFP_JOURNAL_TEMP_HIGH\", \"Medium\",\n        f\"Journal bearing {max(r['bearing_de_c'], r['bearing_nde_c']):.1f} \u00b0C, {t['journal_excess_k']:.1f} K above its normal rise\", \"bearings\", \"bearing_degradation\")\n    add(L[\"vib_alert_mm_s\"] <= v < L[\"vib_limit_mm_s\"], \"BFP_VIBRATION_HIGH\", \"Medium\", f\"Bearing housing vibration {v:.1f} mm/s\", \"bearings\", \"npsh_loss\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "BFP-3301 boiler feed pump twin. Expected values in Maximo Monitor from the pump curves, the affinity laws, the ISO 5198 thermodynamic method and the plant design; the device sends only what it measures.", "twin": {"id": "BFP-3301", "name": "Boiler feed pump BFP-3301", "version": "1.0.0", "folder": "bfp-twin"}, "identification": {"asset": "BFP-3301", "assetnum": "BFP-3301", "manufacturer": "KSB", "model": "CHTR barrel pull-out pump (API 610 type BB5), size and stages as an assumed selection", "description": "Boiler feed pump A (2 x 50 %) of a steam power unit, VSD motor drive, balance drum leak-off and minimum-flow valve", "pump": "KSB CHTR, multistage barrel type, double-suction first stage, balance drum, 6 stages (assumed selection)", "drive": "Medium-voltage induction motor on a variable speed drive, step-up gearbox to pump speed", "minflow": "Automatic recirculation (minimum-flow) control valve on the discharge, back to the deaerator", "balance": "Balance drum leak-off line back to the deaerator with its own flow meter", "bearings": "Two journal bearings and a tilting-pad thrust bearing, forced-oil lubrication"}, "design": {"pump": {"rated_rpm": 5300.0, "q_bep_m3h": 520.0, "h_bep_m": 2050.0, "h_shutoff_m": 2520.0, "eff_bep": 0.81, "stages": 6, "q_min_frac": 0.35, "npsh3_bep_m": 14.0, "npsh3_shape": [0.5, 0.5], "source": "KSB CHTR barrel pull-out pump: leaflet 2701.022/01-EN (11.25) and product page https://www.ksb.com/en-ro/lc/C38A (API 610 / ISO 13709 type BB5, balance drum, flow <= 1450 m3/h, head <= 4000 m, <= 400 bar, 7000 rpm). The duty point inside that envelope is an assumption: typical value, replace with the certified test curve of your pump: BEP 520 m3/h and 2,050 m at 5,300 rpm, 81 % efficiency, shut-off head 2,520 m (1.23 x BEP head), head curve H = H0 + h2 Q^2 through those two points, efficiency curve eta_BEP x (2x - x^2) with x = Q / Q_BEP, NPSH3 = 14 m x (0.5 + 0.5 x^2) at BEP speed (double-suction first stage), minimum continuous flow 35 % of the BEP flow at the same speed."}, "balance": {"leakoff_m3h": 15.0, "dp_ref_bar": 183.0, "source": "assumption: typical value, replace with the pump vendor's balance drum leak-off figure at the rated differential pressure (here about 3 % of the BEP flow). Leak-off through the drum clearance grows with the square root of the pressure across it."}, "drive": {"eff_motor_gear": 0.955, "rated_kw": 4000.0, "source": "assumption: typical value, replace with the motor and gearbox data sheets (motor 97 % x gearbox 98.5 %), measured as VSD output power."}, "water": {"t_ref_c": 160.0, "rho_ref": 913.0, "rho_slope": -0.98, "a_ref": 0.0005973, "a_slope": -3.28e-06, "cp_ref": 4303.7, "cp_slope": 2.74, "antoine": [8.14019, 1810.94, 244.485], "source": "ISO 5198:1987, clause 11 and tables 15 (isothermal factor a), 16 (density) and 17 (cp), column 100 bar: rho 913.0 kg/m3 at 160 degC (903.2 at 170), a 0.6286 / 0.5973 / 0.5630 x 1e-3 m3/kg at 150 / 160 / 170 degC, cp 4277.8 / 4303.7 / 4332.6 J/(kg K): straight lines through them. Vapour pressure: Antoine equation for water, 99 to 374 degC, log10(p mmHg) = 8.14019 - 1810.94 / (244.485 + T degC)."}, "suction": {"deaerator_elev_m": 25.0, "level_normal_m": 1.5, "da_pressure_bar": 5.12, "pipe_loss_bep_m": 1.2, "strainer_dp_clean_bar": 0.04, "source": "assumption: typical value, replace with the plant layout (deaerator storage tank floor 25 m above the pump suction), the deaerator normal level and operating pressure (5.12 bar g, saturated at 160 degC), the suction pipe loss at the BEP flow and the clean strainer pressure drop."}, "system": {"h_static_m": 1760.0, "h_at_rated_m": 2000.0, "q_rated_m3h": 500.0, "unit_mw": 300.0, "load_flow_m3h": 425.0, "source": "assumption: typical value, replace with the feedwater system: head the pump must give to put the rated 500 m3/h per pump into the boiler drum (static part: drum pressure and elevation), a 300 MW unit, this pump carrying half the feed."}, "bearings": {"oil_c": 45.0, "thrust_rise_k": 30.0, "journal_rise_k": 22.0, "vib_base_mm_s": 2.0, "source": "assumption: typical value, replace with the commissioning values of your pump: bearing temperature rise above the oil supply at rated speed (scaled with speed squared) and the bearing housing vibration."}, "demo": {"time_scale": 1, "note": "Demo only: the plant runs in real time; faults ramp in over a minute or so."}}, "telemetry": {"event": "bfp", "publish_every_s": 10, "device_type": "BOILER_FEED_PUMP", "groups": {"Pump": "Pump flows, pressures and temperatures", "Drive": "VSD and motor", "Deaerator": "Deaerator (suction source)", "Bearings": "Bearings and vibration", "Unit": "Unit"}, "points": [{"metric": "running", "path": "Drive.Running", "label": "Pump running (1 = yes)", "unit": "code"}, {"metric": "speed_rpm", "path": "Drive.PumpSpeed", "label": "Pump shaft speed", "unit": "rpm"}, {"metric": "motor_kw", "path": "Drive.Power", "label": "VSD output power to the motor", "unit": "kW"}, {"metric": "suction_flow_m3h", "path": "Pump.SuctionFlow", "label": "Flow into the pump (suction flow meter)", "unit": "m\u00b3/h"}, {"metric": "suction_pressure_bar", "path": "Pump.SuctionPressure", "label": "Suction pressure", "unit": "bar g"}, {"metric": "discharge_pressure_bar", "path": "Pump.DischargePressure", "label": "Discharge pressure", "unit": "bar g"}, {"metric": "suction_temp_c", "path": "Pump.SuctionTemperature", "label": "Suction temperature (precision RTD)", "unit": "\u00b0C"}, {"metric": "discharge_temp_c", "path": "Pump.DischargeTemperature", "label": "Discharge temperature (precision RTD)", "unit": "\u00b0C"}, {"metric": "leakoff_flow_m3h", "path": "Pump.BalanceLeakoff", "label": "Balance drum leak-off flow", "unit": "m\u00b3/h"}, {"metric": "recirc_valve_pct", "path": "Pump.RecircValve", "label": "Minimum-flow valve position (0 = closed)", "unit": "%"}, {"metric": "recirc_flow_m3h", "path": "Pump.RecircFlow", "label": "Recirculation flow back to the deaerator", "unit": "m\u00b3/h"}, {"metric": "strainer_dp_bar", "path": "Pump.StrainerDP", "label": "Suction strainer differential pressure", "unit": "bar"}, {"metric": "da_pressure_bar", "path": "Deaerator.Pressure", "label": "Deaerator pressure", "unit": "bar g"}, {"metric": "da_level_m", "path": "Deaerator.Level", "label": "Deaerator storage tank level", "unit": "m"}, {"metric": "bearing_de_c", "path": "Bearings.DriveEnd", "label": "Drive-end journal bearing temperature", "unit": "\u00b0C"}, {"metric": "bearing_nde_c", "path": "Bearings.NonDriveEnd", "label": "Non-drive-end journal bearing temperature", "unit": "\u00b0C"}, {"metric": "thrust_bearing_c", "path": "Bearings.Thrust", "label": "Thrust bearing pad temperature (active side)", "unit": "\u00b0C"}, {"metric": "lube_oil_c", "path": "Bearings.OilSupply", "label": "Lube oil supply temperature", "unit": "\u00b0C"}, {"metric": "vibration_mm_s", "path": "Bearings.Vibration", "label": "Bearing housing vibration, highest (RMS velocity)", "unit": "mm/s"}, {"metric": "unit_load_mw", "path": "Unit.Load", "label": "Unit electrical load", "unit": "MW"}]}, "twin_model": {"limits": {"head_low": 0.95, "eff_low": 0.95, "eff_loss": 0.9, "leakoff_alert": 1.5, "leakoff_limit": 2.0, "npsh_alert": 1.5, "npsh_limit": 1.2, "strainer_dp_bar": 0.5, "flow_mismatch": 0.08, "recirc_closed_pct": 2.0, "recirc_passing_m3h": 20.0, "thrust_excess_k": 10.0, "journal_excess_k": 10.0, "vib_alert_mm_s": 4.5, "vib_limit_mm_s": 7.1, "source": "assumption: typical value, replace with your own operating practice and the vendor's limits. Head and efficiency 5 % / 10 % below the curve, leak-off 1.5 x / 2 x the expected value, NPSH margin ratio 1.5 / 1.2, strainer 0.5 bar, flow meter and thermodynamic flow 8 % apart, bearing 10 K above the commissioning rise, vibration 4.5 / 7.1 mm/s (check the ISO 10816-7 zone limits for your pump category and power)."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "impeller_wear": {"name": "Impeller and wear-ring wear (internal recirculation)", "part": "pump", "symptoms": "head and thermodynamic efficiency down at the same flow and speed, VSD speed up to keep the feed flow", "rules": ["BFP_HEAD_LOW", "BFP_EFF_LOW", "BFP_EFF_LOSS_HIGH"], "default_ramp_min": 1.5}, "balance_drum_wear": {"name": "Balance drum clearance wear", "part": "balance drum", "symptoms": "leak-off flow up against the expected value, thrust bearing hotter, efficiency slightly down", "rules": ["BFP_LEAKOFF_HIGH", "BFP_LEAKOFF_LIMIT", "BFP_THRUST_TEMP_HIGH"], "default_ramp_min": 1.5}, "minflow_valve_stuck": {"name": "Minimum-flow valve fails to open at low load", "part": "recirculation valve", "symptoms": "unit load falls, valve stays shut, flow through the pump below its minimum (demo lowers the load)", "rules": ["BFP_MIN_FLOW_LOW"], "default_ramp_min": 1}, "recirc_valve_passing": {"name": "Minimum-flow valve passing (seat leak)", "part": "recirculation valve", "symptoms": "recirculation flow with the valve shut, more speed and power for the same feed", "rules": ["BFP_RECIRC_PASSING"], "default_ramp_min": 1}, "npsh_loss": {"name": "NPSH loss: deaerator pressure decay and low level (cavitation)", "part": "suction", "symptoms": "deaerator pressure falls faster than the suction water cools, level low, NPSH margin gone, vibration up", "rules": ["BFP_NPSH_MARGIN_LOW", "BFP_NPSH_MARGIN_LIMIT", "BFP_VIBRATION_HIGH"], "default_ramp_min": 1}, "strainer_clogging": {"name": "Suction strainer clogging", "part": "suction", "symptoms": "strainer differential pressure up, suction pressure and NPSH margin down", "rules": ["BFP_STRAINER_DP_HIGH", "BFP_NPSH_MARGIN_LOW"], "default_ramp_min": 1.5}, "bearing_degradation": {"name": "Journal bearing degradation", "part": "bearings", "symptoms": "journal bearing temperature above its normal rise, vibration up", "rules": ["BFP_JOURNAL_TEMP_HIGH", "BFP_VIBRATION_HIGH", "BFP_VIBRATION_LIMIT"], "default_ramp_min": 1.5}, "flow_meter_drift": {"name": "Suction flow transmitter drift", "part": "instrument", "symptoms": "metered flow disagrees with the flow from shaft power and thermodynamic efficiency", "rules": ["BFP_FLOW_MISMATCH"], "default_ramp_min": 1}}, "presentation": {"title": "BFP-3301 boiler feed pump", "dashboard": "BOILER_FEED_PUMP"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const sgn = (v, d = 1) => (v >= 0 ? '+' : '') + fmt(v, d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(7.5, 8.5, 15); ctl.target.set(0.2, 3.0, -0.6); ctl.update(); };
+const pumpView = () => { cam.position.set(3.4, 2.4, 4.2); ctl.target.set(1.8, 1.0, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 9, 6); scene.add(sun);
+scene.add(new THREE.GridHelper(20, 40, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), blueM = M(0x1f4e8c, { m: .4 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const hcyl = (r, len, m, x, y, z, s = 32) => { const c = cyl(r, r, len, m, s); c.rotation.z = Math.PI / 2; return at(c, x, y, z); };
+const pipeMat = M(0x8c97a3, { m: .5 });
+const tube = (pts, r = .07, m = pipeMat) => { const c = new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), false, 'catmullrom', 0.05); scene.add(new THREE.Mesh(new THREE.TubeGeometry(c, 80, r, 12, false), m)); return c; };
+
+// baseplate; shaft line at y = 1.0 (x: motor -5.4..-2.6, gearbox -2.1..-1.1, pump barrel 0.3..3.3)
+scene.add(at(box(10.2, .25, 1.8, M(0x4a5059, { m: .3 })), -.9, .125, 0));
+const Y = 1.0;
+// motor with cooling fins and terminal box
+const motorMat = M(0x2f6db5, { m: .35 });
+scene.add(hcyl(.62, 2.8, motorMat, -4.0, Y, 0, 40));
+for (let i = 0; i < 14; i++) scene.add(hcyl(.66, .05, dark, -5.25 + i * .19, Y, 0, 40));
+scene.add(at(box(2.4, .35, 1.2, motorMat), -4.0, .45, 0));
+scene.add(at(box(.5, .4, .5, dark), -4.0, Y + .8, 0));
+// step-up gearbox and couplings
+scene.add(at(box(1.0, 1.0, 1.0, M(0x6f7a85, { m: .4 })), -1.6, Y - .05, 0));
+scene.add(hcyl(.08, .5, steel, -2.35, Y, 0)); scene.add(hcyl(.07, .6, steel, -.75, Y, 0));
+// pump barrel with heavy end covers and cover studs
+const barrelMat = M(0x1f4e8c, { m: .45, t: 1 });
+scene.add(hcyl(.55, 3.0, barrelMat, 1.8, Y, 0, 48));
+const coverMat = M(0x27558f, { m: .5 });
+[.3, 3.3].forEach(x => scene.add(hcyl(.72, .22, coverMat, x, Y, 0, 48)));
+for (let i = 0; i < 16; i++) { const a = i / 16 * Math.PI * 2; scene.add(hcyl(.04, .36, steel, 3.45, Y + Math.cos(a) * .63, Math.sin(a) * .63, 10)); }
+// bearing housings (journal both ends, thrust bearing outboard at the non-drive end)
+[-.25, 3.95].forEach(x => { scene.add(at(box(.35, .5, .45, dark), x, Y, 0)); scene.add(at(box(.35, .5, .45, dark), x, .55, 0)); });
+scene.add(hcyl(.2, .3, dark, 4.25, Y, 0));
+[.6, 3.0].forEach(x => scene.add(at(box(.3, .55, 1.3, dark), x, .5, 0)));
+// nozzles: suction (drive end, top), discharge (non-drive end, top)
+scene.add(at(cyl(.2, .2, .7, blueM), .9, Y + .85, 0)); scene.add(at(cyl(.3, .3, .1, steel), .9, Y + 1.2, 0));
+scene.add(at(cyl(.17, .17, .7, blueM), 2.7, Y + .85, 0)); scene.add(at(cyl(.27, .27, .1, steel), 2.7, Y + 1.2, 0));
+// internals (cutaway): shaft, double-suction first stage, five more stages with diffusers, balance drum
+const intG = new THREE.Group(); scene.add(intG); intG.visible = false;
+const shaft = hcyl(.06, 4.6, steel, 1.9, Y, 0); intG.add(shaft);
+const impMat = M(0xd9a441, { m: .7, r: .25 });
+const impellers = [];
+const ds = hcyl(.36, .22, impMat, .95, Y, 0); intG.add(ds); impellers.push(ds);
+for (let i = 0; i < 5; i++) { const im = hcyl(.38, .09, impMat, 1.35 + i * .3, Y, 0); intG.add(im); impellers.push(im); intG.add(hcyl(.45, .03, M(0x9c6b12), 1.5 + i * .3, Y, 0)); }
+const drumMat = M(0xc0392b, { m: .4 });
+intG.add(hcyl(.2, .45, drumMat, 3.0, Y, 0));
+// deaerator storage tank on its structure (drawn low)
+const DA = 6.2;
+const daMat = M(0x7d8794, { m: .5, t: 1 });
+scene.add(hcyl(.9, 5.0, daMat, -1.0, DA, -2.2, 40));
+[-3.5, 1.5].forEach(x => { const c = new THREE.Mesh(new THREE.SphereGeometry(.9, 24, 16, 0, Math.PI), daMat); c.rotation.y = x < 0 ? Math.PI / 2 : -Math.PI / 2; scene.add(at(c, x, DA, -2.2)); });
+scene.add(at(cyl(.45, .45, 1.4, daMat), -1.0, DA + 1.4, -2.2));
+[-3, 1].forEach(x => scene.add(at(box(.2, DA - .9, .2, dark), x, (DA - .9) / 2, -2.2)));
+const water = hcyl(.88, 4.9, M(0x4589ff, { m: .1, t: .55 }), -1.0, DA - .3, -2.2, 40); water.scale.set(1, .6, .6); scene.add(water);
+const cutTxt = (() => { const c = document.createElement('canvas'); c.width = 512; c.height = 64; const g = c.getContext('2d'); g.fillStyle = '#c6c6c6'; g.font = '28px Arial'; g.fillText('deaerator: really 25 m higher', 10, 42); const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), transparent: true })); s.scale.set(3.2, .4, 1); return s; })();
+scene.add(at(cutTxt, -1.0, DA + 2.4, -2.2));
+// pipes: suction (tank -> strainer -> suction nozzle), discharge to the HP heaters, recirculation and leak-off back to the tank
+const sucC = tube([[.9, DA - .9, -2.2], [.9, 4.0, -1.6], [.9, 3.0, -.4], [.9, Y + 1.25, 0]], .12);
+scene.add(at(box(.4, .5, .4, M(0x6f7a85)), .9, 3.4, -.9));
+const disC = tube([[2.7, Y + 1.25, 0], [2.7, 3.0, 0], [2.7, 4.2, .6], [5.5, 4.2, .6]], .1);
+const recC = tube([[2.7, 3.6, .3], [4.3, 3.6, -.6], [4.3, 5.5, -1.6], [1.5, DA, -2.2]], .05);
+const rvMat = M(0xd8a31a, { m: .3 });
+scene.add(at(box(.32, .32, .32, rvMat), 4.3, 4.4, -1.1));
+const loC = tube([[3.5, Y + .2, -.5], [3.8, 2.0, -1.2], [2.2, 4.6, -2.2], [1.2, DA - .4, -2.2]], .035, M(0xc0392b, { m: .4 }));
+const lamp = new THREE.Mesh(new THREE.SphereGeometry(.09, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(lamp, -4.0, Y + 1.15, 0));
+// water particles along the pipes, vapour bubbles in the suction
+const pm = new THREE.MeshBasicMaterial({ color: 0x78a9ff }), lm = new THREE.MeshBasicMaterial({ color: 0xff8389 }), gm = new THREE.MeshBasicMaterial({ color: 0xffffff });
+const flows = [[sucC, 30, pm, 'q'], [disC, 26, pm, 'q'], [recC, 14, pm, 'rec'], [loC, 12, lm, 'lo']].map(([c, n, m, key]) => ({ c, key, p: Array.from({ length: n }, (_, i) => { const s = new THREE.Mesh(new THREE.SphereGeometry(.035, 6, 4), m); s.userData.u = i / n; scene.add(s); return s; }) }));
+const bubbles = Array.from({ length: 16 }, (_, i) => { const s = new THREE.Mesh(new THREE.SphereGeometry(.05, 8, 6), gm); s.userData.u = i / 16; s.visible = false; scene.add(s); return s; });
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('drive', [-4.0, Y + 1.4, 0]); lbl('suct', [.9, 2.6, -.2]); lbl('disch', [2.7, 3.2, .1]); lbl('pump', [1.8, Y + .6, .5]);
+lbl('drum', [3.6, Y - .3, .6]); lbl('rec', [4.3, 4.75, -1.1]); lbl('da', [-1.0, DA + 1.0, -2.2]); lbl('brg', [4.2, Y + .45, .2]); lbl('npsh', [.9, 3.9, -.9]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let qNow = 440, recNow = 0, loNow = 15, rpmNow = 5000, npshNow = 2.2;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const has = (...n) => n.some(x => names.has(x));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  qNow = r.suction_flow_m3h; recNow = r.recirc_flow_m3h; loNow = r.leakoff_flow_m3h; rpmNow = r.speed_rpm; npshNow = t.npsh_ratio;
+  setLbl('drive', `VSD power · unit load ${fmt(r.unit_load_mw, 0)} MW`, `${fmt(r.speed_rpm, 0)} rpm · ${fmt(r.motor_kw, 0)} kW`, '');
+  setLbl('suct', `suction · strainer ${fmt(r.strainer_dp_bar, 2)} bar`, `${fmt(r.suction_flow_m3h, 0)} m³/h · ${fmt(r.suction_pressure_bar, 2)} bar · ${fmt(r.suction_temp_c, 2)} °C`,
+    st(has('BFP_MIN_FLOW_LOW', 'BFP_FLOW_MISMATCH'), has('BFP_STRAINER_DP_HIGH')));
+  setLbl('disch', 'discharge · temperature rise', `${fmt(r.discharge_pressure_bar, 1)} bar · ${fmt(r.discharge_temp_c, 2)} °C (+${fmt(t.temp_rise_k, 2)} K)`, '');
+  setLbl('pump', `head ${fmt(t.head_measured_m, 0)} / ${fmt(t.head_expected_m, 0)} m · flow ÷ BEP ${fmt(t.bep_ratio, 2)}`, `η ${fmt(t.eff_thermo_pct, 1)} % (curve ${fmt(t.eff_expected_pct, 1)} %)`,
+    st(has('BFP_EFF_LOSS_HIGH'), has('BFP_EFF_LOW', 'BFP_HEAD_LOW')));
+  setLbl('drum', `balance leak-off · expected ${fmt(t.leakoff_expected_m3h, 1)} m³/h`, `${fmt(r.leakoff_flow_m3h, 1)} m³/h · ${fmt(t.leakoff_ratio, 2)} ×`,
+    st(has('BFP_LEAKOFF_LIMIT'), has('BFP_LEAKOFF_HIGH')));
+  setLbl('rec', `minimum flow ${fmt(t.min_flow_m3h, 0)} m³/h at this speed`, `valve ${fmt(r.recirc_valve_pct, 0)} % · ${fmt(r.recirc_flow_m3h, 0)} m³/h`,
+    st(has('BFP_MIN_FLOW_LOW'), has('BFP_RECIRC_PASSING')));
+  setLbl('da', 'deaerator pressure · level', `${fmt(r.da_pressure_bar, 2)} bar · ${fmt(r.da_level_m, 2)} m`, st(false, r.da_level_m < 1.0));
+  setLbl('npsh', `NPSH available ${fmt(t.npsh_available_m, 1)} m · NPSH3 ${fmt(t.npsh3_m, 1)} m`, `margin ${fmt(t.npsh_ratio, 2)} ×`,
+    st(has('BFP_NPSH_MARGIN_LIMIT'), has('BFP_NPSH_MARGIN_LOW')));
+  setLbl('brg', `bearings · thrust ${sgn(t.thrust_excess_k)} K · journal ${sgn(t.journal_excess_k)} K`, `${fmt(r.vibration_mm_s, 1)} mm/s · thrust ${fmt(r.thrust_bearing_c, 0)} °C`,
+    st(has('BFP_VIBRATION_LIMIT'), has('BFP_VIBRATION_HIGH', 'BFP_THRUST_TEMP_HIGH', 'BFP_JOURNAL_TEMP_HIGH')));
+  $('k-health').textContent = ST.health; $('k-eff').textContent = fmt(t.eff_thermo_pct, 1); $('k-q').textContent = fmt(r.suction_flow_m3h, 0);
+  const okMin = r.suction_flow_m3h >= t.min_flow_m3h;
+  $('c-flow-t').textContent = okMin ? 'above minimum flow' : 'below minimum flow'; $('c-flow').className = 'chip ' + (okMin ? 'ok' : 'bad');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Pump head (m)', fmt(t.head_measured_m, 0), fmt(t.head_expected_m, 0), t.head_ratio < L.head_low) +
+    row('Efficiency, thermodynamic (%)', fmt(t.eff_thermo_pct, 1), fmt(t.eff_expected_pct, 1), t.eff_ratio < L.eff_low) +
+    row('Temperature rise (K)', fmt(t.temp_rise_k, 3), '–') +
+    row('Flow meter (m³/h)', fmt(r.suction_flow_m3h, 0), fmt(t.flow_thermo_m3h, 0), Math.abs(t.flow_meter_ratio - 1) > L.flow_mismatch) +
+    row('Minimum flow (m³/h)', fmt(r.suction_flow_m3h, 0), '≥ ' + fmt(t.min_flow_m3h, 0), !okMin) +
+    row('Balance leak-off (m³/h)', fmt(r.leakoff_flow_m3h, 1), fmt(t.leakoff_expected_m3h, 1), t.leakoff_ratio >= L.leakoff_alert) +
+    row('Recirculation (m³/h)', fmt(r.recirc_flow_m3h, 0), r.recirc_valve_pct < L.recirc_closed_pct ? '0 (valve shut)' : 'valve ' + fmt(r.recirc_valve_pct, 0) + ' %', r.recirc_valve_pct < L.recirc_closed_pct && r.recirc_flow_m3h > L.recirc_passing_m3h) +
+    row('NPSH available (m)', fmt(t.npsh_available_m, 1), '≥ ' + fmt(t.npsh3_m * L.npsh_alert, 1), t.npsh_ratio < L.npsh_alert) +
+    row('NPSHA from deaerator (m)', fmt(t.npsha_deaerator_m, 1), '–') +
+    row('Strainer ΔP (bar)', fmt(r.strainer_dp_bar, 2), '≤ ' + L.strainer_dp_bar, r.strainer_dp_bar > L.strainer_dp_bar) +
+    row('Thrust bearing excess (K)', fmt(t.thrust_excess_k, 1), '≤ ' + L.thrust_excess_k, t.thrust_excess_k > L.thrust_excess_k) +
+    row('Journal bearing excess (K)', fmt(t.journal_excess_k, 1), '≤ ' + L.journal_excess_k, t.journal_excess_k > L.journal_excess_k) +
+    row('Vibration (mm/s)', fmt(r.vibration_mm_s, 1), '< ' + L.vib_alert_mm_s, r.vibration_mm_s >= L.vib_alert_mm_s) +
+    row('Shaft power (kW)', fmt(t.shaft_power_kw, 0), '–');
+  const order = ['Critical', 'High', 'Medium', 'Low'];
+  const al = (ST.conditions || []).slice().sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the pump behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  lamp.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  lamp.material.emissive.copy(lamp.material.color);
+  drumMat.color.setHex(has('BFP_LEAKOFF_LIMIT') ? 0xff5050 : has('BFP_LEAKOFF_HIGH') ? 0xe0a030 : 0xc0392b);
+  water.scale.y = Math.max(.15, Math.min(1, r.da_level_m / 1.5)) * .6;
+  rvMat.color.setHex(has('BFP_RECIRC_PASSING') ? 0xda1e28 : r.recirc_valve_pct > 1 ? 0x24a148 : 0xd8a31a);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.pump;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-pump').onclick = pumpView;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [barrelMat, daMat].forEach(m => { m.transparent = true; m.opacity = cut ? .18 : 1; m.depthWrite = !cut; });
+  intG.visible = cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.max(0, Math.min(.1, (now - last) / 1000)); last = now;
+  impellers.forEach(im => im.rotation.x += dt * rpmNow / 60 * .5);      // slowed-down rotation, proportional to speed
+  shaft.rotation.x += dt * rpmNow / 60 * .5;
+  const sp = { q: qNow / 440 * .12, rec: recNow / 60 * .15, lo: loNow / 15 * .1 };
+  flows.forEach(F => F.p.forEach(s => { const v = sp[F.key]; s.visible = v > .005; s.userData.u = (((s.userData.u + v * dt) % 1) + 1) % 1; s.position.copy(F.c.getPointAt(s.userData.u)); }));
+  const nb = Math.round(Math.max(0, Math.min(1, (1.5 - npshNow) / .5)) * bubbles.length);
+  bubbles.forEach((b, i) => { b.visible = i < nb; b.userData.u = (b.userData.u + .12 * dt) % 1; b.position.copy(sucC.getPointAt(.55 + b.userData.u * .45)); b.position.x += .06 * Math.sin(i * 7.3); });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

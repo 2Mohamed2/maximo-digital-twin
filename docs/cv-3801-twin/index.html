@@ -1,0 +1,344 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CV-3801 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>CV-3801</b><span class="g">Overland belt conveyor · 2.5 km · ST2000 · 2 × 560 kW</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-pw"><span class="dot"></span><span id="c-pw-t">power –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Power, tensions and trends →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the conveyor model…</div>
+<div class="credit">Head drive with two motors, snub pulley, gravity take-up tower, troughed carrying idlers and the tail with the feed chute. Only a short piece of the 2.5 km route is drawn. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-head">Head drive</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Belt tracking is drawn 5 × exaggerated; the take-up carriage moves with its measured position.</div>
+<aside>
+  <section>
+    <h2>CV-3801 twin</h2>
+    <p class="sub" id="sub">overland belt conveyor</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Power ÷ expected<b id="k-ratio">–</b></div><div>Apparent f<b id="k-f">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The conveyor sends only what it measures. The expected power (ISO 5048), the slack-side tension the drive needs, the elastic take-up travel and the belt safety factor are computed from the twin file.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for CV-3801: route, belt, drive, take-up, idlers and belt scanner, with injectable faults.\n\nThe real conveyor sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages. Pure Python (math, random).\n\nThe \"true\" conveyor follows the same ISO 5048 equation as the twin, with the faults acting on the physical causes:\n  high_resistance        artificial friction coefficient f up by 30 %\n  idler_bearing_failure  one idler heats up (and adds a little drag)\n  lagging_wear           pulley-belt friction mu down by 45 %: the belt slips once T1/T2 > e^(mu phi)\n  takeup_jammed          the carriage sticks: slack-side tension drops, the carriage no longer follows the belt stretch\n  belt_stretch           permanent elongation grows from 0.03 % to 0.13 %\n  splice_failure         one splice grows in length (cords pulling out of the rubber)\n  mistracking            the belt runs off centre at the tail (and adds a little drag)\n  load_share_imbalance   motor 1 takes 75 % of the load\n\"\"\"\nimport math\nimport random\n\n\nclass Conveyor:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.d = d\n        r, b, i, rs, dr, tu = d[\"route\"], d[\"belt\"], d[\"idlers\"], d[\"resistance\"], d[\"drive\"], d[\"takeup\"]\n        self.L, self.H, self.qB, self.qRO, self.qRU = r[\"length_m\"], r[\"lift_m\"], b[\"q_b_kg_m\"], i[\"q_ro_kg_m\"], i[\"q_ru_kg_m\"]\n        self.f, self.g, self.C = rs[\"f\"], rs[\"g\"], (r[\"length_m\"] + rs[\"L0_m\"]) / r[\"length_m\"]\n        self.eta, self.mu, self.phi, self.v0 = dr[\"eta\"], dr[\"mu\"], math.radians(dr[\"wrap_deg\"]), dr[\"speed_ms\"]\n        self.K, self.mcw, self.x0, self.travel = b[\"stiffness_n\"], tu[\"counterweight_t\"], tu[\"x0_m\"], tu[\"travel_m\"]\n        self.demo = d[\"demo\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def true_state(self, tph, amb):\n        f = self.faults\n        v = self.v0\n        qg = tph / (3.6 * v)\n        ftrue = self.f * (1 + 0.30 * f[\"high_resistance\"] + 0.04 * f[\"idler_bearing_failure\"] + 0.04 * f[\"mistracking\"])\n        fu = self.C * ftrue * self.L * self.g * (self.qRO + self.qRU + 2 * self.qB + qg) + qg * self.H * self.g   # N\n        p = fu * v / self.eta / 1000                                                                              # kW\n        share = 0.5 + 0.25 * f[\"load_share_imbalance\"]\n        t2 = self.mcw * self.g / 2 * (1 - 0.55 * f[\"takeup_jammed\"])                                              # kN\n        mu = self.mu * (1 - 0.45 * f[\"lagging_wear\"])\n        ratio = (t2 + fu / 1000) / t2\n        excess = 8.0 * max(0.0, ratio / math.exp(mu * self.phi) - 1)                                              # %\n        creep = fu / self.K * 100\n        el = fu * self.L / (4 * self.K)\n        perm = self.L * (0.0003 + 0.0010 * f[\"belt_stretch\"])\n        x = self.x0 + perm + el * (1 - f[\"takeup_jammed\"])\n        dt = 6.0 + 69.0 * f[\"idler_bearing_failure\"]\n        return {\"tph\": tph, \"amb\": amb, \"v\": v, \"fu\": fu, \"power\": p, \"share\": share, \"t2\": t2, \"slip\": creep + excess,\n                \"x\": min(x, self.travel), \"idler_dt\": dt, \"track_head\": 8.0 + 20 * f[\"mistracking\"],\n                \"track_tail\": 15.0 + 115.0 * f[\"mistracking\"], \"splice\": 2.0 + 24.0 * f[\"splice_failure\"],\n                \"worst\": 7 if f[\"splice_failure\"] > 0.1 else 12}\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, s):\n        n = self.n\n        v = s[\"v\"] * (1 + n(0.0004))\n        vd = v / (1 - s[\"slip\"] / 100) * (1 + n(0.0002))\n        dt = s[\"idler_dt\"] + n(1.5)\n        return {\n            \"tonnage_tph\": round(s[\"tph\"] * (1 + n(0.004)), 1), \"belt_speed_ms\": round(v, 4), \"drive_pulley_speed_ms\": round(vd, 4),\n            \"motor1_power_kw\": round(s[\"power\"] * s[\"share\"] * (1 + n(0.008)), 1),\n            \"motor2_power_kw\": round(s[\"power\"] * (1 - s[\"share\"]) * (1 + n(0.008)), 1),\n            \"takeup_force_kn\": round(2 * s[\"t2\"] * (1 + n(0.005)), 2), \"takeup_position_m\": round(s[\"x\"] + n(0.005), 3),\n            \"tracking_head_mm\": round(s[\"track_head\"] + n(3.0), 1), \"tracking_tail_mm\": round(s[\"track_tail\"] + n(3.0), 1),\n            \"idler_max_temp_c\": round(s[\"amb\"] + dt, 1), \"idler_hot_count\": 1 if dt > 20 else 0,\n            \"ambient_temp_c\": round(s[\"amb\"], 1), \"splice_max_growth_mm\": round(s[\"splice\"] + n(0.3), 1),\n            \"splice_worst_id\": s[\"worst\"], \"cord_damage_count\": 3, \"top_cover_min_mm\": round(7.2 + n(0.05), 2), \"running\": 1,\n        }\n\n    def measure(self, tph=None, amb=None):\n        dm = self.demo\n        tph = self.rnd.uniform(dm[\"tph_min\"], dm[\"tph_max\"]) if tph is None else tph\n        amb = dm[\"ambient_c\"] + self.n(2.0) if amb is None else amb\n        return self.reading(self.true_state(tph, amb))\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The crusher feed wanders between demo.tph_min and demo.tph_max (mean-reverting random walk). The take-up carriage and\n    the idler temperature follow their steady state with a lag. The readings do not depend on the time of day.\n    \"\"\"\n    TAU_X, TAU_T = 15.0, 10.0\n\n    def __init__(self, twin, seed=3801):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.cv = Conveyor(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.tph = self.cv.demo[\"tph_mean\"]\n        self.lag = None\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.cv.faults[k] = f.sev\n        self.t += dt * self.scale\n        dm, r = self.cv.demo, self.cv.rnd\n        self.tph += 0.05 * (dm[\"tph_mean\"] - self.tph) * dt + r.gauss(0, 25.0) * math.sqrt(dt)\n        self.tph = max(dm[\"tph_min\"], min(dm[\"tph_max\"], self.tph))\n        s = self.cv.true_state(self.tph, dm[\"ambient_c\"])\n        if self.lag is None:\n            self.lag = {\"x\": s[\"x\"], \"idler_dt\": s[\"idler_dt\"]}\n        for key, tau in ((\"x\", self.TAU_X), (\"idler_dt\", self.TAU_T)):\n            self.lag[key] += min(1.0, dt / tau) * (s[key] - self.lag[key])\n            s[key] = self.lag[key]\n        return s\n\n    def measure(self, true):\n        return self.cv.reading(true)\n", "twin_calc": "\"\"\"The overland belt conveyor twin's expectations (CV-3801).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nExpected drive power (ISO 5048, the long-conveyor form with coefficient C):\n    q_G   = Q / (3.6 v)                                   load per metre (kg/m) from the belt weigher and the belt speed\n    F_H   = C f L g [q_RO + q_RU + 2 q_B + q_G]          main + secondary resistances, C = (L + L0) / L\n    F_St  = q_G H g                                       lifting the ore\n    F_U   = F_H + F_St                                    peripheral force at the drive pulley\n    P_M   = F_U v / eta                                   expected motor power, compared with motor 1 + motor 2\n  The same equation solved for f with the measured power gives the apparent friction factor: the conveyor's overall\n  running resistance in one number (0.02 for a healthy, well-aligned conveyor).\nDrive pulley (Euler-Eytelwein, ISO 5048 eq. 10):\n    T2_min = F_U / (e^(mu phi) - 1)                      slack-side tension needed so the pulley does not slip\n    T2     = take-up force / 2                            gravity take-up on the slack side just after the drive\n    slip margin = T2 / T2_min\n    slip   = (v_pulley - v_belt) / v_pulley               expected: elastic creep only, F_U / K (K = belt stiffness)\nTake-up and belt length:\n    elastic take-up travel = F_U L / (4 K)               carry side stretched by about F_U / 2 on average, carriage moves half\n    permanent elongation   = (x - x0 - elastic) / L      x = carriage position, x0 = position with the new belt at standstill\nBelt safety factor = rated strength x width / (T2 + F_U).\nLoad sharing: |P1 - P2| / (P1 + P2). Idlers: hottest idler minus ambient.\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    r, b, i, rs, dr, tu = d[\"route\"], d[\"belt\"], d[\"idlers\"], d[\"resistance\"], d[\"drive\"], d[\"takeup\"]\n    L = r[\"length_m\"]\n    return dict(L=L, H=r[\"lift_m\"], qB=b[\"q_b_kg_m\"], qRO=i[\"q_ro_kg_m\"], qRU=i[\"q_ru_kg_m\"], f=rs[\"f\"], g=rs[\"g\"],\n                C=(L + rs[\"L0_m\"]) / L, eta=dr[\"eta\"], mu=dr[\"mu\"], phi=math.radians(dr[\"wrap_deg\"]), K=b[\"stiffness_n\"],\n                kn=b[\"strength_n_per_mm\"] * b[\"width_m\"] * 1000 / 1000, prated=dr[\"motor_rated_kw\"], v0=dr[\"speed_ms\"],\n                mcw=tu[\"counterweight_t\"], travel=tu[\"travel_m\"], x0=tu[\"x0_m\"], rho=d[\"material\"][\"bulk_density_t_m3\"])\n\n\ndef euler(k):\n    \"\"\"e^(mu phi): the largest T1/T2 the drive pulley can hold without slipping.\"\"\"\n    return math.exp(k[\"mu\"] * k[\"phi\"])\n\n\ndef takeup_force_expected_kn(k):\n    return k[\"mcw\"] * k[\"g\"]\n\n\ndef _parts(twin):\n    k = _k(twin)\n    V = \"np.maximum(df['BELT_SPEED_MS'], 0.1)\"\n    QG = f\"(df['TONNAGE_TPH'] / (3.6 * {V}))\"\n    CFLG = k[\"C\"] * k[\"f\"] * k[\"L\"] * k[\"g\"]\n    CLG = k[\"C\"] * k[\"L\"] * k[\"g\"]\n    QS = f\"({k['qRO'] + k['qRU'] + 2 * k['qB']} + {QG})\"\n    FH = f\"({CFLG} * {QS})\"\n    FST = f\"({QG} * {k['H'] * k['g']})\"\n    FUE = f\"(({FH} + {FST}) / 1000)\"\n    PE = f\"({FUE} * {V} / {k['eta']})\"\n    PM = \"(df['MOTOR1_POWER_KW'] + df['MOTOR2_POWER_KW'])\"\n    FUM = f\"({PM} * {k['eta']} / {V})\"\n    SLIP = \"((df['DRIVE_PULLEY_SPEED_MS'] - df['BELT_SPEED_MS']) / np.maximum(df['DRIVE_PULLEY_SPEED_MS'], 0.1) * 100)\"\n    CREEP = f\"({FUM} * {1000 / k['K'] * 100})\"\n    T2 = \"(df['TAKEUP_FORCE_KN'] / 2)\"\n    T2MIN = f\"({FUM} / {euler(k) - 1})\"\n    EL = f\"({FUM} * {1000 * k['L'] / (4 * k['K'])})\"\n    ELONG = f\"((df['TAKEUP_POSITION_M'] - {k['x0']} - {EL}) / {k['L'] / 100})\"\n    return dict(k=k, V=V, QG=QG, QS=QS, FH=FH, FST=FST, FUE=FUE, PE=PE, PM=PM, FUM=FUM, SLIP=SLIP, CREEP=CREEP, T2=T2,\n                T2MIN=T2MIN, EL=EL, ELONG=ELONG, CLG=CLG)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"LOAD_KG_M\", p[\"QG\"]),\n        (\"RESIST_MAIN_KN\", f\"{p['FH']} / 1000\"),\n        (\"RESIST_SLOPE_KN\", f\"{p['FST']} / 1000\"),\n        (\"FU_EXPECTED_KN\", p[\"FUE\"]),\n        (\"POWER_EXPECTED_KW\", p[\"PE\"]),\n        (\"POWER_MEASURED_KW\", p[\"PM\"]),\n        (\"POWER_RESIDUAL_KW\", f\"{p['PM']} - {p['PE']}\"),\n        (\"POWER_RATIO\", f\"{p['PM']} / {p['PE']}\"),\n        (\"FU_MEASURED_KN\", p[\"FUM\"]),\n        (\"FRICTION_APPARENT\", f\"({p['FUM']} * 1000 - {p['FST']}) / ({p['CLG']} * {p['QS']})\"),\n        (\"LOAD_IMBALANCE_PCT\", f\"np.abs(df['MOTOR1_POWER_KW'] - df['MOTOR2_POWER_KW']) / np.maximum({p['PM']}, 1) * 100\"),\n        (\"SLIP_PCT\", p[\"SLIP\"]),\n        (\"CREEP_EXPECTED_PCT\", p[\"CREEP\"]),\n        (\"SLIP_EXCESS_PCT\", f\"{p['SLIP']} - {p['CREEP']}\"),\n        (\"T2_MIN_KN\", p[\"T2MIN\"]),\n        (\"SLIP_MARGIN\", f\"{p['T2']} / np.maximum({p['T2MIN']}, 1)\"),\n        (\"TAKEUP_ELASTIC_M\", p[\"EL\"]),\n        (\"BELT_ELONGATION_PCT\", p[\"ELONG\"]),\n        (\"BELT_SAFETY_FACTOR\", f\"{k['kn']} / ({p['T2']} + {p['FUM']})\"),\n        (\"IDLER_DT_K\", \"df['IDLER_MAX_TEMP_C'] - df['AMBIENT_TEMP_C']\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    v = max(r[\"belt_speed_ms\"], 0.1)\n    qg = r[\"tonnage_tph\"] / (3.6 * v)\n    qs = k[\"qRO\"] + k[\"qRU\"] + 2 * k[\"qB\"] + qg\n    fh = k[\"C\"] * k[\"f\"] * k[\"L\"] * k[\"g\"] * qs\n    fst = qg * k[\"H\"] * k[\"g\"]\n    fue = (fh + fst) / 1000\n    pe = fue * v / k[\"eta\"]\n    pm = r[\"motor1_power_kw\"] + r[\"motor2_power_kw\"]\n    fum = pm * k[\"eta\"] / v\n    slip = (r[\"drive_pulley_speed_ms\"] - r[\"belt_speed_ms\"]) / max(r[\"drive_pulley_speed_ms\"], 0.1) * 100\n    creep = fum * 1000 / k[\"K\"] * 100\n    t2 = r[\"takeup_force_kn\"] / 2\n    t2min = fum / (euler(k) - 1)\n    el = fum * 1000 * k[\"L\"] / (4 * k[\"K\"])\n    return {\n        \"load_kg_m\": qg, \"resist_main_kn\": fh / 1000, \"resist_slope_kn\": fst / 1000, \"fu_expected_kn\": fue,\n        \"power_expected_kw\": pe, \"power_measured_kw\": pm, \"power_residual_kw\": pm - pe, \"power_ratio\": pm / pe,\n        \"fu_measured_kn\": fum, \"friction_apparent\": (fum * 1000 - fst) / (k[\"C\"] * k[\"L\"] * k[\"g\"] * qs),\n        \"load_imbalance_pct\": abs(r[\"motor1_power_kw\"] - r[\"motor2_power_kw\"]) / max(pm, 1) * 100,\n        \"slip_pct\": slip, \"creep_expected_pct\": creep, \"slip_excess_pct\": slip - creep, \"t2_min_kn\": t2min,\n        \"slip_margin\": t2 / max(t2min, 1), \"takeup_elastic_m\": el,\n        \"belt_elongation_pct\": (r[\"takeup_position_m\"] - k[\"x0\"] - el) / (k[\"L\"] / 100),\n        \"belt_safety_factor\": k[\"kn\"] / (t2 + fum), \"idler_dt_k\": r[\"idler_max_temp_c\"] - r[\"ambient_temp_c\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    DT = \"(df['IDLER_MAX_TEMP_C'] - df['AMBIENT_TEMP_C'])\"\n    SG = \"df['SPLICE_MAX_GROWTH_MM']\"\n    TR = \"np.maximum(np.abs(df['TRACKING_HEAD_MM']), np.abs(df['TRACKING_TAIL_MM']))\"\n    return [\n        (\"CV_SPLICE_CRITICAL\", f\"{SG} > {L['splice_growth_limit_mm']}\", \"Critical\", \"splice_failure\"),\n        (\"CV_MOTOR_OVERLOAD\", f\"np.maximum(df['MOTOR1_POWER_KW'], df['MOTOR2_POWER_KW']) > {k['prated']}\", \"High\", \"load_share_imbalance\"),\n        (\"CV_SLIP\", f\"({p['SLIP']} - {p['CREEP']}) > {L['slip_excess_pct']}\", \"High\", \"lagging_wear\"),\n        (\"CV_SLIP_MARGIN_LOW\", f\"({p['T2']} / np.maximum({p['T2MIN']}, 1)) < {L['slip_margin_alert']}\", \"High\", \"takeup_jammed\"),\n        (\"CV_IDLER_CRITICAL\", f\"{DT} > {L['idler_dt_critical_k']}\", \"High\", \"idler_bearing_failure\"),\n        (\"CV_MISTRACKING_SEVERE\", f\"{TR} > {L['tracking_limit_mm']}\", \"High\", \"mistracking\"),\n        (\"CV_POWER_HIGH\", f\"({p['PM']} / {p['PE']}) > {L['power_ratio_alert']}\", \"Medium\", \"high_resistance\"),\n        (\"CV_LOAD_SHARE\", f\"(np.abs(df['MOTOR1_POWER_KW'] - df['MOTOR2_POWER_KW']) / np.maximum({p['PM']}, 1) * 100) > {L['load_imbalance_pct']}\", \"Medium\", \"load_share_imbalance\"),\n        (\"CV_TAKEUP_TENSION_LOW\", f\"df['TAKEUP_FORCE_KN'] < {L['takeup_tension_ratio'] * takeup_force_expected_kn(k)}\", \"Medium\", \"takeup_jammed\"),\n        (\"CV_TAKEUP_TRAVEL_END\", f\"df['TAKEUP_POSITION_M'] > {L['takeup_travel_ratio'] * k['travel']}\", \"Medium\", \"belt_stretch\"),\n        (\"CV_BELT_STRETCH\", f\"{p['ELONG']} > {L['elongation_alert_pct']}\", \"Medium\", \"belt_stretch\"),\n        (\"CV_IDLER_HOT\", f\"({DT} > {L['idler_dt_alert_k']}) & ({DT} <= {L['idler_dt_critical_k']})\", \"Medium\", \"idler_bearing_failure\"),\n        (\"CV_SPLICE_GROWTH\", f\"({SG} > {L['splice_growth_alert_mm']}) & ({SG} <= {L['splice_growth_limit_mm']})\", \"Medium\", \"splice_failure\"),\n        (\"CV_MISTRACKING\", f\"({TR} > {L['tracking_alert_mm']}) & ({TR} <= {L['tracking_limit_mm']})\", \"Medium\", \"mistracking\"),\n        (\"CV_COVER_WORN\", f\"df['TOP_COVER_MIN_MM'] < {L['cover_min_mm']}\", \"Medium\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    dt, sg = t[\"idler_dt_k\"], r[\"splice_max_growth_mm\"]\n    tr = max(abs(r[\"tracking_head_mm\"]), abs(r[\"tracking_tail_mm\"]))\n    pmax = max(r[\"motor1_power_kw\"], r[\"motor2_power_kw\"])\n    tfe = takeup_force_expected_kn(k)\n    add(sg > L[\"splice_growth_limit_mm\"], \"CV_SPLICE_CRITICAL\", \"Critical\",\n        f\"Splice {r['splice_worst_id']:.0f} is {sg:.1f} mm longer than at installation: stop and inspect before it pulls apart\", \"belt\", \"splice_failure\")\n    add(pmax > k[\"prated\"], \"CV_MOTOR_OVERLOAD\", \"High\", f\"A motor draws {pmax:.0f} kW, above its {k['prated']:.0f} kW rating\", \"drive\", \"load_share_imbalance\")\n    add(t[\"slip_excess_pct\"] > L[\"slip_excess_pct\"], \"CV_SLIP\", \"High\",\n        f\"Belt slips {t['slip_excess_pct']:.2f} % on the drive pulley beyond elastic creep\", \"drive\", \"lagging_wear\")\n    add(t[\"slip_margin\"] < L[\"slip_margin_alert\"], \"CV_SLIP_MARGIN_LOW\", \"High\",\n        f\"Slack-side tension {r['takeup_force_kn'] / 2:.0f} kN is {t['slip_margin']:.2f} x the {t['t2_min_kn']:.0f} kN the drive needs\", \"takeup\", \"takeup_jammed\")\n    add(dt > L[\"idler_dt_critical_k\"], \"CV_IDLER_CRITICAL\", \"High\", f\"An idler is {dt:.0f} K above ambient: seized bearing, fire risk\", \"idlers\", \"idler_bearing_failure\")\n    add(tr > L[\"tracking_limit_mm\"], \"CV_MISTRACKING_SEVERE\", \"High\", f\"Belt {tr:.0f} mm off centre: edge damage and spillage\", \"belt\", \"mistracking\")\n    add(t[\"power_ratio\"] > L[\"power_ratio_alert\"], \"CV_POWER_HIGH\", \"Medium\",\n        f\"Drive power {t['power_measured_kw']:.0f} kW is {t['power_ratio']:.2f} x the ISO 5048 expectation (apparent f {t['friction_apparent']:.4f})\", \"route\", \"high_resistance\")\n    add(t[\"load_imbalance_pct\"] > L[\"load_imbalance_pct\"], \"CV_LOAD_SHARE\", \"Medium\",\n        f\"Motors share the load {r['motor1_power_kw']:.0f} / {r['motor2_power_kw']:.0f} kW ({t['load_imbalance_pct']:.0f} % imbalance)\", \"drive\", \"load_share_imbalance\")\n    add(r[\"takeup_force_kn\"] < L[\"takeup_tension_ratio\"] * tfe, \"CV_TAKEUP_TENSION_LOW\", \"Medium\",\n        f\"Take-up force {r['takeup_force_kn']:.0f} kN, expected {tfe:.0f} kN from the counterweight\", \"takeup\", \"takeup_jammed\")\n    add(r[\"takeup_position_m\"] > L[\"takeup_travel_ratio\"] * k[\"travel\"], \"CV_TAKEUP_TRAVEL_END\", \"Medium\",\n        f\"Take-up carriage at {r['takeup_position_m']:.2f} m of {k['travel']:.1f} m travel\", \"takeup\", \"belt_stretch\")\n    add(t[\"belt_elongation_pct\"] > L[\"elongation_alert_pct\"], \"CV_BELT_STRETCH\", \"Medium\",\n        f\"Belt permanently {t['belt_elongation_pct']:.3f} % longer than when new\", \"belt\", \"belt_stretch\")\n    add(L[\"idler_dt_alert_k\"] < dt <= L[\"idler_dt_critical_k\"], \"CV_IDLER_HOT\", \"Medium\", f\"An idler is {dt:.0f} K above ambient\", \"idlers\", \"idler_bearing_failure\")\n    add(L[\"splice_growth_alert_mm\"] < sg <= L[\"splice_growth_limit_mm\"], \"CV_SPLICE_GROWTH\", \"Medium\",\n        f\"Splice {r['splice_worst_id']:.0f} has grown {sg:.1f} mm\", \"belt\", \"splice_failure\")\n    add(L[\"tracking_alert_mm\"] < tr <= L[\"tracking_limit_mm\"], \"CV_MISTRACKING\", \"Medium\", f\"Belt {tr:.0f} mm off centre\", \"belt\", \"mistracking\")\n    add(r[\"top_cover_min_mm\"] < L[\"cover_min_mm\"], \"CV_COVER_WORN\", \"Medium\", f\"Top cover down to {r['top_cover_min_mm']:.1f} mm\", \"belt\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "CV-3801 overland belt conveyor twin. Expected drive power, tensions, slip and take-up position are computed in Maximo Monitor from the design data (ISO 5048 method); the device sends only what it measures.", "twin": {"id": "CV-3801", "name": "Overland belt conveyor CV-3801", "version": "1.0.0", "folder": "conveyor-twin"}, "identification": {"asset": "CV-3801", "assetnum": "CV-3801", "manufacturer": "Fenner Dunlop (belt)", "model": "Steelcord ST2000, 1200 mm, RS covers 10 + 6 mm", "description": "Overland ore conveyor, primary crusher to stockpile: 2.5 km, +40 m lift, 2 x 560 kW head drive", "belt": "Fenner Dunlop Steelcord ST2000 steel cord belt, 1200 mm wide, RS covers (DIN W / ISO D abrasion class) 10 mm top, 6 mm bottom", "drive": "Head drive: one rubber-lagged drive pulley (1000 mm), two 560 kW motors with gearboxes and VFDs (master / follower torque sharing)", "takeup": "Gravity take-up with 22 t counterweight on the slack side, just after the drive", "idlers": "Three-roll 30 degree carrying idlers every 1.2 m, single-roll return idlers every 3.0 m", "monitoring": "Belt weigher, non-driven pulley speed encoder, take-up load pins and position, belt tracking sensors at head and tail, fixed idler thermal scanners, steel cord belt scanner"}, "design": {"route": {"length_m": 2500.0, "lift_m": 40.0, "source": "Plant layout of the conveyor (centre distance and lift): assumption: typical value, replace with your conveyor design report / supplier data"}, "belt": {"type": "ST2000", "width_m": 1.2, "strength_n_per_mm": 2000.0, "cord_diameter_mm": 5.2, "cord_pitch_mm": 12.0, "carcass_kg_m2": 13.3, "top_cover_mm": 10.0, "bottom_cover_mm": 6.0, "mass_kg_m2": 31.7, "q_b_kg_m": 38.04, "min_drive_pulley_mm": 800, "min_bend_pulley_mm": 630, "stiffness_n": 96000000.0, "source": "Fenner Dunlop Steelcord datasheet (fennerdunlopemea.com, steelcord-en.pdf): strength, cord diameter and pitch, carcass weight, minimum pulley diameters and the rule belt mass = carcass + 1.15 x cover thickness (mm). Cover thicknesses 10 + 6 mm and the belt stiffness (force per unit strain, from 0.25 % elastic elongation at 10 % of the breaking strength): assumption: typical value, replace with your conveyor design report / supplier data"}, "idlers": {"q_ro_kg_m": 16.25, "q_ru_kg_m": 5.0, "carry_spacing_m": 1.2, "return_spacing_m": 3.0, "roll_diameter_mm": 133, "trough_deg": 30, "source": "Rotating mass of the idler rolls per metre (3 x 6.5 kg carrying rolls every 1.2 m, 15 kg return roll every 3.0 m): assumption: typical value, replace with your conveyor design report / supplier data"}, "resistance": {"f": 0.02, "L0_m": 85.0, "g": 9.81, "source": "ISO 5048:1989 clause 5.1.3: basic artificial friction coefficient f = 0.02 (three-roll 30 degree idlers, 108-159 mm rolls, about 5 m/s, 70-110 % load, about 20 C); clause 5.1.2: C = (L + L0) / L with L0 between 70 and 100 m (85 m taken)."}, "material": {"bulk_density_t_m3": 1.6, "design_tph": 2500.0, "source": "Crushed ore, loose bulk density and design capacity: assumption: typical value, replace with your conveyor design report / supplier data"}, "drive": {"speed_ms": 4.5, "motors": 2, "motor_rated_kw": 560.0, "eta": 0.92, "pulley_mm": 1000, "mu": 0.35, "wrap_deg": 210.0, "source": "ISO 5048:1989: eta1 between 0.85 and 0.95 (0.92 taken), mu = 0.35 for rubber lagging with herringbone grooves in clean and wet conditions (Table 4), wrap angle in the 160-240 degree range. Motor rating, belt speed and pulley size: assumption: typical value, replace with your conveyor design report / supplier data"}, "takeup": {"counterweight_t": 22.0, "travel_m": 6.0, "x0_m": 1.5, "source": "Gravity take-up: counterweight mass, available carriage travel and the carriage position with the new belt at standstill (x0): assumption: typical value, replace with your conveyor design report / supplier data"}, "demo": {"time_scale": 1, "tph_mean": 2250.0, "tph_min": 2050.0, "tph_max": 2400.0, "ambient_c": 28.0, "note": "Demo only: the feed from the crusher wanders between 2050 and 2400 t/h; the plant clock runs in real time and the readings do not depend on the time of day."}}, "telemetry": {"event": "conveyor", "publish_every_s": 10, "device_type": "BELT_CONVEYOR_OVERLAND", "groups": {"Process": "Load and belt speed", "Drive": "Drive pulley and motors", "TakeUp": "Gravity take-up", "Belt": "Belt tracking", "Idlers": "Idler thermal scanners", "Scan": "Steel cord belt scanner", "Status": "Conveyor state"}, "points": [{"metric": "tonnage_tph", "path": "Process.Tonnage", "label": "Belt weigher: mass flow", "unit": "t/h"}, {"metric": "belt_speed_ms", "path": "Process.BeltSpeed", "label": "Belt speed at a non-driven pulley", "unit": "m/s"}, {"metric": "drive_pulley_speed_ms", "path": "Drive.PulleySpeed", "label": "Drive pulley surface speed (from motor speed)", "unit": "m/s"}, {"metric": "motor1_power_kw", "path": "Drive.M1Power", "label": "Motor 1 power (VFD)", "unit": "kW"}, {"metric": "motor2_power_kw", "path": "Drive.M2Power", "label": "Motor 2 power (VFD)", "unit": "kW"}, {"metric": "takeup_force_kn", "path": "TakeUp.Force", "label": "Take-up pulley force (load pins)", "unit": "kN"}, {"metric": "takeup_position_m", "path": "TakeUp.Position", "label": "Take-up carriage position", "unit": "m"}, {"metric": "tracking_head_mm", "path": "Belt.TrackHead", "label": "Belt off-centre at the head (+ = right)", "unit": "mm"}, {"metric": "tracking_tail_mm", "path": "Belt.TrackTail", "label": "Belt off-centre at the tail (+ = right)", "unit": "mm"}, {"metric": "idler_max_temp_c", "path": "Idlers.MaxTemp", "label": "Hottest idler in the last thermal scan", "unit": "\u00b0C"}, {"metric": "idler_hot_count", "path": "Idlers.HotCount", "label": "Idlers more than 20 K above ambient", "unit": "count"}, {"metric": "ambient_temp_c", "path": "Idlers.Ambient", "label": "Ambient temperature", "unit": "\u00b0C"}, {"metric": "splice_max_growth_mm", "path": "Scan.SpliceGrowthMax", "label": "Largest splice length growth since installation", "unit": "mm"}, {"metric": "splice_worst_id", "path": "Scan.SpliceWorst", "label": "Number of the splice with the largest growth", "unit": "code"}, {"metric": "cord_damage_count", "path": "Scan.CordDamage", "label": "Cord damage indications in the last scan", "unit": "count"}, {"metric": "top_cover_min_mm", "path": "Scan.CoverMin", "label": "Thinnest top cover in the last thickness survey", "unit": "mm"}, {"metric": "running", "path": "Status.Running", "label": "Conveyor running (1) or stopped (0)", "unit": "code"}]}, "twin_model": {"limits": {"power_ratio_alert": 1.15, "load_imbalance_pct": 10.0, "slip_excess_pct": 0.5, "slip_margin_alert": 1.1, "takeup_tension_ratio": 0.85, "takeup_travel_ratio": 0.85, "elongation_alert_pct": 0.12, "idler_dt_alert_k": 20.0, "idler_dt_critical_k": 50.0, "splice_growth_alert_mm": 10.0, "splice_growth_limit_mm": 20.0, "tracking_alert_mm": 50.0, "tracking_limit_mm": 100.0, "cover_min_mm": 3.0, "source": "Alert limits: assumption: typical value, replace with your conveyor design report / supplier data. Splice growth and cover limits must come from the belt supplier and the splicing contractor."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "high_resistance": {"name": "High running resistance (spillage, build-up, cold, sticky idlers)", "part": "route", "symptoms": "drive power above the ISO 5048 expectation at the same tonnage; apparent friction factor up", "rules": ["CV_POWER_HIGH"], "default_ramp_min": 1.5}, "idler_bearing_failure": {"name": "Idler bearing failure", "part": "idlers", "symptoms": "one idler hot on the thermal scan, then very hot (fire risk)", "rules": ["CV_IDLER_HOT", "CV_IDLER_CRITICAL"], "default_ramp_min": 1.5}, "lagging_wear": {"name": "Drive pulley lagging worn or wet and dirty", "part": "drive", "symptoms": "belt slips on the drive pulley with normal take-up tension", "rules": ["CV_SLIP"], "default_ramp_min": 1}, "takeup_jammed": {"name": "Take-up carriage jammed", "part": "takeup", "symptoms": "take-up force low, slack-side tension below the Euler-Eytelwein minimum, then slip", "rules": ["CV_TAKEUP_TENSION_LOW", "CV_SLIP_MARGIN_LOW", "CV_SLIP"], "default_ramp_min": 1}, "belt_stretch": {"name": "Permanent belt elongation (stretch)", "part": "belt", "symptoms": "take-up carriage creeps to the end of its travel", "rules": ["CV_TAKEUP_TRAVEL_END", "CV_BELT_STRETCH"], "default_ramp_min": 1.5}, "splice_failure": {"name": "Steel cord splice deterioration", "part": "belt", "symptoms": "belt scanner shows one splice getting longer", "rules": ["CV_SPLICE_GROWTH", "CV_SPLICE_CRITICAL"], "default_ramp_min": 1.5}, "mistracking": {"name": "Belt mistracking (misalignment)", "part": "belt", "symptoms": "belt runs off centre at the tail, power a little up", "rules": ["CV_MISTRACKING", "CV_MISTRACKING_SEVERE"], "default_ramp_min": 1}, "load_share_imbalance": {"name": "Motor load sharing lost", "part": "drive", "symptoms": "one motor carries most of the load and goes over its rating", "rules": ["CV_LOAD_SHARE", "CV_MOTOR_OVERLOAD"], "default_ramp_min": 0.5}}, "presentation": {"title": "CV-3801 overland belt conveyor", "dashboard": "BELT_CONVEYOR_OVERLAND"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(1.5, 14, 26); ctl.target.set(-0.5, 2.6, 0); ctl.update(); };
+const headView = () => { cam.position.set(14, 6, 8); ctl.target.set(8.5, 3.0, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(6, 12, 8); scene.add(sun);
+scene.add(new THREE.GridHelper(40, 40, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), frame = M(0x8a7a2a, { m: .3, r: .6 }), dark = M(0x3d4249), blue = M(0x2f6db5, { m: .35 }), lag = M(0x222222, { r: .9 });
+const cyl = (r1, r2, h, m, s = 28) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const axZ = o => { o.rotation.x = Math.PI / 2; return o; };     // cylinder axis across the belt (z)
+// geometry (metres, belt 1.2 m wide; the route is shortened)
+const XT = -14, XH = 9, YC = 3.6, YR = 2.9, BW = 1.2, R = .5;
+// structure: stringers and legs
+[-.75, .75].forEach(z => { scene.add(at(box(XH - XT, .12, .08, frame), (XH + XT) / 2, YC - .45, z)); });
+for (let x = XT + 1; x < XH; x += 3) [-.75, .75].forEach(z => scene.add(at(box(.1, YC - .45, .1, frame), x, (YC - .45) / 2, z)));
+// head pulley (drive), tail pulley, snub
+const head = axZ(cyl(R, R, 1.4, lag, 40)); scene.add(at(head, XH, YC - R + .05, 0));
+const tail = axZ(cyl(.32, .32, 1.4, steel)); scene.add(at(tail, XT, YC - .32 + .05, 0));
+const snub = axZ(cyl(.25, .25, 1.4, steel)); scene.add(at(snub, XH - 1.1, YR - .2, 0));
+// two motors + gearboxes on the drive pulley shaft
+const motors = [];
+[-1, 1].forEach(s => {
+  scene.add(at(axZ(cyl(.07, .07, 2.4, steel)), XH, YC - R + .05, 0));
+  scene.add(at(box(.7, .7, .55, dark), XH, YC - R + .05, s * 1.05));
+  const m = axZ(cyl(.33, .33, .9, blue.clone())); scene.add(at(m, XH + .2, YC - R + .05, s * 1.85)); motors.push(m);
+  scene.add(at(box(1.4, .15, 1.6, frame), XH + .1, YC - R - .45, s * 1.45));
+});
+// gravity take-up tower: two bend pulleys and the moving carriage with the counterweight
+const XTU = XH - 3.2;
+const bend1 = axZ(cyl(.3, .3, 1.4, steel)); scene.add(at(bend1, XTU + .7, YR, 0));
+const bend2 = axZ(cyl(.3, .3, 1.4, steel)); scene.add(at(bend2, XTU - .7, YR, 0));
+[-.9, .9].forEach(z => [-1.2, 1.2].forEach(dx => scene.add(at(box(.12, YR + .3, .12, frame), XTU + dx, (YR + .3) / 2, z))));
+const carriage = new THREE.Group(); scene.add(carriage);
+const tuP = axZ(cyl(.4, .4, 1.4, steel)); carriage.add(tuP);
+carriage.add(at(box(1.0, .12, 1.6, dark), 0, -.5, 0));
+const cw = at(box(1.4, .7, 1.4, M(0x6f6f6f, { r: .8 })), 0, -.95, 0); carriage.add(cw);
+// feed chute at the tail
+scene.add(at(box(1.4, 1.2, 1.6, M(0x7a5a46, { r: .8 })), XT + 1.5, YC + 1.1, 0));
+// carrying idlers (three rolls, 30 degree wings) and return idlers
+const IDL = [], trough = Math.PI / 6, wl = .42;
+for (let x = XT + 1.2; x < XH - 1.2; x += 1.2) {
+  const g = new THREE.Group(); at(g, x, YC - .1, 0); scene.add(g);
+  const c = axZ(cyl(.067, .067, wl, steel.clone(), 14)); g.add(c);
+  [-1, 1].forEach(s => { const w = axZ(cyl(.067, .067, wl, steel.clone(), 14)); w.rotation.x = Math.PI / 2 - s * trough; at(w, 0, Math.sin(trough) * (wl / 2 + .02) , s * (wl / 2 + Math.cos(trough) * wl / 2 + .02)); g.add(w); });
+  g.add(at(box(.08, .08, 1.5, frame), 0, -.12, 0));
+  IDL.push(g);
+}
+for (let x = XT + 1.5; x < XTU - 1.5; x += 3) scene.add(at(axZ(cyl(.067, .067, 1.3, steel, 14)), x, YR - .12, 0));
+// troughed carrying belt with ore, and the return belt
+const beltMat = M(0x2b2b2b, { r: .85, t: 1, ds: true }), oreMat = M(0x8b6e4e, { r: 1, t: 1 });
+const carry = new THREE.Group(); scene.add(carry);
+const LEN = XH - XT, cx = (XH + XT) / 2;
+const centre = at(box(LEN, .02, wl, beltMat), 0, 0, 0); carry.add(centre);
+[-1, 1].forEach(s => { const w = box(LEN, .02, wl, beltMat); w.rotation.x = s * trough; at(w, 0, Math.sin(trough) * wl / 2, s * (wl / 2 + Math.cos(trough) * wl / 2)); carry.add(w); });
+const ore = new THREE.Mesh(new THREE.CylinderGeometry(.42, .42, LEN - 2, 3, 1), oreMat); ore.rotation.z = Math.PI / 2; ore.rotation.x = Math.PI;
+ore.scale.set(1, 1, .55); at(ore, 1, .17, 0); carry.add(ore);
+at(carry, cx, YC - .03, 0);
+const ret = at(box(XTU - 1 - XT, .02, BW, beltMat), (XTU - 1 + XT) / 2, YR + .02 - .12 + .07, 0); scene.add(ret);
+// splice markers that travel with the belt
+const splices = [];
+for (let i = 0; i < 3; i++) { const s = box(.12, .025, BW, M(0x5a5a5a)); scene.add(s); splices.push({ m: s, p: i / 3 }); }
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('power', [XH + .3, YC - .9, 2.4]); lbl('slip', [XH - .6, YC + 1.8, -.6]); lbl("tu", [XTU, 1.6, 1.0]); lbl('load', [XT + 3.5, YC + 1.7, 0]);
+lbl('track', [XT + .3, YC - .6, -1.2]); lbl('idler', [-2, YC + .3, .9]); lbl('splice', [-6, YR + .2, .8]); lbl('margin', [XTU - 1.2, YR + .6, -.9]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let speed = 4.5, tuPos = 3.4, trackTail = 0, idlerDt = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  speed = r.belt_speed_ms; tuPos = r.takeup_position_m; trackTail = r.tracking_tail_mm; idlerDt = t.idler_dt_k;
+  const tfe = d.takeup.counterweight_t * d.resistance.g;
+  setLbl('power', 'motor 1 + motor 2 · expected', `${fmt(r.motor1_power_kw, 0)} + ${fmt(r.motor2_power_kw, 0)} kW · ${fmt(t.power_expected_kw, 0)}`, st(names.has('CV_POWER_HIGH') || names.has('CV_MOTOR_OVERLOAD'), names.has('CV_LOAD_SHARE')));
+  setLbl('slip', 'slip · elastic creep', `${fmt(t.slip_pct)} % · ${fmt(t.creep_expected_pct)} %`, st(names.has('CV_SLIP')));
+  setLbl('tu', `take-up force · position (of ${d.takeup.travel_m} m)`, `${fmt(r.takeup_force_kn, 0)} kN · ${fmt(r.takeup_position_m)} m`, st(names.has('CV_TAKEUP_TENSION_LOW') || names.has('CV_TAKEUP_TRAVEL_END'), names.has('CV_BELT_STRETCH')));
+  setLbl('margin', 'slack side T2 ÷ T2 min', `${fmt(r.takeup_force_kn / 2, 0)} ÷ ${fmt(t.t2_min_kn, 0)} kN = ${fmt(t.slip_margin)}`, st(names.has('CV_SLIP_MARGIN_LOW')));
+  setLbl('load', 'belt weigher · belt speed', `${fmt(r.tonnage_tph, 0)} t/h · ${fmt(r.belt_speed_ms)} m/s`, '');
+  setLbl('track', 'tracking head / tail', `${fmt(r.tracking_head_mm, 0)} / ${fmt(r.tracking_tail_mm, 0)} mm`, st(names.has('CV_MISTRACKING_SEVERE'), names.has('CV_MISTRACKING')));
+  setLbl('idler', 'hottest idler above ambient', `${fmt(t.idler_dt_k, 1)} K · ${r.idler_hot_count} hot`, st(names.has('CV_IDLER_CRITICAL'), names.has('CV_IDLER_HOT')));
+  setLbl('splice', `belt scanner · splice ${r.splice_worst_id}`, `+${fmt(r.splice_max_growth_mm, 1)} mm · cover ${fmt(r.top_cover_min_mm, 1)} mm`, st(names.has('CV_SPLICE_CRITICAL') || names.has('CV_COVER_WORN'), names.has('CV_SPLICE_GROWTH')));
+  $('k-health').textContent = ST.health; $('k-ratio').textContent = fmt(t.power_ratio); $('k-f').textContent = fmt(t.friction_apparent, 4);
+  $('c-pw-t').textContent = `power ${fmt(t.power_ratio)} × expected`; $('c-pw').className = 'chip ' + (t.power_ratio > L.power_ratio_alert ? 'bad' : t.power_ratio > 1.07 ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Drive power (kW)', fmt(t.power_measured_kw, 0), fmt(t.power_expected_kw, 0), names.has('CV_POWER_HIGH')) +
+    row('Apparent friction factor f', fmt(t.friction_apparent, 4), fmt(d.resistance.f, 3), names.has('CV_POWER_HIGH')) +
+    row('Peripheral force (kN)', fmt(t.fu_measured_kn, 0), fmt(t.fu_expected_kn, 0)) +
+    row('Load imbalance (%)', fmt(t.load_imbalance_pct, 1), '< ' + L.load_imbalance_pct, names.has('CV_LOAD_SHARE')) +
+    row('Slip (%)', fmt(t.slip_pct), fmt(t.creep_expected_pct), names.has('CV_SLIP')) +
+    row('Slip margin T2 / T2 min', fmt(t.slip_margin), '≥ ' + L.slip_margin_alert, names.has('CV_SLIP_MARGIN_LOW')) +
+    row('Take-up force (kN)', fmt(r.takeup_force_kn, 0), fmt(tfe, 0), names.has('CV_TAKEUP_TENSION_LOW')) +
+    row('Take-up position (m)', fmt(r.takeup_position_m), fmt(d.takeup.x0_m + t.takeup_elastic_m) + ' + stretch', names.has('CV_TAKEUP_TRAVEL_END')) +
+    row('Permanent elongation (%)', fmt(t.belt_elongation_pct, 3), '< ' + L.elongation_alert_pct, names.has('CV_BELT_STRETCH')) +
+    row('Belt safety factor', fmt(t.belt_safety_factor, 1), '–') +
+    row('Hottest idler ΔT (K)', fmt(t.idler_dt_k, 1), '< ' + L.idler_dt_alert_k, t.idler_dt_k > L.idler_dt_alert_k) +
+    row('Splice growth (mm)', fmt(r.splice_max_growth_mm, 1), '< ' + L.splice_growth_alert_mm, r.splice_max_growth_mm > L.splice_growth_alert_mm);
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the conveyor behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  const rated = d.drive.motor_rated_kw;
+  [r.motor1_power_kw, r.motor2_power_kw].forEach((p, i) => motors[i].material.color.setHex(p > rated ? 0xda1e28 : p > .9 * rated ? 0xd8a31a : 0x2f6db5));
+  // the hottest idler: middle of the drawn route
+  IDL.forEach((g, i) => g.children.slice(0, 3).forEach(c => { const hot = i === 9 && idlerDt > L.idler_dt_alert_k; c.material.color.setHex(hot ? (idlerDt > L.idler_dt_critical_k ? 0xda1e28 : 0xff832b) : 0xb9bec4); c.material.emissive = new THREE.Color(hot ? 0x661100 : 0x000000); }));
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-head').onclick = headView;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [beltMat, oreMat].forEach(m => { m.transparent = true; m.opacity = cut ? .2 : 1; m.depthWrite = !cut; });
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), shownX = 3.4, shownTrack = 0;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  const w = speed * dt;
+  head.rotation.y -= w / R; tail.rotation.y -= w / .32; snub.rotation.y += w / .25;
+  IDL.forEach(g => g.children.slice(0, 3).forEach(c => c.rotation.y -= w / .067));
+  splices.forEach(s => { s.p = (s.p + w / (2 * LEN)) % 1; const u = s.p * 2; if (u < 1) at(s.m, XT + u * LEN, YC - .02, 0); else at(s.m, XH - (u - 1) * LEN, YR - .05, 0); s.m.visible = !(u >= 1 && XH - (u - 1) * LEN > XTU - 1.2); });
+  // take-up carriage: 0 m travel = top of the tower; 6 m travel drawn as 1.0 m
+  shownX += (tuPos - shownX) * Math.min(1, dt * 3);
+  at(carriage, XTU, YR - .5 - shownX / TW_TRAVEL() * 1.0, 0);
+  // tracking: tail end of the carrying belt shifted sideways, 5 x exaggerated
+  shownTrack += (trackTail - shownTrack) * Math.min(1, dt * 3);
+  carry.rotation.y = -Math.atan2(shownTrack / 1000 * 5, LEN);
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+const TW_TRAVEL = () => (TW && TW.design.takeup.travel_m) || 6;
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

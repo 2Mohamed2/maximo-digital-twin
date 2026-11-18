@@ -1,0 +1,291 @@
+{
+ "$comment": "INT-3701 cooling water intake twin (fine band screen + CW pump). Expected values in Maximo Monitor from the screen and pump data sheets and the intake drawings; the device sends only what it measures.",
+ "twin": {
+  "id": "INT-3701",
+  "name": "Cooling water intake line A INT-3701",
+  "version": "1.0.0",
+  "folder": "intake-twin"
+ },
+ "identification": {
+  "asset": "INT-3701",
+  "assetnum": "INT-3701",
+  "manufacturer": "HUBER SE + KSB",
+  "model": "Band Screen DiscMax + SEZ circulating water pump",
+  "description": "Seawater cooling water intake line A: fine band screen with spray wash and circulating water pump CWP-A",
+  "screen": "HUBER Band Screen DiscMax: direct-flow fine band screen, crescent-shaped screen elements on a central chain, spray nozzle bar behind the elements, launder",
+  "pump": "KSB SEZ: vertical tubular casing pump with open mixed-flow impeller (circulating water pump CWP-A)",
+  "plant": "Coastal combined-cycle power plant, once-through seawater cooling, two CW lines (A and B), one per screen and pump"
+ },
+ "design": {
+  "screen": {
+   "maker_range": {
+    "channel_width_max_m": 3.5,
+    "channel_depth_max_m": 25.0,
+    "separation_mm": [
+     1,
+     10
+    ],
+    "flow_max_m3h": 50000
+   },
+   "channel_width_m": 3.5,
+   "screen_width_m": 3.2,
+   "separation_mm": 3.0,
+   "open_area": 0.45,
+   "dh_clean_m": 0.05,
+   "dh_ref_flow_m3s": 5.0,
+   "dh_ref_depth_m": 6.5,
+   "speed_low_m_min": 2.0,
+   "speed_high_m_min": 8.0,
+   "high_speed_dh_m": 0.15,
+   "torque0_pct": 25.0,
+   "torque_per_m_pct": 40.0,
+   "source": "maker_range: HUBER Band Screen DiscMax brochure and product page. Channel width 3.5 m (the largest DiscMax channel), effective screen width, 3 mm mesh, open area fraction, clean head loss 0.05 m at 5.0 m3/s and 6.5 m water depth, running speeds, the differential at which the screen goes to high speed and the drive torque line: assumption: typical value, replace with your screen supplier's hydraulic data sheet"
+  },
+  "wash": {
+   "pressure_bar": 4.0,
+   "flow_m3h": 60.0,
+   "shutoff_bar": 5.5,
+   "source": "Spray-wash header pressure and flow at the design point, and the wash pump shut-off pressure: assumption: typical value, replace with your wash pump curve and nozzle data"
+  },
+  "pump": {
+   "maker_range": {
+    "flow_max_m3h": 65000,
+    "head_max_m": 33,
+    "pressure_max_bar": 10,
+    "temp_max_c": 40
+   },
+   "duty_flow_m3s": 5.0,
+   "duty_head_m": 18.0,
+   "shutoff_head_m": 27.0,
+   "eta_bep": 0.88,
+   "bell_d_m": 1.9,
+   "bell_clearance_m": 0.6,
+   "gauge_elev_m": 9.5,
+   "source": "maker_range: KSB SEZ product page. Duty point 5.0 m3/s (18,000 m3/h) at 18 m, shut-off head, best efficiency, suction bell outside diameter, bell height above the floor and pressure gauge elevation above the channel invert: assumption: typical value, replace with your pump test curve and general arrangement drawing"
+  },
+  "intake": {
+   "rho_kg_m3": 1025.0,
+   "g": 9.81,
+   "mean_sea_m": 6.5,
+   "tide_amp_m": 1.0,
+   "tide_period_h": 12.42,
+   "culvert_loss_m": 0.1,
+   "cond_dp_bar": 0.6,
+   "cw_inlet_max_c": 33.0,
+   "line_share": 0.5,
+   "source": "Levels are metres above the screen channel invert. Seawater density, mean sea level, tidal range (one semi-diurnal tide of 12.42 h), intake culvert head loss and condenser waterbox pressure drop at the duty flow, and the highest seawater temperature the condenser was sized for: assumption: typical value, replace with your intake drawings, tide tables and condenser data sheet"
+  },
+  "demo": {
+   "time_scale": 60,
+   "note": "Demo only: the plant clock runs 60 times faster, so one tide (12.42 h) takes about 12 minutes of real time."
+  }
+ },
+ "telemetry": {
+  "event": "intake",
+  "publish_every_s": 10,
+  "device_type": "CW_INTAKE_SCREEN",
+  "groups": {
+   "Level": "Tide gauge and channel levels",
+   "Screen": "Band screen drive",
+   "Wash": "Spray wash",
+   "Pump": "Circulating water pump CWP-A",
+   "Condenser": "Condenser inlet"
+  },
+  "points": [
+   {
+    "metric": "sea_level_m",
+    "path": "Level.Sea",
+    "label": "Sea level at the intake mouth (tide gauge)",
+    "unit": "m"
+   },
+   {
+    "metric": "level_up_m",
+    "path": "Level.Upstream",
+    "label": "Water level upstream of the screen",
+    "unit": "m"
+   },
+   {
+    "metric": "level_down_m",
+    "path": "Level.Downstream",
+    "label": "Water level in the pump bay (downstream of the screen)",
+    "unit": "m"
+   },
+   {
+    "metric": "screen_speed_m_min",
+    "path": "Screen.Speed",
+    "label": "Screen chain speed",
+    "unit": "m/min"
+   },
+   {
+    "metric": "screen_torque_pct",
+    "path": "Screen.Torque",
+    "label": "Screen drive torque (from the drive)",
+    "unit": "% rated"
+   },
+   {
+    "metric": "high_speed_h_24h",
+    "path": "Screen.HighSpeedHours",
+    "label": "Hours at high speed, last 24 h",
+    "unit": "h"
+   },
+   {
+    "metric": "wash_pressure_bar",
+    "path": "Wash.Pressure",
+    "label": "Spray-wash header pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "wash_flow_m3h",
+    "path": "Wash.Flow",
+    "label": "Spray-wash water flow",
+    "unit": "m³/h"
+   },
+   {
+    "metric": "cw_flow_m3s",
+    "path": "Pump.Flow",
+    "label": "CW flow of line A (ultrasonic flowmeter)",
+    "unit": "m³/s"
+   },
+   {
+    "metric": "pump_discharge_bar",
+    "path": "Pump.Discharge",
+    "label": "CW pump discharge pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "pump_power_kw",
+    "path": "Pump.Power",
+    "label": "CW pump motor input power",
+    "unit": "kW"
+   },
+   {
+    "metric": "pump_vib_mm_s",
+    "path": "Pump.Vibration",
+    "label": "CW pump top bearing vibration velocity",
+    "unit": "mm/s"
+   },
+   {
+    "metric": "pump_running",
+    "path": "Pump.Running",
+    "label": "CW pump running (1 = running)",
+    "unit": "code"
+   },
+   {
+    "metric": "cw_in_c",
+    "path": "Condenser.InletTemp",
+    "label": "Condenser CW inlet temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "cond_dp_bar",
+    "path": "Condenser.DP",
+    "label": "Condenser waterbox differential pressure, line A",
+    "unit": "bar"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "dh_high_m": 0.4,
+   "dh_high_high_m": 0.8,
+   "blinding_alert": 0.35,
+   "bypass_ratio": 0.4,
+   "torque_residual_alert_pct": 20.0,
+   "high_speed_h_alert": 12.0,
+   "nozzle_ratio_alert": 0.8,
+   "wash_pressure_low_bar": 3.0,
+   "head_ratio_alert": 0.92,
+   "eff_ratio_alert": 0.92,
+   "culvert_ratio_alert": 2.5,
+   "cond_dp_ratio_alert": 1.3,
+   "submergence_margin_min": 1.0,
+   "vibration_alert_mm_s": 7.1,
+   "source": "Alarm levels: assumption: typical value, replace with your intake operating philosophy. Submergence margin 1.0 = the ANSI/HI 9.8 minimum submergence."
+  }
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "debris_surge": {
+   "name": "Debris or jellyfish surge on the screen",
+   "part": "screen",
+   "symptoms": "screen differential rises fast at the same flow, pump bay level falls, screen at high speed",
+   "rules": [
+    "INT_SCREEN_BLINDING",
+    "INT_DP_HIGH_HIGH"
+   ],
+   "default_ramp_min": 1.0
+  },
+  "mesh_biofouling": {
+   "name": "Biofouling of the mesh (growth the spray does not remove)",
+   "part": "screen",
+   "symptoms": "moderate blinding that stays, screen at high speed most of the day",
+   "rules": [
+    "INT_SCREEN_BLINDING",
+    "INT_WASH_DUTY_HIGH"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "spray_nozzle_blockage": {
+   "name": "Spray nozzles blocked",
+   "part": "wash",
+   "symptoms": "wash pressure up, wash flow down",
+   "rules": [
+    "INT_WASH_NOZZLES_BLOCKED"
+   ],
+   "default_ramp_min": 1.0
+  },
+  "wash_pump_wear": {
+   "name": "Spray-wash pump worn",
+   "part": "wash",
+   "symptoms": "wash pressure and flow both down along the nozzle line",
+   "rules": [
+    "INT_WASH_PRESSURE_LOW"
+   ],
+   "default_ramp_min": 1.0
+  },
+  "drive_chain_wear": {
+   "name": "Chain, guide or drive wear (screen getting stiff)",
+   "part": "screen drive",
+   "symptoms": "drive torque above the line for this differential",
+   "rules": [
+    "INT_DRIVE_TORQUE_HIGH"
+   ],
+   "default_ramp_min": 1.0
+  },
+  "seal_carryover": {
+   "name": "Screen seal or element damaged: debris carried over",
+   "part": "screen",
+   "symptoms": "differential far below clean, condenser waterbox pressure drop rises",
+   "rules": [
+    "INT_SCREEN_BYPASS",
+    "INT_COND_DP_HIGH"
+   ],
+   "default_ramp_min": 1.0
+  },
+  "cw_pump_wear": {
+   "name": "CW pump impeller or wear ring wear",
+   "part": "pump",
+   "symptoms": "head and efficiency below the curve at the measured flow",
+   "rules": [
+    "INT_PUMP_HEAD_LOW",
+    "INT_PUMP_EFF_LOW"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "culvert_fouling": {
+   "name": "Intake culvert fouling or silting (low pump bay level)",
+   "part": "intake",
+   "symptoms": "level lost between sea and screen, pump bay low, submergence below the HI 9.8 minimum, vibration",
+   "rules": [
+    "INT_CULVERT_LOSS_HIGH",
+    "INT_SUBMERGENCE_LOW",
+    "INT_PUMP_VIBRATION"
+   ],
+   "default_ramp_min": 1.5
+  }
+ },
+ "presentation": {
+  "title": "INT-3701 cooling water intake line A",
+  "dashboard": "CW_INTAKE_SCREEN"
+ }
+}

@@ -1,6 +1,6 @@
 # Digital Twin for Maximo
 
-Code that goes with twenty-seven IBM Community posts on building physics-based digital twins of Maximo assets
+Code that goes with thirty-seven IBM Community posts on building physics-based digital twins of Maximo assets
 with standard Maximo Monitor and Maximo Manage features:
 
 | Asset | Twin folder | Post |
@@ -32,6 +32,16 @@ with standard Maximo Monitor and Maximo Manage features:
 | RP-2901, Rod-lifted oil well: beam pumping unit, tapered steel rod string, insert pump at 6,000 | `rodpump-twin` | Sucker-rod pumping system digital twin in Maximo |
 | WTG-3001, Onshore wind turbine, drivetrain twin: main bearing, three-stage gearbox and doubly fed | `windgbx-twin` | Wind turbine digital twin in Maximo |
 | PV-3101, PV block 31, inverter 01: 375.84 kWp DC / 330 kVA AC, fixed-tilt bifacial array with | `pv-twin` | Utility PV block digital twin in Maximo |
+| ST-3201, Turbine-generator of a cogeneration plant: process steam extraction at 12 bar(a) | `steamturb-twin` | Steam turbine digital twin in Maximo |
+| BFP-3301, Boiler feed pump A (2 x 50 %) of a steam power unit, VSD motor drive, balance drum | `bfp-twin` | Boiler feed pump digital twin in Maximo |
+| GEN-3401, Gas turbine generator of a combined-cycle power plant: 2-pole cylindrical rotor | `generator-twin` | Turbo-generator digital twin in Maximo |
+| BESS-3501, Grid battery energy storage container 3501: 1.4 MWh LFP, BMS, embedded HVAC, with its PCS | `bess-twin` | Battery energy storage digital twin in Maximo |
+| HYD-3601, Unit 1 of a high-head storage hydro plant: vertical Francis turbine, 22-pole synchronous | `hydro-twin` | Hydro turbine digital twin in Maximo |
+| INT-3701, Seawater cooling water intake line A: fine band screen with spray wash and circulating | `intake-twin` | Cooling water intake digital twin in Maximo |
+| CV-3801, Overland ore conveyor, primary crusher to stockpile: 2.5 km, +40 m lift, 2 x 560 kW head | `conveyor-twin` | Overland belt conveyor digital twin in Maximo |
+| ML-3901, Primary SAG mill of the SABC grinding circuit (SAG mill, pebble crusher, ball mill) | `sagmill-twin` | SAG mill digital twin in Maximo |
+| HT-4001, Rigid-frame mining haul truck, ore and waste haulage from the pit to the crusher and the | `haultruck-twin` | Mining haul truck digital twin in Maximo |
+| SP-4101, Flotation tailings pump, tailings sump to thickener, on a variable speed drive | `slurry-twin` | Slurry pump digital twin in Maximo |
 
 The posts are on the IBM Community (Maximo group), by Mohamed Chihaoui.
 

@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>INT-3701 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>INT-3701</b><span class="g">Cooling water intake line A · band screen + CW pump</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-dh"><span class="dot"></span><span id="c-dh-t">screen –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Screen, submergence and pump curves →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the intake model…</div>
+<div class="credit">Intake culvert, direct-flow fine band screen with spray wash (type of the HUBER Band Screen DiscMax), pump bay and vertical mixed-flow CW pump (type of the KSB SEZ). Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Water flows from the sea (left) through the screen to the pump bay; the step in the water surface at the screen is the screen differential.</div>
+<aside>
+  <section>
+    <h2>INT-3701 twin</h2>
+    <p class="sub" id="sub">cooling water intake line A</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Screen Δh (m)<b id="k-dh">–</b></div><div>Submergence margin<b id="k-sub">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures: levels, screen speed and torque, wash pressure and flow, CW flow, pump pressure, power and vibration. Every expected value (clean screen differential, required submergence, pump head and efficiency) is computed from the twin file: the screen and pump data and the intake drawings.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for INT-3701: tide, intake culvert, band screen with spray wash, circulating water pump and condenser, with\ninjectable faults.\n\nThe real intake sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the expected\nvalues are computed in Monitor from the twin file only. This model only produces believable readings and fault fingerprints\nfor the tests, the figures and the live pages. Pure Python (math, random) so it also runs in the browser.\n\nPhysics of the stand-in (the twin's relations, plus what the twin does not know):\n  Sea level follows one semi-diurnal tide. The culvert loses cl0 x (Q/Q0)^2 (x 36 with culvert fouling at full severity).\n  Screen: dh = dh_clean / (1 - b)^2 with b the blinded open-area fraction (debris surge, biofouling); a damaged seal lets\n  water bypass the mesh, so dh falls to 8 % of clean and debris reaches the condenser tube sheet.\n  Pump operating point: pump curve wear x (H0 - a x^2) meets the system curve (Z_out - DN) + k_sys x^2, where Z_out - DN is\n  the static lift to the seal pit (assumption: 8 m at the design pump bay level) and k_sys grows when the condenser plugs.\n  Vortex: the vibration rises when the submergence margin drops below 1.1.\n  Wash: wash pump curve p = p_shut - kw Qw^2 meets the nozzles Qw = C sqrt(p).\n\"\"\"\nimport math\nimport random\n\nfrom twin_calc import _k, s_req\n\n\nclass Intake:\n    STATIC_M = 8.0          # static lift at the design pump bay level (assumption)\n\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        self.k = _k(twin)\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.sea = self.k[\"sea0\"]\n        self.cw_in = 27.0\n        k = self.k\n        self.dn0 = k[\"sea0\"] - k[\"cl0\"] - k[\"dh0\"]                    # design pump bay level\n        self.zout = self.dn0 + self.STATIC_M\n        self.ksys = k[\"hd\"] - self.STATIC_M\n        self.c0 = k[\"qw0\"] / math.sqrt(k[\"pw0\"])                      # nozzle coefficient\n        self.kw = (k[\"wsh\"] - k[\"pw0\"]) / k[\"qw0\"] ** 2               # wash pump curve\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def vary(self, tide=1.0):\n        \"\"\"A random but plausible state: tide anywhere within +-tide x amplitude, seawater 24 to 30 C.\"\"\"\n        self.sea = self.k[\"sea0\"] + self.rnd.uniform(-tide, tide) * self.k[\"amp\"]\n        self.cw_in = self.rnd.uniform(24.0, 30.0)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def true(self):\n        f, k = self.faults, self.k\n        b = min(0.9, 0.02 + 0.78 * f[\"debris_surge\"] + 0.50 * f[\"mesh_biofouling\"])\n        byp = 1 - 0.92 * f[\"seal_carryover\"]\n        cul = k[\"cl0\"] * (1 + 35 * f[\"culvert_fouling\"])\n        wear = 1 - 0.15 * f[\"cw_pump_wear\"]\n        ksys = self.ksys * (1 + 0.3 * f[\"seal_carryover\"])\n        a = k[\"h00\"] - k[\"hd\"]\n        x = 1.0\n        for _ in range(30):\n            q = x * k[\"qd\"]\n            up = self.sea - cul * (q / k[\"q0\"]) ** 2\n            dhc = k[\"dh0\"] * (q / k[\"q0\"]) ** 2 * (k[\"h0\"] / up) ** 2\n            dh = dhc / (1 - b) ** 2 * byp\n            dn = up - dh\n            lift = self.zout - dn\n            x_new = math.sqrt(max(0.05, (wear * k[\"h00\"] - lift) / (wear * a + ksys)))\n            x = 0.5 * x + 0.5 * x_new\n        q = x * k[\"qd\"]\n        up = self.sea - cul * (q / k[\"q0\"]) ** 2\n        dhc = k[\"dh0\"] * (q / k[\"q0\"]) ** 2 * (k[\"h0\"] / up) ** 2\n        dh = dhc / (1 - b) ** 2 * byp\n        dn = up - dh\n        h = wear * (k[\"h00\"] - a * x * x)\n        eta = k[\"eta0\"] * (2 * x - x * x) * (1 - 0.15 * f[\"cw_pump_wear\"])\n        power = k[\"rho\"] * k[\"g\"] * q * h / eta / 1000\n        margin = (dn - k[\"cb\"]) / s_req(k, q)\n        speed = k[\"vhi\"] if dh > k[\"hs\"] else k[\"vlo\"]\n        c = self.c0 * (1 - 0.45 * f[\"spray_nozzle_blockage\"])\n        shut = k[\"wsh\"] * (1 - 0.45 * f[\"wash_pump_wear\"])\n        pw = shut / (1 + self.kw * c * c)\n        return {\"sea\": self.sea, \"up\": up, \"dn\": dn, \"dh\": dh, \"q\": q, \"h\": h, \"power\": power, \"margin\": margin, \"speed\": speed,\n                \"torque\": k[\"t0\"] + k[\"kt\"] * dh + 35 * f[\"drive_chain_wear\"], \"pw\": pw, \"qw\": c * math.sqrt(pw),\n                \"hs_h\": 1.5 + 17 * f[\"mesh_biofouling\"] + 5 * f[\"debris_surge\"],\n                \"vib\": 2.2 + 40 * max(0.0, 1.1 - margin) + 1.0 * f[\"cw_pump_wear\"],\n                \"cdp\": k[\"cdp0\"] * (q / k[\"q0\"]) ** 2 * (1 + 0.8 * f[\"seal_carryover\"]), \"cw_in\": self.cw_in, \"blind\": b}\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, s):\n        k = self.k\n        return {\n            \"sea_level_m\": round(s[\"sea\"] + self.n(0.002), 4),\n            \"level_up_m\": round(s[\"up\"] + self.n(0.002), 4),\n            \"level_down_m\": round(s[\"dn\"] + self.n(0.002), 4),\n            \"screen_speed_m_min\": round(s[\"speed\"] * (1 + self.n(0.01)), 3),\n            \"screen_torque_pct\": round(s[\"torque\"] + self.n(1.0), 2),\n            \"high_speed_h_24h\": round(min(24.0, max(0.0, s[\"hs_h\"] + self.n(0.4))), 2),\n            \"wash_pressure_bar\": round(s[\"pw\"] + self.n(0.02), 3),\n            \"wash_flow_m3h\": round(s[\"qw\"] * (1 + self.n(0.01)), 2),\n            \"cw_flow_m3s\": round(s[\"q\"] * (1 + self.n(0.004)), 4),\n            \"pump_discharge_bar\": round((s[\"h\"] - k[\"zg\"] + s[\"dn\"]) / k[\"pcoef\"] + self.n(0.002), 4),\n            \"pump_power_kw\": round(s[\"power\"] * (1 + self.n(0.004)), 1),\n            \"pump_vib_mm_s\": round(max(0.3, s[\"vib\"] + self.n(0.15)), 2),\n            \"pump_running\": 1,\n            \"cw_in_c\": round(s[\"cw_in\"] + self.n(0.05), 2),\n            \"cond_dp_bar\": round(s[\"cdp\"] * (1 + self.n(0.01)), 4),\n        }\n\n    def measure(self, tide=1.0):\n        self.vary(tide)\n        return self.reading(self.true())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The plant clock runs `demo.time_scale` times faster than real time. The sea follows a 12.42 h tide; the seawater\n    temperature swings 1.6 K over the day. Levels, flow and the expected screen differential move with the tide.\n    \"\"\"\n\n    def __init__(self, twin, seed=3701):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.x = Intake(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        \"\"\"Back to a clean intake at once (all faults to zero).\"\"\"\n        for f in self.faults.values():\n            f.sev = f.target = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.x.faults[k] = f.sev\n        self.t += dt * self.scale\n        k = self.x.k\n        self.x.sea = k[\"sea0\"] + k[\"amp\"] * math.sin(2 * math.pi * self.t / (k[\"period\"] * 3600))\n        self.x.cw_in = 27.0 + 0.8 * math.sin(2 * math.pi * ((self.t % 86400) / 86400 - 0.375))\n        return self.x.true()\n\n    def measure(self, true):\n        return self.x.reading(true)\n", "twin_calc": "\"\"\"The cooling water intake twin's expectations (INT-3701: fine band screen with spray wash + circulating water pump).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nLevels are metres above the screen channel invert. Q is the CW flow of the line (m3/s), UP and DN the levels upstream and\ndownstream of the screen, SEA the tide gauge at the intake mouth.\n\nScreen (orifice law: head loss grows with the square of the velocity through the open area):\n    dh            = UP - DN\n    dh_clean      = dh0 x (Q / Q0)^2 x (h0 / UP)^2       (the wetted screen area grows with the water depth UP)\n    blinding      = 1 - sqrt(dh_clean / dh)              (fraction of the open area lost: dh = dh_clean / (1 - b)^2)\n    v_through     = Q / (open area x screen width x UP)  (through-screen velocity on the clean open area)\n    v_approach    = Q / (channel width x UP)\nIntake culvert: loss = SEA - UP, expected loss = loss0 x (Q / Q0)^2.\nPump suction (ANSI/HI 9.8): S = DN - bell clearance; S_req = D (1 + 2.3 F_D), F_D = V / sqrt(g D), V = Q / (pi D^2 / 4).\nPump (curve from the test sheet): H = p x 1e5 / (rho g) + z_gauge - DN (velocity head neglected);\n    H_expected = H0 - (H0 - Hd) x (Q / Q0)^2;  efficiency = rho g Q H / P;  expected = eta0 x (2x - x^2), x = Q / Q0.\nDrive: expected torque = T0 + k x dh (the differential presses the elements on their guides).\nSpray wash: nozzles pass Qw = C x sqrt(p); nozzle ratio = (Qw / Qw0) / sqrt(p / p0) = C / C0 (1 = clean nozzles).\nCondenser: waterbox pressure drop ratio = dp / (dp0 x (Q / Q0)^2) (debris carried over plugs the tube sheet).\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    s, w, p, i = d[\"screen\"], d[\"wash\"], d[\"pump\"], d[\"intake\"]\n    rho, g = i[\"rho_kg_m3\"], i[\"g\"]\n    D = p[\"bell_d_m\"]\n    area = math.pi * D * D / 4\n    return dict(dh0=s[\"dh_clean_m\"], q0=s[\"dh_ref_flow_m3s\"], h0=s[\"dh_ref_depth_m\"], phi=s[\"open_area\"], ws=s[\"screen_width_m\"],\n                wc=s[\"channel_width_m\"], hs=s[\"high_speed_dh_m\"], t0=s[\"torque0_pct\"], kt=s[\"torque_per_m_pct\"],\n                vlo=s[\"speed_low_m_min\"], vhi=s[\"speed_high_m_min\"],\n                pw0=w[\"pressure_bar\"], qw0=w[\"flow_m3h\"], wsh=w[\"shutoff_bar\"],\n                qd=p[\"duty_flow_m3s\"], hd=p[\"duty_head_m\"], h00=p[\"shutoff_head_m\"], eta0=p[\"eta_bep\"], D=D, area=area,\n                cb=p[\"bell_clearance_m\"], zg=p[\"gauge_elev_m\"], rho=rho, g=g, pcoef=1e5 / (rho * g), ecoef=rho * g / 1000,\n                cs=2.3 * D / (area * math.sqrt(g * D)), cl0=i[\"culvert_loss_m\"], cdp0=i[\"cond_dp_bar\"], tmax=i[\"cw_inlet_max_c\"],\n                sea0=i[\"mean_sea_m\"], amp=i[\"tide_amp_m\"], period=i[\"tide_period_h\"], share=i[\"line_share\"])\n\n\ndef s_req(k, q):\n    \"\"\"ANSI/HI 9.8 minimum submergence for flow q: D (1 + 2.3 F_D) = D + cs x q.\"\"\"\n    return k[\"D\"] + k[\"cs\"] * q\n\n\ndef head_exp(k, q):\n    return k[\"h00\"] - (k[\"h00\"] - k[\"hd\"]) * (q / k[\"qd\"]) ** 2\n\n\ndef eta_exp(k, q):\n    x = q / k[\"qd\"]\n    return k[\"eta0\"] * (2 * x - x * x)\n\n\ndef _parts(twin):\n    k = _k(twin)\n    Q, UP, DN, SEA = \"df['CW_FLOW_M3S']\", \"df['LEVEL_UP_M']\", \"df['LEVEL_DOWN_M']\", \"df['SEA_LEVEL_M']\"\n    DH = f\"({UP} - {DN})\"\n    DHC = f\"({k['dh0']} * ({Q} / {k['q0']}) ** 2 * ({k['h0']} / {UP}) ** 2)\"\n    SUB = f\"({DN} - {k['cb']})\"\n    SR = f\"({k['D']} + {k['cs']:.10g} * {Q})\"\n    HM = f\"(df['PUMP_DISCHARGE_BAR'] * {k['pcoef']:.10g} + {k['zg']} - {DN})\"\n    HE = f\"({k['h00']} - {k['h00'] - k['hd']:.10g} * ({Q} / {k['qd']}) ** 2)\"\n    EF = f\"({k['ecoef']:.10g} * {Q} * {HM} / np.maximum(df['PUMP_POWER_KW'], 1.0))\"\n    EE = f\"({k['eta0']} * (2 * {Q} / {k['qd']} - ({Q} / {k['qd']}) ** 2))\"\n    TE = f\"({k['t0']} + {k['kt']} * {DH})\"\n    CUL = f\"({SEA} - {UP})\"\n    CULE = f\"({k['cl0']} * (np.maximum({Q}, 0.1) / {k['q0']}) ** 2)\"\n    NZ = f\"((df['WASH_FLOW_M3H'] / {k['qw0']}) / np.sqrt(np.maximum(df['WASH_PRESSURE_BAR'], 0.1) / {k['pw0']}))\"\n    CDP = f\"(df['COND_DP_BAR'] / ({k['cdp0']} * (np.maximum({Q}, 0.1) / {k['q0']}) ** 2))\"\n    BL = f\"np.clip(1 - np.sqrt({DHC} / np.maximum({DH}, 0.001)), 0, 1)\"\n    return dict(k=k, Q=Q, UP=UP, DN=DN, DH=DH, DHC=DHC, SUB=SUB, SR=SR, HM=HM, HE=HE, EF=EF, EE=EE, TE=TE, CUL=CUL, CULE=CULE,\n                NZ=NZ, CDP=CDP, BL=BL)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"DH_M\", p[\"DH\"]),\n        (\"DH_CLEAN_M\", p[\"DHC\"]),\n        (\"DH_RATIO\", f\"{p['DH']} / {p['DHC']}\"),\n        (\"BLINDING\", p[\"BL\"]),\n        (\"V_THROUGH_SCREEN\", f\"{p['Q']} / ({k['phi'] * k['ws']:.10g} * {p['UP']})\"),\n        (\"V_APPROACH\", f\"{p['Q']} / ({k['wc']} * {p['UP']})\"),\n        (\"CULVERT_LOSS_M\", p[\"CUL\"]),\n        (\"CULVERT_LOSS_RATIO\", f\"{p['CUL']} / {p['CULE']}\"),\n        (\"SUBMERGENCE_M\", p[\"SUB\"]),\n        (\"SUBMERGENCE_REQ_M\", p[\"SR\"]),\n        (\"SUBMERGENCE_MARGIN\", f\"{p['SUB']} / {p['SR']}\"),\n        (\"PUMP_HEAD_M\", p[\"HM\"]),\n        (\"PUMP_HEAD_EXPECTED_M\", p[\"HE\"]),\n        (\"PUMP_HEAD_RATIO\", f\"{p['HM']} / {p['HE']}\"),\n        (\"PUMP_EFF\", p[\"EF\"]),\n        (\"PUMP_EFF_RATIO\", f\"{p['EF']} / {p['EE']}\"),\n        (\"TORQUE_EXPECTED_PCT\", p[\"TE\"]),\n        (\"TORQUE_RESIDUAL_PCT\", f\"df['SCREEN_TORQUE_PCT'] - {p['TE']}\"),\n        (\"WASH_NOZZLE_RATIO\", p[\"NZ\"]),\n        (\"COND_DP_RATIO\", p[\"CDP\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    q, up, dn, sea = r[\"cw_flow_m3s\"], r[\"level_up_m\"], r[\"level_down_m\"], r[\"sea_level_m\"]\n    dh = up - dn\n    dhc = k[\"dh0\"] * (q / k[\"q0\"]) ** 2 * (k[\"h0\"] / up) ** 2\n    sub = dn - k[\"cb\"]\n    sr = k[\"D\"] + k[\"cs\"] * q\n    hm = r[\"pump_discharge_bar\"] * k[\"pcoef\"] + k[\"zg\"] - dn\n    he = k[\"h00\"] - (k[\"h00\"] - k[\"hd\"]) * (q / k[\"qd\"]) ** 2\n    ef = k[\"ecoef\"] * q * hm / max(r[\"pump_power_kw\"], 1.0)\n    ee = k[\"eta0\"] * (2 * q / k[\"qd\"] - (q / k[\"qd\"]) ** 2)\n    te = k[\"t0\"] + k[\"kt\"] * dh\n    cul = sea - up\n    cule = k[\"cl0\"] * (max(q, 0.1) / k[\"q0\"]) ** 2\n    nz = (r[\"wash_flow_m3h\"] / k[\"qw0\"]) / math.sqrt(max(r[\"wash_pressure_bar\"], 0.1) / k[\"pw0\"])\n    cdp = r[\"cond_dp_bar\"] / (k[\"cdp0\"] * (max(q, 0.1) / k[\"q0\"]) ** 2)\n    bl = min(1.0, max(0.0, 1 - math.sqrt(dhc / max(dh, 0.001))))\n    return {\n        \"dh_m\": dh, \"dh_clean_m\": dhc, \"dh_ratio\": dh / dhc, \"blinding\": bl,\n        \"v_through_screen\": q / (k[\"phi\"] * k[\"ws\"] * up), \"v_approach\": q / (k[\"wc\"] * up),\n        \"culvert_loss_m\": cul, \"culvert_loss_ratio\": cul / cule,\n        \"submergence_m\": sub, \"submergence_req_m\": sr, \"submergence_margin\": sub / sr,\n        \"pump_head_m\": hm, \"pump_head_expected_m\": he, \"pump_head_ratio\": hm / he,\n        \"pump_eff\": ef, \"pump_eff_ratio\": ef / ee, \"pump_eff_expected\": ee,\n        \"torque_expected_pct\": te, \"torque_residual_pct\": r[\"screen_torque_pct\"] - te,\n        \"wash_nozzle_ratio\": nz, \"cond_dp_ratio\": cdp,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    DH = p[\"DH\"]\n    return [\n        (\"INT_DP_HIGH_HIGH\", f\"{DH} > {L['dh_high_high_m']}\", \"Critical\", \"debris_surge\"),\n        (\"INT_SUBMERGENCE_LOW\", f\"({p['SUB']} / {p['SR']}) < {L['submergence_margin_min']}\", \"High\", \"culvert_fouling\"),\n        (\"INT_DP_HIGH\", f\"({DH} > {L['dh_high_m']}) & ({DH} <= {L['dh_high_high_m']})\", \"High\", \"debris_surge\"),\n        (\"INT_SCREEN_BYPASS\", f\"({DH} / {p['DHC']}) < {L['bypass_ratio']}\", \"High\", \"seal_carryover\"),\n        (\"INT_DRIVE_TORQUE_HIGH\", f\"(df['SCREEN_SPEED_M_MIN'] > 0.5) & ((df['SCREEN_TORQUE_PCT'] - {p['TE']}) > {L['torque_residual_alert_pct']})\", \"High\", \"drive_chain_wear\"),\n        (\"INT_PUMP_VIBRATION\", f\"df['PUMP_VIB_MM_S'] > {L['vibration_alert_mm_s']}\", \"High\", \"culvert_fouling\"),\n        (\"INT_SCREEN_BLINDING\", f\"{p['BL']} > {L['blinding_alert']}\", \"Medium\", \"debris_surge\"),\n        (\"INT_WASH_DUTY_HIGH\", f\"df['HIGH_SPEED_H_24H'] > {L['high_speed_h_alert']}\", \"Medium\", \"mesh_biofouling\"),\n        (\"INT_WASH_NOZZLES_BLOCKED\", f\"{p['NZ']} < {L['nozzle_ratio_alert']}\", \"Medium\", \"spray_nozzle_blockage\"),\n        (\"INT_WASH_PRESSURE_LOW\", f\"df['WASH_PRESSURE_BAR'] < {L['wash_pressure_low_bar']}\", \"Medium\", \"wash_pump_wear\"),\n        (\"INT_PUMP_HEAD_LOW\", f\"({p['HM']} / {p['HE']}) < {L['head_ratio_alert']}\", \"Medium\", \"cw_pump_wear\"),\n        (\"INT_PUMP_EFF_LOW\", f\"({p['EF']} / {p['EE']}) < {L['eff_ratio_alert']}\", \"Medium\", \"cw_pump_wear\"),\n        (\"INT_CULVERT_LOSS_HIGH\", f\"({p['CUL']} / {p['CULE']}) > {L['culvert_ratio_alert']}\", \"Medium\", \"culvert_fouling\"),\n        (\"INT_COND_DP_HIGH\", f\"{p['CDP']} > {L['cond_dp_ratio_alert']}\", \"Medium\", \"seal_carryover\"),\n        (\"INT_CW_INLET_HIGH\", f\"df['CW_IN_C'] > {k['tmax']}\", \"Medium\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    dh = t[\"dh_m\"]\n    add(dh > L[\"dh_high_high_m\"], \"INT_DP_HIGH_HIGH\", \"Critical\",\n        f\"Screen differential {dh:.2f} m, above the high-high {L['dh_high_high_m']} m: screen at risk, pump bay falling\", \"screen\", \"debris_surge\")\n    add(t[\"submergence_margin\"] < L[\"submergence_margin_min\"], \"INT_SUBMERGENCE_LOW\", \"High\",\n        f\"Bell submergence {t['submergence_m']:.2f} m, below the ANSI/HI 9.8 minimum {t['submergence_req_m']:.2f} m: vortex risk\", \"pump\", \"culvert_fouling\")\n    add(L[\"dh_high_m\"] < dh <= L[\"dh_high_high_m\"], \"INT_DP_HIGH\", \"High\", f\"Screen differential {dh:.2f} m\", \"screen\", \"debris_surge\")\n    add(t[\"dh_ratio\"] < L[\"bypass_ratio\"], \"INT_SCREEN_BYPASS\", \"High\",\n        f\"Screen differential only {t['dh_ratio']:.2f} x clean: water is passing the mesh, debris carried over\", \"screen\", \"seal_carryover\")\n    add(r[\"screen_speed_m_min\"] > 0.5 and t[\"torque_residual_pct\"] > L[\"torque_residual_alert_pct\"], \"INT_DRIVE_TORQUE_HIGH\", \"High\",\n        f\"Drive torque {r['screen_torque_pct']:.0f} %, {t['torque_residual_pct']:.0f} points above the line for this differential\", \"screen drive\", \"drive_chain_wear\")\n    add(r[\"pump_vib_mm_s\"] > L[\"vibration_alert_mm_s\"], \"INT_PUMP_VIBRATION\", \"High\", f\"CW pump vibration {r['pump_vib_mm_s']:.1f} mm/s\", \"pump\", \"culvert_fouling\")\n    add(t[\"blinding\"] > L[\"blinding_alert\"], \"INT_SCREEN_BLINDING\", \"Medium\", f\"{t['blinding'] * 100:.0f} % of the screen open area blinded\", \"screen\", \"debris_surge\")\n    add(r[\"high_speed_h_24h\"] > L[\"high_speed_h_alert\"], \"INT_WASH_DUTY_HIGH\", \"Medium\",\n        f\"Screen at high speed {r['high_speed_h_24h']:.0f} h of the last 24 h\", \"screen\", \"mesh_biofouling\")\n    add(t[\"wash_nozzle_ratio\"] < L[\"nozzle_ratio_alert\"], \"INT_WASH_NOZZLES_BLOCKED\", \"Medium\",\n        f\"Spray nozzles pass {t['wash_nozzle_ratio'] * 100:.0f} % of their design flow at this pressure\", \"wash\", \"spray_nozzle_blockage\")\n    add(r[\"wash_pressure_bar\"] < L[\"wash_pressure_low_bar\"], \"INT_WASH_PRESSURE_LOW\", \"Medium\",\n        f\"Spray-wash pressure {r['wash_pressure_bar']:.2f} bar\", \"wash\", \"wash_pump_wear\")\n    add(t[\"pump_head_ratio\"] < L[\"head_ratio_alert\"], \"INT_PUMP_HEAD_LOW\", \"Medium\",\n        f\"CW pump head {t['pump_head_m']:.1f} m, {t['pump_head_ratio'] * 100:.0f} % of the curve\", \"pump\", \"cw_pump_wear\")\n    add(t[\"pump_eff_ratio\"] < L[\"eff_ratio_alert\"], \"INT_PUMP_EFF_LOW\", \"Medium\",\n        f\"CW pump efficiency {t['pump_eff'] * 100:.0f} %, {t['pump_eff_ratio'] * 100:.0f} % of the curve\", \"pump\", \"cw_pump_wear\")\n    add(t[\"culvert_loss_ratio\"] > L[\"culvert_ratio_alert\"], \"INT_CULVERT_LOSS_HIGH\", \"Medium\",\n        f\"Intake culvert loses {t['culvert_loss_m']:.2f} m, {t['culvert_loss_ratio']:.1f} x expected\", \"intake\", \"culvert_fouling\")\n    add(t[\"cond_dp_ratio\"] > L[\"cond_dp_ratio_alert\"], \"INT_COND_DP_HIGH\", \"Medium\",\n        f\"Condenser waterbox pressure drop {r['cond_dp_bar']:.2f} bar, {t['cond_dp_ratio']:.2f} x expected\", \"condenser\", \"seal_carryover\")\n    add(r[\"cw_in_c\"] > k[\"tmax\"], \"INT_CW_INLET_HIGH\", \"Medium\",\n        f\"Condenser inlet {r['cw_in_c']:.1f} \u00b0C, above the {k['tmax']:.0f} \u00b0C design\", \"condenser\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "INT-3701 cooling water intake twin (fine band screen + CW pump). Expected values in Maximo Monitor from the screen and pump data sheets and the intake drawings; the device sends only what it measures.", "twin": {"id": "INT-3701", "name": "Cooling water intake line A INT-3701", "version": "1.0.0", "folder": "intake-twin"}, "identification": {"asset": "INT-3701", "assetnum": "INT-3701", "manufacturer": "HUBER SE + KSB", "model": "Band Screen DiscMax + SEZ circulating water pump", "description": "Seawater cooling water intake line A: fine band screen with spray wash and circulating water pump CWP-A", "screen": "HUBER Band Screen DiscMax: direct-flow fine band screen, crescent-shaped screen elements on a central chain, spray nozzle bar behind the elements, launder", "pump": "KSB SEZ: vertical tubular casing pump with open mixed-flow impeller (circulating water pump CWP-A)", "plant": "Coastal combined-cycle power plant, once-through seawater cooling, two CW lines (A and B), one per screen and pump"}, "design": {"screen": {"maker_range": {"channel_width_max_m": 3.5, "channel_depth_max_m": 25.0, "separation_mm": [1, 10], "flow_max_m3h": 50000}, "channel_width_m": 3.5, "screen_width_m": 3.2, "separation_mm": 3.0, "open_area": 0.45, "dh_clean_m": 0.05, "dh_ref_flow_m3s": 5.0, "dh_ref_depth_m": 6.5, "speed_low_m_min": 2.0, "speed_high_m_min": 8.0, "high_speed_dh_m": 0.15, "torque0_pct": 25.0, "torque_per_m_pct": 40.0, "source": "maker_range: HUBER Band Screen DiscMax brochure and product page. Channel width 3.5 m (the largest DiscMax channel), effective screen width, 3 mm mesh, open area fraction, clean head loss 0.05 m at 5.0 m3/s and 6.5 m water depth, running speeds, the differential at which the screen goes to high speed and the drive torque line: assumption: typical value, replace with your screen supplier's hydraulic data sheet"}, "wash": {"pressure_bar": 4.0, "flow_m3h": 60.0, "shutoff_bar": 5.5, "source": "Spray-wash header pressure and flow at the design point, and the wash pump shut-off pressure: assumption: typical value, replace with your wash pump curve and nozzle data"}, "pump": {"maker_range": {"flow_max_m3h": 65000, "head_max_m": 33, "pressure_max_bar": 10, "temp_max_c": 40}, "duty_flow_m3s": 5.0, "duty_head_m": 18.0, "shutoff_head_m": 27.0, "eta_bep": 0.88, "bell_d_m": 1.9, "bell_clearance_m": 0.6, "gauge_elev_m": 9.5, "source": "maker_range: KSB SEZ product page. Duty point 5.0 m3/s (18,000 m3/h) at 18 m, shut-off head, best efficiency, suction bell outside diameter, bell height above the floor and pressure gauge elevation above the channel invert: assumption: typical value, replace with your pump test curve and general arrangement drawing"}, "intake": {"rho_kg_m3": 1025.0, "g": 9.81, "mean_sea_m": 6.5, "tide_amp_m": 1.0, "tide_period_h": 12.42, "culvert_loss_m": 0.1, "cond_dp_bar": 0.6, "cw_inlet_max_c": 33.0, "line_share": 0.5, "source": "Levels are metres above the screen channel invert. Seawater density, mean sea level, tidal range (one semi-diurnal tide of 12.42 h), intake culvert head loss and condenser waterbox pressure drop at the duty flow, and the highest seawater temperature the condenser was sized for: assumption: typical value, replace with your intake drawings, tide tables and condenser data sheet"}, "demo": {"time_scale": 60, "note": "Demo only: the plant clock runs 60 times faster, so one tide (12.42 h) takes about 12 minutes of real time."}}, "telemetry": {"event": "intake", "publish_every_s": 10, "device_type": "CW_INTAKE_SCREEN", "groups": {"Level": "Tide gauge and channel levels", "Screen": "Band screen drive", "Wash": "Spray wash", "Pump": "Circulating water pump CWP-A", "Condenser": "Condenser inlet"}, "points": [{"metric": "sea_level_m", "path": "Level.Sea", "label": "Sea level at the intake mouth (tide gauge)", "unit": "m"}, {"metric": "level_up_m", "path": "Level.Upstream", "label": "Water level upstream of the screen", "unit": "m"}, {"metric": "level_down_m", "path": "Level.Downstream", "label": "Water level in the pump bay (downstream of the screen)", "unit": "m"}, {"metric": "screen_speed_m_min", "path": "Screen.Speed", "label": "Screen chain speed", "unit": "m/min"}, {"metric": "screen_torque_pct", "path": "Screen.Torque", "label": "Screen drive torque (from the drive)", "unit": "% rated"}, {"metric": "high_speed_h_24h", "path": "Screen.HighSpeedHours", "label": "Hours at high speed, last 24 h", "unit": "h"}, {"metric": "wash_pressure_bar", "path": "Wash.Pressure", "label": "Spray-wash header pressure", "unit": "bar g"}, {"metric": "wash_flow_m3h", "path": "Wash.Flow", "label": "Spray-wash water flow", "unit": "m\u00b3/h"}, {"metric": "cw_flow_m3s", "path": "Pump.Flow", "label": "CW flow of line A (ultrasonic flowmeter)", "unit": "m\u00b3/s"}, {"metric": "pump_discharge_bar", "path": "Pump.Discharge", "label": "CW pump discharge pressure", "unit": "bar g"}, {"metric": "pump_power_kw", "path": "Pump.Power", "label": "CW pump motor input power", "unit": "kW"}, {"metric": "pump_vib_mm_s", "path": "Pump.Vibration", "label": "CW pump top bearing vibration velocity", "unit": "mm/s"}, {"metric": "pump_running", "path": "Pump.Running", "label": "CW pump running (1 = running)", "unit": "code"}, {"metric": "cw_in_c", "path": "Condenser.InletTemp", "label": "Condenser CW inlet temperature", "unit": "\u00b0C"}, {"metric": "cond_dp_bar", "path": "Condenser.DP", "label": "Condenser waterbox differential pressure, line A", "unit": "bar"}]}, "twin_model": {"limits": {"dh_high_m": 0.4, "dh_high_high_m": 0.8, "blinding_alert": 0.35, "bypass_ratio": 0.4, "torque_residual_alert_pct": 20.0, "high_speed_h_alert": 12.0, "nozzle_ratio_alert": 0.8, "wash_pressure_low_bar": 3.0, "head_ratio_alert": 0.92, "eff_ratio_alert": 0.92, "culvert_ratio_alert": 2.5, "cond_dp_ratio_alert": 1.3, "submergence_margin_min": 1.0, "vibration_alert_mm_s": 7.1, "source": "Alarm levels: assumption: typical value, replace with your intake operating philosophy. Submergence margin 1.0 = the ANSI/HI 9.8 minimum submergence."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "debris_surge": {"name": "Debris or jellyfish surge on the screen", "part": "screen", "symptoms": "screen differential rises fast at the same flow, pump bay level falls, screen at high speed", "rules": ["INT_SCREEN_BLINDING", "INT_DP_HIGH_HIGH"], "default_ramp_min": 1.0}, "mesh_biofouling": {"name": "Biofouling of the mesh (growth the spray does not remove)", "part": "screen", "symptoms": "moderate blinding that stays, screen at high speed most of the day", "rules": ["INT_SCREEN_BLINDING", "INT_WASH_DUTY_HIGH"], "default_ramp_min": 1.5}, "spray_nozzle_blockage": {"name": "Spray nozzles blocked", "part": "wash", "symptoms": "wash pressure up, wash flow down", "rules": ["INT_WASH_NOZZLES_BLOCKED"], "default_ramp_min": 1.0}, "wash_pump_wear": {"name": "Spray-wash pump worn", "part": "wash", "symptoms": "wash pressure and flow both down along the nozzle line", "rules": ["INT_WASH_PRESSURE_LOW"], "default_ramp_min": 1.0}, "drive_chain_wear": {"name": "Chain, guide or drive wear (screen getting stiff)", "part": "screen drive", "symptoms": "drive torque above the line for this differential", "rules": ["INT_DRIVE_TORQUE_HIGH"], "default_ramp_min": 1.0}, "seal_carryover": {"name": "Screen seal or element damaged: debris carried over", "part": "screen", "symptoms": "differential far below clean, condenser waterbox pressure drop rises", "rules": ["INT_SCREEN_BYPASS", "INT_COND_DP_HIGH"], "default_ramp_min": 1.0}, "cw_pump_wear": {"name": "CW pump impeller or wear ring wear", "part": "pump", "symptoms": "head and efficiency below the curve at the measured flow", "rules": ["INT_PUMP_HEAD_LOW", "INT_PUMP_EFF_LOW"], "default_ramp_min": 1.5}, "culvert_fouling": {"name": "Intake culvert fouling or silting (low pump bay level)", "part": "intake", "symptoms": "level lost between sea and screen, pump bay low, submergence below the HI 9.8 minimum, vibration", "rules": ["INT_CULVERT_LOSS_HIGH", "INT_SUBMERGENCE_LOW", "INT_PUMP_VIBRATION"], "default_ramp_min": 1.5}}, "presentation": {"title": "INT-3701 cooling water intake line A", "dashboard": "CW_INTAKE_SCREEN"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (metres; x along the flow, y up from the channel invert) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(12, 21, 30); ctl.target.set(-1, 4.5, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(10, 25, 18); scene.add(sun);
+const grid = new THREE.GridHelper(60, 30, 0x3a3f47, 0x2a2e35); grid.position.y = -0.6; scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .3, roughness: o.r ?? .6, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const concrete = M(0x9a9ea5, { m: 0, r: .9, t: 1 }), steel = M(0xb9bec4, { m: .7, r: .3 }), blueM = M(0x2f6db5, { m: .35 }), dark = M(0x3d4249);
+const W = 3.5, X0 = -14, X1 = 11, DECK = 9.5;
+// floor and side walls of the screen channel and the pump bay
+scene.add(at(box(X1 - X0, .6, W + 1.6, M(0x8a8e95, { m: 0, r: .9 })), (X0 + X1) / 2, -.3, 0));
+const walls = [];
+const nearWall = M(0x9a9ea5, { m: 0, r: .9, t: .28 }); nearWall.depthWrite = false;   // the wall nearest the viewer is see-through
+[-1, 1].forEach(s => { const w = at(box(X1 - X0, DECK + .6, .8, s > 0 ? nearWall : concrete), (X0 + X1) / 2, (DECK + .6) / 2 - .3, s * (W / 2 + .4)); scene.add(w); walls.push(w); });
+// back wall of the pump bay and the culvert mouth
+scene.add(at(box(.8, DECK + .6, W + 1.6, concrete), X1 + .4, (DECK + .6) / 2 - .3, 0));
+const mouth = at(box(.8, DECK + .6 - 4.2, W + 1.6, concrete), X0 - .4, 4.2 + (DECK + .6 - 4.2) / 2 - .3, 0); scene.add(mouth);
+// operating deck over the pump bay (partial) and the screen
+scene.add(at(box(6, .4, W + 1.6, M(0x7d8189, { m: 0, r: .9 })), 7.6, DECK + .2, 0));
+// water: sea outside, upstream, downstream (heights set live)
+const waterM = M(0x2f78c4, { m: .1, r: .25, t: .55 });
+const seaW = at(box(8, 1, 12, waterM), X0 - 4.8, .5, 0); scene.add(seaW);
+const upW = at(box(-.6 - X0, 1, W, waterM), (X0 - .6) / 2, .5, 0); scene.add(upW);
+const dnW = at(box(X1 - .6, 1, W, waterM), (X1 + .6) / 2, .5, 0); scene.add(dnW);
+const setWater = (mesh, h) => { mesh.scale.y = Math.max(.05, h); mesh.position.y = Math.max(.05, h) / 2; };
+// tide gauge
+scene.add(at(cyl(.08, .08, 11, steel), X0 - 2.5, 5.2, -W / 2 - 1.5));
+// ---- band screen (direct flow: elements on a central chain, flow from -x to +x) ----
+const SX = 0, TOP = DECK + 2.6;
+[-1, 1].forEach(s => scene.add(at(box(.5, TOP, .3, steel), SX, TOP / 2, s * (W / 2 - .15))));
+scene.add(at(box(1.6, 2.2, W + .4, M(0xd0d4da, { m: .4, r: .4 })), SX, DECK + 1.6, 0));          // head box
+const motor = at(cyl(.32, .32, .9, blueM), SX + .9, DECK + 1.9, W / 2 + .1); motor.rotation.x = Math.PI / 2; scene.add(motor);
+scene.add(at(box(.6, .6, .6, blueM), SX + .9, DECK + 1.9, W / 2 + .7));                              // gearbox
+const sprayBar = at(cyl(.07, .07, W - .4, M(0x8a3ffc, { m: .3 })), SX + .45, DECK + 1.2, 0); sprayBar.rotation.x = Math.PI / 2; scene.add(sprayBar);
+const launder = at(box(.6, .35, W + 3, M(0x6f6f6f)), SX - .5, DECK + .9, 0); scene.add(launder);
+// crescent-shaped screen elements on the chain: two runs (up on the upstream face, down on the downstream face)
+const elemM = M(0xc6ccd4, { m: .55, r: .35, ds: true }), blindM = M(0x6b4f2a, { m: .1, r: .9, ds: true });
+const elems = [], N = 26, LOOP = 2 * (DECK + 1) + 2;
+for (let i = 0; i < N; i++) {
+  const g = new THREE.Group();
+  const shell = new THREE.Mesh(new THREE.CylinderGeometry(W / 2 - .3, W / 2 - .3, .55, 24, 1, true, 0, Math.PI), elemM);
+  shell.rotation.y = Math.PI; shell.scale.set(.25, 1, 1);   // half ring across the channel, bulging upstream
+  g.add(shell); scene.add(g); elems.push({ g, shell, s: i / N * LOOP });
+}
+scene.add(at(box(.12, DECK + 1.2, .12, dark), SX, (DECK + 1.2) / 2, 0));                             // central chain guide
+// ---- CW pump in the pump bay ----
+const PX = 7.0;
+const bell = at(cyl(.62, .95, .7, steel), PX, .95, 0); scene.add(bell);
+const column = at(cyl(.55, .55, DECK - 1.3, blueM), PX, 1.3 + (DECK - 1.3) / 2, 0); scene.add(column);
+scene.add(at(cyl(.75, .75, 1.0, blueM), PX, DECK + .9, 0));                                         // discharge head
+const pmotor = at(cyl(.8, .8, 2.0, M(0x2f6db5, { m: .35 })), PX, DECK + 2.4, 0); scene.add(pmotor);
+scene.add(at(cyl(.6, .6, .3, dark), PX, DECK + 3.55, 0));
+const dis = at(cyl(.5, .5, 5, blueM), PX + 2.5, DECK + .9, 0); dis.rotation.z = Math.PI / 2; scene.add(dis);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.22, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, PX, DECK + 4.0, 0));
+// vortex funnel (shown when the submergence is low)
+const vortex = new THREE.Mesh(new THREE.ConeGeometry(.6, 1.8, 24, 1, true), M(0xe0f0ff, { t: .5, ds: true })); vortex.rotation.x = Math.PI; vortex.visible = false; scene.add(vortex);
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('sea', [X0 - 2.5, 10.8, -W / 2 - 1.5]); lbl('up', [-6, 7.5, 0]); lbl('dh', [SX, TOP + .4, 0]); lbl('drive', [SX + .9, DECK + 2.6, W / 2 + .7]);
+lbl('wash', [SX + .45, DECK + .4, -W / 2]); lbl('sub', [PX - 2.2, 3.2, 0]); lbl('pump', [PX, DECK + 4.6, 0]); lbl('vib', [PX + 1.2, DECK + 3.2, 0]);
+lbl('cond', [PX + 5, DECK + 1.7, 0]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); L.el.style.display = v.z < 1 ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let speed = 2, lv = { sea: 6.5, up: 6.4, dn: 6.35 }, blind = 0, vort = false;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  speed = r.screen_speed_m_min; lv = { sea: r.sea_level_m, up: r.level_up_m, dn: r.level_down_m }; blind = t.blinding; vort = t.submergence_margin < 1.1;
+  setLbl('sea', 'sea level (tide gauge)', `${fmt(r.sea_level_m)} m`, '');
+  setLbl('up', 'upstream · culvert loss', `${fmt(r.level_up_m)} m · ${fmt(t.culvert_loss_m)} m (${fmt(t.culvert_loss_ratio, 1)}×)`, st(names.has('INT_CULVERT_LOSS_HIGH')));
+  setLbl('dh', `screen Δh · clean ${fmt(t.dh_clean_m, 3)} m`, `${fmt(t.dh_m, 3)} m · blinded ${fmt(t.blinding * 100, 0)} %`, st(names.has('INT_DP_HIGH_HIGH') || names.has('INT_DP_HIGH') || names.has('INT_SCREEN_BYPASS'), names.has('INT_SCREEN_BLINDING')));
+  setLbl('drive', `drive torque · expected ${fmt(t.torque_expected_pct, 0)} %`, `${fmt(r.screen_speed_m_min, 1)} m/min · ${fmt(r.screen_torque_pct, 0)} %`, st(names.has('INT_DRIVE_TORQUE_HIGH'), names.has('INT_WASH_DUTY_HIGH')));
+  setLbl('wash', 'spray wash · nozzle ratio', `${fmt(r.wash_pressure_bar)} bar · ${fmt(r.wash_flow_m3h, 0)} m³/h · ${fmt(t.wash_nozzle_ratio)}`, st(names.has('INT_WASH_PRESSURE_LOW') || names.has('INT_WASH_NOZZLES_BLOCKED')));
+  setLbl('sub', `pump bay · bell submergence (HI 9.8 min ${fmt(t.submergence_req_m)} m)`, `${fmt(r.level_down_m)} m · S ${fmt(t.submergence_m)} m · ${fmt(t.submergence_margin)}×`, st(names.has('INT_SUBMERGENCE_LOW'), t.submergence_margin < 1.15));
+  setLbl('pump', `CW pump · head expected ${fmt(t.pump_head_expected_m, 1)} m`, `${fmt(r.cw_flow_m3s)} m³/s · ${fmt(t.pump_head_m, 1)} m · η ${fmt(t.pump_eff * 100, 0)} %`, st(names.has('INT_PUMP_HEAD_LOW') || names.has('INT_PUMP_EFF_LOW')));
+  setLbl('vib', 'pump vibration', `${fmt(r.pump_vib_mm_s, 1)} mm/s`, st(names.has('INT_PUMP_VIBRATION'), r.pump_vib_mm_s > 4.5));
+  setLbl('cond', 'condenser inlet · waterbox Δp', `${fmt(r.cw_in_c, 1)} °C · ${fmt(r.cond_dp_bar)} bar (${fmt(t.cond_dp_ratio)}×)`, st(names.has('INT_COND_DP_HIGH') || names.has('INT_CW_INLET_HIGH')));
+  $('k-health').textContent = ST.health; $('k-dh').textContent = fmt(t.dh_m, 3); $('k-sub').textContent = fmt(t.submergence_margin);
+  const dhs = names.has('INT_DP_HIGH_HIGH') ? 'bad' : names.has('INT_DP_HIGH') ? 'warn' : 'ok';
+  $('c-dh-t').textContent = `screen ${r.screen_speed_m_min > d.screen.speed_low_m_min + .5 ? 'high speed' : 'low speed'} · Δh ${fmt(t.dh_m, 2)} m`; $('c-dh').className = 'chip ' + dhs;
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Screen differential (m)', fmt(t.dh_m, 3), fmt(t.dh_clean_m, 3), t.dh_m > L.dh_high_m) +
+    row('Open area blinded', fmt(t.blinding * 100, 0) + ' %', '< ' + L.blinding_alert * 100 + ' %', names.has('INT_SCREEN_BLINDING')) +
+    row('Through-screen velocity (m/s)', fmt(t.v_through_screen), '–') +
+    row('Culvert loss (m)', fmt(t.culvert_loss_m, 3), fmt(t.culvert_loss_m / t.culvert_loss_ratio, 3), names.has('INT_CULVERT_LOSS_HIGH')) +
+    row('Bell submergence (m)', fmt(t.submergence_m), '≥ ' + fmt(t.submergence_req_m), names.has('INT_SUBMERGENCE_LOW')) +
+    row('Pump head (m)', fmt(t.pump_head_m, 1), fmt(t.pump_head_expected_m, 1), names.has('INT_PUMP_HEAD_LOW')) +
+    row('Pump efficiency', fmt(t.pump_eff * 100, 1) + ' %', fmt(t.pump_eff / t.pump_eff_ratio * 100, 1) + ' %', names.has('INT_PUMP_EFF_LOW')) +
+    row('Drive torque (%)', fmt(r.screen_torque_pct, 0), fmt(t.torque_expected_pct, 0), names.has('INT_DRIVE_TORQUE_HIGH')) +
+    row('Wash pressure (bar)', fmt(r.wash_pressure_bar), fmt(d.wash.pressure_bar), names.has('INT_WASH_PRESSURE_LOW')) +
+    row('Nozzle ratio', fmt(t.wash_nozzle_ratio), '1.00', names.has('INT_WASH_NOZZLES_BLOCKED')) +
+    row('High speed, last 24 h (h)', fmt(r.high_speed_h_24h, 1), '≤ ' + L.high_speed_h_alert, names.has('INT_WASH_DUTY_HIGH')) +
+    row('Condenser Δp ratio', fmt(t.cond_dp_ratio), '1.00', names.has('INT_COND_DP_HIGH'));
+  const order = ['Critical', 'High', 'Medium', 'Low'];
+  const al = (ST.conditions || []).slice().sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the intake behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  concrete.transparent = true; concrete.opacity = cut ? .18 : 1; concrete.depthWrite = !cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now(), sh = { sea: 6.5, up: 6.4, dn: 6.35 };
+function placeElem(e) {
+  // loop: up the upstream face (x = -0.35), over the top, down the downstream face (x = +0.35)
+  const H = DECK + 1, s = ((e.s % LOOP) + LOOP) % LOOP;
+  let x, y;
+  if (s < H) { x = SX - .35; y = .4 + s; } else if (s < H + 1) { x = SX - .35 + (s - H) * .7; y = .4 + H; }
+  else if (s < 2 * H + 1) { x = SX + .35; y = .4 + H - (s - H - 1); } else { x = SX + .35 - (s - 2 * H - 1) * .7; y = .4; }
+  e.g.position.set(x, y, 0);
+  e.shell.material = (x < SX && y < sh.up && blind > .3) ? blindM : elemM;
+}
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  for (const k of ['sea', 'up', 'dn']) sh[k] += (lv[k] - sh[k]) * Math.min(1, dt * 3);
+  setWater(seaW, sh.sea); setWater(upW, sh.up); setWater(dnW, sh.dn);
+  const v = speed / 60 * 6;                                    // shown 6x faster than the real chain speed
+  elems.forEach(e => { e.s += v * dt; placeElem(e); });
+  vortex.visible = vort; if (vort) { vortex.position.set(PX - .9, sh.dn - .9, 0); vortex.rotation.y += dt * 6; }
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

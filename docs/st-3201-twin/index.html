@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ST-3201 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>ST-3201</b><span class="g">Condensing extraction steam turbine · SST-400 frame · 3000 rpm</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-eff"><span class="dot"></span><span id="c-eff-t">HP efficiency –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Willans line, HP efficiency and first-stage pressure →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the turbine model…</div>
+<div class="credit">Single-casing condensing steam turbine with one controlled extraction, governor valve chest, downward exhaust to the condenser and a directly coupled 50 Hz generator. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Steam enters at the valve chest (left), part leaves at the extraction to process, the rest expands through the LP blading into the condenser.</div>
+<aside>
+  <section>
+    <h2>ST-3201 twin</h2>
+    <p class="sub" id="sub">turbine-generator, cogeneration plant</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Output (MW)<b id="k-mw">–</b></div><div>vs expected<b id="k-dev">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures. The HP efficiency, the expected first-stage pressure, the expected output (Willans line with corrections) and the expected condenser pressure are computed from the twin file: the heat balance, the steam property correlations and the design data.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for ST-3201: the turbine, its governor and extraction valves, the condenser and the bearings, with injectable faults.\n\nThe real machine sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live twin pages.\n\nHow the stand-in works: the plant asks for a load (main steam flow) and a process steam flow (extraction); both swing\nslowly. The HP section expands the main steam to the extraction pressure with its efficiency; the steam that is not\nextracted goes through the LP section to the condenser. The condenser pressure follows the cooling water outlet\ntemperature plus the terminal temperature difference. Output = (HP work + LP work) x mechanical/generator efficiency.\nPure Python + math/random only (it also runs in the browser under Pyodide).\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\nC2K = 273.15\n\n\nclass Turbine:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        self.k = tc._k(twin)\n        self.mech = twin[\"design\"][\"mechanical\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0           # plant time, s (slow swings)\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state -------------------------------------------------------------------------------------------------------\n    def operating_point(self):\n        k = self.k\n        w = 2 * math.pi * self.t\n        m = k[\"m0\"] * (0.93 + 0.04 * math.sin(w / 3600.0))\n        e = k[\"e0\"] * (1 + 0.12 * math.sin(w / 2700.0 + 1.0))\n        p1 = k[\"p0\"] * (1 + 0.004 * math.sin(w / 900.0))\n        t1 = k[\"t0\"] + 2.0 * math.sin(w / 1300.0 + 0.5)\n        cw_in = k[\"cw_in\"] + 1.5 * math.sin(w / 5400.0)\n        return m, e, p1, t1, None, cw_in\n\n    def true_state(self, m=None, e=None, p1=None, t1=None, pc_fixed=None):\n        k, f = self.k, self.faults\n        if m is None:\n            m, e, p1, t1, pc_fixed, cw_in = self.operating_point()\n        else:\n            cw_in = k[\"cw_in\"]\n        tk1 = t1 + C2K\n        pe = k[\"pe0\"]\n        lp = max(m - e, 5.0)\n        # HP section\n        eta = (tc.eta_expected(k, m) - 5.5 * f[\"hp_deposits\"] - 9.0 * f[\"solid_particle_erosion\"]) / 100\n        h1 = tc.h_pt(k, p1, tk1)\n        he = h1 - eta * tc.dh_isen(k, p1, tk1, pe)\n        tke = tc.t_from_h(k, pe, he)\n        area = (1 - 0.09 * f[\"hp_deposits\"]) * (1 + 0.05 * f[\"solid_particle_erosion\"])\n        pw = k[\"pw0\"] * (m / k[\"m0\"]) * math.sqrt(tk1 / (k[\"t0\"] + C2K)) / area\n        # condenser\n        rise = k[\"cw_rise\"] * lp / (k[\"m0\"] - k[\"e0\"])\n        cw_out = cw_in + rise\n        ttd = k[\"ttd0\"] + 8.0 * f[\"condenser_fouling\"]\n        pc = pc_fixed if pc_fixed is not None else tc.psat_mbar(k, cw_out + ttd)\n        # LP section (extraction -> condenser, k for wet expansion)\n        eta_lp = (k[\"eta_lp\"] - 6.0 * f[\"lp_blade_damage\"] - 3.0 * f[\"hp_deposits\"]) / 100\n        dh_lp = eta_lp * tc.dh_isen(k, pe, tke, pc / 1000, k[\"k_lp\"])\n        kw = (m * (h1 - he) + lp * dh_lp) / 3.6          # t/h x kJ/kg / 3.6 = kW\n        mw = kw / 1000 * k[\"emg\"]\n        lift = k[\"lift0\"] * (m / k[\"m0\"]) * (k[\"p0\"] / p1) * math.sqrt(tk1 / (k[\"t0\"] + C2K)) / (1 - 0.15 * f[\"governor_valve\"])\n        return dict(m=m, e=e, lp=lp, p1=p1, t1=t1, pe=pe, te=tke - C2K, pw=pw, cw_in=cw_in, cw_out=cw_out, pc=pc, mw=mw,\n                    lift=min(100.0, lift), eta=eta, h1=h1, he=he)\n\n    # one published message ----------------------------------------------------------------------------------------------\n    def measure(self, s=None):\n        s = s or self.true_state()\n        f, me = self.faults, self.mech\n        return {\n            \"main_flow_th\": round(s[\"m\"] * (1 + self.n(0.001)), 3),\n            \"main_press_bara\": round(s[\"p1\"] + self.n(0.05), 3),\n            \"main_temp_c\": round(s[\"t1\"] + self.n(0.2), 2),\n            \"wheel_press_bara\": round(s[\"pw\"] * (1 + self.n(0.002)), 3),\n            \"ext_press_bara\": round(s[\"pe\"] + self.n(0.01), 3),\n            \"ext_temp_c\": round(s[\"te\"] + self.n(0.2), 2),\n            \"ext_flow_th\": round(s[\"e\"] * (1 + self.n(0.002)), 3),\n            \"cond_press_mbar\": round(s[\"pc\"] * (1 + self.n(0.003)), 2),\n            \"cw_in_c\": round(s[\"cw_in\"] + self.n(0.05), 2),\n            \"cw_out_c\": round(s[\"cw_out\"] + self.n(0.05), 2),\n            \"power_mw\": round(s[\"mw\"] * (1 + self.n(0.001)), 3),\n            \"gv_lift_pct\": round(s[\"lift\"] + self.n(0.1), 2),\n            \"ev_lift_pct\": round(min(100.0, 25 + 55 * s[\"lp\"] / (self.k[\"m0\"] - self.k[\"e0\"])) + self.n(0.1), 2),\n            \"speed_rpm\": round(self.k[\"n0\"] + self.n(0.8), 1),\n            \"vib_brg1_mms\": round(me[\"vib_normal_mms\"] + 7.0 * f[\"rotor_unbalance\"] + abs(self.n(0.08)), 3),\n            \"vib_brg2_mms\": round(me[\"vib_normal_mms\"] * 0.8 + 3.0 * f[\"rotor_unbalance\"] + abs(self.n(0.08)), 3),\n            \"thrust_pos_mm\": round(me[\"thrust_pos_normal_mm\"] + 0.32 * f[\"thrust_bearing_wear\"] + self.n(0.005), 4),\n            \"thrust_pad_c\": round(me[\"thrust_pad_normal_c\"] + 33.0 * f[\"thrust_bearing_wear\"] + self.n(0.3), 2),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The turbine runs continuously at 3000 rpm; the load and the process steam demand swing slowly with the plant clock.\n    \"\"\"\n\n    def __init__(self, twin, seed=3201):\n        self.twin = twin\n        self.scale = float(twin[\"design\"].get(\"demo\", {}).get(\"time_scale\", 1))\n        self.c = Turbine(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.trip = 0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.c.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.c.t = self.t\n        return self.c.true_state()\n\n    def measure(self, true):\n        return self.c.measure(true)\n", "twin_calc": "\"\"\"The steam turbine twin's expectations (ST-3201, condensing turbine with one controlled extraction, SST-400 frame).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nSteam properties (short correlations fitted to IAPWS-IF97, coefficients in design.steam_props; P in bar(a), T in K):\n    h(P, T)   = a0 + a1 T + a2 T^2 + c1 (T/600)^-n P + c2 (T/600)^-m P^2           enthalpy, kJ/kg (superheated)\n    Pv(P, T)  = b0 T + b1 (T/600)^-n P + b2 (T/600)^-m P^2                         P x v, kJ/kg\nHP section (main steam 1 -> extraction e), both ends superheated, so the efficiency comes from pressures and temperatures:\n    dh_actual    = h(P1, T1) - h(Pe, Te)\n    dh_isentropic = k / (k - 1) x P1 v1 x (1 - (Pe / P1)^((k - 1) / k))            isentropic index k fitted to IF97\n    eta_HP = dh_actual / dh_isentropic;   expected eta = eta_rated - curv x (1 - m / m_rated)^2  (nozzle governing)\nFirst stage (wheel chamber) pressure: the stages behind the first stage pass a flow proportional to the pressure in front\nof them (Stodola / law of the cone with a large pressure ratio), so at constant blade-path area\n    p_wheel_expected = p_wheel_rated x (m / m_rated) x sqrt(T1 / T1_rated)\n    ratio = p_wheel / p_wheel_expected:  > 1 the path is narrower (deposits), < 1 it is wider (erosion)\nExpected output (Willans line fitted to the heat balance, plus correction factors as in an ASME PTC 6 / IEC 60953 test):\n    P_expected = a m_main + b m_extraction + c + kP (P1 - P1r) + kT (T1 - T1r) + kC p_r / x ((p_cond / p_r)^x - 1)\n    (the backpressure correction curve has slope kC MW/mbar at the rated condenser pressure p_r and flattens as x < 1)\nCondenser: T_sat = B / (A - log10 p) - C (Antoine form fitted to IF97, p in mbar), TTD = T_sat - T_cw,out,\n    p_expected = 10^(A - B / (T_cw,out + TTD_design + C));  backpressure loss = the same correction curve between p_expected and p_cond\nGovernor valves (choked): m_expected = m_rated x (lift / lift_rated) x (P1 / P1r) x sqrt(T1r / T1)\nVibration: the higher bearing housing velocity against the ISO 20816-2 zone boundaries (3000 r/min).\n\"\"\"\nimport math\n\nC2K = 273.15\n\n\ndef _willans(points):\n    \"\"\"Least-squares fit P = a m + b e + c to the heat balance points [m, e, P] (normal equations, Cramer's rule).\"\"\"\n    n = len(points)\n    sm = sum(p[0] for p in points); se = sum(p[1] for p in points); sp = sum(p[2] for p in points)\n    smm = sum(p[0] ** 2 for p in points); see = sum(p[1] ** 2 for p in points); sme = sum(p[0] * p[1] for p in points)\n    smp = sum(p[0] * p[2] for p in points); sep = sum(p[1] * p[2] for p in points)\n    M = [[smm, sme, sm], [sme, see, se], [sm, se, n]]\n    y = [smp, sep, sp]\n\n    def det(a):\n        return (a[0][0] * (a[1][1] * a[2][2] - a[1][2] * a[2][1]) - a[0][1] * (a[1][0] * a[2][2] - a[1][2] * a[2][0])\n                + a[0][2] * (a[1][0] * a[2][1] - a[1][1] * a[2][0]))\n    d = det(M)\n    out = []\n    for j in range(3):\n        Mj = [[y[i] if c == j else M[i][c] for c in range(3)] for i in range(3)]\n        out.append(float(f\"{det(Mj) / d:.10g}\"))\n    return out\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    ra, hp, lp, va, co, sp, hb = d[\"rated\"], d[\"hp_section\"], d[\"lp_section\"], d[\"valves\"], d[\"condenser\"], d[\"steam_props\"], d[\"heat_balance\"]\n    wa, wb, wc = _willans(hb[\"points\"])\n    cr = hb[\"corrections\"]\n    return dict(m0=ra[\"main_flow_th\"], p0=ra[\"main_press_bara\"], t0=ra[\"main_temp_c\"], pe0=ra[\"ext_press_bara\"], e0=ra[\"ext_flow_th\"],\n                pc0=ra[\"cond_press_mbar\"], n0=ra[\"speed_rpm\"], emg=ra[\"mech_gen_eff\"],\n                eta0=hp[\"eta_rated_pct\"], curv=hp[\"eta_curv_pts\"], pw0=hp[\"wheel_press_rated_bara\"],\n                eta_lp=lp[\"eta_rated_pct\"], k_lp=lp[\"k_isentropic\"], lift0=va[\"gv_lift_rated_pct\"],\n                cw_in=co[\"cw_in_c\"], cw_rise=co[\"cw_rise_k\"], ttd0=co[\"ttd_k\"],\n                tr=sp[\"t_ref_k\"], H=sp[\"h\"], V=sp[\"pv\"], k=sp[\"k_hp\"], ant=sp[\"antoine\"],\n                wa=wa, wb=wb, wc=wc, kP=cr[\"mw_per_bar_main\"], kT=cr[\"mw_per_k_main\"], kC=cr[\"mw_per_mbar_cond\"], xc=cr[\"cond_exponent\"],\n                price=d[\"economics\"][\"power_price_eur_mwh\"])\n\n\n# steam properties: numbers -----------------------------------------------------------------------------------------------\ndef h_pt(k, p, tk):\n    H, tr = k[\"H\"], k[\"tr\"]\n    return H[\"a0\"] + H[\"a1\"] * tk + H[\"a2\"] * tk * tk + H[\"c1\"] * (tk / tr) ** -H[\"n\"] * p + H[\"c2\"] * (tk / tr) ** -H[\"m\"] * p * p\n\n\ndef pv_pt(k, p, tk):\n    V, tr = k[\"V\"], k[\"tr\"]\n    return V[\"b0\"] * tk + V[\"b1\"] * (tk / tr) ** -V[\"n\"] * p + V[\"b2\"] * (tk / tr) ** -V[\"m\"] * p * p\n\n\ndef dh_isen(k, p1, tk1, p2, kk=None):\n    kk = kk or k[\"k\"]\n    return kk / (kk - 1) * pv_pt(k, p1, tk1) * (1 - (p2 / p1) ** ((kk - 1) / kk))\n\n\ndef psat_mbar(k, tc):\n    a = k[\"ant\"]\n    return 10 ** (a[\"A\"] - a[\"B\"] / (tc + a[\"C\"]))\n\n\ndef tsat_c(k, p_mbar):\n    a = k[\"ant\"]\n    return a[\"B\"] / (a[\"A\"] - math.log10(p_mbar)) - a[\"C\"]\n\n\ndef t_from_h(k, p, h):\n    \"\"\"Inverse of h_pt at pressure p (bisection, K). Used by the stand-in and the figures only.\"\"\"\n    lo, hi = 300.0, 900.0\n    for _ in range(60):\n        mid = (lo + hi) / 2\n        lo, hi = (mid, hi) if h_pt(k, p, mid) < h else (lo, mid)\n    return (lo + hi) / 2\n\n\ndef eta_expected(k, flow):\n    return k[\"eta0\"] - k[\"curv\"] * (1 - flow / k[\"m0\"]) ** 2\n\n\ndef power_expected(k, m, e, p1, t1, pc):\n    return (k[\"wa\"] * m + k[\"wb\"] * e + k[\"wc\"] + k[\"kP\"] * (p1 - k[\"p0\"]) + k[\"kT\"] * (t1 - k[\"t0\"])\n            + k[\"kC\"] * k[\"pc0\"] / k[\"xc\"] * ((pc / k[\"pc0\"]) ** k[\"xc\"] - 1))\n\n\n# steam properties: pandas strings --------------------------------------------------------------------------------------\ndef _hs(k, P, T):\n    H, tr = k[\"H\"], k[\"tr\"]\n    return (f\"({H['a0']!r} + {H['a1']!r} * {T} + {H['a2']!r} * {T} ** 2 + {H['c1']!r} * ({T} / {tr!r}) ** -{H['n']!r} * {P}\"\n            f\" + {H['c2']!r} * ({T} / {tr!r}) ** -{H['m']!r} * {P} ** 2)\")\n\n\ndef _pvs(k, P, T):\n    V, tr = k[\"V\"], k[\"tr\"]\n    return f\"({V['b0']!r} * {T} + {V['b1']!r} * ({T} / {tr!r}) ** -{V['n']!r} * {P} + {V['b2']!r} * ({T} / {tr!r}) ** -{V['m']!r} * {P} ** 2)\"\n\n\ndef _parts(twin):\n    k = _k(twin)\n    a = k[\"ant\"]\n    P1, T1, PE, TE = \"df['MAIN_PRESS_BARA']\", f\"(df['MAIN_TEMP_C'] + {C2K})\", \"df['EXT_PRESS_BARA']\", f\"(df['EXT_TEMP_C'] + {C2K})\"\n    kk = k[\"k\"]\n    H1, HE = _hs(k, P1, T1), _hs(k, PE, TE)\n    DHA = f\"({H1} - {HE})\"\n    DHS = f\"({kk / (kk - 1)!r} * {_pvs(k, P1, T1)} * (1 - ({PE} / {P1}) ** {(kk - 1) / kk!r}))\"\n    EFF = f\"(100 * {DHA} / {DHS})\"\n    EEXP = f\"({k['eta0']!r} - {k['curv']!r} * (1 - df['MAIN_FLOW_TH'] / {k['m0']!r}) ** 2)\"\n    WEXP = f\"({k['pw0']!r} * (df['MAIN_FLOW_TH'] / {k['m0']!r}) * np.sqrt({T1} / {k['t0'] + C2K!r}))\"\n    PEXP = (f\"({k['wa']!r} * df['MAIN_FLOW_TH'] + {k['wb']!r} * df['EXT_FLOW_TH'] + {k['wc']!r}\"\n            f\" + {k['kP']!r} * (df['MAIN_PRESS_BARA'] - {k['p0']!r}) + {k['kT']!r} * (df['MAIN_TEMP_C'] - {k['t0']!r})\"\n            f\" + {k['kC'] * k['pc0'] / k['xc']!r} * ((df['COND_PRESS_MBAR'] / {k['pc0']!r}) ** {k['xc']!r} - 1))\")\n    TSAT = f\"({a['B']!r} / ({a['A']!r} - np.log10(df['COND_PRESS_MBAR'])) - {a['C']!r})\"\n    PCEXP = f\"(10 ** ({a['A']!r} - {a['B']!r} / (df['CW_OUT_C'] + {k['ttd0']!r} + {a['C']!r})))\"\n    VR = f\"(df['MAIN_FLOW_TH'] / ({k['m0']!r} * (df['GV_LIFT_PCT'] / {k['lift0']!r}) * (df['MAIN_PRESS_BARA'] / {k['p0']!r}) * np.sqrt({k['t0'] + C2K!r} / {T1})))\"\n    return dict(k=k, H1=H1, HE=HE, DHA=DHA, DHS=DHS, EFF=EFF, EEXP=EEXP, EDEV=f\"({EFF} - {EEXP})\", WEXP=WEXP,\n                WR=f\"(df['WHEEL_PRESS_BARA'] / {WEXP})\", PEXP=PEXP, PDEV=f\"(100 * (df['POWER_MW'] - {PEXP}) / {PEXP})\",\n                TSAT=TSAT, TTD=f\"({TSAT} - df['CW_OUT_C'])\", PCEXP=PCEXP, PCDEV=f\"(df['COND_PRESS_MBAR'] - {PCEXP})\", VR=VR,\n                VMAX=\"np.maximum(df['VIB_BRG1_MMS'], df['VIB_BRG2_MMS'])\")\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"H_MAIN_KJKG\", p[\"H1\"]),\n        (\"H_EXT_KJKG\", p[\"HE\"]),\n        (\"DH_HP_ACTUAL_KJKG\", p[\"DHA\"]),\n        (\"DH_HP_ISEN_KJKG\", p[\"DHS\"]),\n        (\"HP_EFF_PCT\", p[\"EFF\"]),\n        (\"HP_EFF_EXPECTED_PCT\", p[\"EEXP\"]),\n        (\"HP_EFF_DEV_PTS\", p[\"EDEV\"]),\n        (\"WHEEL_PRESS_EXPECTED_BARA\", p[\"WEXP\"]),\n        (\"WHEEL_PRESS_RATIO\", p[\"WR\"]),\n        (\"POWER_EXPECTED_MW\", p[\"PEXP\"]),\n        (\"POWER_DEV_PCT\", p[\"PDEV\"]),\n        (\"LOST_MW\", f\"({p['PEXP']} - df['POWER_MW'])\"),\n        (\"LOST_EUR_H\", f\"({p['PEXP']} - df['POWER_MW']) * {k['price']!r}\"),\n        (\"COND_TSAT_C\", p[\"TSAT\"]),\n        (\"COND_TTD_K\", p[\"TTD\"]),\n        (\"COND_PRESS_EXPECTED_MBAR\", p[\"PCEXP\"]),\n        (\"COND_PRESS_DEV_MBAR\", p[\"PCDEV\"]),\n        (\"BACKPRESSURE_LOSS_MW\", f\"{-k['kC'] * k['pc0'] / k['xc']!r} * ((df['COND_PRESS_MBAR'] / {k['pc0']!r}) ** {k['xc']!r} - ({p['PCEXP']} / {k['pc0']!r}) ** {k['xc']!r})\"),\n        (\"VALVE_FLOW_RATIO\", p[\"VR\"]),\n        (\"VIB_MAX_MMS\", p[\"VMAX\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    t1, te = r[\"main_temp_c\"] + C2K, r[\"ext_temp_c\"] + C2K\n    h1, he = h_pt(k, r[\"main_press_bara\"], t1), h_pt(k, r[\"ext_press_bara\"], te)\n    dha, dhs = h1 - he, dh_isen(k, r[\"main_press_bara\"], t1, r[\"ext_press_bara\"])\n    eff = 100 * dha / dhs\n    eexp = eta_expected(k, r[\"main_flow_th\"])\n    wexp = k[\"pw0\"] * (r[\"main_flow_th\"] / k[\"m0\"]) * math.sqrt(t1 / (k[\"t0\"] + C2K))\n    pexp = power_expected(k, r[\"main_flow_th\"], r[\"ext_flow_th\"], r[\"main_press_bara\"], r[\"main_temp_c\"], r[\"cond_press_mbar\"])\n    tsat = tsat_c(k, r[\"cond_press_mbar\"])\n    pcexp = psat_mbar(k, r[\"cw_out_c\"] + k[\"ttd0\"])\n    pcdev = r[\"cond_press_mbar\"] - pcexp\n    mexp = k[\"m0\"] * (r[\"gv_lift_pct\"] / k[\"lift0\"]) * (r[\"main_press_bara\"] / k[\"p0\"]) * math.sqrt((k[\"t0\"] + C2K) / t1)\n    return {\n        \"h_main_kjkg\": h1, \"h_ext_kjkg\": he, \"dh_hp_actual_kjkg\": dha, \"dh_hp_isen_kjkg\": dhs,\n        \"hp_eff_pct\": eff, \"hp_eff_expected_pct\": eexp, \"hp_eff_dev_pts\": eff - eexp,\n        \"wheel_press_expected_bara\": wexp, \"wheel_press_ratio\": r[\"wheel_press_bara\"] / wexp,\n        \"power_expected_mw\": pexp, \"power_dev_pct\": 100 * (r[\"power_mw\"] - pexp) / pexp,\n        \"lost_mw\": pexp - r[\"power_mw\"], \"lost_eur_h\": (pexp - r[\"power_mw\"]) * k[\"price\"],\n        \"cond_tsat_c\": tsat, \"cond_ttd_k\": tsat - r[\"cw_out_c\"], \"cond_press_expected_mbar\": pcexp,\n        \"cond_press_dev_mbar\": pcdev, \"backpressure_loss_mw\": -k[\"kC\"] * k[\"pc0\"] / k[\"xc\"] * ((r[\"cond_press_mbar\"] / k[\"pc0\"]) ** k[\"xc\"] - (pcexp / k[\"pc0\"]) ** k[\"xc\"]),\n        \"valve_flow_ratio\": r[\"main_flow_th\"] / mexp, \"vib_max_mms\": max(r[\"vib_brg1_mms\"], r[\"vib_brg2_mms\"]),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    ED, WR, PD, VM = p[\"EDEV\"], p[\"WR\"], p[\"PDEV\"], p[\"VMAX\"]\n    return [\n        (\"ST_VIB_ZONE_D\", f\"{VM} >= {L['vib_cd_mms']}\", \"High\", None),\n        (\"ST_HP_EFF_VERY_LOW\", f\"{ED} <= {L['hp_eff_very_low_pts']}\", \"High\", \"solid_particle_erosion\"),\n        (\"ST_THRUST_POS\", f\"np.abs(df['THRUST_POS_MM']) > {L['thrust_pos_mm']}\", \"High\", \"thrust_bearing_wear\"),\n        (\"ST_POWER_LOW\", f\"{PD} < {L['power_dev_low_pct']}\", \"Medium\", \"lp_blade_damage\"),\n        (\"ST_HP_EFF_LOW\", f\"({ED} <= {L['hp_eff_low_pts']}) & ({ED} > {L['hp_eff_very_low_pts']})\", \"Medium\", \"hp_deposits\"),\n        (\"ST_WHEEL_PRESS_HIGH\", f\"{WR} > {L['wheel_ratio_high']}\", \"Medium\", \"hp_deposits\"),\n        (\"ST_WHEEL_PRESS_LOW\", f\"{WR} < {L['wheel_ratio_low']}\", \"Medium\", \"solid_particle_erosion\"),\n        (\"ST_COND_PRESS_HIGH\", f\"{p['PCDEV']} > {L['cond_press_dev_mbar']}\", \"Medium\", \"condenser_fouling\"),\n        (\"ST_TTD_HIGH\", f\"{p['TTD']} > {L['ttd_high_k']}\", \"Medium\", \"condenser_fouling\"),\n        (\"ST_VALVE_CAPACITY_LOW\", f\"{p['VR']} < {L['valve_ratio_low']}\", \"Medium\", \"governor_valve\"),\n        (\"ST_VIB_ZONE_C\", f\"({VM} >= {L['vib_bc_mms']}) & ({VM} < {L['vib_cd_mms']})\", \"Medium\", \"rotor_unbalance\"),\n        (\"ST_THRUST_TEMP\", f\"df['THRUST_PAD_C'] > {L['thrust_pad_c']}\", \"Medium\", \"thrust_bearing_wear\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    ed, wr, pd, vm = t[\"hp_eff_dev_pts\"], t[\"wheel_press_ratio\"], t[\"power_dev_pct\"], t[\"vib_max_mms\"]\n    add(vm >= L[\"vib_cd_mms\"], \"ST_VIB_ZONE_D\", \"High\", f\"Bearing vibration {vm:.1f} mm/s: ISO 20816-2 zone D\", \"rotor\")\n    add(ed <= L[\"hp_eff_very_low_pts\"], \"ST_HP_EFF_VERY_LOW\", \"High\",\n        f\"HP efficiency {t['hp_eff_pct']:.1f} %, {ed:+.1f} points against {t['hp_eff_expected_pct']:.1f} % expected\", \"hp\", \"solid_particle_erosion\")\n    add(abs(r[\"thrust_pos_mm\"]) > L[\"thrust_pos_mm\"], \"ST_THRUST_POS\", \"High\", f\"Rotor axial position {r['thrust_pos_mm']:+.2f} mm\", \"thrust\", \"thrust_bearing_wear\")\n    add(pd < L[\"power_dev_low_pct\"], \"ST_POWER_LOW\", \"Medium\",\n        f\"Output {r['power_mw']:.1f} MW, {pd:+.1f} % against {t['power_expected_mw']:.1f} MW expected ({t['lost_mw']:.2f} MW lost)\", \"lp\", \"lp_blade_damage\")\n    add(L[\"hp_eff_very_low_pts\"] < ed <= L[\"hp_eff_low_pts\"], \"ST_HP_EFF_LOW\", \"Medium\",\n        f\"HP efficiency {t['hp_eff_pct']:.1f} %, {ed:+.1f} points against expected\", \"hp\", \"hp_deposits\")\n    add(wr > L[\"wheel_ratio_high\"], \"ST_WHEEL_PRESS_HIGH\", \"Medium\",\n        f\"First-stage pressure {r['wheel_press_bara']:.1f} bar(a), {wr:.3f} x expected: blade path narrower\", \"hp\", \"hp_deposits\")\n    add(wr < L[\"wheel_ratio_low\"], \"ST_WHEEL_PRESS_LOW\", \"Medium\",\n        f\"First-stage pressure {r['wheel_press_bara']:.1f} bar(a), {wr:.3f} x expected: blade path wider\", \"hp\", \"solid_particle_erosion\")\n    add(t[\"cond_press_dev_mbar\"] > L[\"cond_press_dev_mbar\"], \"ST_COND_PRESS_HIGH\", \"Medium\",\n        f\"Condenser {r['cond_press_mbar']:.0f} mbar, {t['cond_press_dev_mbar']:+.0f} mbar against the cooling water ({t['backpressure_loss_mw']:.2f} MW)\",\n        \"condenser\", \"condenser_fouling\")\n    add(t[\"cond_ttd_k\"] > L[\"ttd_high_k\"], \"ST_TTD_HIGH\", \"Medium\", f\"Condenser TTD {t['cond_ttd_k']:.1f} K\", \"condenser\", \"condenser_fouling\")\n    add(t[\"valve_flow_ratio\"] < L[\"valve_ratio_low\"], \"ST_VALVE_CAPACITY_LOW\", \"Medium\",\n        f\"Governor valves pass {t['valve_flow_ratio']:.2f} x the expected flow at {r['gv_lift_pct']:.0f} % lift\", \"valves\", \"governor_valve\")\n    add(L[\"vib_bc_mms\"] <= vm < L[\"vib_cd_mms\"], \"ST_VIB_ZONE_C\", \"Medium\", f\"Bearing vibration {vm:.1f} mm/s: ISO 20816-2 zone C\", \"rotor\", \"rotor_unbalance\")\n    add(r[\"thrust_pad_c\"] > L[\"thrust_pad_c\"], \"ST_THRUST_TEMP\", \"Medium\", f\"Thrust pad {r['thrust_pad_c']:.0f} \u00b0C\", \"thrust\", \"thrust_bearing_wear\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "ST-3201 condensing extraction steam turbine twin. Expected values in Maximo Monitor from the heat balance, the steam property correlations and the design data; the device sends only what it measures.", "twin": {"id": "ST-3201", "name": "Steam turbine ST-3201", "version": "1.0.0", "folder": "steamturb-twin"}, "identification": {"asset": "ST-3201", "assetnum": "ST-3201", "manufacturer": "Siemens Energy", "model": "SST-400 frame (single casing, condensing with one controlled extraction)", "description": "Turbine-generator of a cogeneration plant: process steam extraction at 12 bar(a), condensing exhaust", "drive": "Direct drive to a 50 Hz two-pole generator, 3000 rpm", "governing": "Nozzle governing: governor (HP control) valves feed the first-stage nozzle groups; extraction control valve to the LP section", "condenser": "Water-cooled surface condenser"}, "design": {"frame": {"power_max_mw": 65.0, "inlet_bara_max": 140.0, "inlet_c_max": 540.0, "speed_max_rpm": 7100, "exhaust_condensing_bara_max": 0.5, "extraction_controlled_bara_max": 40.0, "source": "Siemens Energy industrial steam turbines page, SST-400 technical data (checked 2026-11)"}, "rated": {"main_flow_th": 200.0, "main_press_bara": 100.0, "main_temp_c": 500.0, "ext_press_bara": 12.0, "ext_flow_th": 50.0, "cond_press_mbar": 86.0, "speed_rpm": 3000.0, "mech_gen_eff": 0.975, "source": "Design point of this unit, inside the SST-400 envelope: assumption: typical value, replace with your OEM heat balance / data sheet"}, "hp_section": {"eta_rated_pct": 80.0, "eta_curv_pts": 25.0, "wheel_press_rated_bara": 72.0, "source": "HP section (inlet to extraction) isentropic efficiency at rated flow, its fall at part load (eta = eta_rated - curv x (1 - flow/rated)^2, nozzle governing) and the first-stage (wheel chamber) pressure at rated flow: assumption: typical value, replace with your OEM heat balance / data sheet"}, "lp_section": {"eta_rated_pct": 82.0, "k_isentropic": 1.19, "source": "LP section (extraction to condenser) efficiency including wetness losses: assumption: typical value, replace with your OEM heat balance / data sheet. k = 1.19 matches the IAPWS-IF97 isentropic drop from 12 bar(a) / 248 C to 60-150 mbar within 1 % (stand-in only)."}, "valves": {"gv_lift_rated_pct": 80.0, "source": "Governor valve lift at rated flow; flow through the choked valves taken proportional to lift x P1 / sqrt(T1): assumption: typical value, replace with your OEM heat balance / data sheet"}, "condenser": {"cw_in_c": 28.0, "cw_rise_k": 10.0, "ttd_k": 5.0, "source": "Cooling water inlet temperature, rise at rated LP flow and terminal temperature difference (TTD) of the clean condenser: assumption: typical value, replace with your OEM heat balance / data sheet"}, "mechanical": {"vib_normal_mms": 2.4, "thrust_pos_normal_mm": 0.05, "thrust_pad_normal_c": 72.0, "source": "Normal bearing housing vibration, rotor axial position and thrust pad temperature: assumption: typical value, replace with your OEM heat balance / data sheet"}, "steam_props": {"t_ref_k": 600.0, "h": {"a0": 1996.72817, "a1": 1.70062946, "a2": 0.000295708033, "c1": -1.64999356, "c2": -0.0134772194, "n": 2.0, "m": 9.0}, "pv": {"b0": 0.46088254, "b1": -0.482389, "b2": -0.00270654, "n": 2.5, "m": 9.0}, "k_hp": 1.286, "antoine": {"A": 8.21118462, "B": 1737.94135822, "C": 234.0}, "source": "Correlations fitted to IAPWS-IF97 (iapws Python package) by tools/fit_steam.py. h(P,T) [kJ/kg] = a0 + a1 T + a2 T^2 + c1 (T/600)^-n P + c2 (T/600)^-m P^2, within 5.9 kJ/kg of IF97 from 5 to 125 bar(a) and saturation + 20 K to 560 C; P.v [kJ/kg] = b0 T + b1 (T/600)^-n P + b2 (T/600)^-m P^2 within 0.5 %; isentropic drop with k = 1.286 within 0.25 % from 60-110 bar(a), 460-520 C to 8-16 bar(a); HP efficiency within -0.2 / +0.7 points of IF97 over the operating range. Saturation: log10(p [mbar]) = A - B / (T [C] + C), within 0.03 % from 25 to 70 C."}, "heat_balance": {"points": [[140.0, 20.0, 37.6355], [140.0, 50.0, 32.3129], [140.0, 80.0, 26.9903], [170.0, 20.0, 46.6413], [170.0, 50.0, 41.3687], [170.0, 80.0, 36.0961], [200.0, 20.0, 55.5612], [200.0, 50.0, 50.3053], [200.0, 80.0, 45.0494], [215.0, 20.0, 59.9729], [215.0, 50.0, 54.7128], [215.0, 80.0, 49.4527]], "corrections": {"mw_per_bar_main": -0.0006, "mw_per_k_main": 0.0903, "mw_per_mbar_cond": -0.04066, "cond_exponent": 0.1597}, "source": "Heat balance points (main flow t/h, extraction flow t/h, MW) at rated steam conditions and the correction factors for main steam pressure, temperature and condenser pressure (slope at the rated condenser pressure; the curve flattens as (p/p_r)^x). Here computed from the stand-in model (tools/heat_balance.py): assumption: typical value, replace with your OEM heat balance / data sheet"}, "economics": {"power_price_eur_mwh": 80.0, "source": "Value of one MWh of electricity at the plant: assumption, replace with your own"}, "demo": {"time_scale": 1, "note": "Demo only: the load and the extraction demand swing slowly with the plant clock; faults ramp in over the default ramp time."}}, "telemetry": {"event": "steamturb", "publish_every_s": 10, "device_type": "STEAM_TURBINE_EXTRACTION", "groups": {"Steam": "Main steam at the turbine stop valve", "HP": "HP section", "Extraction": "Controlled extraction to process", "Condenser": "Exhaust and condenser", "Generator": "Generator output", "Valves": "Governor and extraction valves", "Rotor": "Speed", "Bearings": "Bearing housing vibration", "Thrust": "Thrust bearing"}, "points": [{"metric": "main_flow_th", "path": "Steam.Flow", "label": "Main steam flow", "unit": "t/h"}, {"metric": "main_press_bara", "path": "Steam.Pressure", "label": "Main steam pressure", "unit": "bar a"}, {"metric": "main_temp_c", "path": "Steam.Temperature", "label": "Main steam temperature", "unit": "\u00b0C"}, {"metric": "wheel_press_bara", "path": "HP.WheelChamberPressure", "label": "First-stage (wheel chamber) pressure", "unit": "bar a"}, {"metric": "ext_press_bara", "path": "Extraction.Pressure", "label": "Extraction pressure", "unit": "bar a"}, {"metric": "ext_temp_c", "path": "Extraction.Temperature", "label": "Extraction temperature", "unit": "\u00b0C"}, {"metric": "ext_flow_th", "path": "Extraction.Flow", "label": "Extraction flow to process", "unit": "t/h"}, {"metric": "cond_press_mbar", "path": "Condenser.Pressure", "label": "Condenser (exhaust) pressure", "unit": "mbar a"}, {"metric": "cw_in_c", "path": "Condenser.CWInlet", "label": "Cooling water inlet temperature", "unit": "\u00b0C"}, {"metric": "cw_out_c", "path": "Condenser.CWOutlet", "label": "Cooling water outlet temperature", "unit": "\u00b0C"}, {"metric": "power_mw", "path": "Generator.Power", "label": "Generator active power", "unit": "MW"}, {"metric": "gv_lift_pct", "path": "Valves.GovernorLift", "label": "Governor valve lift", "unit": "%"}, {"metric": "ev_lift_pct", "path": "Valves.ExtractionLift", "label": "Extraction control valve (LP) lift", "unit": "%"}, {"metric": "speed_rpm", "path": "Rotor.Speed", "label": "Rotor speed", "unit": "rpm"}, {"metric": "vib_brg1_mms", "path": "Bearings.Vib1", "label": "Bearing 1 (turbine front) housing vibration", "unit": "mm/s"}, {"metric": "vib_brg2_mms", "path": "Bearings.Vib2", "label": "Bearing 2 (turbine rear) housing vibration", "unit": "mm/s"}, {"metric": "thrust_pos_mm", "path": "Thrust.Position", "label": "Rotor axial position", "unit": "mm"}, {"metric": "thrust_pad_c", "path": "Thrust.PadTemp", "label": "Thrust pad temperature (active side)", "unit": "\u00b0C"}]}, "twin_model": {"limits": {"hp_eff_low_pts": -3.0, "hp_eff_very_low_pts": -7.0, "wheel_ratio_high": 1.04, "wheel_ratio_low": 0.97, "power_dev_low_pct": -1.5, "cond_press_dev_mbar": 15.0, "ttd_high_k": 9.0, "valve_ratio_low": 0.92, "vib_bc_mms": 7.5, "vib_cd_mms": 11.8, "thrust_pos_mm": 0.25, "thrust_pad_c": 95.0, "source": "Vibration: ISO 20816-2 zone boundaries at 3000 r/min as commonly quoted (check your copy). Others: assumption: typical value, replace with your OEM heat balance / data sheet"}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "hp_deposits": {"name": "Deposits on the HP blading (silica, salts)", "part": "hp", "symptoms": "first-stage pressure up at the same flow, HP efficiency down, output down", "rules": ["ST_WHEEL_PRESS_HIGH", "ST_HP_EFF_LOW", "ST_POWER_LOW"], "default_ramp_min": 1.5}, "solid_particle_erosion": {"name": "Solid particle erosion of the first-stage nozzles and HP blades", "part": "hp", "symptoms": "HP efficiency well down, first-stage pressure down at the same flow, output down", "rules": ["ST_WHEEL_PRESS_LOW", "ST_HP_EFF_VERY_LOW", "ST_POWER_LOW"], "default_ramp_min": 1.5}, "lp_blade_damage": {"name": "LP blade erosion or damage (moisture erosion, lost shroud)", "part": "lp", "symptoms": "output down with a healthy HP section and a normal condenser", "rules": ["ST_POWER_LOW"], "default_ramp_min": 1.0}, "condenser_fouling": {"name": "Condenser fouling or air in-leakage", "part": "condenser", "symptoms": "TTD and condenser pressure up against the cooling water; output down but as expected for that backpressure", "rules": ["ST_COND_PRESS_HIGH", "ST_TTD_HIGH"], "default_ramp_min": 1.0}, "governor_valve": {"name": "Governor valve deposits or linkage fault", "part": "valves", "symptoms": "more lift needed for the same steam flow", "rules": ["ST_VALVE_CAPACITY_LOW"], "default_ramp_min": 1.0}, "rotor_unbalance": {"name": "Rotor unbalance or bow (blade loss, rub, uneven deposits)", "part": "rotor", "symptoms": "bearing vibration up into ISO 20816-2 zone C", "rules": ["ST_VIB_ZONE_C"], "default_ramp_min": 1.0}, "thrust_bearing_wear": {"name": "Thrust bearing wear or overload", "part": "thrust", "symptoms": "rotor moves axially, thrust pad temperature up", "rules": ["ST_THRUST_POS", "ST_THRUST_TEMP"], "default_ramp_min": 1.0}}, "presentation": {"title": "ST-3201 steam turbine", "dashboard": "STEAM_TURBINE_EXTRACTION"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const sgn = (v, d = 1) => (v == null || isNaN(v)) ? '–' : (v >= 0 ? '+' : '') + Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(4.5, 4.6, 9.5); ctl.target.set(0.9, 1.2, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(5, 9, 6); scene.add(sun);
+scene.add(new THREE.GridHelper(20, 40, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .7, r: .3 }), dark = M(0x3d4249), green = M(0x2f8a4b, { m: .3 }), pipeMat = M(0x9aa3ad, { m: .5 });
+const cyl = (r1, r2, h, m, s = 40) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const AX = 1.25;  // shaft height
+// foundation / turbine deck
+scene.add(at(box(9.6, .3, 2.6, M(0x6f6f6f, { m: .1, r: .9 })), 1.2, .15, 0));
+// casing: outer shell along x, HP (small) at x=-2.2 to LP (large) at x=1.2
+const casingMat = M(0x4f6f8f, { m: .4, ds: true });
+const casing = new THREE.Group(); scene.add(casing);
+const segs = [[-2.3, -1.2, .52, .58], [-1.2, -.2, .58, .70], [-.2, .6, .70, .95], [.6, 1.5, .95, 1.10]];
+segs.forEach(([x0, x1, r0, r1]) => { const c = cyl(r0, r1, x1 - x0, casingMat); c.rotation.z = -Math.PI / 2; casing.add(at(c, (x0 + x1) / 2, AX, 0)); });
+// horizontal joint flange
+const flange = at(box(3.9, .06, 2.3, M(0x3e5770, { m: .4 })), -.4, AX, 0); casing.add(flange);
+// rotor: shaft + stages (discs with blade rings), visible in cutaway
+const rotor = new THREE.Group(); at(rotor, 0, AX, 0); scene.add(rotor);
+const shaft = cyl(.11, .11, 7.4, steel); shaft.rotation.z = Math.PI / 2; rotor.add(at(shaft, .9, 0, 0));
+const bladeMat = M(0xd8c17a, { m: .8, r: .25 });
+const stagesX = []; for (let i = 0; i < 14; i++) stagesX.push(-2.1 + i * .25);
+stagesX.forEach((x, i) => {
+  const rr = .30 + i * .043 + (i > 10 ? (i - 10) * .05 : 0), w = .06 + i * .004;
+  const disc = cyl(rr * .75, rr * .75, w, steel, 32); disc.rotation.z = Math.PI / 2; rotor.add(at(disc, x, 0, 0));
+  const ring = cyl(rr, rr, w * .8, bladeMat, 48); ring.rotation.z = Math.PI / 2; rotor.add(at(ring, x, 0, 0));
+});
+// governor valve chest on top of the HP end (4 valves) + main steam pipe
+scene.add(at(box(.9, .35, .9, M(0x56718f, { m: .4 })), -1.9, AX + .78, 0));
+const valves = [];
+[-.27, -.09, .09, .27].forEach(z => { const b = at(cyl(.07, .07, .45, dark), -1.9, AX + 1.15, z * 1.4); scene.add(b); const st = at(cyl(.02, .02, .3, steel), -1.9, AX + 1.5, z * 1.4); scene.add(st); valves.push(st); });
+scene.add(at(box(.5, .12, 1.0, dark), -1.9, AX + 1.68, 0)); // servo / lift beam
+const mainPipe = cyl(.13, .13, 2.2, pipeMat); mainPipe.rotation.z = Math.PI / 2; scene.add(at(mainPipe, -3.2, AX + .78, 0));
+const stopV = at(cyl(.24, .24, .5, M(0xb3262d, { m: .3 })), -2.85, AX + .78, 0); scene.add(stopV);
+// extraction nozzle (side) + extraction control valve + process steam line
+const extN = cyl(.12, .12, .9, pipeMat); extN.rotation.x = Math.PI / 2; scene.add(at(extN, -.35, AX, .95));
+const extV = at(box(.3, .3, .3, M(0x8a3ffc, { m: .2 })), -.35, AX, 1.45); scene.add(extV);
+const extP = cyl(.12, .12, 1.2, pipeMat); scene.add(at(extP, -.35, AX + .6, 1.45));
+// downward exhaust to the condenser under the LP end
+scene.add(at(box(1.1, .9, 1.6, casingMat), 1.05, AX - 1.0, 0));
+const cond = at(box(2.4, 1.1, 2.0, M(0x2f6db5, { m: .35 })), 1.05, -.45, 0); scene.add(cond);
+[-.6, .6].forEach(z => { const cw = cyl(.14, .14, .6, pipeMat); cw.rotation.z = Math.PI / 2; scene.add(at(cw, -.45, -.45 + z * .4, z)); });
+// bearing pedestals, thrust bearing at the HP end, coupling, generator
+const brg1 = at(box(.4, .95, .7, dark), -2.65, .78, 0); scene.add(brg1);
+const brg2 = at(box(.4, .95, .7, dark), 1.85, .78, 0); scene.add(brg2);
+const thrust = at(cyl(.2, .2, .18, M(0xd8a31a, { m: .2 })), -2.65, AX, 0); thrust.rotation.z = Math.PI / 2; scene.add(thrust);
+const coup = at(cyl(.2, .2, .2, steel), 2.25, AX, 0); coup.rotation.z = Math.PI / 2; scene.add(coup);
+const gen = at(cyl(.85, .85, 2.6, green), 3.75, AX, 0); gen.rotation.z = Math.PI / 2; scene.add(gen);
+scene.add(at(box(2.8, .5, 1.8, M(0x24603a, { m: .3 })), 3.75, .45, 0));
+const genEnd = at(cyl(.5, .5, .2, dark), 5.15, AX, 0); genEnd.rotation.z = Math.PI / 2; scene.add(genEnd);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.08, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, -1.9, AX + 1.85, 0));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('main', [-3.4, AX + 1.0, 0]); lbl('valve', [-1.9, AX + 1.9, 0]); lbl('wheel', [-1.6, AX + .6, .5]); lbl('ext', [-.35, AX + 1.75, 1.45]);
+lbl('eff', [.4, AX + 1.05, -.3]); lbl('cond', [1.05, .25, 1.0]); lbl('power', [3.75, AX + 1.0, 0]); lbl('vib', [1.85, 1.35, .4]); lbl('thrust', [-2.75, 1.0, .5]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let lift = 80, rpm = 3000;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  lift = r.gv_lift_pct; rpm = r.speed_rpm;
+  setLbl('main', 'main steam', `${fmt(r.main_flow_th, 0)} t/h · ${fmt(r.main_press_bara, 1)} bar · ${fmt(r.main_temp_c, 0)} °C`, '');
+  setLbl('valve', 'governor valves · flow ÷ expected', `${fmt(r.gv_lift_pct, 0)} % · ${fmt(t.valve_flow_ratio)}`, st(names.has('ST_VALVE_CAPACITY_LOW'), t.valve_flow_ratio < 0.96));
+  setLbl('wheel', 'first-stage pressure ÷ expected', `${fmt(r.wheel_press_bara, 1)} bar · ${fmt(t.wheel_press_ratio, 3)}`, st(names.has('ST_WHEEL_PRESS_HIGH') || names.has('ST_WHEEL_PRESS_LOW'), Math.abs(t.wheel_press_ratio - 1) > 0.02));
+  setLbl('ext', 'extraction to process', `${fmt(r.ext_flow_th, 0)} t/h · ${fmt(r.ext_press_bara, 1)} bar · ${fmt(r.ext_temp_c, 0)} °C`, '');
+  setLbl('eff', 'HP efficiency · vs expected', `${fmt(t.hp_eff_pct, 1)} % · ${sgn(t.hp_eff_dev_pts)} pts`, st(names.has('ST_HP_EFF_VERY_LOW') || names.has('ST_HP_EFF_LOW'), t.hp_eff_dev_pts < -1.5));
+  setLbl('cond', `condenser · expected ${fmt(t.cond_press_expected_mbar, 0)} mbar`, `${fmt(r.cond_press_mbar, 0)} mbar · TTD ${fmt(t.cond_ttd_k, 1)} K`, st(names.has('ST_COND_PRESS_HIGH') || names.has('ST_TTD_HIGH'), t.cond_press_dev_mbar > 8));
+  setLbl('power', `generator · expected ${fmt(t.power_expected_mw, 1)} MW`, `${fmt(r.power_mw, 1)} MW · ${sgn(t.power_dev_pct)} %`, st(names.has('ST_POWER_LOW'), t.power_dev_pct < -0.8));
+  setLbl('vib', 'bearing vibration 1 / 2 (mm/s)', `${fmt(r.vib_brg1_mms, 1)} / ${fmt(r.vib_brg2_mms, 1)}`, st(names.has('ST_VIB_ZONE_D') || names.has('ST_VIB_ZONE_C'), t.vib_max_mms > 0.8 * L.vib_bc_mms));
+  setLbl('thrust', 'axial position · thrust pad', `${fmt(r.thrust_pos_mm)} mm · ${fmt(r.thrust_pad_c, 0)} °C`, st(names.has('ST_THRUST_POS') || names.has('ST_THRUST_TEMP'), r.thrust_pad_c > L.thrust_pad_c - 8));
+  $('k-health').textContent = ST.health; $('k-mw').textContent = fmt(r.power_mw, 1); $('k-dev').textContent = sgn(t.power_dev_pct) + ' %';
+  $('c-eff-t').textContent = `HP efficiency ${fmt(t.hp_eff_pct, 1)} %`; $('c-eff').className = 'chip ' + (t.hp_eff_dev_pts <= L.hp_eff_low_pts ? 'bad' : t.hp_eff_dev_pts < -1.5 ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Output (MW)', fmt(r.power_mw, 2), fmt(t.power_expected_mw, 2), names.has('ST_POWER_LOW')) +
+    row('HP efficiency (%)', fmt(t.hp_eff_pct, 1), fmt(t.hp_eff_expected_pct, 1), names.has('ST_HP_EFF_LOW') || names.has('ST_HP_EFF_VERY_LOW')) +
+    row('HP enthalpy drop (kJ/kg)', fmt(t.dh_hp_actual_kjkg, 0), fmt(t.dh_hp_isen_kjkg * t.hp_eff_expected_pct / 100, 0)) +
+    row('First-stage pressure (bar a)', fmt(r.wheel_press_bara, 1), fmt(t.wheel_press_expected_bara, 1), names.has('ST_WHEEL_PRESS_HIGH') || names.has('ST_WHEEL_PRESS_LOW')) +
+    row('Condenser (mbar a)', fmt(r.cond_press_mbar, 0), fmt(t.cond_press_expected_mbar, 0), names.has('ST_COND_PRESS_HIGH')) +
+    row('Condenser TTD (K)', fmt(t.cond_ttd_k, 1), fmt(d.condenser.ttd_k, 1), names.has('ST_TTD_HIGH')) +
+    row('Backpressure loss (MW)', fmt(t.backpressure_loss_mw, 2), '0') +
+    row('Valve flow ÷ expected', fmt(t.valve_flow_ratio), '1.00', names.has('ST_VALVE_CAPACITY_LOW')) +
+    row('Vibration max (mm/s)', fmt(t.vib_max_mms, 1), '< ' + L.vib_bc_mms, t.vib_max_mms >= L.vib_bc_mms) +
+    row('Lost output (€/h)', fmt(t.lost_eur_h, 0), '0', t.lost_eur_h > 0 && names.has('ST_POWER_LOW'));
+  const order = ['Critical', 'High', 'Medium', 'Low'];
+  const al = (ST.conditions || []).slice().sort((a, b) => order.indexOf(a.severity) - order.indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the turbine behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  casingMat.transparent = true; casingMat.opacity = cut ? .18 : 1; casingMat.depthWrite = !cut;
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shown = 80, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  rotor.rotation.x += dt * (rpm / 3000) * 2.5;      // shown slowed down: 3000 rpm is 50 turns a second
+  shown += (lift - shown) * Math.min(1, dt * 3);
+  valves.forEach((v, i) => { const own = Math.max(0, Math.min(1, shown / 100 * 4 - i)); v.position.y = AX + 1.5 + own * .12; });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
