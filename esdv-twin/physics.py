@@ -66,3 +66,86 @@ class Valve:
             "bypass_hours_365d": round(6 + 60 * f["bypass_left_on"], 1),
             "demand_count": self.demands,
         }
+
+
+class Fault:
+    """A failure mode whose severity ramps towards a target (0..1)."""
+    def __init__(self):
+        self.sev, self.target, self.rate = 0.0, 0.0, 0.0
+
+    def set(self, target, ramp_s):
+        self.target = max(0.0, min(1.0, target))
+        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)
+
+    def step(self, dt):
+        if self.sev < self.target:
+            self.sev = min(self.target, self.sev + self.rate * dt)
+        elif self.sev > self.target:
+            self.sev = max(self.target, self.sev - self.rate * dt)
+
+
+class Plant:
+    """The live stand-in used by the twin pages (same interface as the other twins' Plant).
+
+    The valve stands open. Every `demo.pst_every_s` real seconds the digital valve controller runs a partial stroke test:
+    the travel goes 100 -> 85 -> 100 % over 8 s, and at the end the signature pressures, the result and the closing time are
+    stored. With 'pst_not_run' active the tests are skipped, so the stored signature goes stale.
+    """
+    PST_S = 8.0
+
+    def __init__(self, twin, seed=2101):
+        self.twin = twin
+        demo = twin["design"].get("demo", {})
+        self.scale = float(demo.get("time_scale", 1))
+        self.every = float(demo.get("pst_every_s", 45))
+        self.target = twin["design"]["stroke"]["pst_target_travel_pct"]
+        self.v = Valve(twin, seed)
+        self.faults = {k: Fault() for k in twin["failure_modes"] if not k.startswith("$")}
+        self.t = 0.0
+        self.running, self.trip = True, 0
+        self.timer, self.pst = 0.0, None
+        self.last = self.v.measure()
+
+    def set_fault(self, name, severity, ramp_s):
+        self.faults[name].set(severity, ramp_s)
+
+    def clear_faults(self, ramp_s=5):
+        for f in self.faults.values():
+            f.set(0.0, ramp_s)
+
+    def reset(self):
+        self.timer, self.pst = 0.0, None
+
+    def fault_state(self):
+        return {k: round(f.sev, 3) for k, f in self.faults.items()}
+
+    def step(self, dt=1.0):
+        for k, f in self.faults.items():
+            f.step(dt)
+            self.v.faults[k] = f.sev
+        self.t += dt * self.scale
+        travel = 100.0
+        if self.pst is None:
+            self.timer += dt
+            if self.timer >= self.every:
+                self.timer = 0.0
+                if self.faults["pst_not_run"].sev < 0.3:
+                    self.pst = 0.0
+        else:
+            self.pst += dt
+            if self.pst >= self.PST_S:
+                self.pst, self.last = None, self.v.measure()
+        if self.pst is not None:
+            m = self.v.measure()
+            depth = (100 - self.target) if m["pst_result"] else 2.5
+            travel = 100 - depth * math.sin(math.pi * min(1.0, self.pst / self.PST_S))
+        return {"travel": travel, "pst_active": self.pst is not None}
+
+    def measure(self, true):
+        r = self.v.measure()
+        for k in ("pst_result", "pst_travel_reached_pct", "pst_p_close_start_bar", "pst_p_open_end_bar",
+                  "pst_line_pressure_bar", "last_close_time_s"):
+            r[k] = self.last[k]
+        r["travel_pct"] = round(true["travel"] + self.v.n(0.1), 2)
+        r["limit_open"] = 1 if true["travel"] >= 97 else 0
+        return r

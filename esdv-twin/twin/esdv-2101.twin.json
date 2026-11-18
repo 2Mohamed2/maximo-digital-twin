@@ -8,6 +8,9 @@
  },
  "identification": {
   "asset": "ESDV-2101",
+  "assetnum": "ESDV-2101",
+  "manufacturer": "Ball valve + scotch-yoke spring-return actuator,",
+  "model": "SIS digital valve controller (SIL 2 final element)",
   "description": "Unit feed emergency shutdown valve, final element of SIF-2101 (high-high feed pressure)",
   "valve": "12 in ASME Class 600 trunnion-mounted ball valve, fire-safe, fail-close",
   "actuator": "Pneumatic scotch-yoke spring-return actuator (spring to close)",
@@ -57,6 +60,11 @@
   "line": {
    "pressure_nominal_bar": 50.0,
    "temp_nominal_c": 60.0
+  },
+  "demo": {
+   "time_scale": 60,
+   "pst_every_s": 30,
+   "note": "Demo only: the plant clock runs 60 times faster and a partial stroke test runs every 30 s of real time so the signature updates often; the test counters come from the failure modes, not from the demo clock."
   }
  },
  "telemetry": {
@@ -231,7 +239,8 @@
     "ESD_TORQUE_MARGIN_LOW",
     "ESD_TORQUE_MARGIN_LIMIT",
     "ESD_PST_FAILED"
-   ]
+   ],
+   "default_ramp_min": 1.5
   },
   "spring_relaxation": {
    "name": "Actuator spring relaxation or breakage",
@@ -240,7 +249,8 @@
    "rules": [
     "ESD_SPRING_WEAK",
     "ESD_TORQUE_MARGIN_LOW"
-   ]
+   ],
+   "default_ramp_min": 1.5
   },
   "sov_exhaust_restriction": {
    "name": "Solenoid valve or exhaust restriction",
@@ -249,7 +259,8 @@
    "rules": [
     "ESD_STROKE_SLOW",
     "ESD_STROKE_TOO_SLOW"
-   ]
+   ],
+   "default_ramp_min": 1
   },
   "air_supply_low": {
    "name": "Instrument air supply low",
@@ -257,7 +268,8 @@
    "symptoms": "supply pressure close to the pressure needed to hold the valve open",
    "rules": [
     "ESD_AIR_MARGIN"
-   ]
+   ],
+   "default_ramp_min": 1
   },
   "position_feedback": {
    "name": "Limit switch or travel sensor fault",
@@ -265,7 +277,8 @@
    "symptoms": "ZSO/ZSC disagree with travel",
    "rules": [
     "ESD_POSITION_MISMATCH"
-   ]
+   ],
+   "default_ramp_min": 0.5
   },
   "pst_not_run": {
    "name": "Partial stroke tests skipped or failing",
@@ -274,7 +287,8 @@
    "rules": [
     "ESD_PST_OVERDUE",
     "ESD_SIL_DRIFT"
-   ]
+   ],
+   "default_ramp_min": 1
   },
   "bypass_left_on": {
    "name": "SIF bypass left on",
@@ -283,7 +297,8 @@
    "rules": [
     "ESD_BYPASS_LONG",
     "ESD_SIL_DRIFT"
-   ]
+   ],
+   "default_ramp_min": 1
   }
  },
  "presentation": {

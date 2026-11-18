@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ESDV-2101 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>ESDV-2101</b><span class="g">Emergency shutdown valve · SIF-2101 · SIL 2</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-sil"><span class="dot"></span><span id="c-sil-t">SIL –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Signature and PFDavg →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the valve model…</div>
+<div class="credit">12 in Class 600 trunnion ball valve, scotch-yoke spring-return actuator (fail close), SOV and SIS digital valve controller. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-pst">Run a PST now</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. A partial stroke test moves the ball 15 % and back; its two pressures give the spring and the friction.</div>
+<aside>
+  <section>
+    <h2>ESDV-2101 twin</h2>
+    <p class="sub" id="sub">final element of SIF-2101</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>PFDavg as operated<b id="k-pfd">–</b></div><div>RRF<b id="k-rrf">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures. Every expected value, the torque margin and the PFDavg are computed from the twin file: the safety requirements, the failure-rate data and the actuator sizing.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for ESDV-2101: the valve, actuator, solenoid, digital valve controller and SIS bypass, with injectable faults.\n\nThe real device sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings, PST traces\nand fault fingerprints for the tests and the figures.\n\"\"\"\nimport math\nimport random\n\n\nclass Valve:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.g, self.st, self.ln = d[\"signature\"], d[\"stroke\"], d[\"line\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.demands = 2\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def spring_true(self):\n        return self.g[\"spring_open_bar\"] * (1 - 0.35 * self.faults[\"spring_relaxation\"])\n\n    def friction_true(self, line_bar):\n        return (self.g[\"friction0_bar\"] + self.g[\"friction_per_bar\"] * line_bar) * (1 + 1.6 * self.faults[\"stem_seat_sticking\"])\n\n    def close_time(self, line_bar):\n        fr = self.friction_true(line_bar) / (self.g[\"friction0_bar\"] + self.g[\"friction_per_bar\"] * line_bar)\n        return (self.st[\"close_baseline_s\"] * (1 + 1.1 * self.faults[\"sov_exhaust_restriction\"]) * (1 + 0.15 * (fr - 1))\n                * math.sqrt(self.g[\"spring_open_bar\"] / self.spring_true()))\n\n    # one published message ------------------------------------------------------------------------------------------\n    def measure(self):\n        f = self.faults\n        lp = self.ln[\"pressure_nominal_bar\"] + self.n(0.8)\n        plp = self.ln[\"pressure_nominal_bar\"] + self.n(0.8)\n        s, fr = self.spring_true(), self.friction_true(plp)\n        fe = self.g[\"friction0_bar\"] + self.g[\"friction_per_bar\"] * plp\n        pst_ok = fr / fe <= 2.3\n        supply = self.st[\"supply_nominal_bar\"] - 2.3 * f[\"air_supply_low\"] + self.n(0.03)\n        zsc = 1 if f[\"position_feedback\"] > 0.5 else 0\n        return {\n            \"travel_pct\": round(100 + self.n(0.15), 2), \"limit_open\": 1, \"limit_closed\": zsc,\n            \"actuator_pressure_bar\": round(min(supply, 5.2) + self.n(0.02), 3), \"supply_pressure_bar\": round(supply, 3),\n            \"line_pressure_bar\": round(lp, 2), \"line_temp_c\": round(self.ln[\"temp_nominal_c\"] + self.n(0.5), 2),\n            \"sov_energized\": 1, \"pst_result\": 1 if pst_ok else 0,\n            \"pst_travel_reached_pct\": round(self.st[\"pst_target_travel_pct\"] + self.n(0.3) if pst_ok else 97.5 + self.n(0.5), 2),\n            \"pst_p_close_start_bar\": round(s - fr + self.n(0.015), 3), \"pst_p_open_end_bar\": round(s + fr + self.n(0.015), 3),\n            \"pst_line_pressure_bar\": round(plp, 2),\n            \"pst_hours_since\": round(300 + 2900 * f[\"pst_not_run\"] + abs(self.n(40)), 1),\n            \"pst_interval_achieved_h\": round(745 + 8015 * f[\"pst_not_run\"] + self.n(5), 1),\n            \"proof_hours_since\": 21000.0 + round(abs(self.n(200))), \"overhaul_hours_since\": 56040.0 + round(abs(self.n(200))),\n            \"last_close_time_s\": round(self.close_time(plp) + self.n(0.08), 2),\n            \"bypass_active\": 1 if f[\"bypass_left_on\"] > 0.05 else 0,\n            \"bypass_active_h\": round(2 + 70 * f[\"bypass_left_on\"], 1) if f[\"bypass_left_on\"] > 0.05 else 0.0,\n            \"bypass_hours_365d\": round(6 + 60 * f[\"bypass_left_on\"], 1),\n            \"demand_count\": self.demands,\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The valve stands open. Every `demo.pst_every_s` real seconds the digital valve controller runs a partial stroke test:\n    the travel goes 100 -> 85 -> 100 % over 8 s, and at the end the signature pressures, the result and the closing time are\n    stored. With 'pst_not_run' active the tests are skipped, so the stored signature goes stale.\n    \"\"\"\n    PST_S = 8.0\n\n    def __init__(self, twin, seed=2101):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.every = float(demo.get(\"pst_every_s\", 45))\n        self.target = twin[\"design\"][\"stroke\"][\"pst_target_travel_pct\"]\n        self.v = Valve(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.timer, self.pst = 0.0, None\n        self.last = self.v.measure()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.timer, self.pst = 0.0, None\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.v.faults[k] = f.sev\n        self.t += dt * self.scale\n        travel = 100.0\n        if self.pst is None:\n            self.timer += dt\n            if self.timer >= self.every:\n                self.timer = 0.0\n                if self.faults[\"pst_not_run\"].sev < 0.3:\n                    self.pst = 0.0\n        else:\n            self.pst += dt\n            if self.pst >= self.PST_S:\n                self.pst, self.last = None, self.v.measure()\n        if self.pst is not None:\n            m = self.v.measure()\n            depth = (100 - self.target) if m[\"pst_result\"] else 2.5\n            travel = 100 - depth * math.sin(math.pi * min(1.0, self.pst / self.PST_S))\n        return {\"travel\": travel, \"pst_active\": self.pst is not None}\n\n    def measure(self, true):\n        r = self.v.measure()\n        for k in (\"pst_result\", \"pst_travel_reached_pct\", \"pst_p_close_start_bar\", \"pst_p_open_end_bar\",\n                  \"pst_line_pressure_bar\", \"last_close_time_s\"):\n            r[k] = self.last[k]\n        r[\"travel_pct\"] = round(true[\"travel\"] + self.v.n(0.1), 2)\n        r[\"limit_open\"] = 1 if true[\"travel\"] >= 97 else 0\n        return r\n", "twin_calc": "\"\"\"The emergency shutdown valve twin's expectations (ESDV-2101, final element of a SIL 2 SIF).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nValve signature (from each partial stroke test, PST):\n  The digital valve controller vents the actuator until the valve starts to close (pressure Pc), then fills it again until the\n  valve is back fully open (pressure Po). In actuator pressure units:\n      spring (measured)   = (Po + Pc) / 2        expected: spring_open_bar (bench set)\n      friction (measured) = (Po - Pc) / 2        expected: f0 + k x line pressure (trunnion seats are pressure-energised)\n  closing torque margin = spring x end_ratio / (friction x seat_ratio): the torque the spring still has at the end of the\n  closing stroke, divided by the torque the valve needs to seat. Company specifications ask for 1.5 to 2.\nStroke: closing time of the last full stroke against the factory baseline and against the SRS requirement.\nPFDavg as operated (IEC 61508-6, imperfect partial and proof testing):\n      PFD_FE = PSTC x lDU x Tpst/2 + (PTC - PSTC) x lDU x TI/2 + (1 - PTC) x lDU x LT/2 + bypass hours / 8760\n  with Tpst = the PST interval actually achieved over the last 12 months (sent by the PST scheduler), and the SIF total\n  PFD = PFD_FE + sensors + logic solver. The SIL band follows IEC 61511 (SIL 2: 1e-3 <= PFDavg < 1e-2).\n\"\"\"\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    s, r, g, st = d[\"sif\"], d[\"reliability\"], d[\"signature\"], d[\"stroke\"]\n    return dict(ps=s[\"pfd_sensors\"], pl=s[\"pfd_logic\"], req=s[\"required_closure_s\"], sil=s[\"sil_target\"],\n                lam=r[\"lambda_du_per_h\"], pstc=r[\"pst_coverage\"], ptc=r[\"proof_coverage\"], tpst=r[\"pst_interval_h\"],\n                ti=r[\"proof_interval_h\"], lt=r[\"mission_time_h\"], spring=g[\"spring_open_bar\"], f0=g[\"friction0_bar\"],\n                kf=g[\"friction_per_bar\"], er=g[\"spring_end_ratio\"], sr=g[\"seat_ratio\"], base=st[\"close_baseline_s\"])\n\n\ndef pfd_fe(k, tpst, bypass_h=0.0):\n    \"\"\"PFDavg of the final element for a PST interval tpst (h) and bypass hours per year.\"\"\"\n    lam = k[\"lam\"]\n    return (k[\"pstc\"] * lam * tpst / 2 + (k[\"ptc\"] - k[\"pstc\"]) * lam * k[\"ti\"] / 2\n            + (1 - k[\"ptc\"]) * lam * k[\"lt\"] / 2 + bypass_h / 8760)\n\n\ndef _parts(twin):\n    k = _k(twin)\n    FE = f\"({k['f0']} + {k['kf']} * df['PST_LINE_PRESSURE_BAR'])\"\n    FM = \"((df['PST_P_OPEN_END_BAR'] - df['PST_P_CLOSE_START_BAR']) / 2)\"\n    SM = \"((df['PST_P_OPEN_END_BAR'] + df['PST_P_CLOSE_START_BAR']) / 2)\"\n    TM = f\"({SM} * {k['er']} / ({FM} * {k['sr']}))\"\n    lam, pstc, ptc = k[\"lam\"], k[\"pstc\"], k[\"ptc\"]\n    PFE = (f\"({pstc * lam / 2:.6g} * df['PST_INTERVAL_ACHIEVED_H'] + {(ptc - pstc) * lam * k['ti'] / 2:.6g}\"\n           f\" + {(1 - ptc) * lam * k['lt'] / 2:.6g} + df['BYPASS_HOURS_365D'] / 8760)\")\n    PSIF = f\"({PFE} + {k['ps'] + k['pl']:.6g})\"\n    PNOW = (f\"np.minimum({pstc * lam:.6g} * df['PST_HOURS_SINCE'] + {(ptc - pstc) * lam:.6g} * df['PROOF_HOURS_SINCE']\"\n            f\" + {(1 - ptc) * lam:.6g} * df['OVERHAUL_HOURS_SINCE'] + df['BYPASS_ACTIVE'], 1)\")\n    return dict(k=k, FE=FE, FM=FM, SM=SM, TM=TM, PFE=PFE, PSIF=PSIF, PNOW=PNOW)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"FRICTION_EXPECTED_BAR\", p[\"FE\"]),\n        (\"FRICTION_MEASURED_BAR\", p[\"FM\"]),\n        (\"FRICTION_RATIO\", f\"{p['FM']} / {p['FE']}\"),\n        (\"SPRING_MEASURED_BAR\", p[\"SM\"]),\n        (\"SPRING_DEV_BAR\", f\"{p['SM']} - {k['spring']}\"),\n        (\"CLOSE_START_EXPECTED_BAR\", f\"{k['spring']} - {p['FE']}\"),\n        (\"OPEN_END_EXPECTED_BAR\", f\"{k['spring']} + {p['FE']}\"),\n        (\"TORQUE_MARGIN\", p[\"TM\"]),\n        (\"AIR_MARGIN_BAR\", \"df['SUPPLY_PRESSURE_BAR'] - df['PST_P_OPEN_END_BAR']\"),\n        (\"STROKE_RATIO\", f\"df['LAST_CLOSE_TIME_S'] / {k['base']}\"),\n        (\"STROKE_MARGIN_S\", f\"{k['req']} - df['LAST_CLOSE_TIME_S']\"),\n        (\"PFD_FE_OPS\", p[\"PFE\"]),\n        (\"PFD_SIF_OPS\", p[\"PSIF\"]),\n        (\"RRF_SIF_OPS\", f\"1 / {p['PSIF']}\"),\n        (\"SIL_ACHIEVED\", f\"np.where({p['PSIF']} < 0.001, 3, np.where({p['PSIF']} < 0.01, 2, np.where({p['PSIF']} < 0.1, 1, 0)))\"),\n        (\"PFD_NOW\", p[\"PNOW\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    fe = k[\"f0\"] + k[\"kf\"] * r[\"pst_line_pressure_bar\"]\n    fm = (r[\"pst_p_open_end_bar\"] - r[\"pst_p_close_start_bar\"]) / 2\n    sm = (r[\"pst_p_open_end_bar\"] + r[\"pst_p_close_start_bar\"]) / 2\n    pfe = pfd_fe(k, r[\"pst_interval_achieved_h\"], r[\"bypass_hours_365d\"])\n    psif = pfe + k[\"ps\"] + k[\"pl\"]\n    lam = k[\"lam\"]\n    pnow = min(k[\"pstc\"] * lam * r[\"pst_hours_since\"] + (k[\"ptc\"] - k[\"pstc\"]) * lam * r[\"proof_hours_since\"]\n               + (1 - k[\"ptc\"]) * lam * r[\"overhaul_hours_since\"] + r[\"bypass_active\"], 1)\n    return {\n        \"friction_expected_bar\": fe, \"friction_measured_bar\": fm, \"friction_ratio\": fm / fe,\n        \"spring_measured_bar\": sm, \"spring_dev_bar\": sm - k[\"spring\"],\n        \"close_start_expected_bar\": k[\"spring\"] - fe, \"open_end_expected_bar\": k[\"spring\"] + fe,\n        \"torque_margin\": sm * k[\"er\"] / (fm * k[\"sr\"]),\n        \"air_margin_bar\": r[\"supply_pressure_bar\"] - r[\"pst_p_open_end_bar\"],\n        \"stroke_ratio\": r[\"last_close_time_s\"] / k[\"base\"], \"stroke_margin_s\": k[\"req\"] - r[\"last_close_time_s\"],\n        \"pfd_fe_ops\": pfe, \"pfd_sif_ops\": psif, \"rrf_sif_ops\": 1 / psif,\n        \"sil_achieved\": 3 if psif < 0.001 else 2 if psif < 0.01 else 1 if psif < 0.1 else 0,\n        \"pfd_now\": pnow,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    TM, FR = p[\"TM\"], f\"({p['FM']} / {p['FE']})\"\n    ST = f\"(df['LAST_CLOSE_TIME_S'] / {k['base']})\"\n    m = L[\"travel_mismatch_pct\"]\n    return [\n        (\"ESD_STROKE_TOO_SLOW\", f\"df['LAST_CLOSE_TIME_S'] > {k['req']}\", \"Critical\", \"sov_exhaust_restriction\"),\n        (\"ESD_PST_FAILED\", \"df['PST_RESULT'] < 0.5\", \"High\", \"stem_seat_sticking\"),\n        (\"ESD_TORQUE_MARGIN_LIMIT\", f\"{TM} < {L['torque_margin_limit']}\", \"High\", \"stem_seat_sticking\"),\n        (\"ESD_SIL_DRIFT\", f\"{p['PSIF']} >= {10 ** -k['sil']:.6g}\", \"High\", \"pst_not_run\"),\n        (\"ESD_PROOF_OVERDUE\", f\"df['PROOF_HOURS_SINCE'] > {k['ti']}\", \"High\", None),\n        (\"ESD_BYPASS_LONG\", f\"(df['BYPASS_ACTIVE'] > 0.5) & (df['BYPASS_ACTIVE_H'] > {L['bypass_alert_h']})\", \"High\", \"bypass_left_on\"),\n        (\"ESD_TORQUE_MARGIN_LOW\", f\"({TM} < {L['torque_margin_alert']}) & ({TM} >= {L['torque_margin_limit']})\", \"Medium\", \"stem_seat_sticking\"),\n        (\"ESD_FRICTION_HIGH\", f\"{FR} > {L['friction_ratio_alert']}\", \"Medium\", \"stem_seat_sticking\"),\n        (\"ESD_SPRING_WEAK\", f\"({p['SM']} - {k['spring']}) < {L['spring_dev_alert_bar']}\", \"Medium\", \"spring_relaxation\"),\n        (\"ESD_STROKE_SLOW\", f\"({ST} > {L['stroke_ratio_alert']}) & (df['LAST_CLOSE_TIME_S'] <= {k['req']})\", \"Medium\", \"sov_exhaust_restriction\"),\n        (\"ESD_AIR_MARGIN\", f\"(df['SUPPLY_PRESSURE_BAR'] - df['PST_P_OPEN_END_BAR']) < {L['air_margin_alert_bar']}\", \"Medium\", \"air_supply_low\"),\n        (\"ESD_POSITION_MISMATCH\", f\"((df['LIMIT_OPEN'] > 0.5) & (df['TRAVEL_PCT'] < {100 - m})) | ((df['LIMIT_CLOSED'] > 0.5) & (df['TRAVEL_PCT'] > {m}))\"\n                                  \" | ((df['LIMIT_OPEN'] > 0.5) & (df['LIMIT_CLOSED'] > 0.5))\", \"Medium\", \"position_feedback\"),\n        (\"ESD_PST_OVERDUE\", f\"df['PST_HOURS_SINCE'] > {L['pst_overdue_factor'] * k['tpst']}\", \"Medium\", \"pst_not_run\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    m = L[\"travel_mismatch_pct\"]\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    tm, fr = t[\"torque_margin\"], t[\"friction_ratio\"]\n    add(r[\"last_close_time_s\"] > k[\"req\"], \"ESD_STROKE_TOO_SLOW\", \"Critical\",\n        f\"Closed in {r['last_close_time_s']:.1f} s, slower than the {k['req']:.0f} s the SRS requires\", \"solenoid\", \"sov_exhaust_restriction\")\n    add(r[\"pst_result\"] < 0.5, \"ESD_PST_FAILED\", \"High\", f\"Last PST failed (lowest travel {r['pst_travel_reached_pct']:.0f} %): dangerous failure detected\",\n        \"valve\", \"stem_seat_sticking\")\n    add(tm < L[\"torque_margin_limit\"], \"ESD_TORQUE_MARGIN_LIMIT\", \"High\", f\"Closing torque margin {tm:.2f}, below {L['torque_margin_limit']}\", \"valve\", \"stem_seat_sticking\")\n    add(t[\"pfd_sif_ops\"] >= 10 ** -k[\"sil\"], \"ESD_SIL_DRIFT\", \"High\",\n        f\"PFDavg as operated {t['pfd_sif_ops']:.2e}: SIF no longer meets SIL {k['sil']}\", \"testing\", \"pst_not_run\")\n    add(r[\"proof_hours_since\"] > k[\"ti\"], \"ESD_PROOF_OVERDUE\", \"High\", f\"Proof test {r['proof_hours_since'] - k['ti']:.0f} h overdue\", \"testing\")\n    add(r[\"bypass_active\"] > 0.5 and r[\"bypass_active_h\"] > L[\"bypass_alert_h\"], \"ESD_BYPASS_LONG\", \"High\",\n        f\"SIF bypassed for {r['bypass_active_h']:.0f} h\", \"sis\", \"bypass_left_on\")\n    add(L[\"torque_margin_limit\"] <= tm < L[\"torque_margin_alert\"], \"ESD_TORQUE_MARGIN_LOW\", \"Medium\", f\"Closing torque margin {tm:.2f}\", \"valve\", \"stem_seat_sticking\")\n    add(fr > L[\"friction_ratio_alert\"], \"ESD_FRICTION_HIGH\", \"Medium\", f\"Friction {t['friction_measured_bar']:.2f} bar, {fr:.2f} x expected\", \"valve\", \"stem_seat_sticking\")\n    add(t[\"spring_dev_bar\"] < L[\"spring_dev_alert_bar\"], \"ESD_SPRING_WEAK\", \"Medium\", f\"Spring {t['spring_measured_bar']:.2f} bar, {t['spring_dev_bar']:+.2f} bar vs bench set\",\n        \"actuator\", \"spring_relaxation\")\n    add(t[\"stroke_ratio\"] > L[\"stroke_ratio_alert\"] and r[\"last_close_time_s\"] <= k[\"req\"], \"ESD_STROKE_SLOW\", \"Medium\",\n        f\"Closed in {r['last_close_time_s']:.1f} s, {t['stroke_ratio']:.2f} x the baseline\", \"solenoid\", \"sov_exhaust_restriction\")\n    add(t[\"air_margin_bar\"] < L[\"air_margin_alert_bar\"], \"ESD_AIR_MARGIN\", \"Medium\", f\"Supply only {t['air_margin_bar']:.2f} bar above the pressure that holds the valve open\",\n        \"air\", \"air_supply_low\")\n    add((r[\"limit_open\"] > 0.5 and r[\"travel_pct\"] < 100 - m) or (r[\"limit_closed\"] > 0.5 and r[\"travel_pct\"] > m)\n        or (r[\"limit_open\"] > 0.5 and r[\"limit_closed\"] > 0.5), \"ESD_POSITION_MISMATCH\", \"Medium\",\n        f\"Limit switches ZSO {r['limit_open']:.0f} / ZSC {r['limit_closed']:.0f} disagree with travel {r['travel_pct']:.0f} %\", \"feedback\", \"position_feedback\")\n    add(r[\"pst_hours_since\"] > L[\"pst_overdue_factor\"] * k[\"tpst\"], \"ESD_PST_OVERDUE\", \"Medium\", f\"Last successful PST {r['pst_hours_since']:.0f} h ago\", \"testing\", \"pst_not_run\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "ESDV-2101 emergency shutdown valve twin. Expected values in Maximo Monitor from SRS, FMEDA and actuator sizing data; the device sends only what it measures.", "twin": {"id": "ESDV-2101", "name": "Emergency shutdown valve ESDV-2101", "version": "1.0.0", "folder": "esdv-twin"}, "identification": {"asset": "ESDV-2101", "assetnum": "ESDV-2101", "manufacturer": "Ball valve + scotch-yoke spring-return actuator,", "model": "SIS digital valve controller (SIL 2 final element)", "description": "Unit feed emergency shutdown valve, final element of SIF-2101 (high-high feed pressure)", "valve": "12 in ASME Class 600 trunnion-mounted ball valve, fire-safe, fail-close", "actuator": "Pneumatic scotch-yoke spring-return actuator (spring to close)", "controller": "SIS digital valve controller with partial stroke test and valve signature (for example Emerson Fisher DVC6200 SIS)", "solenoid": "3-way solenoid valve, de-energise to trip"}, "design": {"sif": {"name": "SIF-2101 high-high feed pressure: close ESDV-2101", "sil_target": 2, "architecture": "1oo1 final element", "mode": "low demand", "pfd_sensors": 0.0002, "pfd_logic": 0.0001, "process_safety_time_s": 30.0, "required_closure_s": 15.0, "source": "Safety requirements specification (SRS) of the SIF. Sensor (2oo3 transmitters) and logic-solver PFDavg: assumption: typical value, replace with your FMEDA certificate / sizing sheet"}, "reliability": {"lambda_du_per_h": 1e-06, "split": {"valve": 4.5e-07, "actuator": 2.5e-07, "solenoid": 3e-07}, "pst_coverage": 0.65, "proof_coverage": 0.95, "pst_interval_h": 730.0, "proof_interval_h": 35040.0, "mission_time_h": 87600.0, "source": "Dangerous undetected failure rate of valve + actuator + SOV, PST coverage (PSTC) and proof test coverage (PTC): assumption: typical value, replace with your FMEDA certificate / sizing sheet. PST monthly, proof test at the 4-year turnaround, overhaul (mission time) every 10 years."}, "signature": {"spring_open_bar": 3.0, "friction0_bar": 0.3, "friction_per_bar": 0.004, "spring_end_ratio": 0.7, "seat_ratio": 1.4, "source": "Actuator spring and valve friction expressed in actuator pressure (bar): spring equivalent pressure at the open position (bench set), friction = f0 + k x line pressure (trunnion seats are pressure-energised), spring torque at the end of the closing stroke / at the start (scotch yoke), torque to seat / running friction torque: assumption: typical value, replace with your FMEDA certificate / sizing sheet"}, "stroke": {"close_baseline_s": 8.0, "pst_target_travel_pct": 85.0, "supply_nominal_bar": 5.5, "source": "Factory acceptance test closing time and PST setup of the digital valve controller: assumption: typical value, replace with your FMEDA certificate / sizing sheet"}, "line": {"pressure_nominal_bar": 50.0, "temp_nominal_c": 60.0}, "demo": {"time_scale": 60, "pst_every_s": 30, "note": "Demo only: the plant clock runs 60 times faster and a partial stroke test runs every 30 s of real time so the signature updates often; the test counters come from the failure modes, not from the demo clock."}}, "telemetry": {"event": "esdv", "publish_every_s": 60, "device_type": "ESD_VALVE_SIS", "groups": {"Travel": "Valve travel and limit switches", "Air": "Actuator and supply pressure", "Process": "Line conditions", "PST": "Last partial stroke test", "Stroke": "Last full stroke", "SIS": "SIS logic solver and bypass", "Test": "Test history"}, "points": [{"metric": "travel_pct", "path": "Travel.Position", "label": "Valve travel (100 = open)", "unit": "%"}, {"metric": "limit_open", "path": "Travel.ZSO", "label": "Open limit switch (ZSO)", "unit": "code"}, {"metric": "limit_closed", "path": "Travel.ZSC", "label": "Closed limit switch (ZSC)", "unit": "code"}, {"metric": "actuator_pressure_bar", "path": "Air.Actuator", "label": "Actuator pressure", "unit": "bar g"}, {"metric": "supply_pressure_bar", "path": "Air.Supply", "label": "Instrument air supply pressure", "unit": "bar g"}, {"metric": "line_pressure_bar", "path": "Process.Pressure", "label": "Line pressure upstream", "unit": "bar g"}, {"metric": "line_temp_c", "path": "Process.Temperature", "label": "Line temperature", "unit": "\u00b0C"}, {"metric": "sov_energized", "path": "SIS.SOV", "label": "Solenoid valve energised (1 = normal)", "unit": "code"}, {"metric": "pst_result", "path": "PST.Result", "label": "Last PST result (1 pass, 0 fail)", "unit": "code"}, {"metric": "pst_travel_reached_pct", "path": "PST.TravelReached", "label": "Lowest travel reached in the last PST", "unit": "%"}, {"metric": "pst_p_close_start_bar", "path": "PST.PressureMoveClose", "label": "Actuator pressure when the valve starts to close", "unit": "bar g"}, {"metric": "pst_p_open_end_bar", "path": "PST.PressureBackOpen", "label": "Actuator pressure when the valve is back open", "unit": "bar g"}, {"metric": "pst_line_pressure_bar", "path": "PST.LinePressure", "label": "Line pressure during the last PST", "unit": "bar g"}, {"metric": "pst_hours_since", "path": "Test.HoursSincePST", "label": "Hours since the last successful PST", "unit": "h"}, {"metric": "pst_interval_achieved_h", "path": "Test.PSTIntervalAchieved", "label": "Mean interval between successful PSTs, last 12 months", "unit": "h"}, {"metric": "proof_hours_since", "path": "Test.HoursSinceProof", "label": "Hours since the last full proof test", "unit": "h"}, {"metric": "overhaul_hours_since", "path": "Test.HoursSinceOverhaul", "label": "Hours since the last overhaul (as new)", "unit": "h"}, {"metric": "last_close_time_s", "path": "Stroke.CloseTime", "label": "Closing time of the last full stroke (trip or test)", "unit": "s"}, {"metric": "bypass_active", "path": "SIS.Bypass", "label": "SIF bypass active (1 = bypassed)", "unit": "code"}, {"metric": "bypass_active_h", "path": "SIS.BypassDuration", "label": "Duration of the current bypass", "unit": "h"}, {"metric": "bypass_hours_365d", "path": "SIS.BypassHours365", "label": "Hours in bypass, last 365 days", "unit": "h"}, {"metric": "demand_count", "path": "SIS.Demands", "label": "Real demands (trips) since commissioning", "unit": "count"}]}, "twin_model": {"limits": {"friction_ratio_alert": 1.5, "spring_dev_alert_bar": -0.35, "torque_margin_alert": 2.0, "torque_margin_limit": 1.5, "stroke_ratio_alert": 1.25, "air_margin_alert_bar": 0.5, "pst_overdue_factor": 1.5, "bypass_alert_h": 8.0, "travel_mismatch_pct": 5.0}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "stem_seat_sticking": {"name": "Stem / seat sticking (galling, deposits, packing)", "part": "valve", "symptoms": "friction up, torque margin down, closing slower, later PST fails", "rules": ["ESD_FRICTION_HIGH", "ESD_TORQUE_MARGIN_LOW", "ESD_TORQUE_MARGIN_LIMIT", "ESD_PST_FAILED"], "default_ramp_min": 1.5}, "spring_relaxation": {"name": "Actuator spring relaxation or breakage", "part": "actuator", "symptoms": "signature shifts down, friction unchanged, torque margin down", "rules": ["ESD_SPRING_WEAK", "ESD_TORQUE_MARGIN_LOW"], "default_ramp_min": 1.5}, "sov_exhaust_restriction": {"name": "Solenoid valve or exhaust restriction", "part": "solenoid", "symptoms": "closing time up, signature normal", "rules": ["ESD_STROKE_SLOW", "ESD_STROKE_TOO_SLOW"], "default_ramp_min": 1}, "air_supply_low": {"name": "Instrument air supply low", "part": "air", "symptoms": "supply pressure close to the pressure needed to hold the valve open", "rules": ["ESD_AIR_MARGIN"], "default_ramp_min": 1}, "position_feedback": {"name": "Limit switch or travel sensor fault", "part": "feedback", "symptoms": "ZSO/ZSC disagree with travel", "rules": ["ESD_POSITION_MISMATCH"], "default_ramp_min": 0.5}, "pst_not_run": {"name": "Partial stroke tests skipped or failing", "part": "testing", "symptoms": "PST age and achieved interval grow, PFDavg drifts", "rules": ["ESD_PST_OVERDUE", "ESD_SIL_DRIFT"], "default_ramp_min": 1}, "bypass_left_on": {"name": "SIF bypass left on", "part": "sis", "symptoms": "bypass hours grow, PFDavg drifts", "rules": ["ESD_BYPASS_LONG", "ESD_SIL_DRIFT"], "default_ramp_min": 1}}, "presentation": {"title": "ESDV-2101 emergency shutdown valve", "dashboard": "ESD_VALVE_SIS"}}, EVERY = 60;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const exp = v => (v == null) ? '–' : Number(v).toExponential(2);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(3.4, 2.4, 4.4); ctl.target.set(0.15, 0.85, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+const grid = new THREE.GridHelper(12, 24, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), body = M(0x56718f, { m: .4 }), yellow = M(0xd8a31a, { m: .2, r: .5 }), dark = M(0x3d4249), red = M(0xb3262d, { m: .3 }), green = M(0x2f8a4b);
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// pipe and flanges (12 in: OD 0.324 m)
+const pipeMat = M(0x8c97a3, { m: .5 });
+[-1, 1].forEach(s => {
+  const p = cyl(.162, .162, 1.6, pipeMat); p.rotation.z = Math.PI / 2; scene.add(at(p, s * 1.25, .55, 0));
+  const f = cyl(.3, .3, .07, steel); f.rotation.z = Math.PI / 2; scene.add(at(f, s * .47, .55, 0));
+  const f2 = cyl(.3, .3, .07, steel); f2.rotation.z = Math.PI / 2; scene.add(at(f2, s * .41, .55, 0));
+});
+// valve body (shell) and ball with bore
+const shellMat = M(0x56718f, { m: .4, ds: true });
+const shell = new THREE.Mesh(new THREE.SphereGeometry(.4, 40, 28), shellMat); shell.scale.set(1, .95, .95); scene.add(at(shell, 0, .55, 0));
+const ballG = new THREE.Group(); at(ballG, 0, .55, 0); scene.add(ballG);
+const ball = new THREE.Mesh(new THREE.SphereGeometry(.27, 40, 28), M(0xd9dde2, { m: .85, r: .18 })); ballG.add(ball);
+const bore = cyl(.13, .13, .56, M(0x111418, { r: .9 })); bore.rotation.z = Math.PI / 2; ballG.add(bore);
+// seats
+[-1, 1].forEach(s => { const r = new THREE.Mesh(new THREE.TorusGeometry(.17, .03, 12, 40), yellow); r.rotation.y = Math.PI / 2; scene.add(at(r, s * .27, .55, 0)); });
+// stem + bonnet + mounting bracket
+scene.add(at(cyl(.035, .035, .55, steel), 0, 1.13, 0));
+scene.add(at(cyl(.11, .13, .14, body), 0, .98, 0));
+scene.add(at(box(.36, .1, .36, dark), 0, 1.3, 0));
+// scotch-yoke housing
+const yoke = at(box(.5, .34, .44, M(0x2f6db5, { m: .35 })), 0, 1.52, 0); scene.add(yoke);
+// air cylinder (−x) and spring can (+x)
+const airC = cyl(.17, .17, .7, M(0x2f6db5, { m: .35, t: 1 })); airC.rotation.z = Math.PI / 2; scene.add(at(airC, -.6, 1.52, 0));
+const springC = cyl(.22, .22, 1.0, M(0x2f6db5, { m: .35, t: 1 })); springC.rotation.z = Math.PI / 2; scene.add(at(springC, .75, 1.52, 0));
+[-.96, 1.26].forEach(x => { const e = cyl(x < 0 ? .19 : .24, x < 0 ? .19 : .24, .05, dark); e.rotation.z = Math.PI / 2; scene.add(at(e, x, 1.52, 0)); });
+// spring coil (visible in cutaway) and piston rod
+const coilPts = []; for (let i = 0; i <= 600; i++) { const t = i / 600; coilPts.push(new THREE.Vector3(t, Math.cos(t * 2 * Math.PI * 9) * .15, Math.sin(t * 2 * Math.PI * 9) * .15)); }
+const coilG = new THREE.Group(); at(coilG, .3, 1.52, 0); scene.add(coilG);
+const coil = new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(coilPts), 600, .018, 6, false), M(0x2f8a4b, { m: .5 })); coilG.add(coil);
+const piston = cyl(.15, .15, .05, steel); piston.rotation.z = Math.PI / 2; scene.add(piston);
+const rod = cyl(.025, .025, 1.6, steel); rod.rotation.z = Math.PI / 2; scene.add(rod);
+// DVC, SOV, limit switch box, tubing, air supply
+scene.add(at(box(.22, .26, .14, M(0x8a3ffc, { m: .2 })), -.15, 1.52, .3));
+scene.add(at(box(.13, .16, .1, dark), -.6, 1.82, .1));
+const sov = at(cyl(.035, .035, .1, red), -.6, 1.95, .1); scene.add(sov);
+const lsb = at(box(.2, .12, .2, dark), 0, 1.75, 0); scene.add(lsb);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, 0, 1.85, 0));
+const tube = (pts, c = 0x9fb3c8) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, .012, 6, false); scene.add(new THREE.Mesh(g, M(c, { m: .7 }))); };
+tube([[-1.6, 1.82, .3], [-1, 1.82, .3], [-.6, 1.82, .2]]);
+tube([[-.6, 1.75, .1], [-.6, 1.6, .2], [-.25, 1.55, .3]]);
+tube([[-.25, 1.45, .3], [-.55, 1.4, .2], [-.8, 1.45, .12]]);
+// SIS signal cable to SOV and the PT upstream
+tube([[-1.6, 2.1, -.2], [-1, 2.1, -.1], [-.6, 1.98, .1]], 0xc0392b);
+const pt = at(cyl(.05, .05, .25, M(0x0f62fe)), -1.5, .85, 0); scene.add(pt); scene.add(at(new THREE.Mesh(new THREE.SphereGeometry(.07, 16, 12), M(0x0f62fe)), -1.5, 1.0, 0));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('travel', [0, 1.9, .25]); lbl('sig', [.75, 1.8, 0]); lbl('pst', [-.15, 1.7, .4]); lbl('air', [-1.3, 1.92, .3]);
+lbl('line', [-1.5, 1.08, 0]); lbl('close', [0, .1, .4]); lbl('margin', [.9, 1.25, .2]); lbl('pfd', [-.6, 2.15, -.1]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let travel = 100;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  travel = r.travel_pct;
+  setLbl('travel', 'travel · ZSO / ZSC', `${fmt(r.travel_pct, 0)} % · ${r.limit_open} / ${r.limit_closed}`, st(names.has('ESD_POSITION_MISMATCH')));
+  setLbl('sig', 'spring · friction (bar)', `${fmt(t.spring_measured_bar)} · ${fmt(t.friction_measured_bar)}`, st(names.has('ESD_SPRING_WEAK') || names.has('ESD_FRICTION_HIGH'), t.friction_ratio > 1.25));
+  setLbl('pst', `last PST · ${fmt(r.pst_hours_since, 0)} h ago`, `${r.pst_result ? 'pass' : 'FAIL'} · ${fmt(r.pst_travel_reached_pct, 0)} % · Pc ${fmt(r.pst_p_close_start_bar)} Po ${fmt(r.pst_p_open_end_bar)}`, st(names.has('ESD_PST_FAILED') || names.has('ESD_PST_OVERDUE')));
+  setLbl('air', 'air supply · margin', `${fmt(r.supply_pressure_bar)} bar · ${fmt(t.air_margin_bar)}`, st(names.has('ESD_AIR_MARGIN'), t.air_margin_bar < 1));
+  setLbl('line', 'line upstream', `${fmt(r.line_pressure_bar, 1)} bar · ${fmt(r.line_temp_c, 0)} °C`, '');
+  setLbl('close', `last full stroke (SRS ≤ ${d.sif.required_closure_s} s)`, `${fmt(r.last_close_time_s)} s · ${fmt(t.stroke_ratio)} × baseline`, st(names.has('ESD_STROKE_TOO_SLOW'), names.has('ESD_STROKE_SLOW')));
+  setLbl('margin', 'closing torque margin', fmt(t.torque_margin), st(names.has('ESD_TORQUE_MARGIN_LIMIT'), names.has('ESD_TORQUE_MARGIN_LOW')));
+  setLbl('pfd', `SIF PFDavg · bypass ${r.bypass_active ? 'ON ' + fmt(r.bypass_active_h, 0) + ' h' : 'off'}`, `${exp(t.pfd_sif_ops)} · SIL ${t.sil_achieved}`, st(names.has('ESD_SIL_DRIFT') || names.has('ESD_BYPASS_LONG')));
+  $('k-health').textContent = ST.health; $('k-pfd').textContent = exp(t.pfd_sif_ops); $('k-rrf').textContent = fmt(t.rrf_sif_ops, 0);
+  $('c-sil-t').textContent = `SIL ${t.sil_achieved} (target ${d.sif.sil_target})`; $('c-sil').className = 'chip ' + (t.sil_achieved >= d.sif.sil_target ? 'ok' : 'bad');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Spring (bar)', fmt(t.spring_measured_bar), fmt(d.signature.spring_open_bar), names.has('ESD_SPRING_WEAK')) +
+    row('Friction (bar)', fmt(t.friction_measured_bar), fmt(t.friction_expected_bar), names.has('ESD_FRICTION_HIGH')) +
+    row('Starts to close at (bar)', fmt(r.pst_p_close_start_bar), fmt(t.close_start_expected_bar)) +
+    row('Back open at (bar)', fmt(r.pst_p_open_end_bar), fmt(t.open_end_expected_bar)) +
+    row('Closing torque margin', fmt(t.torque_margin), '≥ ' + L.torque_margin_alert, t.torque_margin < L.torque_margin_alert) +
+    row('Closing time (s)', fmt(r.last_close_time_s), d.stroke.close_baseline_s.toFixed(1), r.last_close_time_s > d.sif.required_closure_s) +
+    row('Air margin (bar)', fmt(t.air_margin_bar), '≥ ' + L.air_margin_alert_bar, t.air_margin_bar < L.air_margin_alert_bar) +
+    row('PST interval achieved (h)', fmt(r.pst_interval_achieved_h, 0), fmt(d.reliability.pst_interval_h, 0), names.has('ESD_PST_OVERDUE')) +
+    row('Bypass hours / 365 d', fmt(r.bypass_hours_365d, 0), '–') +
+    row('PFDavg SIF as operated', exp(t.pfd_sif_ops), '< 1.00e-2', t.pfd_sif_ops >= 0.01) +
+    row('PFD now', exp(t.pfd_now), '–');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the valve behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.design.sif.name;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  shellMat.transparent = true; shellMat.opacity = cut ? .25 : 1; shellMat.depthWrite = !cut;
+  [airC, springC].forEach(c => { c.material.transparent = true; c.material.opacity = cut ? .25 : 1; c.material.depthWrite = !cut; });
+};
+let localPst = 0;
+$('t-pst').onclick = () => { localPst = 8; };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shown = 100, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  let target = travel;
+  if (localPst > 0) { localPst = Math.max(0, localPst - dt); target = 100 - 15 * Math.sin(Math.PI * (1 - localPst / 8)); }
+  shown += (target - shown) * Math.min(1, dt * 6);
+  const ang = (100 - shown) / 100 * Math.PI / 2;           // 0 = open (bore along the pipe)
+  ballG.rotation.y = ang;
+  const px = -.9 + (100 - shown) / 100 * .55;               // piston travels towards the yoke as the valve closes
+  piston.position.set(px, 1.52, 0); rod.position.set(px + .8, 1.52, 0);
+  coilG.scale.set(.65 + (100 - shown) / 100 * .3, 1, 1); coilG.position.x = .3 + (1 - coilG.scale.x) * 0;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
