@@ -1,0 +1,333 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AHU-6401 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>AHU-6401</b><span class="g">Air handling unit · rotary heat recovery · CO2-controlled · BACnet/IP</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-sfp"><span class="dot"></span><span id="c-sfp-t">SFP –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">SFP, filters and heat recovery →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the air handling unit model…</div>
+<div class="credit">Air handling unit of the GOLD RX 20 type: outdoor air (lower deck) and extract air (upper deck) pass the filters, the rotary heat exchanger and the fans; the supply air then passes a heating and a cooling coil in the duct. Typical proportions (2.1 × 1.4 × 1.65 m casing), not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-air">Airflow</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Filters darken as they load (pressure drop ÷ clean at today's flow); the wheel turns at its commanded speed; coils glow red when heating and blue when cooling.</div>
+<aside>
+  <section>
+    <h2>AHU-6401 twin</h2>
+    <p class="sub" id="sub">air handling unit</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>SFP kW/(m³/s)<b id="k-sfp">–</b></div><div>Heat recovery<b id="k-hr">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The unit sends only what it measures. Every expected value (SFP with clean filters, clean filter pressure drop at today's flow, supply fan power, heat recovery ratio, coil heat balance, people implied by CO2) is computed from the twin file: the Swegon and Passive House data, the design point and the fan, wheel and coil balances.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for AHU-6401: fans, filters, rotary heat exchanger, coils, the IQlogic sequence and the office floor, with\ninjectable faults.\n\nThe real unit sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and\nfault fingerprints for the tests and the figures. Pure Python (math, random): it also runs in the browser (Pyodide).\n\nThe unit is solved in steady state on every step (air moves through an AHU in seconds):\n  1. occupancy from the time of day; DCV sets the supply flow so that the CO2 the sensor reads equals its setpoint;\n  2. fan powers from the flows, filter pressure drops and the rest of the system (fan affinity laws);\n  3. the IQlogic temperature sequence: heating coil, then rotor speed, then cooling coil, to hold the supply setpoint.\n\"\"\"\nimport math\nimport random\n\nimport twin_calc as tc\n\n\ndef occupancy_fraction(hour):\n    \"\"\"Office floor, working day: arrive 7-9, lunch dip 12-13, leave 17-19, cleaners at night.\"\"\"\n    h = hour % 24\n    if h < 7 or h >= 19:\n        return 0.03\n    if h < 9:\n        return 0.03 + 0.97 * (h - 7) / 2\n    if 12 <= h < 13:\n        return 0.65\n    if h < 17:\n        return 1.0\n    return 1.0 - 0.97 * (h - 17) / 2\n\n\nclass Unit:\n    def __init__(self, twin, seed=1):\n        self.twin = twin\n        self.k = tc._k(twin)\n        d = twin[\"design\"]\n        self.v, self.w, self.fl = d[\"ventilation\"], d[\"weather\"], d[\"filters\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def outdoor(self, hour):\n        return self.w[\"outdoor_mean_c\"] + self.w[\"outdoor_swing_c\"] * math.cos(2 * math.pi * (hour - 15) / 24)\n\n    # true state ------------------------------------------------------------------------------------------------------\n    def true_state(self, hour=10.5, t_out=None):\n        k, f, v = self.k, self.faults, self.v\n        t_out = self.outdoor(hour) if t_out is None else t_out\n        people = v[\"persons_peak\"] * occupancy_fraction(hour)\n        co2_drift = -350.0 * f[\"co2_sensor_drift\"]\n        # DCV: the controller holds the CO2 it reads at the setpoint\n        qs = k[\"g\"] * people * 1e6 / (k[\"co2sp\"] - k[\"co2o\"] - co2_drift)\n        qs = max(k[\"qmin\"], min(k[\"qmax\"], qs))\n        co2 = k[\"co2o\"] + k[\"g\"] * people / qs * 1e6\n        qe = qs * (1 - 0.3 * f[\"extract_blockage\"])\n        # filters and fans\n        dpf_s = k[\"fs\"] * qs ** k[\"n\"] * (1 + 3.3 * f[\"filter_loading\"]) * (1 - 0.7 * f[\"filter_bypass\"])\n        dpf_e = k[\"fe\"] * qe ** k[\"n\"]\n        p_s = tc.fan_kw(k, qs, dpf_s, k[\"ks\"]) / (1 - 0.3 * f[\"fan_degradation\"])\n        p_e = tc.fan_kw(k, qe, dpf_e, k[\"ke\"] * (1 + 5.0 * f[\"extract_blockage\"]))\n        # temperatures and the IQlogic sequence\n        t_eta = v[\"extract_base_c\"] + v[\"extract_rise_c\"] * people / v[\"persons_design\"]\n        eta_full = tc.eta_expected(k, qs, qe) * (1 - 0.55 * f[\"wheel_slip\"])\n        cq = k[\"rc\"] * qs                                  # kW per K of supply air\n        dt_fan = p_s / cq\n        leak = 30.0 * f[\"heating_valve_passing\"]          # kW through the closed heating valve\n        target = k[\"sp\"] - 4.0 * f[\"supply_temp_drift\"]   # the sensor reads high, the controller holds the reading\n        base = t_out + dt_fan + leak / cq\n        need = cq * (target - (base + eta_full * (t_eta - t_out)))\n        wheel, heat_valve, cool = 1.0, 0.0, 0.0\n        if need >= 0:\n            heat_valve = need\n        else:\n            span = eta_full * (t_eta - t_out)\n            wheel = (target - base) / span if span > 0.5 else -1.0\n            if wheel < 0:\n                wheel = 0.0\n                cool = cq * (base - target)\n        t_hr = t_out + eta_full * wheel * (t_eta - t_out)\n        t_sup = t_hr + dt_fan + (heat_valve + leak - cool) / cq\n        return {\"hour\": hour, \"people\": people, \"qs\": qs, \"qe\": qe, \"co2\": co2, \"co2_read\": co2 + co2_drift, \"dpf_s\": dpf_s, \"dpf_e\": dpf_e,\n                \"p_s\": p_s, \"p_e\": p_e, \"t_out\": t_out, \"t_eta\": t_eta, \"t_hr\": t_hr, \"t_sup\": t_sup,\n                \"t_sup_read\": t_sup + 4.0 * f[\"supply_temp_drift\"], \"t_eha\": t_eta - qs / qe * (t_hr - t_out),\n                \"wheel\": wheel, \"heat_valve_kw\": heat_valve, \"heat_kw\": heat_valve + leak, \"cool_kw\": cool, \"eta_full\": eta_full}\n\n    # one published message ---------------------------------------------------------------------------------------------\n    def measure(self, s=None):\n        s = s or self.true_state()\n        k = self.k\n        return {\n            \"supply_flow_m3s\": round(s[\"qs\"] * (1 + self.n(0.005)), 4),\n            \"extract_flow_m3s\": round(s[\"qe\"] * (1 + self.n(0.005)), 4),\n            \"supply_fan_kw\": round(s[\"p_s\"] * (1 + self.n(0.008)), 4),\n            \"extract_fan_kw\": round(s[\"p_e\"] * (1 + self.n(0.008)), 4),\n            \"supply_filter_pa\": round(max(1.0, s[\"dpf_s\"] + self.n(1.0)), 1),\n            \"extract_filter_pa\": round(max(1.0, s[\"dpf_e\"] + self.n(1.0)), 1),\n            \"t_outdoor_c\": round(s[\"t_out\"] + self.n(0.08), 2),\n            \"t_extract_c\": round(s[\"t_eta\"] + self.n(0.08), 2),\n            \"t_after_hr_c\": round(s[\"t_hr\"] + self.n(0.08), 2),\n            \"t_supply_c\": round(s[\"t_sup_read\"] + self.n(0.08), 2),\n            \"t_exhaust_c\": round(s[\"t_eha\"] + self.n(0.1), 2),\n            \"wheel_speed_pct\": round(100 * s[\"wheel\"], 1),\n            \"heating_valve_pct\": round(min(100.0, 100 * s[\"heat_valve_kw\"] / k[\"hcap\"]), 1),\n            \"cooling_valve_pct\": round(min(100.0, 100 * s[\"cool_kw\"] / k[\"ccap\"]), 1),\n            \"heating_kw\": round(max(0.0, s[\"heat_kw\"] * (1 + self.n(0.01)) + self.n(0.03)), 2),\n            \"cooling_kw\": round(max(0.0, s[\"cool_kw\"] * (1 + self.n(0.01)) + self.n(0.03)), 2),\n            \"co2_ppm\": round(s[\"co2_read\"] + self.n(10), 0),\n            \"occupancy\": max(0, round(s[\"people\"] + self.n(1.0))),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The plant clock `t` is seconds of the day (the page sets it to the visitor's local time): office hours fill the floor\n    and the DCV raises the airflow; at night the unit runs at its minimum flow. The weather is a winter day.\n    \"\"\"\n\n    def __init__(self, twin, seed=6401):\n        self.twin = twin\n        self.scale = float(twin[\"design\"].get(\"demo\", {}).get(\"time_scale\", 1))\n        self.u = Unit(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 10.5 * 3600\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.running, self.trip = True, 0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.u.faults[k] = f.sev\n        self.t = (self.t + dt * self.scale) % 86400\n        return self.u.true_state(self.t / 3600)\n\n    def measure(self, true):\n        return self.u.measure(true)\n", "twin_calc": "\"\"\"The air handling unit twin's expectations (AHU-6401, Swegon GOLD RX 20, rotary heat recovery, DCV on CO2).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nFans (EN 16798-3 definition of the specific fan power):\n    SFP = (P_supply + P_extract) / q_supply                                        [kW/(m3/s)]\n  Each fan works against its filter plus the rest of the system (wheel, casing, coils, ducts). On a fixed duct system the\n  rest rises with flow squared; a clean filter rises with flow^n (n = 1.5):\n    dp_rest = k x q^2,  k = (dp_design - dp_filter_clean) / q_design^2\n    dp_filter_clean(q) = dp_clean_design x (q / q_design)^n\n    P = q x (dp_rest + dp_filter) / eta_fan / 1000                                 [kW]\n  SFP expected = both fans with clean filters at today's flows. The supply fan's expected power uses the filter pressure\n  drop it actually sees, so a dirty filter does not look like a bad fan:\n    fan efficiency ratio = P_supply expected (measured filter dp) / P_supply measured\n  Filter ratio = filter dp / clean filter dp at today's flow: 2 = plan a change, 3 = change now, < 0.5 = torn or bypassed.\n  Extra fan energy of a loaded filter: q x (dp - dp_clean) / eta x hours x price.\nRotary heat exchanger (supply-side temperature ratio, the dry ratio EN 308 tests):\n    eta = (t_after_wheel - t_outdoor) / (t_extract - t_outdoor)\n    expected = min(cap, eta_design - k_eta x (q_s / q_design - 1)) x min(1, q_e / q_s)\n  Compared only when the rotor is commanded to full speed and extract and outdoor differ by at least 8 K.\n    recovered heat = rho cp q_s (t_after_wheel - t_outdoor);  heat lost to a slipping wheel = rho cp q_s (expected - eta) (t_e - t_o)\nCoils (the air must agree with the water):\n    air side = rho cp q_s (t_supply - t_after_wheel) - P_supply   (the supply fan motor heats the air)\n    water side = heating meter - cooling meter\n    coil balance = (air side - water side) / (rho cp q_s)                            [K]\n  A residual in kelvin is a temperature sensor drifting. Heat with the heating valve closed is a passing valve; heating\n  and cooling at the same time is wasted energy.\nVentilation (steady-state CO2 balance, G = CO2 generated per person):\n    people implied by CO2 = q_s x (CO2 - CO2_outdoor) x 1e-6 / G;   outdoor air per person = q_s x 1000 / people counted   [l/s]\n\"\"\"\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\nSFP_BANDS = [300, 500, 750, 1250, 2000, 3000, 4500]     # W/(m3/s): SFP 0 below 300 ... SFP 7 above 4500\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    a, f, fl, hr, c, v, e = d[\"airflow\"], d[\"fans\"], d[\"filters\"], d[\"heat_recovery\"], d[\"coils\"], d[\"ventilation\"], d[\"economics\"]\n    qd, n = a[\"design_m3s\"], fl[\"flow_exponent\"]\n    return dict(qd=qd, rc=a[\"rho_kg_m3\"] * a[\"cp_kj_kgk\"], eta=f[\"eta_total\"], n=n,\n                ks=(f[\"dp_supply_pa\"] - fl[\"supply_clean_pa\"]) / qd ** 2, ke=(f[\"dp_extract_pa\"] - fl[\"extract_clean_pa\"]) / qd ** 2,\n                fs=fl[\"supply_clean_pa\"] / qd ** n, fe=fl[\"extract_clean_pa\"] / qd ** n, sfp_d=f[\"sfp_design_kw_m3s\"],\n                etad=hr[\"eta_design\"], keta=hr[\"eta_per_flow\"], cap=hr[\"eta_cap\"], sp=c[\"supply_setpoint_c\"],\n                hcap=c[\"heating_kw\"], ccap=c[\"cooling_kw\"], g=v[\"co2_per_person_ls\"] / 1000, co2o=v[\"co2_outdoor_ppm\"],\n                co2sp=v[\"co2_setpoint_ppm\"], qmin=a[\"min_m3s\"], qmax=a[\"max_m3s\"], lsd=v[\"design_ls_person\"],\n                pe=e[\"electricity_eur_kwh\"], ph=e[\"heat_eur_kwh\"], hy=e[\"hours_per_year\"])\n\n\ndef fan_kw(k, q, dp_filter, rest_k):\n    \"\"\"Electric power (kW) of one fan moving q m3/s through its filter (dp_filter Pa) and the rest of the system.\"\"\"\n    return q * (rest_k * q ** 2 + dp_filter) / k[\"eta\"] / 1000\n\n\ndef eta_expected(k, qs, qe):\n    return min(k[\"cap\"], k[\"etad\"] - k[\"keta\"] * (qs / k[\"qd\"] - 1)) * min(1.0, qe / qs)\n\n\ndef filter_economics(twin):\n    \"\"\"When to change the supply filter, in money (at design flow, operating hours spread evenly over the year).\n\n    The pressure drop rises by `a` Pa per month. One extra Pa costs c = q / eta x hours per month x price per month.\n    Changing every T months costs on average  Cf / T + c x a x T / 2  per month (filter set + extra fan energy), which is\n    lowest at T* = sqrt(2 Cf / (c a)). The pressure-drop limit (filter_dirty_ratio x clean) is reached after\n    T_limit = (ratio - 1) x clean / a months. Change at the earlier of the two.\n    \"\"\"\n    k = _k(twin)\n    e, fl, L = twin[\"design\"][\"economics\"], twin[\"design\"][\"filters\"], twin[\"twin_model\"][\"limits\"]\n    c = k[\"qd\"] / k[\"eta\"] / 1000 * e[\"hours_per_year\"] / 12 * e[\"electricity_eur_kwh\"]      # EUR per Pa per month\n    a, cf = e[\"loading_pa_per_month\"], e[\"filter_set_eur\"]\n    t_opt = (2 * cf / (c * a)) ** 0.5\n    t_lim = (L[\"filter_dirty_ratio\"] - 1) * fl[\"supply_clean_pa\"] / a\n    t_lim3 = (L[\"filter_limit_ratio\"] - 1) * fl[\"supply_clean_pa\"] / a\n    cost = lambda t: cf / t + c * a * t / 2\n    return dict(c=c, a=a, cf=cf, t_opt=t_opt, t_lim=t_lim, t_lim3=t_lim3, cost=cost)\n\n\ndef sfp_category(w):\n    return sum(1 for b in SFP_BANDS if w >= b)\n\n\ndef _parts(twin):\n    k = _k(twin)\n    QS, QE = \"df['SUPPLY_FLOW_M3S']\", \"df['EXTRACT_FLOW_M3S']\"\n    n, eta = k[\"n\"], k[\"eta\"]\n    SFP = f\"((df['SUPPLY_FAN_KW'] + df['EXTRACT_FAN_KW']) / {QS})\"\n    SFPX = (f\"(({QS} * ({k['ks']} * {QS} ** 2 + {k['fs']} * {QS} ** {n}) + {QE} * ({k['ke']} * {QE} ** 2 + {k['fe']} * {QE} ** {n}))\"\n            f\" / {eta} / 1000 / {QS})\")\n    SFPW = f\"(df['SUPPLY_FAN_KW'] / {QS} * 1000)\"\n    CAT = \"0\"\n    for i, b in enumerate(SFP_BANDS):          # the outermost np.where tests the highest band\n        CAT = f\"np.where({SFPW} >= {b}, {i + 1}, {CAT})\"\n    FCL = f\"({k['fs']} * {QS} ** {n})\"\n    FR = f\"(df['SUPPLY_FILTER_PA'] / {FCL})\"\n    FRE = f\"(df['EXTRACT_FILTER_PA'] / ({k['fe']} * {QE} ** {n}))\"\n    FCOST = f\"({QS} * (df['SUPPLY_FILTER_PA'] - {FCL}) / {eta} / 1000 * {k['hy'] * k['pe']})\"\n    FX = f\"({QS} * ({k['ks']} * {QS} ** 2 + df['SUPPLY_FILTER_PA']) / {eta} / 1000)\"\n    FER = f\"({FX} / df['SUPPLY_FAN_KW'])\"\n    DT = \"(df['T_EXTRACT_C'] - df['T_OUTDOOR_C'])\"\n    HR = f\"((df['T_AFTER_HR_C'] - df['T_OUTDOOR_C']) / {DT})\"\n    HRX = f\"(np.minimum({k['cap']}, {k['etad']} - {k['keta']} * ({QS} / {k['qd']} - 1)) * np.minimum(1, {QE} / {QS}))\"\n    HRD = f\"({HR} - {HRX})\"\n    REC = f\"({k['rc']} * {QS} * (df['T_AFTER_HR_C'] - df['T_OUTDOOR_C']))\"\n    LOST = f\"(np.where(df['WHEEL_SPEED_PCT'] >= {twin['twin_model']['limits']['hr_min_wheel_pct']}, np.maximum(0, {HRX} - {HR}), 0) * {k['rc']} * {QS} * {DT})\"\n    AIR = f\"({k['rc']} * {QS} * (df['T_SUPPLY_C'] - df['T_AFTER_HR_C']) - df['SUPPLY_FAN_KW'])\"\n    CB = f\"(({AIR} - (df['HEATING_KW'] - df['COOLING_KW'])) / ({k['rc']} * {QS}))\"\n    FB = f\"({QE} / {QS})\"\n    OCC = f\"({QS} * (df['CO2_PPM'] - {k['co2o']}) * 1e-06 / {k['g']})\"\n    VPP = f\"({QS} * 1000 / np.maximum(df['OCCUPANCY'], 1))\"\n    return dict(k=k, SFP=SFP, SFPX=SFPX, SFPW=SFPW, CAT=CAT, FR=FR, FRE=FRE, FCOST=FCOST, FX=FX, FER=FER, DT=DT, HR=HR, HRX=HRX,\n                HRD=HRD, REC=REC, LOST=LOST, AIR=AIR, CB=CB, FB=FB, OCC=OCC, VPP=VPP)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    return [\n        (\"SFP_KW_M3S\", p[\"SFP\"]),\n        (\"SFP_EXPECTED_KW_M3S\", p[\"SFPX\"]),\n        (\"SFP_RATIO\", f\"{p['SFP']} / {p['SFPX']}\"),\n        (\"SFP_SUPPLY_W_M3S\", p[\"SFPW\"]),\n        (\"SFP_SUPPLY_CATEGORY\", p[\"CAT\"]),\n        (\"FILTER_SUP_RATIO\", p[\"FR\"]),\n        (\"FILTER_EXT_RATIO\", p[\"FRE\"]),\n        (\"FILTER_EXTRA_COST_EUR_Y\", p[\"FCOST\"]),\n        (\"FAN_SUP_EXPECTED_KW\", p[\"FX\"]),\n        (\"FAN_SUP_EFF_RATIO\", p[\"FER\"]),\n        (\"HR_EFF\", p[\"HR\"]),\n        (\"HR_EFF_EXPECTED\", p[\"HRX\"]),\n        (\"HR_EFF_DEV\", p[\"HRD\"]),\n        (\"HR_RECOVERED_KW\", p[\"REC\"]),\n        (\"HR_LOST_KW\", p[\"LOST\"]),\n        (\"COIL_AIR_KW\", p[\"AIR\"]),\n        (\"COIL_BALANCE_K\", p[\"CB\"]),\n        (\"FLOW_BALANCE\", p[\"FB\"]),\n        (\"OCC_FROM_CO2\", p[\"OCC\"]),\n        (\"VENT_PER_PERSON_LS\", p[\"VPP\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    L = twin[\"twin_model\"][\"limits\"]\n    qs, qe, n = r[\"supply_flow_m3s\"], r[\"extract_flow_m3s\"], k[\"n\"]\n    sfp = (r[\"supply_fan_kw\"] + r[\"extract_fan_kw\"]) / qs\n    sfpx = (qs * (k[\"ks\"] * qs ** 2 + k[\"fs\"] * qs ** n) + qe * (k[\"ke\"] * qe ** 2 + k[\"fe\"] * qe ** n)) / k[\"eta\"] / 1000 / qs\n    sfpw = r[\"supply_fan_kw\"] / qs * 1000\n    fcl = k[\"fs\"] * qs ** n\n    fx = fan_kw(k, qs, r[\"supply_filter_pa\"], k[\"ks\"])\n    dt = r[\"t_extract_c\"] - r[\"t_outdoor_c\"]\n    hr = (r[\"t_after_hr_c\"] - r[\"t_outdoor_c\"]) / dt\n    hrx = eta_expected(k, qs, qe)\n    air = k[\"rc\"] * qs * (r[\"t_supply_c\"] - r[\"t_after_hr_c\"]) - r[\"supply_fan_kw\"]\n    return {\n        \"sfp_kw_m3s\": sfp, \"sfp_expected_kw_m3s\": sfpx, \"sfp_ratio\": sfp / sfpx, \"sfp_supply_w_m3s\": sfpw,\n        \"sfp_supply_category\": sfp_category(sfpw),\n        \"filter_sup_ratio\": r[\"supply_filter_pa\"] / fcl, \"filter_ext_ratio\": r[\"extract_filter_pa\"] / (k[\"fe\"] * qe ** n),\n        \"filter_extra_cost_eur_y\": qs * (r[\"supply_filter_pa\"] - fcl) / k[\"eta\"] / 1000 * k[\"hy\"] * k[\"pe\"],\n        \"fan_sup_expected_kw\": fx, \"fan_sup_eff_ratio\": fx / r[\"supply_fan_kw\"],\n        \"hr_eff\": hr, \"hr_eff_expected\": hrx, \"hr_eff_dev\": hr - hrx,\n        \"hr_recovered_kw\": k[\"rc\"] * qs * (r[\"t_after_hr_c\"] - r[\"t_outdoor_c\"]),\n        \"hr_lost_kw\": (max(0.0, hrx - hr) if r[\"wheel_speed_pct\"] >= L[\"hr_min_wheel_pct\"] else 0.0) * k[\"rc\"] * qs * dt,\n        \"coil_air_kw\": air, \"coil_balance_k\": (air - (r[\"heating_kw\"] - r[\"cooling_kw\"])) / (k[\"rc\"] * qs),\n        \"flow_balance\": qe / qs, \"occ_from_co2\": qs * (r[\"co2_ppm\"] - k[\"co2o\"]) * 1e-06 / k[\"g\"],\n        \"vent_per_person_ls\": qs * 1000 / max(r[\"occupancy\"], 1),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    FR = p[\"FR\"]\n    return [\n        (\"AHU_FILTER_SUP_LIMIT\", f\"{FR} > {L['filter_limit_ratio']}\", \"High\", \"filter_loading\"),\n        (\"AHU_FILTER_SUP_LOW\", f\"{FR} < {L['filter_low_ratio']}\", \"High\", \"filter_bypass\"),\n        (\"AHU_UNDERVENTILATION\", f\"(df['OCCUPANCY'] >= {L['vent_min_persons']}) & ({p['VPP']} < {L['vent_alert_ls']})\", \"High\", \"co2_sensor_drift\"),\n        (\"AHU_FILTER_SUP_DIRTY\", f\"({FR} > {L['filter_dirty_ratio']}) & ({FR} <= {L['filter_limit_ratio']})\", \"Medium\", \"filter_loading\"),\n        (\"AHU_SFP_HIGH\", f\"{p['SFP']} / {p['SFPX']} > {L['sfp_ratio_alert']}\", \"Medium\", \"filter_loading\"),\n        (\"AHU_FAN_EFF_LOW\", f\"{p['FER']} < {L['fan_eff_ratio_alert']}\", \"Medium\", \"fan_degradation\"),\n        (\"AHU_HR_EFF_LOW\", f\"(df['WHEEL_SPEED_PCT'] >= {L['hr_min_wheel_pct']}) & ({p['DT']} >= {L['hr_min_dt_k']}) & ({p['HRD']} < {L['hr_dev_alert']})\",\n         \"Medium\", \"wheel_slip\"),\n        (\"AHU_HEAT_VALVE_PASSING\", f\"(df['HEATING_KW'] > {L['coil_on_kw']}) & (df['HEATING_VALVE_PCT'] < {L['valve_closed_pct']})\", \"Medium\", \"heating_valve_passing\"),\n        (\"AHU_SIMULT_HEAT_COOL\", f\"(df['HEATING_KW'] > {L['coil_on_kw']}) & (df['COOLING_KW'] > {L['coil_on_kw']})\", \"Medium\", \"heating_valve_passing\"),\n        (\"AHU_COIL_BALANCE\", f\"np.abs({p['CB']}) > {L['coil_balance_alert_k']}\", \"Medium\", \"supply_temp_drift\"),\n        (\"AHU_CO2_OCC_MISMATCH\", f\"np.abs({p['OCC']} - df['OCCUPANCY']) > np.maximum({L['occ_mismatch_min']}, {L['occ_mismatch_frac']} * df['OCCUPANCY'])\",\n         \"Medium\", \"co2_sensor_drift\"),\n        (\"AHU_FLOW_IMBALANCE\", f\"np.abs({p['FB']} - 1) > {L['flow_balance_alert']}\", \"Medium\", \"extract_blockage\"),\n        (\"AHU_FILTER_EXT_DIRTY\", f\"{p['FRE']} > {L['extract_filter_ratio']}\", \"Medium\", None),\n    ]\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    fr, vpp = t[\"filter_sup_ratio\"], t[\"vent_per_person_ls\"]\n    clean = k[\"fs\"] * r[\"supply_flow_m3s\"] ** k[\"n\"]\n    add(fr > L[\"filter_limit_ratio\"], \"AHU_FILTER_SUP_LIMIT\", \"High\",\n        f\"Supply filter {r['supply_filter_pa']:.0f} Pa, {fr:.1f} x clean ({clean:.0f} Pa) at this flow: change it now\", \"filters\", \"filter_loading\")\n    add(fr < L[\"filter_low_ratio\"], \"AHU_FILTER_SUP_LOW\", \"High\",\n        f\"Supply filter only {r['supply_filter_pa']:.0f} Pa, {fr:.2f} x clean: torn or bypassed, unfiltered air\", \"filters\", \"filter_bypass\")\n    add(r[\"occupancy\"] >= L[\"vent_min_persons\"] and vpp < L[\"vent_alert_ls\"], \"AHU_UNDERVENTILATION\", \"High\",\n        f\"{vpp:.1f} l/s of outdoor air per person for {r['occupancy']:.0f} people (design {k['lsd']:.0f})\", \"sensors\", \"co2_sensor_drift\")\n    add(L[\"filter_dirty_ratio\"] < fr <= L[\"filter_limit_ratio\"], \"AHU_FILTER_SUP_DIRTY\", \"Medium\",\n        f\"Supply filter {fr:.1f} x clean at this flow: plan a change ({t['filter_extra_cost_eur_y']:.0f} EUR a year of fan energy)\", \"filters\", \"filter_loading\")\n    add(t[\"sfp_ratio\"] > L[\"sfp_ratio_alert\"], \"AHU_SFP_HIGH\", \"Medium\",\n        f\"SFP {t['sfp_kw_m3s']:.2f} kW/(m3/s), {t['sfp_ratio']:.2f} x expected with clean filters at this flow\", \"fans\", \"filter_loading\")\n    add(t[\"fan_sup_eff_ratio\"] < L[\"fan_eff_ratio_alert\"], \"AHU_FAN_EFF_LOW\", \"Medium\",\n        f\"Supply fan draws {r['supply_fan_kw']:.2f} kW against {t['fan_sup_expected_kw']:.2f} kW expected\", \"fans\", \"fan_degradation\")\n    add(r[\"wheel_speed_pct\"] >= L[\"hr_min_wheel_pct\"] and r[\"t_extract_c\"] - r[\"t_outdoor_c\"] >= L[\"hr_min_dt_k\"] and t[\"hr_eff_dev\"] < L[\"hr_dev_alert\"],\n        \"AHU_HR_EFF_LOW\", \"Medium\",\n        f\"Wheel recovers {t['hr_eff'] * 100:.0f} % against {t['hr_eff_expected'] * 100:.0f} % expected at full speed: {t['hr_lost_kw']:.1f} kW of heat lost\", \"heat recovery\", \"wheel_slip\")\n    add(r[\"heating_kw\"] > L[\"coil_on_kw\"] and r[\"heating_valve_pct\"] < L[\"valve_closed_pct\"], \"AHU_HEAT_VALVE_PASSING\", \"Medium\",\n        f\"Heat meter {r['heating_kw']:.1f} kW with the heating valve at {r['heating_valve_pct']:.0f} %\", \"coils\", \"heating_valve_passing\")\n    add(r[\"heating_kw\"] > L[\"coil_on_kw\"] and r[\"cooling_kw\"] > L[\"coil_on_kw\"], \"AHU_SIMULT_HEAT_COOL\", \"Medium\",\n        f\"Heating {r['heating_kw']:.1f} kW and cooling {r['cooling_kw']:.1f} kW at the same time\", \"coils\", \"heating_valve_passing\")\n    add(abs(t[\"coil_balance_k\"]) > L[\"coil_balance_alert_k\"], \"AHU_COIL_BALANCE\", \"Medium\",\n        f\"Air temperatures and heat meters disagree by {t['coil_balance_k']:+.1f} K: check the supply air sensor\", \"sensors\", \"supply_temp_drift\")\n    add(abs(t[\"occ_from_co2\"] - r[\"occupancy\"]) > max(L[\"occ_mismatch_min\"], L[\"occ_mismatch_frac\"] * r[\"occupancy\"]), \"AHU_CO2_OCC_MISMATCH\", \"Medium\",\n        f\"CO2 {r['co2_ppm']:.0f} ppm implies {t['occ_from_co2']:.0f} people, the counter says {r['occupancy']:.0f}: check the CO2 sensor\", \"sensors\", \"co2_sensor_drift\")\n    add(abs(t[\"flow_balance\"] - 1) > L[\"flow_balance_alert\"], \"AHU_FLOW_IMBALANCE\", \"Medium\",\n        f\"Extract {r['extract_flow_m3s']:.2f} m3/s against supply {r['supply_flow_m3s']:.2f} m3/s ({(t['flow_balance'] - 1) * 100:+.0f} %)\", \"ducts\", \"extract_blockage\")\n    add(t[\"filter_ext_ratio\"] > L[\"extract_filter_ratio\"], \"AHU_FILTER_EXT_DIRTY\", \"Medium\",\n        f\"Extract filter {r['extract_filter_pa']:.0f} Pa, {t['filter_ext_ratio']:.1f} x clean at this flow\", \"filters\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "AHU-6401 air handling unit twin. Expected values in Maximo Monitor from the Swegon and Passive House data and fan, heat recovery and coil balances; the unit sends only what it measures.", "twin": {"id": "AHU-6401", "name": "Air handling unit AHU-6401", "version": "1.0.0", "folder": "ahu-twin"}, "identification": {"asset": "AHU-6401", "assetnum": "AHU-6401", "manufacturer": "Swegon", "model": "GOLD RX 20 (rotary heat exchanger, IQlogic controls)", "description": "Office floor air handling unit: rotary heat recovery, ePM1 bag filters, duct heating and cooling coils, EC fans, CO2-controlled, BACnet/IP", "unit": "Swegon GOLD RX size 20, indoor, rotary heat exchanger, supply and extract fans GOLD Wing+ with IE5 EC/PM motors", "filters": "Glass-fibre bag filters: supply ePM1, extract ePM10 (ISO 16890 classes, assumption of the selected options)", "coils": "Low-temperature hot water heating coil and chilled water cooling coil in the supply duct, each with a two-way valve and a heat meter", "controls": "Swegon IQlogic, BACnet/IP to the building management system; supply airflow from the extract air CO2 (DCV)", "service": "Mechanical ventilation of one open-plan office floor, about 100 workplaces"}, "design": {"unit": {"size": 20, "airflow_min_m3s": 0.3, "airflow_max_m3s": 1.8, "motor_shaft_kw_per_fan": 2.4, "phi_airflow_m3h": [2520, 4500], "phi_sel_wh_m3": 0.44, "phi_heat_recovery_pct": 83, "source": "Swegon GOLD RX product page: size 20 airflow 0.3 to 1.8 m3/s (Ecodesign). Swegon GOLD RX sizing catalogue 2025-02-21: motor shaft power per fan 2.4 kW (alt. 3.4 kW) for size 020. Passive House Institute component database, GOLD F RX STE Aluminium 20: airflow 2520 to 4500 m3/h, specific electric power 0.44 Wh/m3, heat recovery rate 83 %."}, "airflow": {"design_m3s": 1.0, "min_m3s": 0.45, "max_m3s": 1.2, "rho_kg_m3": 1.2, "cp_kj_kgk": 1.006, "source": "Design airflow 1.0 m3/s (3600 m3/h, inside the PHI certified range and the size 20 range), DCV minimum 0.45 and maximum 1.2 m3/s: assumption: typical value, replace with your AHU Design selection printout / site data. Air density and heat capacity: textbook values at about 20 C."}, "fans": {"eta_total": 0.62, "dp_supply_pa": 520.0, "dp_extract_pa": 460.0, "sfp_design_kw_m3s": 1.5806, "sfp_phi_kw_m3s": 1.584, "source": "Total pressure rise per fan at design with clean filters (filter, wheel, casing, coils and ducts) and total fan efficiency (impeller, EC/PM motor and drive): assumption: typical value, replace with your AHU Design selection printout / site data. Together they give SFP = (520 + 460) / 0.62 = 1.58 kW/(m3/s) for both fans, the same as the PHI certified 0.44 Wh/m3 x 3.6 = 1.58 kW/(m3/s). On the fixed duct system the pressure outside the filter rises with flow squared (fan affinity laws); the efficiency is taken constant over the DCV range (assumption)."}, "filters": {"supply_class": "ePM1 >= 50 %", "extract_class": "ePM10 >= 50 %", "supply_clean_pa": 70.0, "extract_clean_pa": 50.0, "flow_exponent": 1.5, "source": "ISO 16890 classes of the selected glass-fibre bag filters, initial pressure drop at design flow, and the exponent of the pressure drop against flow (between 1 for laminar and 2 for turbulent flow through the media): assumption: typical value, replace with your AHU Design selection printout / site data. The GOLD filter holder is rated for ePM1 85 % bypass leakage (Swegon product page)."}, "heat_recovery": {"type": "rotary heat exchanger (wheel), condensation rotor", "eta_design": 0.83, "eta_per_flow": 0.08, "eta_cap": 0.9, "source": "Design supply temperature ratio at balanced design flow 0.83, taken from the PHI certified heat recovery rate of 83 % (the PHI rate is an effective rate measured by PHI's own method, a conservative stand-in for the EN 308 dry temperature ratio). Change of the ratio with flow (-0.08 per 100 % of design flow, more contact time at low flow) and its cap: assumption: typical value, replace with your AHU Design selection printout / site data. With unequal flows the supply-side ratio is scaled by extract / supply flow when the extract flow is smaller."}, "coils": {"heating_kw": 40.0, "cooling_kw": 30.0, "supply_setpoint_c": 20.0, "source": "Heating and cooling coil capacities at full valve opening and the supply air setpoint: assumption: typical value, replace with your AHU Design selection printout / site data. The valve position is taken proportional to the duty (assumption: equal-percentage valve on a coil gives a near-linear duty against position). The supply fan motor sits in the air stream: all its electric power ends up as heat in the supply air."}, "ventilation": {"persons_design": 100, "persons_peak": 90, "co2_outdoor_ppm": 420.0, "co2_setpoint_ppm": 900.0, "co2_per_person_ls": 0.0052, "design_ls_person": 10.0, "extract_base_c": 21.5, "extract_rise_c": 1.0, "source": "Design occupancy, peak occupancy, outdoor CO2, DCV CO2 setpoint, design outdoor air per person and room temperature: assumption: typical value, replace with your AHU Design selection printout / site data. CO2 generation 0.0052 l/s per sedentary adult: a commonly quoted value (assumption); Persily and de Jonge (2017) give rates by age, sex and activity, replace it with theirs. Steady-state CO2 balance: CO2_room = CO2_out + G x N / Q."}, "economics": {"electricity_eur_kwh": 0.25, "heat_eur_kwh": 0.1, "hours_per_year": 4000, "filter_set_eur": 350.0, "loading_pa_per_month": 12.0, "heating_hours": 2500, "heating_mean_outdoor_c": 5.0, "source": "Electricity and heat prices, operating hours, cost of one set of supply bag filters with labour, the rate at which the supply filter pressure drop rises at design flow, and the heating season: assumption: typical value, replace with your AHU Design selection printout / site data."}, "weather": {"outdoor_mean_c": 0.0, "outdoor_swing_c": 4.0, "source": "Demo weather: a winter day, 0 C mean with a 4 K daily swing (warmest at 15:00). Assumption for the stand-in only."}, "demo": {"time_scale": 1, "note": "Demo only: the plant clock is the visitor's local time (office hours fill the floor, nights run at the DCV minimum); faults ramp in over minutes, where real filters load over months."}}, "telemetry": {"event": "ahu", "publish_every_s": 10, "device_type": "AIR_HANDLING_UNIT", "groups": {"Air": "Supply and extract airflow", "Fan": "Fan electric power", "Filter": "Filter pressure drops", "Temp": "Air temperatures", "HR": "Rotary heat exchanger", "Coil": "Heating and cooling coils", "Room": "Room air quality and occupancy"}, "points": [{"metric": "supply_flow_m3s", "path": "Air.SupplyFlow", "label": "Supply airflow", "unit": "m3/s"}, {"metric": "extract_flow_m3s", "path": "Air.ExtractFlow", "label": "Extract airflow", "unit": "m3/s"}, {"metric": "supply_fan_kw", "path": "Fan.SupplyPower", "label": "Supply fan electric power", "unit": "kW"}, {"metric": "extract_fan_kw", "path": "Fan.ExtractPower", "label": "Extract fan electric power", "unit": "kW"}, {"metric": "supply_filter_pa", "path": "Filter.SupplyDP", "label": "Supply (outdoor air) filter pressure drop", "unit": "Pa"}, {"metric": "extract_filter_pa", "path": "Filter.ExtractDP", "label": "Extract air filter pressure drop", "unit": "Pa"}, {"metric": "t_outdoor_c", "path": "Temp.Outdoor", "label": "Outdoor air temperature (ODA)", "unit": "\u00b0C"}, {"metric": "t_extract_c", "path": "Temp.Extract", "label": "Extract air temperature (ETA)", "unit": "\u00b0C"}, {"metric": "t_after_hr_c", "path": "Temp.AfterHR", "label": "Supply air after the wheel", "unit": "\u00b0C"}, {"metric": "t_supply_c", "path": "Temp.Supply", "label": "Supply air temperature (SUP)", "unit": "\u00b0C"}, {"metric": "t_exhaust_c", "path": "Temp.Exhaust", "label": "Exhaust air temperature (EHA)", "unit": "\u00b0C"}, {"metric": "wheel_speed_pct", "path": "HR.WheelSpeed", "label": "Rotor speed command", "unit": "%"}, {"metric": "heating_valve_pct", "path": "Coil.HeatingValve", "label": "Heating valve position", "unit": "%"}, {"metric": "cooling_valve_pct", "path": "Coil.CoolingValve", "label": "Cooling valve position", "unit": "%"}, {"metric": "heating_kw", "path": "Coil.HeatingPower", "label": "Heating coil power (heat meter)", "unit": "kW"}, {"metric": "cooling_kw", "path": "Coil.CoolingPower", "label": "Cooling coil power (chilled water meter)", "unit": "kW"}, {"metric": "co2_ppm", "path": "Room.CO2", "label": "CO2 in the extract air", "unit": "ppm"}, {"metric": "occupancy", "path": "Room.Occupancy", "label": "People on the floor (people counter)", "unit": "count"}]}, "twin_model": {"limits": {"filter_dirty_ratio": 2.0, "filter_limit_ratio": 3.0, "filter_low_ratio": 0.5, "extract_filter_ratio": 2.5, "sfp_ratio_alert": 1.15, "fan_eff_ratio_alert": 0.85, "hr_dev_alert": -0.1, "hr_min_wheel_pct": 95.0, "hr_min_dt_k": 8.0, "coil_on_kw": 1.0, "valve_closed_pct": 2.0, "coil_balance_alert_k": 1.5, "occ_mismatch_min": 15.0, "occ_mismatch_frac": 0.25, "vent_alert_ls": 7.0, "vent_min_persons": 20.0, "flow_balance_alert": 0.1}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "filter_loading": {"name": "Supply filter loading (dust)", "part": "filters", "symptoms": "supply filter pressure drop above clean at today's flow; fan power and SFP up", "rules": ["AHU_FILTER_SUP_DIRTY", "AHU_FILTER_SUP_LIMIT", "AHU_SFP_HIGH"], "default_ramp_min": 1.5}, "filter_bypass": {"name": "Torn or badly seated supply filter (bypass)", "part": "filters", "symptoms": "supply filter pressure drop far below clean at today's flow: unfiltered air bypasses", "rules": ["AHU_FILTER_SUP_LOW"], "default_ramp_min": 0.5}, "fan_degradation": {"name": "Supply fan degradation (dirty impeller, EC motor or drive)", "part": "fans", "symptoms": "supply fan power above expected for its flow and pressure; SFP up with normal filters", "rules": ["AHU_FAN_EFF_LOW", "AHU_SFP_HIGH"], "default_ramp_min": 1.5}, "wheel_slip": {"name": "Rotor drive belt slipping or broken", "part": "heat recovery", "symptoms": "temperature ratio of the wheel far below expected with the rotor commanded to full speed; heating coil works harder", "rules": ["AHU_HR_EFF_LOW"], "default_ramp_min": 1}, "heating_valve_passing": {"name": "Heating valve passing (does not close)", "part": "coils", "symptoms": "heat meter shows heat with the valve closed; the cooling coil opens to take it away again", "rules": ["AHU_HEAT_VALVE_PASSING", "AHU_SIMULT_HEAT_COOL"], "default_ramp_min": 1}, "supply_temp_drift": {"name": "Supply air temperature sensor drift", "part": "sensors", "symptoms": "the coil heat balance from the air temperatures disagrees with the heat meters", "rules": ["AHU_COIL_BALANCE"], "default_ramp_min": 1}, "co2_sensor_drift": {"name": "CO2 sensor drifting low", "part": "sensors", "symptoms": "occupancy implied by CO2 below the people count; DCV cuts the airflow, outdoor air per person falls", "rules": ["AHU_CO2_OCC_MISMATCH", "AHU_UNDERVENTILATION"], "default_ramp_min": 1}, "extract_blockage": {"name": "Extract duct blocked (fire damper closed, grilles covered)", "part": "ducts", "symptoms": "extract airflow well below supply; extract fan works against a higher pressure", "rules": ["AHU_FLOW_IMBALANCE", "AHU_SFP_HIGH"], "default_ramp_min": 0.5}}, "presentation": {"title": "AHU-6401 air handling unit", "dashboard": "AIR_HANDLING_UNIT"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, airOn = true;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (1 unit = 1 m) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(2.6, 2.9, 5.4); ctl.target.set(.9, .9, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(4, 8, 5); scene.add(sun);
+scene.add(new THREE.GridHelper(14, 28, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .5, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide, emissive: o.e ?? 0x000000 });
+const cyl = (r1, r2, h, m, s = 24) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// casing 2.08 long (x), 1.65 high (y), 1.4 deep (z) on a 0.15 m base; lower deck = outdoor/supply, upper deck = extract/exhaust
+const LX = 2.08, HY = 1.65, DZ = 1.4, Y0 = .15, X0 = -LX / 2, YM = Y0 + HY / 2;
+scene.add(at(box(LX, Y0, DZ - .1, M(0x3d4249)), 0, Y0 / 2, 0));
+const caseMat = M(0xd5dade, { m: .35, r: .55, ds: true, t: 1 });
+const casing = at(box(LX, HY, DZ, caseMat), 0, Y0 + HY / 2, 0); scene.add(casing);
+scene.add(at(box(LX - .02, .03, DZ - .02, M(0x9aa3ab)), 0, YM, 0));        // deck divider
+// rotary heat exchanger: one wheel through both decks in the middle
+const wheel = new THREE.Group(); wheel.position.set(-.05, YM, 0); scene.add(wheel);
+const wheelMat = M(0xb08d57, { m: .7, r: .35 });
+const disc = cyl(.74, .74, .2, wheelMat, 48); disc.rotation.z = Math.PI / 2; wheel.add(disc);
+for (let i = 0; i < 8; i++) { const sp = box(.21, 1.46, .025, M(0x6f6f6f)); sp.rotation.x = i * Math.PI / 8; wheel.add(sp); }
+const hub = cyl(.09, .09, .26, M(0x393939)); hub.rotation.z = Math.PI / 2; wheel.add(hub);
+scene.add(at(box(.08, .2, .12, M(0x393939)), -.05, Y0 + .2, DZ / 2 - .12));    // rotor drive motor
+// filters (bag filters shown as pleated blocks): supply at the outdoor inlet (lower left), extract at the extract inlet (upper right)
+const fSupMat = M(0xe6e6e6, { m: 0, r: .9 }), fExtMat = M(0xe6e6e6, { m: 0, r: .9 });
+const filt = (x, y, mat) => { const g = new THREE.Group(); for (let i = 0; i < 8; i++) { const b = box(.42, .045, DZ - .16, mat); b.rotation.z = (i % 2 ? .18 : -.18); g.add(at(b, 0, -.32 + i * .09, 0)); } return at(g, x, y, 0); };
+scene.add(filt(X0 + .35, Y0 + HY / 4, fSupMat)); scene.add(filt(-X0 - .35, YM + HY / 4, fExtMat));
+// fans: plug fans (impeller discs + motor), supply in the lower deck right of the wheel, extract in the upper deck left
+const fanMat = M(0x0f62fe, { m: .5 }), fanExtMat = M(0x6f8fbf, { m: .5 });
+const fan = (x, y, mat) => { const g = new THREE.Group(); const imp = cyl(.32, .32, .16, mat, 32); imp.rotation.z = Math.PI / 2; g.add(imp);
+  for (let i = 0; i < 7; i++) { const b = box(.14, .3, .03, M(0x2b2b2b)); b.rotation.x = i * Math.PI / 7; b.position.x = .02; g.add(b); }
+  const mot = cyl(.12, .12, .22, M(0x393939)); mot.rotation.z = Math.PI / 2; mot.position.x = .2; g.add(mot); return at(g, x, y, 0); };
+const supFan = fan(.62, Y0 + HY / 4, fanMat), extFan = fan(-.62, YM + HY / 4, fanExtMat); scene.add(supFan); scene.add(extFan);
+// ducts: outdoor intake (left low), exhaust (left high), extract (right high), supply duct (right low) with heating and cooling coils
+const ductMat = M(0xa8b0b8, { m: .6, r: .4, t: 1 });
+const duct = (len, x, y, m = ductMat) => at(box(len, .5, .8, m), x, y, 0);
+scene.add(duct(.6, X0 - .3, Y0 + HY / 4)); scene.add(duct(.6, X0 - .3, YM + HY / 4)); scene.add(duct(.5, -X0 + .25, YM + HY / 4));
+const supDuct = duct(2.2, -X0 + 1.1, Y0 + HY / 4); scene.add(supDuct);
+const heatMat = M(0xc0c0c0, { m: .6, e: 0x000000 }), coolMat = M(0xc0c0c0, { m: .6, e: 0x000000 });
+scene.add(at(box(.22, .56, .86, heatMat), -X0 + .6, Y0 + HY / 4, 0)); scene.add(at(box(.22, .56, .86, coolMat), -X0 + 1.05, Y0 + HY / 4, 0));
+[[.6, 0xda1e28], [1.05, 0x0f62fe]].forEach(([dx, c]) => { const p = cyl(.025, .025, .5, M(c, { m: .3 })); scene.add(at(p, -X0 + dx, Y0 + HY / 4 + .5, .3)); });
+// room CO2 sensor on the extract duct, people sign above the supply duct end
+scene.add(at(box(.1, .1, .06, M(0x8a3ffc, { m: .2 })), -X0 + .25, YM + HY / 4 + .3, .2));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, 0, Y0 + HY + .25, 0));
+// airflow particles: four streams
+const P = [];
+const pMat = { oda: M(0x78a9ff, { e: 0x1f3f7f }), sup: M(0xffb784, { e: 0x5f2f00 }), eta: M(0xffd6a5, { e: 0x5f3f00 }), eha: M(0x9ea7b1, { e: 0x222222 }) };
+const paths = { oda: [X0 - .6, -.05, Y0 + HY / 4], sup: [-.05, -X0 + 2.2, Y0 + HY / 4], eta: [-X0 + .5, -.05, YM + HY / 4], eha: [-.05, X0 - .6, YM + HY / 4] };
+Object.entries(paths).forEach(([k, [xa, xb, y]]) => { for (let i = 0; i < 14; i++) { const s = new THREE.Mesh(new THREE.SphereGeometry(.025, 8, 6), pMat[k]); scene.add(s); P.push({ s, k, xa, xb, y, u: i / 14, z: (Math.random() - .5) * .6, dy: (Math.random() - .5) * .3 }); } });
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('oda', [X0 - .55, Y0 + HY / 4 + .3, 0]); lbl('fs', [X0 + .35, Y0 + .1, DZ / 2]); lbl('wheel', [-.05, Y0 + HY + .05, 0]); lbl('fan', [.62, Y0 + .1, DZ / 2]);
+lbl('coil', [-X0 + .8, Y0 + HY / 4 + .65, 0]); lbl('sup', [-X0 + 2.1, Y0 + HY / 4 + .3, 0]); lbl('eta', [-X0 + .4, YM + HY / 4 + .45, 0]); lbl('eha', [X0 - .55, YM + HY / 4 + .3, 0]);
+lbl('efan', [-.62, Y0 + HY + .05, DZ / 2]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); L.el.style.display = v.z < 1 ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let wheelSpeed = 1, flowS = 1, flowE = 1;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  const cleanS = d.filters.supply_clean_pa * Math.pow(r.supply_flow_m3s / d.airflow.design_m3s, d.filters.flow_exponent);
+  setLbl('oda', 'outdoor air ODA', `${fmt(r.t_outdoor_c, 1)} °C`, '');
+  setLbl('fs', `supply filter ${d.filters.supply_class} · clean ${fmt(cleanS, 0)} Pa`, `${fmt(r.supply_filter_pa, 0)} Pa · ${fmt(t.filter_sup_ratio, 2)} × clean`,
+    st(names.has('AHU_FILTER_SUP_LIMIT') || names.has('AHU_FILTER_SUP_LOW'), names.has('AHU_FILTER_SUP_DIRTY')));
+  setLbl('wheel', `rotary wheel · speed ${fmt(r.wheel_speed_pct, 0)} % · after wheel ${fmt(r.t_after_hr_c, 1)} °C`, `η ${fmt(t.hr_eff * 100, 0)} % (exp. ${fmt(t.hr_eff_expected * 100, 0)}) · ${fmt(t.hr_recovered_kw, 1)} kW`,
+    st(false, names.has('AHU_HR_EFF_LOW')));
+  setLbl('fan', `supply fan · expected ${fmt(t.fan_sup_expected_kw, 2)} kW`, `${fmt(r.supply_flow_m3s, 2)} m³/s · ${fmt(r.supply_fan_kw, 2)} kW`, st(false, names.has('AHU_FAN_EFF_LOW')));
+  setLbl('efan', 'extract fan · flow ÷ supply', `${fmt(r.extract_flow_m3s, 2)} m³/s · ${fmt(r.extract_fan_kw, 2)} kW · ${fmt(t.flow_balance, 2)}`, st(false, names.has('AHU_FLOW_IMBALANCE')));
+  setLbl('coil', `heating ${fmt(r.heating_valve_pct, 0)} % · cooling ${fmt(r.cooling_valve_pct, 0)} % · balance ${fmt(t.coil_balance_k, 1)} K`, `+${fmt(r.heating_kw, 1)} / −${fmt(r.cooling_kw, 1)} kW`,
+    st(false, names.has('AHU_SIMULT_HEAT_COOL') || names.has('AHU_HEAT_VALVE_PASSING') || names.has('AHU_COIL_BALANCE')));
+  setLbl('sup', `supply air SUP · setpoint ${d.coils.supply_setpoint_c} °C`, `${fmt(r.t_supply_c, 1)} °C · ${fmt(t.vent_per_person_ls, 1)} l/s per person`, st(names.has('AHU_UNDERVENTILATION'), false));
+  setLbl('eta', `extract air ETA · people counted ${fmt(r.occupancy, 0)} · implied ${fmt(t.occ_from_co2, 0)}`, `${fmt(r.t_extract_c, 1)} °C · CO2 ${fmt(r.co2_ppm, 0)} ppm`, st(false, names.has('AHU_CO2_OCC_MISMATCH')));
+  setLbl('eha', 'exhaust air EHA', `${fmt(r.t_exhaust_c, 1)} °C · filter ${fmt(r.extract_filter_pa, 0)} Pa`, st(false, names.has('AHU_FILTER_EXT_DIRTY')));
+  // colours
+  const fr = Math.max(0, Math.min(1, (t.filter_sup_ratio - 1) / 3)); fSupMat.color.setRGB(.95 - .55 * fr, .95 - .6 * fr, .95 - .65 * fr);
+  if (names.has('AHU_FILTER_SUP_LOW')) fSupMat.color.setHex(0xff8389);
+  const fe = Math.max(0, Math.min(1, (t.filter_ext_ratio - 1) / 3)); fExtMat.color.setRGB(.95 - .55 * fe, .95 - .6 * fe, .95 - .65 * fe);
+  const hk = Math.min(1, r.heating_kw / 15), ck = Math.min(1, r.cooling_kw / 15);
+  heatMat.emissive.setRGB(.6 * hk, .05 * hk, 0); coolMat.emissive.setRGB(0, .12 * ck, .6 * ck);
+  wheelSpeed = r.wheel_speed_pct / 100 * (names.has('AHU_HR_EFF_LOW') ? .3 : 1); flowS = r.supply_flow_m3s; flowE = r.extract_flow_m3s;
+  $('k-health').textContent = ST.health; $('k-sfp').textContent = fmt(t.sfp_kw_m3s, 2); $('k-hr').textContent = fmt(t.hr_eff * 100, 0) + ' %';
+  $('c-sfp-t').textContent = `SFP ${fmt(t.sfp_kw_m3s, 2)} (expected ${fmt(t.sfp_expected_kw_m3s, 2)})`; $('c-sfp').className = 'chip ' + (names.has('AHU_SFP_HIGH') ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('SFP, both fans (kW/(m³/s))', fmt(t.sfp_kw_m3s, 2), fmt(t.sfp_expected_kw_m3s, 2), names.has('AHU_SFP_HIGH')) +
+    row('Supply fan power (kW)', fmt(r.supply_fan_kw, 2), fmt(t.fan_sup_expected_kw, 2), names.has('AHU_FAN_EFF_LOW')) +
+    row('Supply filter (Pa)', fmt(r.supply_filter_pa, 0), fmt(cleanS, 0) + ' clean', names.has('AHU_FILTER_SUP_LIMIT') || names.has('AHU_FILTER_SUP_LOW')) +
+    row('Filter fan energy (EUR/y)', fmt(t.filter_extra_cost_eur_y, 0), '0 clean') +
+    row('Heat recovery ratio (%)', fmt(t.hr_eff * 100, 1), fmt(t.hr_eff_expected * 100, 1), names.has('AHU_HR_EFF_LOW')) +
+    row('Heat lost to the wheel (kW)', fmt(t.hr_lost_kw, 1), '0') +
+    row('Coil balance (K)', fmt(t.coil_balance_k, 2), '± ' + L.coil_balance_alert_k, names.has('AHU_COIL_BALANCE')) +
+    row('Heating / cooling (kW)', fmt(r.heating_kw, 1) + ' / ' + fmt(r.cooling_kw, 1), 'not both', names.has('AHU_SIMULT_HEAT_COOL')) +
+    row('Extract ÷ supply flow', fmt(t.flow_balance, 2), '1 ± ' + L.flow_balance_alert, names.has('AHU_FLOW_IMBALANCE')) +
+    row('People: CO2 / counted', fmt(t.occ_from_co2, 0) + ' / ' + fmt(r.occupancy, 0), 'agree', names.has('AHU_CO2_OCC_MISMATCH')) +
+    row('Outdoor air per person (l/s)', fmt(t.vent_per_person_ls, 1), '≥ ' + L.vent_alert_ls, names.has('AHU_UNDERVENTILATION')) +
+    row('SFP category, supply fan', 'SFP ' + t.sfp_supply_category, fmt(t.sfp_supply_w_m3s, 0) + ' W/(m³/s)');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the unit behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [caseMat, ductMat].forEach(m => { m.transparent = true; m.opacity = cut ? .14 : 1; m.depthWrite = !cut; });
+};
+$('t-cut').click();
+$('t-air').onclick = () => { airOn = !airOn; $('t-air').classList.toggle('on', airOn); };
+$('t-air').classList.add('on');
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  wheel.rotation.x += dt * 1.2 * wheelSpeed;
+  supFan.children[0].rotation.x += dt * 14 * flowS; extFan.children[0].rotation.x += dt * 14 * flowE;
+  P.forEach(p => { const sp = (p.k === 'oda' || p.k === 'sup') ? flowS : flowE; p.u = (p.u + dt * .25 * sp) % 1; p.s.visible = airOn;
+    p.s.position.set(p.xa + (p.xb - p.xa) * p.u, p.y + p.dy, p.z); });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

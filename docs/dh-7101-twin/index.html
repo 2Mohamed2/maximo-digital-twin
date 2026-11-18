@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DH-7101 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>DH-7101</b><span class="g">District heating substation · Termix VVX-I · MULTICAL 403</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-ret"><span class="dot"></span><span id="c-ret-t">return –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Curves and return temperature →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the substation model…</div>
+<div class="credit">Indirect district heating substation: plate heat exchangers for space heating and hot water, control valve with differential pressure controller, circulators, heat meter and weather-compensating controller. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Pipe colour follows the temperature: red hot, blue cold. The key number for the utility is the primary return.</div>
+<aside>
+  <section>
+    <h2>DH-7101 twin</h2>
+    <p class="sub" id="sub">district heating building substation</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Primary return<b id="k-ret">–</b></div><div>Cooling ΔT<b id="k-cool">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The controller and the heat meter send only what they measure. The heat curve, the return reference, the expected UA of the exchanger, the valve authority and the meter's permitted error are computed from the twin file: the substation data sheet, the meter data sheet and the valve sizing.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for DH-7101: building, heating circuit, plate heat exchangers, control valve, DHW and heat meter, with faults.\n\nThe real substation sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages. Pure Python (math, random), so it also runs in the browser.\n\nBuilding (radiators taken as linear, room held at 20 \u00b0C on the design curve):\n    Q = Ub (Troom - Tout) = Kr ((Tflow + Tret)/2 - Troom) = k Vs (Tflow - Tret)\nHeating exchanger: counterflow effectiveness-NTU with UA = 1 / (Rp + Rs + Rfoul), Rp, Rs ~ flow^-n.\nThe controller finds the primary flow that holds the flow temperature on its setpoint; the valve opening follows from\nthe flow, the differential pressure across the section and an equal-percentage characteristic.\n\"\"\"\nimport math\nimport random\n\n\ndef eps_counterflow(ntu, cr):\n    if cr > 0.999:\n        return ntu / (1 + ntu)\n    e = math.exp(-ntu * (1 - cr))\n    return (1 - e) / (1 - cr * e)\n\n\nclass Substation:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.h, self.w, self.c, self.v, self.m = d[\"heating\"], d[\"dhw\"], d[\"curve\"], d[\"valve\"], d[\"meter\"]\n        self.net = d[\"network\"]\n        self.K = self.m[\"k_kwh_m3k\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        h = self.h\n        self.kr = h[\"q_kw\"] / ((h[\"secondary_supply_c\"] + h[\"secondary_return_c\"]) / 2 - self.c[\"room_c\"])\n        self.ub = h[\"q_kw\"] / (self.c[\"room_c\"] - self.c[\"outdoor_design_c\"])\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    def curve(self, t_out):\n        c = self.c\n        x = c[\"room_c\"] + (self.h[\"secondary_supply_c\"] - c[\"room_c\"]) * (c[\"room_c\"] - t_out) / (c[\"room_c\"] - c[\"outdoor_design_c\"])\n        return min(max(x, c[\"supply_min_c\"]), c[\"supply_max_c\"])\n\n    # heating exchanger -----------------------------------------------------------------------------------------------\n    def ua(self, mp, ms):\n        h, f = self.h, self.faults\n        r0 = 1.0 / h[\"ua_kw_k\"]\n        rp = h[\"film_split\"] * r0 * (h[\"primary_flow_m3h\"] / max(mp, 1e-4)) ** h[\"ua_flow_exponent\"]\n        rs = (1 - h[\"film_split\"]) * r0 * (h[\"secondary_flow_m3h\"] / ms) ** h[\"ua_flow_exponent\"]\n        return 1.0 / (rp + rs + 0.9 * r0 * f[\"hex_fouling\"])\n\n    def hex_duty(self, mp, ms, tpin, tsin):\n        cp, cs = self.K * mp, self.K * ms\n        cmin, cmax = min(cp, cs), max(cp, cs)\n        e = eps_counterflow(self.ua(mp, ms) / cmin, cmin / cmax)\n        return e * cmin * (tpin - tsin)\n\n    def building(self, tflow, ms, t_out):\n        cs = self.K * ms\n        q = self.kr * (tflow - t_out) / (1 + self.kr / (2 * cs) + self.kr / self.ub)\n        q = max(q, 0.0)\n        return q, tflow - q / cs\n\n    def mp_max(self, dp):\n        v = self.v\n        return math.sqrt(dp / (100.0 / v[\"kvs_m3h\"] ** 2 + v[\"dp_hex_design_kpa\"] / self.h[\"primary_flow_m3h\"] ** 2))\n\n    def heating(self, t_out, tpin, ms, setp, dp):\n        \"\"\"Primary flow, flow temperature, return temperatures and heat of the heating circuit.\"\"\"\n        q, tret = self.building(setp, ms, t_out)\n        mmax = self.mp_max(dp)\n        if self.hex_duty(mmax, ms, tpin, tret) >= q:\n            lo, hi = 1e-4, mmax\n            for _ in range(60):\n                mid = (lo + hi) / 2\n                lo, hi = (mid, hi) if self.hex_duty(mid, ms, tpin, tret) < q else (lo, mid)\n            mp, tflow = (lo + hi) / 2, setp\n        else:                       # valve fully open: the flow temperature falls until the exchanger matches the building\n            lo, hi = t_out, setp\n            for _ in range(60):\n                mid = (lo + hi) / 2\n                qb, tr = self.building(mid, ms, t_out)\n                lo, hi = (mid, hi) if self.hex_duty(mmax, ms, tpin, tr) > qb else (lo, mid)\n            mp, tflow = mmax, (lo + hi) / 2\n            q, tret = self.building(tflow, ms, t_out)\n        tpo = tpin - q / (self.K * mp)\n        return dict(mp=mp, tflow=tflow, tret=tret, q=q, tpo=tpo)\n\n    def true_state(self, t_out, tap_lpm, tpin=None):\n        f, h, w, v = self.faults, self.h, self.w, self.v\n        tpin = self.net[\"supply_c\"] if tpin is None else tpin\n        ms = h[\"secondary_flow_m3h\"] * (1 + 1.0 * f[\"secondary_overflow\"])\n        setp = self.curve(t_out) + 12.0 * f[\"curve_too_high\"]\n        dp = v[\"dp_setpoint_kpa\"] + (v[\"dp_network_kpa\"] - v[\"dp_setpoint_kpa\"]) * f[\"dp_controller_fault\"]\n        sh = self.heating(t_out, tpin, ms, setp, dp)\n        # valve opening (equal percentage)\n        dpv = max(dp - v[\"dp_hex_design_kpa\"] * (sh[\"mp\"] / h[\"primary_flow_m3h\"]) ** 2, 0.5)\n        kv = sh[\"mp\"] / math.sqrt(dpv / 100.0)\n        pos = 1 + math.log(max(kv / v[\"kvs_m3h\"], 1e-6)) / math.log(v[\"rangeability\"])\n        pos = min(max(pos, 0.0), 1.0)\n        # DHW: instantaneous heater + circulation loop\n        dhw = w[\"setpoint_c\"] - 9.0 * f[\"dhw_setpoint_low\"]\n        circ_ret = dhw - 4.5 - 10.0 * f[\"dhw_circulation_fault\"]\n        circ = w[\"circulation_flow_m3h\"] * (1 - 0.9 * f[\"dhw_circulation_fault\"])\n        tap = tap_lpm * 0.06\n        q_dhw = self.K * (tap * (dhw - w[\"cold_water_c\"]) + circ * (dhw - circ_ret))\n        tin = (tap * w[\"cold_water_c\"] + circ * circ_ret) / max(tap + circ, 1e-6)\n        tpo_dhw = tin + 3.0 + 5.0 * q_dhw / w[\"q_kw\"]\n        mp_dhw = q_dhw / (self.K * (tpin - tpo_dhw))\n        byp = 0.3 * f[\"primary_bypass\"]\n        flow = sh[\"mp\"] + mp_dhw + byp\n        t2 = (sh[\"mp\"] * sh[\"tpo\"] + mp_dhw * tpo_dhw + byp * tpin) / flow\n        # loop quality: low authority -> high loop gain -> hunting\n        a = v[\"dpv100_kpa\"] / dp\n        g = v[\"authority_design\"] / a\n        return dict(t_out=t_out, tpin=tpin, ms=ms, setp=setp, dp=dp, pos=pos, a=a, g=g, dhw=dhw, circ_ret=circ_ret,\n                    tap_lpm=tap_lpm, q_dhw=q_dhw, mp_dhw=mp_dhw, byp=byp, flow=flow, t2=t2, **sh)\n\n    def measure(self, s):\n        f, w = self.faults, self.w\n        t1 = s[\"tpin\"] + self.n(0.03) - 4.0 * f[\"meter_sensor_fault\"]\n        t2 = s[\"t2\"] + self.n(0.03)\n        flow = s[\"flow\"] * (1 + self.n(0.004))\n        hunt = max(0.0, s[\"g\"] - 1.5)\n        return {\n            \"hm_t_supply_c\": round(t1, 2), \"hm_t_return_c\": round(t2, 2), \"hm_flow_m3h\": round(flow, 4),\n            \"hm_power_kw\": round(self.K * flow * (t1 - t2), 3), \"hm_info_code\": 0,\n            \"p_supply_c\": round(s[\"tpin\"] + self.n(0.05), 2), \"p_return_c\": round(s[\"t2\"] + self.n(0.05), 2),\n            \"sh_p_return_c\": round(s[\"tpo\"] + self.n(0.03), 2), \"outdoor_c\": round(s[\"t_out\"] + self.n(0.1), 2),\n            \"sh_flow_c\": round(s[\"tflow\"] + self.n(0.1), 2), \"sh_flow_set_c\": round(s[\"setp\"], 2),\n            \"sh_return_c\": round(s[\"tret\"] + self.n(0.03), 2), \"sh_pump_flow_m3h\": round(s[\"ms\"] * (1 + self.n(0.004)), 4),\n            \"valve_pos_pct\": round(100 * s[\"pos\"] + self.n(0.5), 1),\n            \"valve_reversals_h\": round(max(0.0, 6 + 25 * hunt + self.n(1.5))), \"sh_flow_rms_k\": round(abs(0.4 + 0.9 * hunt + self.n(0.05)), 2),\n            \"dp_section_kpa\": round(s[\"dp\"] + self.n(1.0), 1),\n            \"dhw_c\": round(s[\"dhw\"] + self.n(0.3), 2), \"dhw_flow_lpm\": round(s[\"tap_lpm\"], 2), \"cw_c\": round(w[\"cold_water_c\"] + self.n(0.1), 2),\n            \"dhw_circ_return_c\": round(s[\"circ_ret\"] + self.n(0.3), 2),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The outdoor temperature swings between demo.outdoor_min_c and demo.outdoor_max_c over demo.outdoor_period_s real\n    seconds; hot water is tapped in short random draws about demo.tap_share of the time. Both follow the demo clock, not\n    the time of day, so the page looks the same whenever it is opened.\n    \"\"\"\n\n    def __init__(self, twin, seed=7101):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.lo, self.hi = float(demo.get(\"outdoor_min_c\", -4)), float(demo.get(\"outdoor_max_c\", 6))\n        self.period = float(demo.get(\"outdoor_period_s\", 1200))\n        self.share = float(demo.get(\"tap_share\", 0.2))\n        self.s = Substation(twin, seed)\n        self.rnd = random.Random(seed + 1)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.clock = 0.0\n        self.running, self.trip = True, 0\n        self.tap_left, self.tap_lpm = 0.0, 0.0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.clock = 0.0\n        self.tap_left, self.tap_lpm = 0.0, 0.0\n        self.running, self.trip = True, 0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.s.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.clock += dt\n        if self.tap_left > 0:\n            self.tap_left -= dt\n            if self.tap_left <= 0:\n                self.tap_lpm = 0.0\n        elif self.rnd.random() < self.share * dt / 40.0:\n            self.tap_left, self.tap_lpm = self.rnd.uniform(15, 60), self.rnd.uniform(4, 12)\n        mid, amp = (self.lo + self.hi) / 2, (self.hi - self.lo) / 2\n        t_out = mid - amp * math.cos(2 * math.pi * self.clock / self.period)\n        tpin = self.s.net[\"supply_c\"] + 0.8 * math.sin(2 * math.pi * self.clock / (self.period / 3))\n        return self.s.true_state(t_out, self.tap_lpm, tpin)\n\n    def measure(self, true):\n        return self.s.measure(true)\n", "twin_calc": "\"\"\"The district heating substation twin's expectations (DH-7101: Danfoss Termix VVX-I, Kamstrup MULTICAL 403).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nk = rho * cp / 3600 = 1.15 kWh/(m3 K) for water (the heat coefficient).\n\nHeating circuit and weather curve:\n    curve      = clip(tr + (Ts,d - tr) * (tr - t_out) / (tr - t_out,d), Ts,min, Ts,max)     (the twin's heat curve)\n    Q_sh       = k * V_sec * (T_flow - T_ret,sec)                                              (heat into the building)\n    return ref = tr + (curve - tr) * (Tr,d - tr) / (Ts,d - tr) + (Tpr,d - Tr,d)\n  The return reference is the primary return a clean, balanced substation gives at this outdoor temperature: the design\n  secondary return scaled along the curve, plus the design approach of the exchanger.\n    return excess = T2 (meter) - return ref                cooling = T1 - T2\n    cost of the excess = max(excess, 0) * annual MWh * EUR per MWh and K\n\nHeating exchanger (counterflow):\n    LMTD = (dT1 - dT2) / ln(dT1 / dT2),  dT1 = Tp,in - T_flow,  dT2 = Tp,out,sh - T_ret,sec\n    UA measured = Q_sh / LMTD\n    primary flow of the heating exchanger = V_sec * (T_flow - T_ret,sec) / (Tp,in - Tp,out,sh)   (heat balance)\n    UA expected = UA_d / (s * (Vp,d / Vp)^n + (1 - s) * (Vs,d / Vs)^n)       (film resistances scale with flow^-n)\n    UA ratio = UA measured / UA expected: below 1 = fouling (an extra resistance in series)\n\nValve: live authority = dp of the fully open valve at design flow / dp measured across valve and exchanger.\nHeat meter (EN 1434-1, class 2): the meter's power is checked against k * meter flow * (controller supply - controller\nreturn); the error must stay inside MPE = Ef + Et + Ec with\n    Ef = min(2 + 0.02 qp / q, 5),  Et = 0.5 + 3 dTmin / dT,  Ec = 0.5 + dTmin / dT        (in %)\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    h, w, c, v, m, e = d[\"heating\"], d[\"dhw\"], d[\"curve\"], d[\"valve\"], d[\"meter\"], d[\"economics\"]\n    return dict(k=m[\"k_kwh_m3k\"], tr=c[\"room_c\"], tod=c[\"outdoor_design_c\"], smax=c[\"supply_max_c\"], smin=c[\"supply_min_c\"],\n                tsd=h[\"secondary_supply_c\"], trd=h[\"secondary_return_c\"], tprd=h[\"primary_return_c\"], q=h[\"q_kw\"],\n                ua=h[\"ua_kw_k\"], mpd=h[\"primary_flow_m3h\"], msd=h[\"secondary_flow_m3h\"], n=h[\"ua_flow_exponent\"], s=h[\"film_split\"],\n                dpv=v[\"dpv100_kpa\"], qp=m[\"qp_m3h\"], dtm=m[\"dtheta_min_k\"], dhw_min=w[\"min_supply_c\"], circ_min=w[\"min_circulation_c\"],\n                tap=w[\"tap_threshold_lpm\"], mwh=e[\"annual_heat_mwh\"], eur=e[\"operator_cost_eur_per_mwh_k\"])\n\n\ndef curve(k, t_out):\n    x = k[\"tr\"] + (k[\"tsd\"] - k[\"tr\"]) * (k[\"tr\"] - t_out) / (k[\"tr\"] - k[\"tod\"])\n    return min(max(x, k[\"smin\"]), k[\"smax\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    K = k[\"k\"]\n    CURVE = f\"np.clip({k['tr']} + {(k['tsd'] - k['tr']) / (k['tr'] - k['tod']):.6g} * ({k['tr']} - df['OUTDOOR_C']), {k['smin']}, {k['smax']})\"\n    DTS = \"(df['SH_FLOW_C'] - df['SH_RETURN_C'])\"\n    QSH = f\"({K} * df['SH_PUMP_FLOW_M3H'] * {DTS})\"\n    D1 = \"np.maximum(df['P_SUPPLY_C'] - df['SH_FLOW_C'], 0.1)\"\n    D2 = \"np.maximum(df['SH_P_RETURN_C'] - df['SH_RETURN_C'], 0.1)\"\n    LMTD = f\"np.where(np.abs({D1} - {D2}) < 1e-6, {D1}, ({D1} - {D2}) / np.log({D1} / {D2}))\"\n    MP = f\"(df['SH_PUMP_FLOW_M3H'] * {DTS} / np.maximum(df['P_SUPPLY_C'] - df['SH_P_RETURN_C'], 0.5))\"\n    UAE = (f\"({k['ua']} / ({k['s']} * ({k['mpd']} / np.maximum({MP}, 0.01)) ** {k['n']}\"\n           f\" + {1 - k['s']:.6g} * ({k['msd']} / np.maximum(df['SH_PUMP_FLOW_M3H'], 0.01)) ** {k['n']}))\")\n    UAM = f\"({QSH} / {LMTD})\"\n    REF = f\"({k['tr']} + ({CURVE} - {k['tr']}) * {(k['trd'] - k['tr']) / (k['tsd'] - k['tr']):.6g} + {k['tprd'] - k['trd']})\"\n    EXC = f\"(df['HM_T_RETURN_C'] - {REF})\"\n    DTC = \"np.maximum(df['P_SUPPLY_C'] - df['P_RETURN_C'], 0.1)\"\n    MERR = f\"((df['HM_POWER_KW'] / ({K} * np.maximum(df['HM_FLOW_M3H'], 0.001) * {DTC}) - 1) * 100)\"\n    MPE = (f\"(np.minimum(2 + {0.02 * k['qp']:.6g} / np.maximum(df['HM_FLOW_M3H'], 0.001), 5) + 0.5 + {3 * k['dtm']:.6g} / {DTC}\"\n           f\" + 0.5 + {k['dtm']:.6g} / {DTC})\")\n    return dict(k=k, CURVE=CURVE, QSH=QSH, LMTD=LMTD, MP=MP, UAE=UAE, UAM=UAM, REF=REF, EXC=EXC, MERR=MERR, MPE=MPE)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"SH_POWER_KW\", p[\"QSH\"]),\n        (\"HEAT_CURVE_C\", p[\"CURVE\"]),\n        (\"CURVE_OFFSET_K\", f\"df['SH_FLOW_SET_C'] - {p['CURVE']}\"),\n        (\"SUPPLY_SHORTFALL_K\", \"df['SH_FLOW_SET_C'] - df['SH_FLOW_C']\"),\n        (\"SEC_FLOW_RATIO\", f\"df['SH_PUMP_FLOW_M3H'] / {k['msd']}\"),\n        (\"SH_APPROACH_K\", \"df['SH_P_RETURN_C'] - df['SH_RETURN_C']\"),\n        (\"LMTD_K\", p[\"LMTD\"]),\n        (\"UA_MEASURED_KW_K\", p[\"UAM\"]),\n        (\"PRIMARY_FLOW_SH_M3H\", p[\"MP\"]),\n        (\"UA_EXPECTED_KW_K\", p[\"UAE\"]),\n        (\"UA_RATIO\", f\"{p['UAM']} / {p['UAE']}\"),\n        (\"RETURN_REF_C\", p[\"REF\"]),\n        (\"RETURN_EXCESS_K\", p[\"EXC\"]),\n        (\"COOLING_K\", \"df['HM_T_SUPPLY_C'] - df['HM_T_RETURN_C']\"),\n        (\"RETURN_COST_EUR_Y\", f\"np.maximum({p['EXC']}, 0) * {k['mwh'] * k['eur']:.6g}\"),\n        (\"BYPASS_MIX_K\", \"df['HM_T_RETURN_C'] - df['SH_P_RETURN_C']\"),\n        (\"METER_ERROR_PCT\", p[\"MERR\"]),\n        (\"METER_MPE_PCT\", p[\"MPE\"]),\n        (\"VALVE_AUTHORITY\", f\"{k['dpv']} / np.maximum(df['DP_SECTION_KPA'], 1)\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    K = k[\"k\"]\n    cv = curve(k, r[\"outdoor_c\"])\n    dts = r[\"sh_flow_c\"] - r[\"sh_return_c\"]\n    qsh = K * r[\"sh_pump_flow_m3h\"] * dts\n    d1 = max(r[\"p_supply_c\"] - r[\"sh_flow_c\"], 0.1)\n    d2 = max(r[\"sh_p_return_c\"] - r[\"sh_return_c\"], 0.1)\n    lmtd = d1 if abs(d1 - d2) < 1e-6 else (d1 - d2) / math.log(d1 / d2)\n    mp = r[\"sh_pump_flow_m3h\"] * dts / max(r[\"p_supply_c\"] - r[\"sh_p_return_c\"], 0.5)\n    uae = k[\"ua\"] / (k[\"s\"] * (k[\"mpd\"] / max(mp, 0.01)) ** k[\"n\"] + (1 - k[\"s\"]) * (k[\"msd\"] / max(r[\"sh_pump_flow_m3h\"], 0.01)) ** k[\"n\"])\n    uam = qsh / lmtd\n    ref = k[\"tr\"] + (cv - k[\"tr\"]) * (k[\"trd\"] - k[\"tr\"]) / (k[\"tsd\"] - k[\"tr\"]) + (k[\"tprd\"] - k[\"trd\"])\n    exc = r[\"hm_t_return_c\"] - ref\n    dtc = max(r[\"p_supply_c\"] - r[\"p_return_c\"], 0.1)\n    q = max(r[\"hm_flow_m3h\"], 0.001)\n    merr = (r[\"hm_power_kw\"] / (K * q * dtc) - 1) * 100\n    mpe = min(2 + 0.02 * k[\"qp\"] / q, 5) + 0.5 + 3 * k[\"dtm\"] / dtc + 0.5 + k[\"dtm\"] / dtc\n    return {\n        \"sh_power_kw\": qsh, \"heat_curve_c\": cv, \"curve_offset_k\": r[\"sh_flow_set_c\"] - cv,\n        \"supply_shortfall_k\": r[\"sh_flow_set_c\"] - r[\"sh_flow_c\"], \"sec_flow_ratio\": r[\"sh_pump_flow_m3h\"] / k[\"msd\"],\n        \"sh_approach_k\": r[\"sh_p_return_c\"] - r[\"sh_return_c\"], \"lmtd_k\": lmtd, \"ua_measured_kw_k\": uam,\n        \"primary_flow_sh_m3h\": mp, \"ua_expected_kw_k\": uae, \"ua_ratio\": uam / uae, \"return_ref_c\": ref, \"return_excess_k\": exc,\n        \"cooling_k\": r[\"hm_t_supply_c\"] - r[\"hm_t_return_c\"], \"return_cost_eur_y\": max(exc, 0) * k[\"mwh\"] * k[\"eur\"],\n        \"bypass_mix_k\": r[\"hm_t_return_c\"] - r[\"sh_p_return_c\"], \"meter_error_pct\": merr, \"meter_mpe_pct\": mpe,\n        \"valve_authority\": k[\"dpv\"] / max(r[\"dp_section_kpa\"], 1),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    MERR, MPE = p[\"MERR\"], p[\"MPE\"]\n    return [\n        (\"DH_DHW_CIRC_LOW\", f\"df['DHW_CIRC_RETURN_C'] < {k['circ_min']}\", \"High\", \"dhw_circulation_fault\"),\n        (\"DH_DHW_TEMP_LOW\", f\"df['DHW_C'] < {k['dhw_min']}\", \"High\", \"dhw_setpoint_low\"),\n        (\"DH_METER_ERROR\", f\"np.abs({MERR}) > {MPE}\", \"High\", \"meter_sensor_fault\"),\n        (\"DH_PRIMARY_BYPASS\", f\"(df['DHW_FLOW_LPM'] < {k['tap']}) & ((df['HM_T_RETURN_C'] - df['SH_P_RETURN_C']) > {L['bypass_mix_alert_k']})\", \"High\", \"primary_bypass\"),\n        (\"DH_SUPPLY_LOW\", f\"(df['SH_FLOW_SET_C'] - df['SH_FLOW_C']) > {L['supply_shortfall_alert_k']}\", \"High\", None),\n        (\"DH_RETURN_HIGH\", f\"{p['EXC']} > {L['return_excess_alert_k']}\", \"Medium\", \"secondary_overflow\"),\n        (\"DH_UA_LOW\", f\"({p['QSH']} > {L['ua_min_load'] * k['q']:.6g}) & (({p['UAM']} / {p['UAE']}) < {L['ua_ratio_alert']})\", \"Medium\", \"hex_fouling\"),\n        (\"DH_SEC_FLOW_HIGH\", f\"(df['SH_PUMP_FLOW_M3H'] / {k['msd']}) > {L['sec_flow_ratio_alert']}\", \"Medium\", \"secondary_overflow\"),\n        (\"DH_CURVE_HIGH\", f\"(df['SH_FLOW_SET_C'] - {p['CURVE']}) > {L['curve_offset_alert_k']}\", \"Medium\", \"curve_too_high\"),\n        (\"DH_METER_TEMP_MISMATCH\", f\"(np.abs(df['HM_T_SUPPLY_C'] - df['P_SUPPLY_C']) > {L['meter_temp_dev_alert_k']})\"\n                                   f\" | (np.abs(df['HM_T_RETURN_C'] - df['P_RETURN_C']) > {L['meter_temp_dev_alert_k']})\", \"Medium\", \"meter_sensor_fault\"),\n        (\"DH_AUTHORITY_LOW\", f\"({k['dpv']} / np.maximum(df['DP_SECTION_KPA'], 1)) < {L['authority_alert']}\", \"Medium\", \"dp_controller_fault\"),\n        (\"DH_VALVE_HUNTING\", f\"(df['VALVE_REVERSALS_H'] > {L['hunting_reversals_alert_h']}) & (df['SH_FLOW_RMS_K'] > {L['hunting_rms_alert_k']})\", \"Medium\", \"dp_controller_fault\"),\n        (\"DH_METER_INFO\", \"df['HM_INFO_CODE'] > 0.5\", \"Low\", None),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    add(r[\"dhw_circ_return_c\"] < k[\"circ_min\"], \"DH_DHW_CIRC_LOW\", \"High\",\n        f\"DHW circulation returns at {r['dhw_circ_return_c']:.1f} \u00b0C, below {k['circ_min']:.0f} \u00b0C: legionella risk in the loop\", \"DHW circulation\", \"dhw_circulation_fault\")\n    add(r[\"dhw_c\"] < k[\"dhw_min\"], \"DH_DHW_TEMP_LOW\", \"High\",\n        f\"Hot water leaves the heater at {r['dhw_c']:.1f} \u00b0C, below {k['dhw_min']:.0f} \u00b0C\", \"DHW controller\", \"dhw_setpoint_low\")\n    add(abs(t[\"meter_error_pct\"]) > t[\"meter_mpe_pct\"], \"DH_METER_ERROR\", \"High\",\n        f\"Heat meter reads {t['meter_error_pct']:+.1f} % against the controller sensors, outside the class 2 MPE of {t['meter_mpe_pct']:.1f} %\", \"heat meter\", \"meter_sensor_fault\")\n    add(r[\"dhw_flow_lpm\"] < k[\"tap\"] and t[\"bypass_mix_k\"] > L[\"bypass_mix_alert_k\"], \"DH_PRIMARY_BYPASS\", \"High\",\n        f\"Common return {t['bypass_mix_k']:.1f} K above the heating exchanger return with no tapping: hot water bypasses\", \"primary pipework\", \"primary_bypass\")\n    add(t[\"supply_shortfall_k\"] > L[\"supply_shortfall_alert_k\"], \"DH_SUPPLY_LOW\", \"High\",\n        f\"Heating flow {t['supply_shortfall_k']:.1f} K below its setpoint: the substation cannot deliver\", \"heating exchanger\")\n    add(t[\"return_excess_k\"] > L[\"return_excess_alert_k\"], \"DH_RETURN_HIGH\", \"Medium\",\n        f\"Primary return {r['hm_t_return_c']:.1f} \u00b0C, {t['return_excess_k']:.1f} K above the reference {t['return_ref_c']:.1f} \u00b0C\", \"substation\", \"secondary_overflow\")\n    add(t[\"sh_power_kw\"] > L[\"ua_min_load\"] * k[\"q\"] and t[\"ua_ratio\"] < L[\"ua_ratio_alert\"], \"DH_UA_LOW\", \"Medium\",\n        f\"Heating exchanger UA {t['ua_measured_kw_k']:.2f} kW/K, {t['ua_ratio']:.2f} \u00d7 expected\", \"heating exchanger\", \"hex_fouling\")\n    add(t[\"sec_flow_ratio\"] > L[\"sec_flow_ratio_alert\"], \"DH_SEC_FLOW_HIGH\", \"Medium\",\n        f\"Heating circuit flow {r['sh_pump_flow_m3h']:.2f} m\u00b3/h, {t['sec_flow_ratio']:.2f} \u00d7 design\", \"heating circuit\", \"secondary_overflow\")\n    add(t[\"curve_offset_k\"] > L[\"curve_offset_alert_k\"], \"DH_CURVE_HIGH\", \"Medium\",\n        f\"Flow setpoint {r['sh_flow_set_c']:.1f} \u00b0C, {t['curve_offset_k']:.1f} K above the heat curve\", \"controller\", \"curve_too_high\")\n    add(abs(r[\"hm_t_supply_c\"] - r[\"p_supply_c\"]) > L[\"meter_temp_dev_alert_k\"] or abs(r[\"hm_t_return_c\"] - r[\"p_return_c\"]) > L[\"meter_temp_dev_alert_k\"],\n        \"DH_METER_TEMP_MISMATCH\", \"Medium\",\n        f\"Meter T1/T2 {r['hm_t_supply_c']:.1f}/{r['hm_t_return_c']:.1f} \u00b0C against controller {r['p_supply_c']:.1f}/{r['p_return_c']:.1f} \u00b0C\", \"heat meter\", \"meter_sensor_fault\")\n    add(t[\"valve_authority\"] < L[\"authority_alert\"], \"DH_AUTHORITY_LOW\", \"Medium\",\n        f\"Valve authority {t['valve_authority']:.2f} at {r['dp_section_kpa']:.0f} kPa across valve and exchanger\", \"control valve\", \"dp_controller_fault\")\n    add(r[\"valve_reversals_h\"] > L[\"hunting_reversals_alert_h\"] and r[\"sh_flow_rms_k\"] > L[\"hunting_rms_alert_k\"], \"DH_VALVE_HUNTING\", \"Medium\",\n        f\"Valve reverses {r['valve_reversals_h']:.0f} times an hour, flow temperature swings {r['sh_flow_rms_k']:.1f} K RMS\", \"control valve\", \"dp_controller_fault\")\n    add(r[\"hm_info_code\"] > 0.5, \"DH_METER_INFO\", \"Low\", f\"Heat meter info code {r['hm_info_code']:.0f}\", \"heat meter\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "DH-7101 district heating substation twin. Expected values in Maximo Monitor from the substation, heat meter and valve data; the controller and the meter send only what they measure.", "twin": {"id": "DH-7101", "name": "District heating substation DH-7101", "version": "1.0.0", "folder": "dhsub-twin"}, "identification": {"asset": "DH-7101", "assetnum": "DH-7101", "manufacturer": "Danfoss", "model": "Termix VVX-I (indirect space heating, instantaneous domestic hot water)", "description": "Building substation of a small apartment block: space heating 31 kW, domestic hot water with circulation, heat meter in the primary return", "heat_meter": "Kamstrup MULTICAL 403, ultrasonic, qp 1.5 m\u00b3/h, Pt500 sensor pair, M-Bus", "controller": "Danfoss ECL Comfort 310 weather-compensating controller", "control_valve": "Motorised 2-way control valve on the primary side of the heating exchanger, behind a self-acting differential pressure controller"}, "design": {"heating": {"q_kw": 31.0, "primary_supply_c": 70.0, "primary_return_c": 40.0, "secondary_supply_c": 60.0, "secondary_return_c": 35.0, "primary_flow_m3h": 0.906, "secondary_flow_m3h": 1.0783, "lmtd_k": 7.2135, "ua_kw_k": 4.2975, "ua_flow_exponent": 0.65, "film_split": 0.5, "source": "Danfoss Termix VVX-I fact sheet (AM017486470696en-010401), heating exchanger x-3 row: 31 kW, primary 70/40 \u00b0C, secondary 60/35 \u00b0C, primary flow 906 l/h. The secondary flow, the LMTD and UA = Q / LMTD are computed from that row. UA flow exponent 0.65 and an equal split of the film resistances between the two sides at design: assumption: typical value, replace with the data of your own substation (plate heat exchangers: film coefficient roughly proportional to velocity^0.6-0.7)."}, "dhw": {"q_kw": 40.0, "setpoint_c": 58.0, "min_supply_c": 55.0, "min_circulation_c": 50.0, "cold_water_c": 10.0, "circulation_flow_m3h": 0.2, "tap_threshold_lpm": 1.0, "source": "DHW heat exchanger 40 kW: assumption inside the 33-55 kW DHW range of the Termix VVX-I fact sheet. Minimum 55 \u00b0C out of the heater and 50 \u00b0C in the whole circulation loop: Energif\u00f6retagen F:101 (Swedish DH substation regulation), consistent with the HSE guidance of 50 \u00b0C at the outlets within one minute. Setpoint 58 \u00b0C, cold water 10 \u00b0C and circulation flow 0.2 m\u00b3/h: assumption: typical value, replace with the data of your own substation."}, "curve": {"room_c": 20.0, "outdoor_design_c": -12.0, "supply_max_c": 60.0, "supply_min_c": 25.0, "source": "Weather compensation (heat curve) as in the Danfoss ECL Comfort 310 operating guide (desired flow temperature against outdoor temperature): here a straight line from 60 \u00b0C at the design outdoor temperature of -12 \u00b0C to the room temperature at 20 \u00b0C outdoor, limited to 25-60 \u00b0C. Design outdoor temperature and the straight line: assumption: typical value, replace with the data of your own substation."}, "valve": {"kvs_m3h": 1.6, "rangeability": 50.0, "dp_setpoint_kpa": 70.0, "dp_hex_design_kpa": 18.0, "dp_network_kpa": 250.0, "dpv100_kpa": 32.0639, "authority_design": 0.4581, "source": "Valve authority a = \u0394p of the fully open valve / \u0394p across valve and exchanger, ideal 0.5, preferred 0.4-0.7 (Danfoss VF 2 / VF 3 data sheet). Kvs 1.6 m\u00b3/h, equal-percentage characteristic with rangeability 50, differential pressure controller set to 70 kPa, exchanger primary pressure drop 18 kPa at design flow: assumption: typical value, replace with the data of your own substation. Network differential pressure 250 kPa: assumption: typical value, replace with the data of your own substation, inside the 0.1-0.6 MPa of F:101."}, "meter": {"qp_m3h": 1.5, "dtheta_min_k": 3.0, "accuracy_class": 2, "k_kwh_m3k": 1.15, "source": "Kamstrup MULTICAL 403 data sheet: qp 1.5 m\u00b3/h, \u0394\u0398 3-178 K, MPE of a class 2 meter per EN 1434-1 (Ef, Et, Ec). Heat coefficient 1.15 kWh/(m\u00b3\u00b7K) = \u03c1\u00b7cp / 3600 of water at about 45 \u00b0C (990 kg/m\u00b3 \u00d7 4.18 kJ/(kg\u00b7K)); a meter uses the temperature-dependent coefficient of EN 1434, about 1 % different."}, "economics": {"annual_heat_mwh": 80.0, "operator_cost_eur_per_mwh_k": 0.15, "operator_cost_range": [0.03, 0.38], "copenhagen_cooling_low_k": 27.0, "copenhagen_cooling_high_k": 37.0, "copenhagen_eur_per_mwh_k": 0.72, "source": "Annual heat of the building 80 MWh: assumption: typical value, replace with the data of your own substation. Cost of 1 K higher return to the utility, EUR 0.15 per MWh (27 Swedish utilities, range 0.03-0.38), and the Copenhagen cooling tariff (extra charge below 27 K annual cooling, discount above 37 K, EUR 0.72 per K and MWh): \u00d8stergaard & Svendsen, Energy 2019."}, "network": {"supply_c": 70.0, "source": "District heating supply temperature at the building in the heating season: assumption: typical value, replace with the data of your own substation (the fact sheet row is designed for 70 \u00b0C)."}, "demo": {"time_scale": 60, "outdoor_min_c": -4.0, "outdoor_max_c": 6.0, "outdoor_period_s": 1200, "tap_share": 0.2, "note": "Demo only: the outdoor temperature swings between -4 and +6 \u00b0C over 20 minutes of real time, and hot water is tapped about a fifth of the time. The page looks the same whenever it is opened: the stand-in does not follow the time of day."}}, "telemetry": {"event": "dhsub", "publish_every_s": 10, "device_type": "DH_SUBSTATION", "groups": {"Meter": "Heat meter (primary return)", "Primary": "Primary side sensors of the controller", "Heating": "Space heating circuit", "Valve": "Control valve and differential pressure", "DHW": "Domestic hot water"}, "points": [{"metric": "hm_t_supply_c", "path": "Meter.T1", "label": "Heat meter supply temperature T1", "unit": "\u00b0C"}, {"metric": "hm_t_return_c", "path": "Meter.T2", "label": "Heat meter return temperature T2", "unit": "\u00b0C"}, {"metric": "hm_flow_m3h", "path": "Meter.Flow", "label": "Heat meter flow", "unit": "m\u00b3/h"}, {"metric": "hm_power_kw", "path": "Meter.Power", "label": "Heat meter power", "unit": "kW"}, {"metric": "hm_info_code", "path": "Meter.Info", "label": "Heat meter info code (0 = no error)", "unit": "code"}, {"metric": "p_supply_c", "path": "Primary.SupplyTemp", "label": "Primary supply temperature (controller sensor)", "unit": "\u00b0C"}, {"metric": "p_return_c", "path": "Primary.ReturnTemp", "label": "Primary return temperature, common (controller sensor)", "unit": "\u00b0C"}, {"metric": "sh_p_return_c", "path": "Primary.HeatingReturn", "label": "Primary return after the heating exchanger", "unit": "\u00b0C"}, {"metric": "outdoor_c", "path": "Heating.Outdoor", "label": "Outdoor temperature", "unit": "\u00b0C"}, {"metric": "sh_flow_c", "path": "Heating.FlowTemp", "label": "Heating flow (secondary supply) temperature", "unit": "\u00b0C"}, {"metric": "sh_flow_set_c", "path": "Heating.FlowSetpoint", "label": "Heating flow temperature setpoint in the controller", "unit": "\u00b0C"}, {"metric": "sh_return_c", "path": "Heating.ReturnTemp", "label": "Heating return (secondary return) temperature", "unit": "\u00b0C"}, {"metric": "sh_pump_flow_m3h", "path": "Heating.PumpFlow", "label": "Heating circulator flow (pump estimate)", "unit": "m\u00b3/h"}, {"metric": "valve_pos_pct", "path": "Valve.Position", "label": "Control valve position", "unit": "%"}, {"metric": "valve_reversals_h", "path": "Valve.ReversalsPerHour", "label": "Valve direction reversals, last hour (controller counter)", "unit": "1/h"}, {"metric": "sh_flow_rms_k", "path": "Valve.FlowTempRms", "label": "RMS of flow temperature minus setpoint, last 15 min", "unit": "K"}, {"metric": "dp_section_kpa", "path": "Valve.DiffPressure", "label": "Differential pressure across valve and heating exchanger", "unit": "kPa"}, {"metric": "dhw_c", "path": "DHW.SupplyTemp", "label": "Domestic hot water temperature leaving the heater", "unit": "\u00b0C"}, {"metric": "dhw_flow_lpm", "path": "DHW.TapFlow", "label": "Domestic hot water tapping flow", "unit": "l/min"}, {"metric": "cw_c", "path": "DHW.ColdWater", "label": "Cold water temperature", "unit": "\u00b0C"}, {"metric": "dhw_circ_return_c", "path": "DHW.CirculationReturn", "label": "DHW circulation return temperature", "unit": "\u00b0C"}]}, "twin_model": {"limits": {"return_excess_alert_k": 3.0, "ua_ratio_alert": 0.7, "sec_flow_ratio_alert": 1.25, "curve_offset_alert_k": 5.0, "supply_shortfall_alert_k": 5.0, "bypass_mix_alert_k": 7.5, "meter_temp_dev_alert_k": 1.0, "authority_alert": 0.4, "hunting_reversals_alert_h": 20.0, "hunting_rms_alert_k": 1.5, "ua_min_load": 0.45}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "hex_fouling": {"name": "Heating exchanger fouling (sludge, magnetite)", "part": "heating exchanger", "symptoms": "UA below expected at the same flows, primary flow and primary return up", "rules": ["DH_UA_LOW"], "default_ramp_min": 1.5}, "secondary_overflow": {"name": "Heating circuit over-flow (unbalanced radiators, pump too high)", "part": "heating circuit", "symptoms": "circulator flow above design, small secondary \u0394T, high secondary and primary return", "rules": ["DH_SEC_FLOW_HIGH", "DH_RETURN_HIGH"], "default_ramp_min": 1}, "curve_too_high": {"name": "Heat curve raised in the controller", "part": "controller", "symptoms": "flow setpoint above the curve, rooms too warm, higher return", "rules": ["DH_CURVE_HIGH", "DH_RETURN_HIGH"], "default_ramp_min": 1}, "primary_bypass": {"name": "Primary short circuit (leaking valve or open bypass)", "part": "primary pipework", "symptoms": "hot supply water mixes into the return, common return above the heating exchanger return", "rules": ["DH_PRIMARY_BYPASS", "DH_RETURN_HIGH"], "default_ramp_min": 1}, "meter_sensor_fault": {"name": "Heat meter supply sensor out of its pocket", "part": "heat meter", "symptoms": "meter T1 below the controller's supply sensor, energy under-registered", "rules": ["DH_METER_TEMP_MISMATCH", "DH_METER_ERROR"], "default_ramp_min": 0.5}, "dp_controller_fault": {"name": "Differential pressure controller failed open", "part": "control valve", "symptoms": "full network \u0394p across the valve, low authority, valve hunting", "rules": ["DH_AUTHORITY_LOW", "DH_VALVE_HUNTING"], "default_ramp_min": 1}, "dhw_circulation_fault": {"name": "DHW circulation pump failed or loop unbalanced", "part": "DHW circulation", "symptoms": "circulation return below 50 \u00b0C: legionella risk in the risers", "rules": ["DH_DHW_CIRC_LOW"], "default_ramp_min": 1}, "dhw_setpoint_low": {"name": "DHW temperature set too low", "part": "DHW controller", "symptoms": "hot water leaves the heater below 55 \u00b0C and the loop below 50 \u00b0C", "rules": ["DH_DHW_TEMP_LOW", "DH_DHW_CIRC_LOW"], "default_ramp_min": 1}}, "presentation": {"title": "DH-7101 district heating substation", "dashboard": "DH_SUBSTATION"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 1) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(1.2, 1.4, 3.2); ctl.target.set(0, .75, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(3, 6, 5); scene.add(sun);
+scene.add(new THREE.GridHelper(8, 32, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), white = M(0xe8eaed, { m: .1, r: .6 }), green = M(0x2f8a4b);
+const cyl = (r1, r2, h, m, s = 24) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// wall and back plate (wall-hung unit, about 0.9 m wide, 1.3 m high)
+scene.add(at(box(2.6, 2.2, .04, M(0x4a4f57, { m: 0, r: .9 })), 0, 1.1, -.32));
+scene.add(at(box(.95, 1.3, .03, M(0xd0d4d9, { m: .2, r: .6 })), 0, .95, -.28));
+// pipe helper with a temperature-coloured material
+const PIPES = {};
+function pipe(id, pts, r = .016) {
+  const mat = M(0x8c97a3, { m: .4, r: .4 });
+  const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), false, 'catmullrom', 0.01), 64, r, 10, false);
+  const mesh = new THREE.Mesh(g, mat); scene.add(mesh); (PIPES[id] = PIPES[id] || []).push(mesh); return mesh;
+}
+// plate heat exchanger: frame + plate pack (ridges) + 4 ports
+const HEXES = {};
+function plateHex(id, x, y, w, h, n) {
+  const g = new THREE.Group(); at(g, x, y, -.12); scene.add(g);
+  const plates = [];
+  for (let i = 0; i < n; i++) { const p = box(w, h, .006, M(i % 2 ? 0xc9ced4 : 0xaeb5bd, { m: .75, r: .25 })); g.add(at(p, 0, 0, -.06 + i * .12 / n)); plates.push(p); }
+  [-1, 1].forEach(s => g.add(at(box(w + .02, h + .02, .012, steel), 0, 0, s * .068)));
+  [[-1, 1], [1, 1], [-1, -1], [1, -1]].forEach(([sx, sy]) => { const c = cyl(.018, .018, .06, dark); c.rotation.x = Math.PI / 2; g.add(at(c, sx * w * .32, sy * h * .38, .1)); });
+  HEXES[id] = { g, plates }; return g;
+}
+plateHex('sh', -.18, .95, .2, .5, 30);
+plateHex('dhw', .2, .95, .14, .36, 22);
+// primary side: supply in (left, bottom), return out (left, bottom)
+pipe('psup', [[-.6, .05, 0], [-.42, .05, 0], [-.42, .55, 0], [-.42, 1.32, 0], [-.24, 1.32, -.02], [-.24, 1.2, -.02]]);
+pipe('psup', [[-.42, 1.32, 0], [.15, 1.32, 0], [.15, 1.12, -.02]]);
+pipe('pret', [[-.24, .7, -.02], [-.24, .5, 0], [-.3, .4, 0], [-.3, .05, 0], [-.6, -.05, 0]], .016);
+pipe('pret', [[.15, .79, -.02], [.15, .45, 0], [-.3, .45, 0]]);
+// secondary heating: flow out the top, return into the bottom
+pipe('sflow', [[-.12, 1.2, -.02], [-.12, 1.5, 0], [-.12, 1.75, 0]]);
+pipe('sret', [[-.12, .7, -.02], [-.12, .5, .06], [-.12, .25, .06], [-.12, .05, .06], [-.12, -.1, .06]]);
+// DHW: cold in, hot out, circulation return
+pipe('cw', [[.6, .05, 0], [.6, .55, 0], [.25, .8, -.02]], .012);
+pipe('dhw', [[.25, 1.11, -.02], [.25, 1.5, 0], [.25, 1.75, 0]], .012);
+pipe('circ', [[.45, 1.75, 0], [.45, 1.0, .02], [.3, .82, -.02]], .01);
+// control valve with actuator on the primary supply of the heating exchanger
+const valveBody = at(box(.07, .07, .07, M(0x56718f)), -.42, .9, 0); scene.add(valveBody);
+scene.add(at(cyl(.008, .008, .12, steel), -.42, .99, 0));
+const actuator = at(box(.09, .12, .09, M(0xdde1e6, { m: .1, r: .6 })), -.42, 1.1, 0); scene.add(actuator);
+const stem = at(cyl(.006, .006, .05, M(0xff832b)), -.42, 1.18, 0); scene.add(stem);
+// differential pressure controller (diaphragm housing + impulse tube)
+const dpc = at(cyl(.06, .06, .035, M(0x2f6db5, { m: .35 })), -.42, .62, 0); scene.add(dpc);
+scene.add(at(cyl(.012, .012, .07, steel), -.42, .58, 0));
+pipe('imp', [[-.36, .62, 0], [-.33, .55, .02], [-.3, .3, .02]], .004);
+// heat meter on the primary return: flow sensor body + calculator
+scene.add(at(box(.07, .06, .06, M(0x9aa3ad, { m: .6 })), -.3, .2, 0));
+const calc = at(box(.11, .15, .04, M(0xf2f2f2, { m: .05, r: .7 })), -.55, .3, -.2); scene.add(calc);
+scene.add(at(box(.07, .03, .005, M(0x112233, { m: 0, r: .2 })), -.55, .34, -.177));
+// heating circulator and DHW circulation pump
+const pumpSH = new THREE.Group(); at(pumpSH, -.12, .32, .06); scene.add(pumpSH);
+pumpSH.add(cyl(.05, .05, .07, M(0xc0392b, { m: .3 }))); const head = cyl(.045, .045, .06, dark); head.rotation.x = Math.PI / 2; pumpSH.add(at(head, 0, 0, .06));
+const pumpC = at(cyl(.03, .03, .05, M(0xc0392b, { m: .3 })), .45, 1.3, .02); scene.add(pumpC);
+// controller box (weather compensation) and outdoor sensor
+scene.add(at(box(.16, .12, .06, M(0xe0e0e0, { m: .05, r: .7 })), .33, .32, -.2));
+const ecl = at(box(.08, .04, .005, M(0x0f62fe, { m: 0, r: .3 })), .33, .34, -.168); scene.add(ecl);
+// expansion vessel and safety valve
+scene.add(at(cyl(.08, .08, .26, M(0xb3262d, { m: .3 })), .0, .28, -.15));
+scene.add(at(cyl(.012, .012, .06, M(0xd8a31a)), -.12, 1.6, .03));
+// a tap far away (hot water draw indicator)
+const tapDrop = at(new THREE.Mesh(new THREE.SphereGeometry(.025, 12, 10), new THREE.MeshStandardMaterial({ color: 0x4589ff, emissive: 0x1f3f7f })), .25, 1.82, 0); scene.add(tapDrop);
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.03, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, .33, .42, -.2));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('meter', [-.55, .42, -.2]); lbl('ret', [-.6, -.02, 0]); lbl('sup', [-.6, .12, 0]); lbl('valve', [-.42, 1.22, 0]); lbl('hex', [-.18, 1.25, -.1]);
+lbl('flow', [-.12, 1.78, 0]); lbl('sret', [-.12, -.05, .1]); lbl('dhw', [.25, 1.88, 0]); lbl('circ', [.45, 1.4, .05]); lbl('ctl', [.33, .44, -.2]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+// temperature -> colour (blue 10 °C ... red 75 °C)
+function tcol(T) { const x = Math.max(0, Math.min(1, (T - 10) / 65)); const c = new THREE.Color(); c.setHSL(.62 * (1 - x), .75, .5); return c; }
+function paint(id, T) { (PIPES[id] || []).forEach(m => m.material.color.copy(tcol(T))); }
+
+// ---------- live state ----------
+let valvePos = 70, tapping = false, foul = 0, hunt = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  valvePos = r.valve_pos_pct; tapping = r.dhw_flow_lpm >= d.dhw.tap_threshold_lpm;
+  foul = Math.max(0, Math.min(1, (1 - t.ua_ratio) / .5)); hunt = names.has('DH_VALVE_HUNTING') ? 1 : 0;
+  setLbl('meter', 'heat meter · power · flow', `${fmt(r.hm_power_kw)} kW · ${fmt(r.hm_flow_m3h, 3)} m³/h`, st(names.has('DH_METER_ERROR') || names.has('DH_METER_TEMP_MISMATCH'), Math.abs(t.meter_error_pct) > t.meter_mpe_pct * .7));
+  setLbl('ret', `primary return T2 · ref ${fmt(t.return_ref_c)} °C`, `${fmt(r.hm_t_return_c)} °C · ${t.return_excess_k >= 0 ? '+' : ''}${fmt(t.return_excess_k)} K`, st(names.has('DH_RETURN_HIGH') || names.has('DH_PRIMARY_BYPASS'), t.return_excess_k > L.return_excess_alert_k * .6));
+  setLbl('sup', 'primary supply T1 / controller', `${fmt(r.hm_t_supply_c)} / ${fmt(r.p_supply_c)} °C`, st(names.has('DH_METER_TEMP_MISMATCH')));
+  setLbl('valve', `control valve · Δp ${fmt(r.dp_section_kpa, 0)} kPa`, `${fmt(r.valve_pos_pct, 0)} % · authority ${fmt(t.valve_authority, 2)}`, st(names.has('DH_AUTHORITY_LOW') || names.has('DH_VALVE_HUNTING'), t.valve_authority < .45));
+  setLbl('hex', 'heating exchanger UA (kW/K)', `${fmt(t.ua_measured_kw_k, 2)} · ${fmt(t.ua_ratio, 2)} × expected`, st(names.has('DH_UA_LOW'), t.ua_ratio < .85));
+  setLbl('flow', `heating flow · curve ${fmt(t.heat_curve_c)} °C`, `${fmt(r.sh_flow_c)} °C (set ${fmt(r.sh_flow_set_c)})`, st(names.has('DH_CURVE_HIGH') || names.has('DH_SUPPLY_LOW'), t.curve_offset_k > 2.5));
+  setLbl('sret', 'heating return · circulator', `${fmt(r.sh_return_c)} °C · ${fmt(r.sh_pump_flow_m3h, 2)} m³/h`, st(names.has('DH_SEC_FLOW_HIGH'), t.sec_flow_ratio > 1.1));
+  setLbl('dhw', `hot water · tap ${fmt(r.dhw_flow_lpm, 1)} l/min`, `${fmt(r.dhw_c)} °C (≥ ${d.dhw.min_supply_c})`, st(names.has('DH_DHW_TEMP_LOW'), r.dhw_c < d.dhw.min_supply_c + 1));
+  setLbl('circ', 'circulation return', `${fmt(r.dhw_circ_return_c)} °C (≥ ${d.dhw.min_circulation_c})`, st(names.has('DH_DHW_CIRC_LOW'), r.dhw_circ_return_c < d.dhw.min_circulation_c + 1.5));
+  setLbl('ctl', 'controller · outdoor', `${fmt(r.outdoor_c)} °C · ${fmt(t.sh_power_kw)} kW heating`, '');
+  paint('psup', r.p_supply_c); paint('pret', r.hm_t_return_c); paint('sflow', r.sh_flow_c); paint('sret', r.sh_return_c);
+  paint('cw', r.cw_c); paint('dhw', r.dhw_c); paint('circ', r.dhw_circ_return_c); paint('imp', 50);
+  $('k-health').textContent = ST.health; $('k-ret').textContent = fmt(r.hm_t_return_c) + ' °C'; $('k-cool').textContent = fmt(t.cooling_k) + ' K';
+  $('c-ret-t').textContent = `return ${t.return_excess_k >= 0 ? '+' : ''}${fmt(t.return_excess_k)} K vs reference`; $('c-ret').className = 'chip ' + (names.has('DH_RETURN_HIGH') ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Primary return (°C)', fmt(r.hm_t_return_c), '≤ ' + fmt(t.return_ref_c + L.return_excess_alert_k), names.has('DH_RETURN_HIGH')) +
+    row('Heating flow (°C)', fmt(r.sh_flow_c), fmt(t.heat_curve_c), names.has('DH_CURVE_HIGH') || names.has('DH_SUPPLY_LOW')) +
+    row('Heating circuit flow (m³/h)', fmt(r.sh_pump_flow_m3h, 3), fmt(d.heating.secondary_flow_m3h, 3), names.has('DH_SEC_FLOW_HIGH')) +
+    row('Exchanger UA (kW/K)', fmt(t.ua_measured_kw_k, 2), fmt(t.ua_expected_kw_k, 2), names.has('DH_UA_LOW')) +
+    row('Approach, primary − secondary return (K)', fmt(t.sh_approach_k, 2), '–') +
+    row('Common return − exchanger return (K)', fmt(t.bypass_mix_k), '≤ ' + L.bypass_mix_alert_k, names.has('DH_PRIMARY_BYPASS')) +
+    row('Meter error (%)', fmt(t.meter_error_pct, 2), '± ' + fmt(t.meter_mpe_pct, 2), names.has('DH_METER_ERROR')) +
+    row('Valve authority', fmt(t.valve_authority, 2), fmt(d.valve.authority_design, 2), names.has('DH_AUTHORITY_LOW')) +
+    row('Valve reversals per hour', fmt(r.valve_reversals_h, 0), '≤ ' + L.hunting_reversals_alert_h, names.has('DH_VALVE_HUNTING')) +
+    row('Hot water (°C)', fmt(r.dhw_c), '≥ ' + d.dhw.min_supply_c, names.has('DH_DHW_TEMP_LOW')) +
+    row('Circulation return (°C)', fmt(r.dhw_circ_return_c), '≥ ' + d.dhw.min_circulation_c, names.has('DH_DHW_CIRC_LOW')) +
+    row('Excess return cost (EUR/year)', fmt(t.return_cost_eur_y, 0), '0');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the substation behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  Object.values(HEXES).forEach(h => h.plates.forEach((p, i) => { p.visible = !cut || i < h.plates.length / 2; }));
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shown = 70, last = performance.now(), clock = 0;
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now; clock += dt;
+  const target = valvePos + (hunt ? 18 * Math.sin(clock * 2.2) : 0);
+  shown += (target - shown) * Math.min(1, dt * 4);
+  stem.position.y = 1.16 + Math.max(0, Math.min(100, shown)) / 100 * .05;
+  pumpSH.children[1].rotation.z += dt * 12; pumpC.rotation.y += dt * 8;
+  tapDrop.visible = tapping; if (tapping) tapDrop.position.y = 1.82 - ((clock * .8) % .12);
+  // fouling darkens the plate pack of the heating exchanger (seen best in the cutaway)
+  HEXES.sh.plates.forEach((p, i) => p.material.color.setHex(i % 2 ? 0xc9ced4 : 0xaeb5bd).lerp(new THREE.Color(0x5a3b22), foul * .85));
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

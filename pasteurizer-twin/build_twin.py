@@ -1,0 +1,193 @@
+"""Write twin/ps-6801.twin.json: the dairy HTST plate pasteurizer twin (PS-6801).
+
+    python build_twin.py
+
+PS-6801 is a high-temperature short-time (HTST) pasteurizer for market milk, of the Tetra Pak Pasteurizer D Base type:
+balance tank, frequency-controlled feed pump with flow control (the "timing" function), a plate heat exchanger with a
+regenerative section, a heating section fed by a hot water unit and a cooling section on ice water, a climbing holding
+tube, a flow diversion valve (FDD) and a booster pump that keeps the pasteurized side of the regenerator at the higher
+pressure.
+
+Sources and assumptions (every number below is either from a published source or labelled as an assumption in "source"):
+  Tetra Pak Pasteurizer D Base product leaflet (Tetra Pak, 2018): capacity 5,000 or 10,000 l/h of milk; market milk
+  program 4 -> 74 -> 4 °C, holding 15 s, heat regeneration 85 %; steam 3 bar about 21 kg per 1,000 l of market milk;
+  ice water 2 °C in, 7 °C out; higher pressure on the pasteurized side; flow diversion on temperature failure.
+  Tetra Pak Dairy Processing Handbook, chapter "Heat exchangers": regeneration efficiency R = (tr - ti) / (tp - ti);
+  holding tube V = Q x HT / (3600 x eta), eta 0.8 - 0.9 in turbulent flow, example 10,000 l/h, 15 s, D 48.5 mm,
+  eta 0.85 -> about 26.5 m; heating medium normally 2 - 3 °C above the pasteurization temperature; k about 5,000 W/m2 K
+  for thin stainless plates.
+  Grade "A" Pasteurized Milk Ordinance (PMO): HTST 72 °C (161 °F) for 15 s; pasteurized milk in the regenerator at
+  least 6.9 kPa (1 psi) above the raw milk; recorder-controller not to read higher than the indicating thermometer;
+  holding tube upward slope >= 2.1 cm/m; equipment cleaned at least once each day used unless an extended run is accepted.
+  Regulation (EC) No 853/2004, Annex III, Section IX: HTST pasteurisation at least 72 °C for 15 s.
+  Clean U values, areas, pressures, pressure drops, flow exponents, milk properties, hot water flow and the run length:
+  ASSUMPTIONS of a typical size, to be replaced by the values on your own pasteurizer's data sheet and validation file.
+"""
+import json
+import math
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with your pasteurizer data sheet / validation file"
+TP = "Tetra Pak Pasteurizer D Base product leaflet (2018), market milk, 10,000 l/h version"
+HB = "Tetra Pak Dairy Processing Handbook, chapter Heat exchangers"
+PMO = "Grade \"A\" Pasteurized Milk Ordinance (PMO), Item 16p and Appendix I"
+
+rated = 10000.0                  # l/h
+rho, cp = 1.032, 3.93            # kg/l, kJ/kg K (whole milk, assumption)
+c0 = rated / 3600 * rho * cp     # kW/K
+t_in, t_set, t_loss = 4.0, 74.0, 0.2
+eps_r = 0.85
+u_r = 4500.0
+ntu_r = eps_r / (1 - eps_r)                       # balanced counterflow: eps = NTU / (1 + NTU)
+area_r = round(ntu_r * c0 * 1000 / u_r, 2)
+t_hold = t_set - t_loss
+t_rawout = t_in + eps_r * (t_hold - t_in)
+duty_h = c0 * (t_set - t_rawout)
+hw_flow, hw_rho, hw_cp, approach = 15.0, 0.975, 4.19, 3.0
+cw = hw_flow * 1000 / 3600 * hw_rho * hw_cp
+cmin, cmax = min(c0, cw), max(c0, cw)
+cr = cmin / cmax
+eps_h = duty_h / (cmin * (t_set + approach - t_rawout))
+ntu_h = math.log((1 - eps_h * cr) / (1 - eps_h)) / (1 - cr)
+u_h = 5000.0
+area_h = round(ntu_h * cmin * 1000 / u_h, 2)
+eta, d_mm, hold_s = 0.85, 48.5, 15.0
+vol_l = round(rated * hold_s / (3600 * eta), 2)
+length_m = round(vol_l / (math.pi / 4 * (d_mm / 100) ** 2) / 10, 2)
+
+twin = {
+    "$comment": "PS-6801 HTST milk pasteurizer twin. Expected values in Maximo Monitor from the pasteurizer data, the PMO and EU 853/2004; the PLC sends only what it measures.",
+    "twin": {"id": "PS-6801", "name": "HTST milk pasteurizer PS-6801", "version": "1.0.0", "folder": "pasteurizer-twin"},
+    "identification": {
+        "asset": "PS-6801", "assetnum": "PS-6801", "manufacturer": "Tetra Pak (type of unit),",
+        "model": "Pasteurizer D Base type, market milk, 10,000 l/h, plate heat exchanger with regeneration",
+        "description": "HTST pasteurizer for market milk: regeneration, hot water heating, holding tube, flow diversion valve, ice water cooling",
+        "phe": "Plate heat exchanger with regenerative, heating and cooling sections (gasketed plates, AISI 316)",
+        "holding": "Climbing holding tube, 48.5 mm ID, sized for 15 s at the rated flow",
+        "fdd": "Flow diversion valve after the holding tube: forward to the regenerator, divert back to the balance tank",
+        "timing": "Frequency-controlled feed pump with magnetic flow meter and flow control (the PMO calls this a meter based timing system)",
+        "booster": "Booster pump on the raw side, interlocked so the pasteurized side of the regenerator stays at the higher pressure",
+    },
+    "design": {
+        "process": {
+            "rated_flow_l_h": rated, "run_flow_l_h": 9500.0, "raw_in_c": t_in, "pasteurization_setpoint_c": t_set,
+            "holding_time_s": hold_s, "outlet_c": 4.0, "regeneration_pct": eps_r * 100,
+            "ice_water_in_c": 2.0, "ice_water_out_c": 7.0, "steam_kg_per_m3_published": 21.0,
+            "milk_density_kg_l": rho, "milk_cp_kj_kgk": cp,
+            "source": TP + ": capacity, temperature program, holding time, regeneration, ice water and steam figures. Normal running flow "
+                      "9,500 l/h (95 % of the rated capacity), milk density 1.032 kg/l and specific heat 3.93 kJ/kg K: " + A,
+        },
+        "legal": {
+            "min_temp_c": 72.0, "min_hold_s": 15.0, "pressure_diff_min_bar": 0.069,
+            "source": PMO + ": HTST 72 °C (161 °F) for 15 s; pasteurized milk in the regenerator at least 6.9 kPa (1 psi) above the raw milk. "
+                      "Regulation (EC) No 853/2004, Annex III, Section IX, Chapter II: at least 72 °C for 15 s. The twin uses 72.0 °C, "
+                      "the stricter of 72 °C and 161 °F (71.7 °C).",
+        },
+        "holding_tube": {
+            "id_mm": d_mm, "efficiency": eta, "volume_l": vol_l, "length_m": length_m, "heat_loss_k": t_loss, "slope_cm_per_m": 2.1,
+            "source": HB + ": V = Q x HT / (3600 x eta), example 10,000 l/h, 15 s, D 48.5 mm, eta 0.85 -> about 26.5 m (this twin "
+                      "uses exactly that example). Upward slope >= 2.1 cm/m: " + PMO + ". Temperature loss along the tube 0.2 K: " + A,
+        },
+        "regenerator": {
+            "u_clean_w_m2k": u_r, "area_m2": area_r, "flow_exp": 0.6, "dp_clean_bar": 0.30,
+            "source": "Area sized so that the clean section gives the leaflet's 85 % regeneration at 10,000 l/h (balanced counterflow, "
+                      "eps = NTU / (1 + NTU)). Clean U 4,500 W/m2 K (below the handbook's ~5,000 for thin plates, milk on both sides), "
+                      "U ~ flow^0.6, raw-side pressure drop 0.30 bar at the rated flow: " + A,
+        },
+        "heater": {
+            "u_clean_w_m2k": u_h, "area_m2": area_h, "flow_exp": 0.35, "dp_clean_bar": 0.60,
+            "hot_water_flow_m3_h": hw_flow, "hot_water_cp_kj_kgk": hw_cp, "hot_water_density_kg_l": hw_rho, "approach_design_k": approach,
+            "source": "Clean U about 5,000 W/m2 K and heating medium 2 - 3 °C above the pasteurization temperature: " + HB
+                      + ". Area sized for a 3 K approach at 10,000 l/h. Hot water flow 15 m3/h, U ~ milk flow^0.35, milk-side pressure "
+                        "drop 0.60 bar at the rated flow: " + A,
+        },
+        "pressures": {
+            "p_raw_regen_in_bar": 1.8, "p_past_regen_out_bar": 2.8, "margin_alert_bar": 0.3,
+            "source": "Raw milk pressure at the regenerator inlet and pasteurized milk pressure at the regenerator outlet (gauge), "
+                      "and the 0.3 bar early-warning margin: " + A + ". The 6.9 kPa minimum is the PMO's.",
+        },
+        "energy": {
+            "steam_pressure_barg": 3.0, "h_fg_kj_kg": 2133.0, "hot_water_unit_eff": 0.95, "energy_alert_ratio": 1.3,
+            "source": "Steam 3 bar g: " + TP + ". Latent heat 2,133 kJ/kg at 4 bar absolute (steam tables). Hot water unit "
+                      "efficiency 0.95 and the 1.3 x alert ratio: " + A,
+        },
+        "cip": {
+            "run_length_h": 10.0, "lye_return_min_c": 70.0, "recovery_alert_ratio": 1.15,
+            "source": "Validated production run between two CIPs (the PMO asks for cleaning at least once each day used unless an "
+                      "extended run is accepted), lye return temperature and the start-of-run pressure drop ratio that marks an "
+                      "incomplete clean: " + A,
+        },
+        "demo": {"time_scale": 60,
+                 "note": "Demo only: the plant clock runs 60 times faster, so a 10-hour production run with its slow fouling and the CIP that ends it shows in 10 minutes. In the demo the failure modes ramp in over about a minute."},
+    },
+    "telemetry": {
+        "event": "past", "publish_every_s": 10, "device_type": "HTST_PASTEURIZER",
+        "groups": {"Timing": "Flow and timing", "Raw": "Raw milk", "Regen": "Regenerative section", "Heater": "Heating section",
+                   "Holding": "Holding tube", "Cooler": "Cooling section", "HotWater": "Hot water unit", "FDD": "Flow diversion valve",
+                   "CIP": "Cleaning in place", "Utilities": "Utilities"},
+        "points": [
+            {"metric": "flow_l_h", "path": "Timing.Flow", "label": "Milk flow (magnetic flow meter)", "unit": "l/h"},
+            {"metric": "raw_in_c", "path": "Raw.InletTemp", "label": "Raw milk temperature from the balance tank", "unit": "°C"},
+            {"metric": "regen_raw_out_c", "path": "Regen.RawOutTemp", "label": "Milk temperature after regeneration", "unit": "°C"},
+            {"metric": "heat_out_c", "path": "Heater.OutTemp", "label": "Milk temperature leaving the heating section", "unit": "°C"},
+            {"metric": "hold_out_c", "path": "Holding.STLRTemp", "label": "Holding tube outlet, recorder-controller (STLR) sensor", "unit": "°C"},
+            {"metric": "hold_ref_c", "path": "Holding.RefTemp", "label": "Holding tube outlet, indicating (reference) thermometer", "unit": "°C"},
+            {"metric": "regen_past_out_c", "path": "Regen.PastOutTemp", "label": "Pasteurized milk temperature after regeneration", "unit": "°C"},
+            {"metric": "product_out_c", "path": "Cooler.OutTemp", "label": "Pasteurized milk outlet temperature", "unit": "°C"},
+            {"metric": "hw_in_c", "path": "HotWater.InTemp", "label": "Hot water inlet to the heating section", "unit": "°C"},
+            {"metric": "hw_out_c", "path": "HotWater.OutTemp", "label": "Hot water outlet from the heating section", "unit": "°C"},
+            {"metric": "p_raw_regen_in_bar", "path": "Regen.RawPressure", "label": "Raw milk pressure, regenerator inlet", "unit": "bar g"},
+            {"metric": "p_past_regen_out_bar", "path": "Regen.PastPressure", "label": "Pasteurized milk pressure, regenerator outlet", "unit": "bar g"},
+            {"metric": "dp_heater_bar", "path": "Heater.DP", "label": "Milk pressure drop across the heating section", "unit": "bar"},
+            {"metric": "dp_regen_bar", "path": "Regen.DP", "label": "Raw milk pressure drop across the regenerative section", "unit": "bar"},
+            {"metric": "fdd_forward", "path": "FDD.Forward", "label": "Flow diversion valve in forward flow (1) or divert (0)", "unit": "code"},
+            {"metric": "fdd_diverts_1h", "path": "FDD.Diverts1h", "label": "Diverts in the last hour", "unit": "count"},
+            {"metric": "hours_since_cip", "path": "CIP.HoursSince", "label": "Production hours since the last CIP", "unit": "h"},
+            {"metric": "run_start_dp_heater_bar", "path": "CIP.StartDPHeater", "label": "Heating section pressure drop at the start of this run", "unit": "bar"},
+            {"metric": "run_start_flow_l_h", "path": "CIP.StartFlow", "label": "Milk flow when that pressure drop was taken", "unit": "l/h"},
+            {"metric": "cip_lye_return_c", "path": "CIP.LyeReturnTemp", "label": "Lye (caustic) return temperature, last CIP", "unit": "°C"},
+            {"metric": "steam_kg_h", "path": "Utilities.Steam", "label": "Steam to the hot water unit", "unit": "kg/h"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "hold_margin_alert_s": 0.5, "temp_margin_alert_k": 1.0, "stlr_offset_alert_k": 0.3, "diverts_alert_1h": 3,
+            "u_heater_ratio_alert": 0.7, "dp_ratio_alert": 1.5, "regen_eff_drop_alert_pct": 4.0,
+        },
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "heater_fouling": {"name": "Protein fouling in the heating section", "part": "heater",
+                           "symptoms": "heating section U falls, the hot water must run hotter (approach grows), milk pressure drop rises",
+                           "rules": ["PAST_HEATER_FOULING", "PAST_HEATER_DP_HIGH"], "default_ramp_min": 1.5},
+        "regen_fouling": {"name": "Fouling in the regenerative section", "part": "regenerator",
+                          "symptoms": "regeneration % falls, approach grows, raw-side pressure drop rises, steam per litre rises",
+                          "rules": ["PAST_REGEN_EFF_LOW", "PAST_REGEN_DP_HIGH", "PAST_ENERGY_HIGH"], "default_ramp_min": 1.5},
+        "pressure_diff_loss": {"name": "Regenerator pressure differential lost (booster or back-pressure fault)", "part": "regenerator",
+                               "symptoms": "pasteurized side no longer 6.9 kPa above the raw side: leak risk, the FDD diverts",
+                               "rules": ["PAST_PRESSURE_DIFF_LOW", "PAST_DIVERT_FREQUENT"], "default_ramp_min": 1},
+        "flow_timing_drift": {"name": "Flow control / timing drift (flow above the sealed capacity)", "part": "timing",
+                              "symptoms": "flow above 10,000 l/h, fastest-particle holding time below 15 s",
+                              "rules": ["PAST_HOLD_TIME_SHORT"], "default_ramp_min": 1},
+        "heating_unstable": {"name": "Hot water unit unstable (steam valve hunting, low steam)", "part": "hot water unit",
+                             "symptoms": "holding temperature sags towards 72 °C and swings; the FDD diverts again and again",
+                             "rules": ["PAST_TEMP_MARGIN_LOW", "PAST_DIVERT_FREQUENT"], "default_ramp_min": 1},
+        "stlr_drift": {"name": "Recorder-controller (STLR) sensor reads high", "part": "holding tube",
+                       "symptoms": "STLR above the indicating thermometer: the FDD would let colder milk forward",
+                       "rules": ["PAST_STLR_MISMATCH"], "default_ramp_min": 0.5},
+        "cip_incomplete": {"name": "Incomplete CIP (lye too cold, residual deposit)", "part": "cip",
+                           "symptoms": "the run starts with a heating section pressure drop above clean",
+                           "rules": ["PAST_CIP_INEFFECTIVE"], "default_ramp_min": 1},
+        "cip_skipped": {"name": "CIP skipped: run beyond the validated length", "part": "cip",
+                        "symptoms": "hours since CIP beyond the validated run; fouling keeps growing",
+                        "rules": ["PAST_RUN_OVERDUE"], "default_ramp_min": 1},
+    },
+    "presentation": {"title": "PS-6801 HTST milk pasteurizer", "dashboard": "HTST_PASTEURIZER"},
+}
+
+out = HERE / "twin" / "ps-6801.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out, f"(regen area {area_r} m2, heater area {area_h} m2, holding tube {vol_l} l / {length_m} m)")

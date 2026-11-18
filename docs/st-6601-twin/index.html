@@ -1,0 +1,342 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ST-6601 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+.phase{position:fixed;left:12px;top:96px;color:#f4f4f4;font-size:12px;z-index:4;background:rgba(22,22,22,.85);padding:6px 10px;font-family:var(--mono)}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>ST-6601</b><span class="g">Steam sterilizer · 6 STU · 134 °C porous load</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-rel"><span class="dot"></span><span id="c-rel-t">release –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Saturation, F0 and tests →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the sterilizer model…</div>
+<div class="credit">Pass-through porous-load steam sterilizer (BMT STERIVAP HP 669-2 class: 700 × 650 × 990 mm chamber, 453 l, jacket, own steam generator, vacuum pump). Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="phase" id="phase">–</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The saturation check compares the drain temperature with the temperature pure steam must have at the measured chamber pressure (IAPWS-IF97).</div>
+<aside>
+  <section>
+    <h2>ST-6601 twin</h2>
+    <p class="sub" id="sub">134 °C porous-load cycle</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Saturation check<b id="k-sat">–</b></div><div>F0 of holding<b id="k-f0">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over about a minute of real time and shows at the end of the next cycle. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The controller sends only what it measures. The saturation temperature, the air share, F0, the leak rate and the expected energy are computed from the twin file: the data sheet, the UK guidance limits and the IAPWS-IF97 steam equations.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for ST-6601: the chamber, jacket, door seals, vacuum pump, steam generator, two temperature sensors and the\ndaily / weekly test results of a STERIVAP HP 669-2 steam sterilizer, with injectable faults.\n\nThe real controller sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable cycle records, a\nlive pressure / temperature trace and fault fingerprints for the tests and the figures.\n\nSteam physics used here: in the chamber, steam (partial pressure p_s) and air (fraction x) share the pressure P:\np_s = (1 - x) P, and the drain sits at Ts(p_s) plus any superheat. The controller regulates on the drain temperature, so\nair shows as a higher pressure for the same temperature, not as a colder recorder chart.\n\"\"\"\nimport math\nimport random\n\n_N = [0.0, 0.11670521452767e4, -0.72421316703206e6, -0.17073846940092e2, 0.12020824702470e5, -0.32325550322333e7,\n      0.14915108613530e2, -0.48232657361591e4, 0.40511340542057e6, -0.23855557567849, 0.65017534844798e3]\n\n\ndef tsat_c(p_bar_a):\n    b = (p_bar_a / 10) ** 0.25\n    e = b * b + _N[3] * b + _N[6]\n    f = _N[1] * b * b + _N[4] * b + _N[7]\n    g = _N[2] * b * b + _N[5] * b + _N[8]\n    d = 2 * g / (-f - math.sqrt(f * f - 4 * e * g))\n    return (_N[10] + d - math.sqrt((_N[10] + d) ** 2 - 4 * (_N[9] + _N[10] * d))) / 2 - 273.15\n\n\ndef psat_bar(t_c):\n    t = t_c + 273.15\n    th = t + _N[9] / (t - _N[10])\n    a = th * th + _N[1] * th + _N[2]\n    b = _N[3] * th * th + _N[4] * th + _N[5]\n    c = _N[6] * th * th + _N[7] * th + _N[8]\n    return (2 * c / (-b + math.sqrt(b * b - 4 * a * c))) ** 4 * 10\n\n\nclass Sterilizer:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.pr, self.ut, self.sq, self.va = d[\"programme\"], d[\"utilities\"], d[\"steam_quality\"], d[\"vacuum\"]\n        self.ja = d[\"jacket\"]\n        self.kwh_kg = (self.ut[\"hg_kj_kg\"] - self.ut[\"hf_feed_kj_kg\"]) / 3600 / self.ut[\"generator_eff\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.cycles_total, self.cycles_seal = 18240, 1800\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def supply_barg(self):\n        return self.sq[\"supply_nominal_barg\"] - 2.3 * self.faults[\"steam_supply_low\"]\n\n    def air_fraction(self):\n        f = self.faults\n        return 0.002 + abs(self.n(0.0008)) + 0.093 * f[\"door_seal_wear\"] + 0.088 * f[\"ncg_in_steam\"]\n\n    def superheat(self):\n        return 0.2 + self.n(0.04) + 3.6 * self.faults[\"jacket_overheat\"]\n\n    def achievable_c(self, supply_barg):\n        \"\"\"Highest drain temperature the supply can give: saturation at supply minus a 0.5 bar drop to the chamber.\"\"\"\n        return tsat_c(supply_barg + 1.01325 - 0.5)\n\n    # one published cycle record + test results ------------------------------------------------------------------\n    def measure(self):\n        f = self.faults\n        sp = self.pr[\"setpoint_c\"]\n        supply = self.supply_barg() + self.n(0.03)\n        x, sh = self.air_fraction(), self.superheat()\n        drift = 1.6 * f[\"sensor_drift\"]\n        t1 = min(sp, self.achievable_c(supply)) + self.n(0.05)       # control sensor (regulated)\n        t_true = t1 + drift                                          # the sensor reads low by `drift`\n        p = psat_bar(t_true - sh) / (1 - x)\n        t2 = t_true + self.n(0.05)\n        tmin, tmax = t1 - 0.35 - abs(self.n(0.08)), t1 + 0.45 + abs(self.n(0.08))\n        held = tmin >= self.pr[\"band_low_c\"]\n        hold = self.pr[\"hold_s\"] + 2 + abs(self.n(1.5)) if held else 0.0\n        steam = 7.8 + self.n(0.15) + 4.0 * f[\"drain_trap_passing\"]\n        energy = (self.ut[\"energy_base_kwh\"] + steam * self.kwh_kg) * (1 + self.n(0.012)) * (1 + 0.35 * f[\"generator_scaling\"])\n        jacket_p = psat_bar(t_true + self.ja[\"above_chamber_nominal_k\"] + self.n(0.1) + 6.0 * f[\"jacket_overheat\"])\n        vac = self.va[\"pulse_min_mbar\"] + self.n(2.5) + 150 * f[\"vacuum_pump_wear\"]\n        bd_dt = 0.3 + 35 * x + abs(self.n(0.08))\n        return {\n            \"chamber_pressure_bar_a\": 1.013, \"chamber_temp_c\": 104.0, \"cycle_phase\": 0,\n            \"jacket_pressure_bar_a\": round(jacket_p, 4), \"steam_supply_bar_g\": round(supply, 3), \"door_closed\": 0,\n            \"cyc_hold_pressure_bar_a\": round(p, 4), \"cyc_hold_temp_mean_c\": round(t1, 3), \"cyc_hold_temp_min_c\": round(tmin, 3),\n            \"cyc_hold_temp_max_c\": round(tmax, 3), \"cyc_hold_temp2_mean_c\": round(t2, 3), \"cyc_hold_time_s\": round(hold, 1),\n            \"cyc_jacket_pressure_bar_a\": round(jacket_p, 4), \"cyc_vac_min_mbar\": round(vac, 1), \"cyc_result\": 1 if held else 0,\n            \"cyc_steam_kg\": round(steam, 2), \"cyc_water_l\": round(64 + self.n(2) + 10 * f[\"drain_trap_passing\"], 1),\n            \"cyc_energy_kwh\": round(energy, 3), \"cycles_total\": self.cycles_total, \"cycles_since_seal\": self.cycles_seal + int(5200 * f[\"door_seal_wear\"]),\n            \"bd_result\": 1 if bd_dt < 2.0 else 0, \"bd_delta_t_c\": round(bd_dt, 2),\n            \"bd_equil_time_s\": round(8 + abs(self.n(1.0)) + 200 * (x - 0.002), 1),\n            \"bd_hours_since\": round(min(20.0, 3 + abs(self.n(4))), 1),\n            \"lt_rise_mbar\": round(3.5 + abs(self.n(0.8)) + 22 * f[\"door_seal_wear\"], 2),\n            \"lt_start_mbar\": round(vac - 8 + abs(self.n(1)), 1),\n            \"lt_hours_since\": round(min(160.0, 30 + abs(self.n(30))), 1),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\n# phase timeline of one demo cycle (s): (end, phase code)\nPHASES = [(24, 1), (32, 2), (52, 3), (58, 4), (76, 5), (82, 6), (90, 0)]\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The sterilizer runs 134 C porous-load cycles back to back, each compressed to `demo.cycle_s` real seconds: three\n    vacuum / steam pulses, heat-up, holding, exhaust, drying under vacuum, air admission, then the doors open for unloading.\n    At the end of every cycle the cycle record (holding pressure and temperatures, utilities, test results) is refreshed.\n    The clock of the day is not used, so the warm-up of the in-browser shim does not matter.\n    \"\"\"\n\n    def __init__(self, twin, seed=6601):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.cycle_s = float(demo.get(\"cycle_s\", 90))\n        self.v = Sterilizer(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n        self.tc = 0.0\n        self.temp = 105.0\n        self.last = self.v.measure()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.tc = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def _trace(self, tc):\n        \"\"\"Chamber pressure (bar abs) and phase at time tc (s) into the demo cycle.\"\"\"\n        L = self.last\n        ph_hold = L[\"cyc_hold_pressure_bar_a\"]\n        vac = L[\"cyc_vac_min_mbar\"] / 1000\n        phase = next(p for end, p in PHASES if tc < end) if tc < PHASES[-1][0] else 0\n        if tc < 24:                                  # three pulses: 4 s down to vacuum, 4 s steam up to 1.5 bar\n            k, u = divmod(tc, 8)\n            start = 1.013 if k == 0 else 1.5\n            p = start + (vac - start) * u / 4 if u < 4 else vac + (1.5 - vac) * (u - 4) / 4\n        elif tc < 32:\n            p = 1.5 + (ph_hold - 1.5) * (tc - 24) / 8\n        elif tc < 52:\n            p = ph_hold + 0.01 * math.sin(tc)\n        elif tc < 58:\n            p = ph_hold + (0.1 - ph_hold) * (tc - 52) / 6\n        elif tc < 76:\n            p = 0.08\n        elif tc < 82:\n            p = 0.08 + (1.013 - 0.08) * (tc - 76) / 6\n        else:\n            p = 1.013\n        return p, phase\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.v.faults[k] = f.sev\n        self.t += dt * self.scale\n        before = self.tc\n        self.tc = (self.tc + dt) % self.cycle_s\n        if dt > 0 and (before < 82 <= self.tc or (self.tc < before and before < 82)):   # air admission done: cycle complete\n            self.v.cycles_total += 1\n            self.v.cycles_seal += 1\n            self.last = self.v.measure()\n        p, phase = self._trace(self.tc)\n        x = self.v.air_fraction()\n        target = tsat_c(max(p * (1 - x), 0.5)) if phase in (1, 2, 3) and p > 1.0 else 104.0\n        if phase == 3:\n            target = self.last[\"cyc_hold_temp_mean_c\"]\n        self.temp += (target - self.temp) * min(1.0, dt / 3.0) if dt > 0 else 0.0\n        return {\"pressure\": p, \"temp\": self.temp, \"phase\": phase, \"door_closed\": 1 if self.tc < 82 else 0, \"tc\": self.tc}\n\n    def measure(self, true):\n        r = dict(self.last)\n        live = self.v.measure()\n        r[\"chamber_pressure_bar_a\"] = round(true[\"pressure\"] + self.v.n(0.003), 4)\n        r[\"chamber_temp_c\"] = round(true[\"temp\"] + self.v.n(0.05), 2)\n        r[\"cycle_phase\"] = true[\"phase\"]\n        r[\"door_closed\"] = true[\"door_closed\"]\n        r[\"steam_supply_bar_g\"] = live[\"steam_supply_bar_g\"]\n        r[\"jacket_pressure_bar_a\"] = live[\"jacket_pressure_bar_a\"]\n        r[\"cycles_total\"] = self.v.cycles_total\n        r[\"cycles_since_seal\"] = self.last[\"cycles_since_seal\"]\n        return r\n", "twin_calc": "\"\"\"The steam sterilizer twin's expectations (ST-6601, BMT STERIVAP HP 669-2, 134 C porous-load cycle).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nSaturated steam check (IAPWS-IF97 region 4, p in MPa, T in K):\n    Ts(p):  beta = p^0.25;  E = beta^2 + n3 beta + n6;  F = n1 beta^2 + n4 beta + n7;  G = n2 beta^2 + n5 beta + n8\n            D = 2G / (-F - sqrt(F^2 - 4EG));  Ts = (n10 + D - sqrt((n10 + D)^2 - 4 (n9 + n10 D))) / 2          (Eq. 31)\n    ps(T):  theta = T + n9 / (T - n10);  A = theta^2 + n1 theta + n2;  B = n3 theta^2 + n4 theta + n5;\n            C = n6 theta^2 + n7 theta + n8;  ps = (2C / (-B + sqrt(B^2 - 4AC)))^4                             (Eq. 30)\n  In pure saturated steam the drain temperature equals Ts(chamber pressure). The deviation\n      SAT_DEV = T_drain - Ts(P_chamber)\n  is negative when air or other non-condensable gas is present (the steam has only part of the pressure: Dalton) and\n  positive when the steam is superheated. UK guidance (HTM 01-01 Part C) allows 2 K. The air share follows from Dalton:\n      air fraction = max(0, 1 - ps(T_drain) / P_chamber)        (0 when the steam is at or above saturation)\nLethality of the holding stage, conservative (lowest temperature for the whole holding time):\n      F0 = hold minutes x 10^((T_min - 121.1) / 10)            (equivalent minutes at 121.1 C, z = 10 K)\nVacuum leak test: rate = rise / 10 min against 13 mbar per 10 min.\nEnergy: electric steam generator; expected kWh = base + steam kg x (hg - hf_feed) / 3600 / efficiency.\n\"\"\"\nimport math\n\nN = [0.0, 0.11670521452767e4, -0.72421316703206e6, -0.17073846940092e2, 0.12020824702470e5, -0.32325550322333e7,\n     0.14915108613530e2, -0.48232657361591e4, 0.40511340542057e6, -0.23855557567849, 0.65017534844798e3]\n\n\ndef tsat_k(p_mpa):\n    \"\"\"IAPWS-IF97 Eq. (31): saturation temperature (K) at pressure p (MPa).\"\"\"\n    b = p_mpa ** 0.25\n    e = b * b + N[3] * b + N[6]\n    f = N[1] * b * b + N[4] * b + N[7]\n    g = N[2] * b * b + N[5] * b + N[8]\n    d = 2 * g / (-f - math.sqrt(f * f - 4 * e * g))\n    return (N[10] + d - math.sqrt((N[10] + d) ** 2 - 4 * (N[9] + N[10] * d))) / 2\n\n\ndef psat_mpa(t_k):\n    \"\"\"IAPWS-IF97 Eq. (30): saturation pressure (MPa) at temperature T (K).\"\"\"\n    th = t_k + N[9] / (t_k - N[10])\n    a = th * th + N[1] * th + N[2]\n    b = N[3] * th * th + N[4] * th + N[5]\n    c = N[6] * th * th + N[7] * th + N[8]\n    return (2 * c / (-b + math.sqrt(b * b - 4 * a * c))) ** 4\n\n\ndef tsat_c(p_bar_a):\n    return tsat_k(p_bar_a / 10) - 273.15\n\n\ndef psat_bar(t_c):\n    return psat_mpa(t_c + 273.15) * 10\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    pr, sa, le, te, sq, ja, va, ut, ds = (d[\"programme\"], d[\"saturation\"], d[\"lethality\"], d[\"tests\"], d[\"steam_quality\"],\n                                          d[\"jacket\"], d[\"vacuum\"], d[\"utilities\"], d[\"door_seal\"])\n    kwh_kg = (ut[\"hg_kj_kg\"] - ut[\"hf_feed_kj_kg\"]) / 3600 / ut[\"generator_eff\"]\n    return dict(lo=pr[\"band_low_c\"], hi=pr[\"band_high_c\"], hold=pr[\"hold_s\"], minhold=pr[\"min_hold_s\"], sp=pr[\"setpoint_c\"],\n                tref=le[\"t_ref_c\"], z=le[\"z_k\"], lhold=te[\"leak_hold_min\"], llim=te[\"leak_limit_mbar\"], equil=te[\"equil_max_s\"],\n                vac=va[\"pulse_min_mbar\"], smax=ut[\"steam_max_kg\"], wmax=ut[\"water_max_l\"], base=ut[\"energy_base_kwh\"],\n                kwh_kg=kwh_kg, seal=ds[\"life_cycles\"], nominal=sq[\"supply_nominal_barg\"],\n                f0_req=pr[\"hold_s\"] / 60 * 10 ** ((pr[\"band_low_c\"] - le[\"t_ref_c\"]) / le[\"z_k\"]))\n\n\ndef _ts(p):\n    \"\"\"pandas expression: saturation temperature (C) of a pressure expression in bar abs.\"\"\"\n    n = N\n    B = f\"(({p} / 10) ** 0.25)\"\n    E = f\"({B} ** 2 + {n[3]!r} * {B} + {n[6]!r})\"\n    F = f\"({n[1]!r} * {B} ** 2 + {n[4]!r} * {B} + {n[7]!r})\"\n    G = f\"({n[2]!r} * {B} ** 2 + {n[5]!r} * {B} + {n[8]!r})\"\n    D = f\"(2 * {G} / (-{F} - np.sqrt({F} ** 2 - 4 * {E} * {G})))\"\n    return f\"(({n[10]!r} + {D} - np.sqrt(({n[10]!r} + {D}) ** 2 - 4 * ({n[9]!r} + {n[10]!r} * {D}))) / 2 - 273.15)\"\n\n\ndef _ps(t):\n    \"\"\"pandas expression: saturation pressure (bar abs) of a temperature expression in C.\"\"\"\n    n = N\n    TK = f\"({t} + 273.15)\"\n    TH = f\"({TK} + {n[9]!r} / ({TK} - {n[10]!r}))\"\n    A = f\"({TH} ** 2 + {n[1]!r} * {TH} + {n[2]!r})\"\n    B = f\"({n[3]!r} * {TH} ** 2 + {n[4]!r} * {TH} + {n[5]!r})\"\n    C = f\"({n[6]!r} * {TH} ** 2 + {n[7]!r} * {TH} + {n[8]!r})\"\n    return f\"((2 * {C} / (-{B} + np.sqrt({B} ** 2 - 4 * {A} * {C}))) ** 4 * 10)\"\n\n\ndef _parts(twin):\n    k = _k(twin)\n    TS = _ts(\"df['CYC_HOLD_PRESSURE_BAR_A']\")\n    SD = f\"(df['CYC_HOLD_TEMP_MEAN_C'] - {TS})\"\n    PS = _ps(\"df['CYC_HOLD_TEMP_MEAN_C']\")\n    AIR = f\"(np.maximum(1 - {PS} / df['CYC_HOLD_PRESSURE_BAR_A'], 0) * 100)\"\n    TJ = _ts(\"df['CYC_JACKET_PRESSURE_BAR_A']\")\n    EE = f\"({k['base']} + df['CYC_STEAM_KG'] * {k['kwh_kg']:.10g})\"\n    F0 = f\"(df['CYC_HOLD_TIME_S'] / 60 * 10 ** ((df['CYC_HOLD_TEMP_MIN_C'] - {k['tref']}) / {k['z']}))\"\n    return dict(k=k, TS=TS, SD=SD, AIR=AIR, TJ=TJ, EE=EE, F0=F0)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"TSAT_HOLD_C\", p[\"TS\"]),\n        (\"SAT_DEV_K\", p[\"SD\"]),\n        (\"AIR_FRACTION_PCT\", p[\"AIR\"]),\n        (\"BAND_MARGIN_LOW_K\", f\"df['CYC_HOLD_TEMP_MIN_C'] - {k['lo']}\"),\n        (\"BAND_MARGIN_HIGH_K\", f\"{k['hi']} - df['CYC_HOLD_TEMP_MAX_C']\"),\n        (\"HOLD_TIME_RATIO\", f\"df['CYC_HOLD_TIME_S'] / {k['hold']}\"),\n        (\"F0_HOLD_MIN\", p[\"F0\"]),\n        (\"F0_MARGIN\", f\"{p['F0']} / {k['f0_req']:.10g}\"),\n        (\"SENSOR_DIFF_K\", \"np.abs(df['CYC_HOLD_TEMP2_MEAN_C'] - df['CYC_HOLD_TEMP_MEAN_C'])\"),\n        (\"TSAT_JACKET_C\", p[\"TJ\"]),\n        (\"JACKET_ABOVE_CHAMBER_K\", f\"{p['TJ']} - df['CYC_HOLD_TEMP_MEAN_C']\"),\n        (\"LEAK_RATE_MBAR_MIN\", f\"df['LT_RISE_MBAR'] / {k['lhold']}\"),\n        (\"LEAK_RATIO\", f\"df['LT_RISE_MBAR'] / {k['llim']}\"),\n        (\"EQUIL_RATIO\", f\"df['BD_EQUIL_TIME_S'] / {k['equil']}\"),\n        (\"VACUUM_RATIO\", f\"df['CYC_VAC_MIN_MBAR'] / {k['vac']}\"),\n        (\"STEAM_RATIO\", f\"df['CYC_STEAM_KG'] / {k['smax']}\"),\n        (\"WATER_RATIO\", f\"df['CYC_WATER_L'] / {k['wmax']}\"),\n        (\"ENERGY_EXPECTED_KWH\", p[\"EE\"]),\n        (\"ENERGY_RATIO\", f\"df['CYC_ENERGY_KWH'] / {p['EE']}\"),\n        (\"SEAL_LIFE_USED_PCT\", f\"df['CYCLES_SINCE_SEAL'] / {k['seal']} * 100\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    ts = tsat_c(r[\"cyc_hold_pressure_bar_a\"])\n    tj = tsat_c(r[\"cyc_jacket_pressure_bar_a\"])\n    ee = k[\"base\"] + r[\"cyc_steam_kg\"] * k[\"kwh_kg\"]\n    f0 = r[\"cyc_hold_time_s\"] / 60 * 10 ** ((r[\"cyc_hold_temp_min_c\"] - k[\"tref\"]) / k[\"z\"])\n    return {\n        \"tsat_hold_c\": ts, \"sat_dev_k\": r[\"cyc_hold_temp_mean_c\"] - ts,\n        \"air_fraction_pct\": max(1 - psat_bar(r[\"cyc_hold_temp_mean_c\"]) / r[\"cyc_hold_pressure_bar_a\"], 0.0) * 100,\n        \"band_margin_low_k\": r[\"cyc_hold_temp_min_c\"] - k[\"lo\"], \"band_margin_high_k\": k[\"hi\"] - r[\"cyc_hold_temp_max_c\"],\n        \"hold_time_ratio\": r[\"cyc_hold_time_s\"] / k[\"hold\"], \"f0_hold_min\": f0, \"f0_margin\": f0 / k[\"f0_req\"],\n        \"sensor_diff_k\": abs(r[\"cyc_hold_temp2_mean_c\"] - r[\"cyc_hold_temp_mean_c\"]),\n        \"tsat_jacket_c\": tj, \"jacket_above_chamber_k\": tj - r[\"cyc_hold_temp_mean_c\"],\n        \"leak_rate_mbar_min\": r[\"lt_rise_mbar\"] / k[\"lhold\"], \"leak_ratio\": r[\"lt_rise_mbar\"] / k[\"llim\"],\n        \"equil_ratio\": r[\"bd_equil_time_s\"] / k[\"equil\"], \"vacuum_ratio\": r[\"cyc_vac_min_mbar\"] / k[\"vac\"],\n        \"steam_ratio\": r[\"cyc_steam_kg\"] / k[\"smax\"], \"water_ratio\": r[\"cyc_water_l\"] / k[\"wmax\"],\n        \"energy_expected_kwh\": ee, \"energy_ratio\": r[\"cyc_energy_kwh\"] / ee,\n        \"seal_life_used_pct\": r[\"cycles_since_seal\"] / k[\"seal\"] * 100,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    SD, TJ, EE = p[\"SD\"], p[\"TJ\"], p[\"EE\"]\n    return [\n        (\"AC_HOLD_NOT_MET\", f\"(df['CYC_HOLD_TIME_S'] < {k['hold']}) | (df['CYC_HOLD_TEMP_MIN_C'] < {k['lo']}) | (df['CYC_HOLD_TEMP_MAX_C'] > {k['hi']})\",\n         \"Critical\", \"steam_supply_low\"),\n        (\"AC_AIR_IN_CHAMBER\", f\"{SD} < -{L['sat_dev_k']}\", \"High\", \"door_seal_wear\"),\n        (\"AC_SUPERHEAT\", f\"{SD} > {L['sat_dev_k']}\", \"High\", \"jacket_overheat\"),\n        (\"AC_BD_FAIL\", f\"(df['BD_RESULT'] < 0.5) | (df['BD_DELTA_T_C'] >= {L['bd_fail_k']})\", \"High\", \"door_seal_wear\"),\n        (\"AC_LEAK_FAIL\", f\"df['LT_RISE_MBAR'] > {L['leak_limit_mbar']}\", \"High\", \"door_seal_wear\"),\n        (\"AC_LEAK_RISING\", f\"(df['LT_RISE_MBAR'] > {L['leak_warn_mbar']}) & (df['LT_RISE_MBAR'] <= {L['leak_limit_mbar']})\", \"Medium\", \"door_seal_wear\"),\n        (\"AC_EQUILIBRATION_SLOW\", f\"df['BD_EQUIL_TIME_S'] > {L['equil_max_s']}\", \"Medium\", \"door_seal_wear\"),\n        (\"AC_VACUUM_WEAK\", f\"df['CYC_VAC_MIN_MBAR'] > {L['vac_alert_mbar']}\", \"Medium\", \"vacuum_pump_wear\"),\n        (\"AC_JACKET_HOT\", f\"({TJ} - df['CYC_HOLD_TEMP_MEAN_C']) > {L['jacket_alert_k']}\", \"Medium\", \"jacket_overheat\"),\n        (\"AC_SUPPLY_LOW\", f\"df['STEAM_SUPPLY_BAR_G'] < {L['supply_alert_barg']}\", \"Medium\", \"steam_supply_low\"),\n        (\"AC_SENSOR_DISAGREE\", f\"np.abs(df['CYC_HOLD_TEMP2_MEAN_C'] - df['CYC_HOLD_TEMP_MEAN_C']) > {L['sensor_diff_k']}\", \"Medium\", \"sensor_drift\"),\n        (\"AC_STEAM_HIGH\", f\"df['CYC_STEAM_KG'] / {k['smax']} > {L['steam_alert_ratio']}\", \"Medium\", \"drain_trap_passing\"),\n        (\"AC_ENERGY_HIGH\", f\"df['CYC_ENERGY_KWH'] / {EE} > {L['energy_alert_ratio']}\", \"Medium\", \"generator_scaling\"),\n        (\"AC_TESTS_OVERDUE\", f\"(df['BD_HOURS_SINCE'] > {L['bd_overdue_h']}) | (df['LT_HOURS_SINCE'] > {L['leak_overdue_h']})\", \"Medium\", None),\n        (\"AC_SEAL_LIFE\", f\"df['CYCLES_SINCE_SEAL'] > {L['seal_life_cycles']}\", \"Low\", \"door_seal_wear\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    sd = t[\"sat_dev_k\"]\n    add(r[\"cyc_hold_time_s\"] < k[\"hold\"] or r[\"cyc_hold_temp_min_c\"] < k[\"lo\"] or r[\"cyc_hold_temp_max_c\"] > k[\"hi\"], \"AC_HOLD_NOT_MET\", \"Critical\",\n        f\"Holding {r['cyc_hold_time_s']:.0f} s between {r['cyc_hold_temp_min_c']:.1f} and {r['cyc_hold_temp_max_c']:.1f} \u00b0C: \"\n        f\"needs {k['hold']:.0f} s inside {k['lo']:.0f}-{k['hi']:.0f} \u00b0C. Load not released\", \"chamber\", \"steam_supply_low\")\n    add(sd < -L[\"sat_dev_k\"], \"AC_AIR_IN_CHAMBER\", \"High\",\n        f\"Drain {-sd:.1f} K colder than saturated steam at {r['cyc_hold_pressure_bar_a']:.3f} bar: about {t['air_fraction_pct']:.1f} % air or gas\", \"chamber\", \"door_seal_wear\")\n    add(sd > L[\"sat_dev_k\"], \"AC_SUPERHEAT\", \"High\", f\"Drain {sd:.1f} K hotter than saturated steam at the chamber pressure: superheated steam\", \"chamber\", \"jacket_overheat\")\n    add(r[\"bd_result\"] < 0.5 or r[\"bd_delta_t_c\"] >= L[\"bd_fail_k\"], \"AC_BD_FAIL\", \"High\",\n        f\"Bowie-Dick failed: test-pack centre {r['bd_delta_t_c']:.1f} K below the drain at the start of holding. Sterilizer out of use\", \"chamber\", \"door_seal_wear\")\n    add(r[\"lt_rise_mbar\"] > L[\"leak_limit_mbar\"], \"AC_LEAK_FAIL\", \"High\",\n        f\"Vacuum leak test failed: {r['lt_rise_mbar']:.1f} mbar in 10 min (limit {L['leak_limit_mbar']:.0f})\", \"door\", \"door_seal_wear\")\n    add(L[\"leak_warn_mbar\"] < r[\"lt_rise_mbar\"] <= L[\"leak_limit_mbar\"], \"AC_LEAK_RISING\", \"Medium\",\n        f\"Leak test {r['lt_rise_mbar']:.1f} mbar in 10 min, {t['leak_ratio'] * 100:.0f} % of the limit\", \"door\", \"door_seal_wear\")\n    add(r[\"bd_equil_time_s\"] > L[\"equil_max_s\"], \"AC_EQUILIBRATION_SLOW\", \"Medium\",\n        f\"Equilibration {r['bd_equil_time_s']:.0f} s, more than {L['equil_max_s']:.0f} s\", \"chamber\", \"door_seal_wear\")\n    add(r[\"cyc_vac_min_mbar\"] > L[\"vac_alert_mbar\"], \"AC_VACUUM_WEAK\", \"Medium\",\n        f\"Air-removal pulses reach only {r['cyc_vac_min_mbar']:.0f} mbar (usual {k['vac']:.0f})\", \"vacuum pump\", \"vacuum_pump_wear\")\n    add(t[\"jacket_above_chamber_k\"] > L[\"jacket_alert_k\"], \"AC_JACKET_HOT\", \"Medium\",\n        f\"Jacket {t['jacket_above_chamber_k']:.1f} K above the chamber\", \"jacket\", \"jacket_overheat\")\n    add(r[\"steam_supply_bar_g\"] < L[\"supply_alert_barg\"], \"AC_SUPPLY_LOW\", \"Medium\",\n        f\"Steam supply {r['steam_supply_bar_g']:.2f} bar g (nominal {k['nominal']:.1f})\", \"steam generator\", \"steam_supply_low\")\n    add(t[\"sensor_diff_k\"] > L[\"sensor_diff_k\"], \"AC_SENSOR_DISAGREE\", \"Medium\",\n        f\"Control and independent recorder differ by {t['sensor_diff_k']:.2f} K\", \"instrumentation\", \"sensor_drift\")\n    add(t[\"steam_ratio\"] > L[\"steam_alert_ratio\"], \"AC_STEAM_HIGH\", \"Medium\",\n        f\"{r['cyc_steam_kg']:.1f} kg of steam per cycle, {t['steam_ratio']:.2f} x the data sheet maximum\", \"drain\", \"drain_trap_passing\")\n    add(t[\"energy_ratio\"] > L[\"energy_alert_ratio\"], \"AC_ENERGY_HIGH\", \"Medium\",\n        f\"{r['cyc_energy_kwh']:.2f} kWh for {r['cyc_steam_kg']:.1f} kg of steam: {t['energy_ratio']:.2f} x expected\", \"steam generator\", \"generator_scaling\")\n    add(r[\"bd_hours_since\"] > L[\"bd_overdue_h\"] or r[\"lt_hours_since\"] > L[\"leak_overdue_h\"], \"AC_TESTS_OVERDUE\", \"Medium\",\n        f\"Bowie-Dick {r['bd_hours_since']:.0f} h ago, leak test {r['lt_hours_since']:.0f} h ago\", \"testing\")\n    add(r[\"cycles_since_seal\"] > L[\"seal_life_cycles\"], \"AC_SEAL_LIFE\", \"Low\",\n        f\"Door seals {r['cycles_since_seal']:.0f} cycles old (renew at {L['seal_life_cycles']})\", \"door\", \"door_seal_wear\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "ST-6601 large steam sterilizer twin. Expected values in Maximo Monitor from the data sheet, the UK guidance limits and the IAPWS-IF97 steam equations; the controller sends only what it measures.", "twin": {"id": "ST-6601", "name": "Steam sterilizer ST-6601", "version": "1.0.0", "folder": "autoclave-twin"}, "identification": {"asset": "ST-6601", "assetnum": "ST-6601", "manufacturer": "BMT Medical Technology s.r.o. (MMM Group)", "model": "STERIVAP HP 669-2 (ED: own integrated steam generator)", "description": "Pass-through porous-load steam sterilizer, sterile services department, hospital", "type": "Large steam sterilizer to EN 285, pre-vacuum (fractionated vacuum) porous-load cycles, jacketed chamber", "doors": "Two vertical motor-driven doors (loading side in the clean packing room, unloading side in the sterile store)", "control": "Two independent PLC systems (master-slave), each with its own chamber pressure and temperature sensors", "steam": "Integrated electric steam generator fed with thermally degassed demineralised water"}, "design": {"chamber": {"height_mm": 700, "width_mm": 650, "depth_mm": 990, "volume_l": 453, "modules_stu": 6, "external_mm": "1918 x 1300 x 1290 (h x w x d)", "weight_kg": 1080, "max_input_kw": 47, "fuse_a": 80, "source": "BMT STERIVAP HP brochure (EN, 2025), technical parameters, model 669-2 (dimensions h x w x d, sterilization modules, chamber volume, weight ED, max input / fuses ED)."}, "programme": {"name": "Wrapped materials 134 C / 7 min (porous load)", "band_low_c": 134.0, "band_high_c": 137.0, "hold_s": 420.0, "min_hold_s": 180.0, "setpoint_c": 135.5, "source": "Hold time 7 min: BMT STERIVAP HP brochure (EN, 2025), technical parameters, model 669-2 (standard validated programmes). Band 134-137 C and minimum holding time 3 min: HTM 01-01 Part C (England) Table 1 and para 2.66 / SHTM 01-01 Part C (Scotland) para 3.98. Controller set point 135.5 C: assumption: typical value, replace with the validated set point of your cycle."}, "saturation": {"tolerance_k": 2.0, "sensor_tolerance_k": 1.0, "atm_bar": 1.01325, "source": "Saturated steam temperature from the chamber pressure must agree with the measured temperatures within 2 C: HTM 01-01 Part C (England) Table 1 and para 2.66 / SHTM 01-01 Part C (Scotland) para 3.98. Sensor disagreement alert 1.0 K (half the 2 C tolerance): assumption: typical value, replace with your validation."}, "lethality": {"t_ref_c": 121.1, "z_k": 10.0, "source": "F0 = sum of 10^((T - 121.1)/10) x minutes: textbook definition (equivalent minutes at 121.1 C, z = 10 K)."}, "tests": {"leak_hold_min": 10.0, "leak_limit_mbar": 13.0, "leak_start_max_mbar": 70.0, "leak_warn_fraction": 0.6, "leak_every_h": 168.0, "bd_every_h": 24.0, "bd_fail_k": 2.0, "equil_max_s": 15.0, "source": "Vacuum leak test: <= 13 mbar rise in a 10 min hold after 5 min stabilisation, from below 70 mbar abs, weekly (SHTM 01-01 Part C paras 3.57-3.64, citing EN 285). Bowie-Dick daily, fail at 2 C (HTM 01-01 Part C 1.44). Equilibration time <= 15 s for chambers up to 800 l (SHTM 01-01 Part C 3.98). Early warning at 60 % of the leak limit: assumption: typical value, replace with your trend policy."}, "steam_quality": {"ncg_max_pct": 3.5, "dryness_min": 0.9, "dryness_min_metal": 0.95, "superheat_max_k": 25.0, "supply_nominal_barg": 4.0, "supply_alert_barg": 3.0, "source": "HTM 01-01 Part C paras 3.20, 3.221, 3.223 and the superheat test result (25 C). Supply nominal 4.0 bar g as assumed by the HTM superheat test. Supply alert 3.0 bar g: assumption: typical value, replace with the generator set point of your machine."}, "jacket": {"above_chamber_nominal_k": 1.5, "above_chamber_alert_k": 4.0, "source": "Jacket kept slightly hotter than the chamber so the walls do not condense: assumption: typical value, replace with the manufacturer's jacket set point."}, "vacuum": {"pulse_min_mbar": 60.0, "alert_mbar": 100.0, "source": "Deepest vacuum of the air-removal pulses and its alert: assumption: typical value, replace with the values recorded at validation (OQ)."}, "utilities": {"steam_max_kg": 9.0, "water_max_l": 80.0, "demin_max_l": 9.0, "energy_max_kwh": 7.5, "energy_base_kwh": 0.4, "hg_kj_kg": 2748.11, "hf_feed_kj_kg": 83.9, "generator_eff": 0.95, "steam_alert_ratio": 1.1, "energy_alert_ratio": 1.15, "source": "Approx. max per cycle: steam 9 kg, water 0.08 m3, demineralised water 0.009 m3, electric energy 7.5 kWh (ED) and 0.4 kWh with central steam (the controls and pump, used here as the base load): BMT STERIVAP HP brochure (EN, 2025), technical parameters, model 669-2. hg at 5 bar abs (generator at 4 bar g) 2748.11 kJ/kg and hf at 20 C 83.9 kJ/kg: steam tables. Generator efficiency 0.95 and the alert ratios: assumption: typical value, replace with your own metered baseline."}, "door_seal": {"life_cycles": 6000, "source": "Door seal replacement interval in cycles: assumption: typical value, replace with the manufacturer's maintenance schedule (HTM 01-01 Part C 4.67: renew at the recommended interval)."}, "demo": {"time_scale": 35, "cycle_s": 90, "note": "Demo only: one 134 C porous-load cycle (about 50 min on the real machine) runs in 90 s of real time, and the Bowie-Dick and leak test results are refreshed after every cycle so a fault shows within a few cycles."}}, "telemetry": {"event": "sterilizer", "publish_every_s": 5, "device_type": "STEAM_STERILIZER_LARGE", "groups": {"Chamber": "Chamber now", "Jacket": "Jacket now", "Steam": "Steam supply", "Door": "Doors and door seal", "Cycle": "Last completed porous-load cycle (holding stage)", "Use": "Utilities per cycle and counters", "Test": "Daily Bowie-Dick and weekly vacuum leak tests"}, "points": [{"metric": "chamber_pressure_bar_a", "path": "Chamber.Pressure", "label": "Chamber pressure", "unit": "bar abs"}, {"metric": "chamber_temp_c", "path": "Chamber.Temperature", "label": "Chamber drain temperature (reference point)", "unit": "\u00b0C"}, {"metric": "cycle_phase", "path": "Chamber.Phase", "label": "Cycle phase (0 idle, 1 air removal, 2 heat-up, 3 holding, 4 exhaust, 5 drying, 6 air admission)", "unit": "code"}, {"metric": "jacket_pressure_bar_a", "path": "Jacket.Pressure", "label": "Jacket pressure", "unit": "bar abs"}, {"metric": "steam_supply_bar_g", "path": "Steam.SupplyPressure", "label": "Steam generator / supply pressure", "unit": "bar g"}, {"metric": "door_closed", "path": "Door.Closed", "label": "Both doors closed and locked (1 = yes)", "unit": "code"}, {"metric": "cyc_hold_pressure_bar_a", "path": "Cycle.HoldPressure", "label": "Mean chamber pressure during holding", "unit": "bar abs"}, {"metric": "cyc_hold_temp_mean_c", "path": "Cycle.HoldTempMean", "label": "Mean drain temperature during holding (control sensor)", "unit": "\u00b0C"}, {"metric": "cyc_hold_temp_min_c", "path": "Cycle.HoldTempMin", "label": "Lowest drain temperature during holding", "unit": "\u00b0C"}, {"metric": "cyc_hold_temp_max_c", "path": "Cycle.HoldTempMax", "label": "Highest drain temperature during holding", "unit": "\u00b0C"}, {"metric": "cyc_hold_temp2_mean_c", "path": "Cycle.HoldTempIndependent", "label": "Mean drain temperature during holding (independent recorder)", "unit": "\u00b0C"}, {"metric": "cyc_hold_time_s", "path": "Cycle.HoldTime", "label": "Holding time achieved (time in the band)", "unit": "s"}, {"metric": "cyc_jacket_pressure_bar_a", "path": "Cycle.JacketPressure", "label": "Mean jacket pressure during holding", "unit": "bar abs"}, {"metric": "cyc_vac_min_mbar", "path": "Cycle.VacuumMin", "label": "Deepest vacuum of the air-removal pulses", "unit": "mbar abs"}, {"metric": "cyc_result", "path": "Cycle.Result", "label": "Controller verdict on the last cycle (1 pass, 0 fail)", "unit": "code"}, {"metric": "cyc_steam_kg", "path": "Use.Steam", "label": "Steam used by the last cycle (generator feed meter)", "unit": "kg"}, {"metric": "cyc_water_l", "path": "Use.Water", "label": "Cooling / vacuum pump water used by the last cycle", "unit": "l"}, {"metric": "cyc_energy_kwh", "path": "Use.Energy", "label": "Electric energy used by the last cycle", "unit": "kWh"}, {"metric": "cycles_total", "path": "Use.CyclesTotal", "label": "Cycles since commissioning", "unit": "count"}, {"metric": "cycles_since_seal", "path": "Door.CyclesSinceSeal", "label": "Cycles since the door seals were renewed", "unit": "count"}, {"metric": "bd_result", "path": "Test.BDResult", "label": "Last Bowie-Dick test (1 pass, 0 fail)", "unit": "code"}, {"metric": "bd_delta_t_c", "path": "Test.BDDeltaT", "label": "Bowie-Dick: drain minus test-pack centre at the start of holding", "unit": "K"}, {"metric": "bd_equil_time_s", "path": "Test.BDEquilTime", "label": "Bowie-Dick: equilibration time of the test pack", "unit": "s"}, {"metric": "bd_hours_since", "path": "Test.BDHoursSince", "label": "Hours since the last Bowie-Dick test", "unit": "h"}, {"metric": "lt_rise_mbar", "path": "Test.LeakRise", "label": "Vacuum leak test: pressure rise in the 10 min hold", "unit": "mbar"}, {"metric": "lt_start_mbar", "path": "Test.LeakStart", "label": "Vacuum leak test: chamber pressure at the start of the hold", "unit": "mbar abs"}, {"metric": "lt_hours_since", "path": "Test.LeakHoursSince", "label": "Hours since the last vacuum leak test", "unit": "h"}]}, "twin_model": {"limits": {"sat_dev_k": 2.0, "sensor_diff_k": 1.0, "leak_limit_mbar": 13.0, "leak_warn_mbar": 7.8, "equil_max_s": 15.0, "bd_fail_k": 2.0, "vac_alert_mbar": 100.0, "jacket_alert_k": 4.0, "supply_alert_barg": 3.0, "steam_alert_ratio": 1.1, "energy_alert_ratio": 1.15, "seal_life_cycles": 6000, "bd_overdue_h": 26.0, "leak_overdue_h": 192.0}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "door_seal_wear": {"name": "Door seal worn (air leaks in under vacuum)", "part": "door", "symptoms": "leak test rise up, air in the chamber: drain colder than steam at the measured pressure, Bowie-Dick fails, slow equilibration", "rules": ["AC_LEAK_FAIL", "AC_AIR_IN_CHAMBER", "AC_BD_FAIL", "AC_EQUILIBRATION_SLOW", "AC_SEAL_LIFE"], "default_ramp_min": 1}, "ncg_in_steam": {"name": "Non-condensable gases in the steam (feed water degassing failed)", "part": "steam generator", "symptoms": "same air signature in the chamber and a failed Bowie-Dick, but the leak test passes", "rules": ["AC_AIR_IN_CHAMBER", "AC_BD_FAIL", "AC_EQUILIBRATION_SLOW"], "default_ramp_min": 1}, "jacket_overheat": {"name": "Jacket too hot (jacket pressure set too high)", "part": "jacket", "symptoms": "jacket well above the chamber, steam in the chamber superheated: drain hotter than saturation", "rules": ["AC_SUPERHEAT", "AC_JACKET_HOT"], "default_ramp_min": 1}, "vacuum_pump_wear": {"name": "Vacuum pump worn (air removal weak)", "part": "vacuum pump", "symptoms": "air-removal pulses do not reach their usual depth; cycles get longer", "rules": ["AC_VACUUM_WEAK"], "default_ramp_min": 1}, "steam_supply_low": {"name": "Steam supply pressure low (generator heater or supply fault)", "part": "steam generator", "symptoms": "supply pressure low, chamber cannot reach the 134 C band: cycle fails", "rules": ["AC_SUPPLY_LOW", "AC_HOLD_NOT_MET"], "default_ramp_min": 1}, "drain_trap_passing": {"name": "Chamber or jacket drain trap passing steam", "part": "drain", "symptoms": "steam and energy per cycle above the data sheet maximum, energy per kg of steam normal", "rules": ["AC_STEAM_HIGH"], "default_ramp_min": 1}, "generator_scaling": {"name": "Steam generator heaters scaled", "part": "steam generator", "symptoms": "more kWh per kg of steam than the steam tables allow", "rules": ["AC_ENERGY_HIGH"], "default_ramp_min": 1.5}, "sensor_drift": {"name": "Chamber temperature sensor drift", "part": "instrumentation", "symptoms": "control and independent recorder disagree", "rules": ["AC_SENSOR_DISAGREE"], "default_ramp_min": 0.5}}, "presentation": {"title": "ST-6601 steam sterilizer", "dashboard": "STEAM_STERILIZER_LARGE"}}, EVERY = 5;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const PHASE = ['idle / unloading', 'air removal (vacuum pulses)', 'heat-up', 'holding', 'exhaust', 'drying under vacuum', 'air admission'];
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(3.3, 2.3, 3.6); ctl.target.set(0, 1.0, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+const grid = new THREE.GridHelper(12, 24, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide, emissive: o.e ?? 0 });
+const steel = M(0xc9ced4, { m: .7, r: .28 }), dark = M(0x3d4249), blue = M(0x2f6db5, { m: .35 }), red = M(0xb3262d, { m: .3 }), green = M(0x2f8a4b);
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// cabinet 1.30 w x 1.92 h x 1.29 d (data sheet external dimensions); side panels and top, open front/back frames
+const cabMat = M(0xdfe3e8, { m: .55, r: .35, t: 1 });
+const cab = new THREE.Group(); scene.add(cab);
+[-1, 1].forEach(s => cab.add(at(box(.02, 1.92, 1.29, cabMat), s * .64, .96, 0)));
+cab.add(at(box(1.30, .02, 1.29, cabMat), 0, 1.91, 0));
+cab.add(at(box(1.30, .7, .02, cabMat), 0, .35, .64)); cab.add(at(box(1.30, .7, .02, cabMat), 0, .35, -.64));
+// chamber 0.65 w x 0.70 h x 0.99 d at y 0.75..1.45; jacket around it (shell of 0.05 m)
+const CY = 1.1;
+const jacketMat = M(0x8c97a3, { m: .6, r: .35, t: 1, ds: true });
+const jacket = at(box(.78, .83, .99, jacketMat), 0, CY, 0); scene.add(jacket);
+const chamberIn = at(box(.65, .70, .985, M(0x9aa3ad, { m: .8, r: .2, ds: true })), 0, CY, 0); scene.add(chamberIn);
+chamberIn.material.side = THREE.BackSide;
+// steam inside the chamber (visible in cutaway): a translucent box whose opacity follows the pressure
+const steamMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0, depthWrite: false });
+const steam = at(box(.63, .68, .97, steamMat), 0, CY, 0); scene.add(steam);
+// load: 6 sterilization modules (STU 600 x 300 x 300 mm): 2 high x 3 deep, the 600 mm across the 650 mm chamber width
+const basketMat = M(0x5e6b78, { m: .6, r: .5, t: .9 });
+for (let lv = 0; lv < 2; lv++) for (let i = 0; i < 3; i++) {
+  const b = at(box(.58, .28, .29, basketMat), 0, CY - .18 + lv * .33, -.32 + i * .32); scene.add(b);
+  scene.add(at(box(.54, .02, .25, M(0x2b5aa8, { m: .2 })), 0, b.position.y + .15, b.position.z));
+}
+// doors (vertical, motor driven): front (loading, +z) and back (unloading, -z)
+const doorMat = M(0xb9bec4, { m: .7, r: .25 });
+const doors = [at(box(.86, .9, .06, doorMat), 0, CY, .53), at(box(.86, .9, .06, doorMat), 0, CY, -.53)];
+doors.forEach(d => scene.add(d));
+// door seal rings (yellow) at both chamber ends
+const sealMat = M(0xd8a31a, { m: .2, r: .6, e: 0x000000 });
+[.5, -.5].forEach(z => { const s = new THREE.Mesh(new THREE.TorusGeometry(.4, .018, 8, 4), sealMat); s.rotation.z = Math.PI / 4; s.scale.set(1.15, 1.2, 1); scene.add(at(s, 0, CY, z)); });
+// control panel (front, upper right) + recorder
+scene.add(at(box(.32, .24, .04, M(0x161616, { r: .3 })), .43, 1.68, .66));
+const screen = at(box(.28, .19, .01, M(0x0f62fe, { e: 0x0b3fae })), .43, 1.68, .685); scene.add(screen);
+// steam generator (lower left), vacuum pump (lower right), pipes
+const gen = at(cyl(.17, .17, .55, M(0xb9bec4, { m: .65, r: .3 })), -.33, .38, -.1); gen.rotation.set(Math.PI / 2, 0, 0); scene.add(gen);
+const heat = at(cyl(.06, .06, .5, M(0xff6a00, { e: 0x7a2a00 })), -.33, .38, -.1); heat.rotation.set(Math.PI / 2, 0, 0); scene.add(heat);
+const pump = at(cyl(.14, .14, .3, blue), .32, .3, .1); pump.rotation.z = Math.PI / 2; scene.add(pump);
+scene.add(at(box(.24, .2, .28, dark), .32, .3, -.2));
+const tube = (pts, c = 0x9fb3c8, r = .018) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, r, 8, false); const m = new THREE.Mesh(g, M(c, { m: .7 })); scene.add(m); return m; };
+tube([[-.33, .55, -.1], [-.33, .7, -.1], [-.42, .8, -.2], [-.42, CY + .3, -.2]], 0xd0d6dc, .022);    // steam to jacket
+tube([[-.42, CY + .3, -.2], [-.2, CY + .45, -.2], [0, CY + .45, -.1]], 0xd0d6dc, .018);               // jacket to chamber
+tube([[.2, CY - .38, .1], [.32, .6, .1], [.32, .45, .1]], 0x7c8a99, .02);                              // chamber drain to vacuum pump
+const drain = at(cyl(.04, .04, .08, M(0x8a3ffc)), .2, CY - .4, .1); scene.add(drain);                  // drain temperature sensor (reference point)
+const pt = at(new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 12), M(0x0f62fe)), .3, CY + .45, .2); scene.add(pt);  // chamber pressure transmitter
+// status beacon on top
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, .5, 1.98, .55));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('now', [0, 1.62, .6]); lbl('sat', [.32, CY + .5, .2]); lbl('hold', [.2, CY - .45, .45]); lbl('jacket', [-.45, CY + .45, -.2]);
+lbl('seal', [-.4, CY - .45, .55]); lbl('bd', [0, 2.05, 0]); lbl('vac', [.35, .5, .3]); lbl('steam', [-.35, .7, .25]); lbl('use', [-.6, .2, .5]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let doorOpen = 0, pressure = 1.013, phase = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  doorOpen = r.door_closed ? 0 : 1; pressure = r.chamber_pressure_bar_a; phase = r.cycle_phase;
+  $('phase').textContent = `phase: ${PHASE[phase] || phase} · ${fmt(r.chamber_pressure_bar_a, 3)} bar abs · ${fmt(r.chamber_temp_c, 1)} °C`;
+  setLbl('now', `chamber now · ${PHASE[phase] || ''}`, `${fmt(r.chamber_pressure_bar_a, 3)} bar · ${fmt(r.chamber_temp_c, 1)} °C`, '');
+  setLbl('sat', `last hold: drain − Ts(${fmt(r.cyc_hold_pressure_bar_a, 3)} bar)`, `${t.sat_dev_k >= 0 ? '+' : ''}${fmt(t.sat_dev_k)} K · air ${fmt(t.air_fraction_pct, 1)} %`,
+    st(names.has('AC_AIR_IN_CHAMBER') || names.has('AC_SUPERHEAT'), Math.abs(t.sat_dev_k) > L.sat_dev_k / 2));
+  setLbl('hold', `holding ${fmt(r.cyc_hold_time_s, 0)} s (needs ${d.programme.hold_s})`, `${fmt(r.cyc_hold_temp_min_c, 1)}–${fmt(r.cyc_hold_temp_max_c, 1)} °C · F0 ${fmt(t.f0_hold_min, 0)} min`,
+    st(names.has('AC_HOLD_NOT_MET'), names.has('AC_SENSOR_DISAGREE')));
+  setLbl('jacket', 'jacket above chamber', `${fmt(t.jacket_above_chamber_k, 1)} K`, st(names.has('AC_JACKET_HOT'), t.jacket_above_chamber_k > L.jacket_alert_k * .75));
+  setLbl('seal', `door seals · ${r.cycles_since_seal} cycles`, `leak ${fmt(r.lt_rise_mbar, 1)} mbar / 10 min`, st(names.has('AC_LEAK_FAIL'), names.has('AC_LEAK_RISING') || names.has('AC_SEAL_LIFE')));
+  setLbl('bd', `Bowie-Dick · ${fmt(r.bd_hours_since, 0)} h ago`, `${r.bd_result ? 'pass' : 'FAIL'} · ΔT ${fmt(r.bd_delta_t_c, 1)} K · ${fmt(r.bd_equil_time_s, 0)} s`,
+    st(names.has('AC_BD_FAIL'), names.has('AC_EQUILIBRATION_SLOW') || names.has('AC_TESTS_OVERDUE')));
+  setLbl('vac', 'deepest vacuum pulse', `${fmt(r.cyc_vac_min_mbar, 0)} mbar`, st(names.has('AC_VACUUM_WEAK')));
+  setLbl('steam', 'steam supply', `${fmt(r.steam_supply_bar_g, 2)} bar g`, st(names.has('AC_SUPPLY_LOW')));
+  setLbl('use', 'per cycle: steam · water · energy', `${fmt(r.cyc_steam_kg, 1)} kg · ${fmt(r.cyc_water_l, 0)} l · ${fmt(r.cyc_energy_kwh, 1)} kWh`,
+    st(names.has('AC_STEAM_HIGH') || names.has('AC_ENERGY_HIGH')));
+  $('k-health').textContent = ST.health; $('k-sat').textContent = (t.sat_dev_k >= 0 ? '+' : '') + fmt(t.sat_dev_k, 1) + ' K'; $('k-f0').textContent = fmt(t.f0_hold_min, 0);
+  const hold = ['AC_HOLD_NOT_MET', 'AC_AIR_IN_CHAMBER', 'AC_SUPERHEAT', 'AC_BD_FAIL', 'AC_LEAK_FAIL', 'AC_SENSOR_DISAGREE'].some(n => names.has(n));
+  $('c-rel-t').textContent = hold ? 'release evidence: HOLD' : 'release evidence: OK'; $('c-rel').className = 'chip ' + (hold ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Drain temperature, holding (°C)', fmt(r.cyc_hold_temp_mean_c), fmt(t.tsat_hold_c), names.has('AC_AIR_IN_CHAMBER') || names.has('AC_SUPERHEAT')) +
+    row('Saturation deviation (K)', fmt(t.sat_dev_k), '± ' + L.sat_dev_k, Math.abs(t.sat_dev_k) > L.sat_dev_k) +
+    row('Air or gas in the chamber (%)', fmt(t.air_fraction_pct, 1), '≈ 0') +
+    row('Holding time (s)', fmt(r.cyc_hold_time_s, 0), '≥ ' + d.programme.hold_s, names.has('AC_HOLD_NOT_MET')) +
+    row('Lowest / highest (°C)', fmt(r.cyc_hold_temp_min_c, 1) + ' / ' + fmt(r.cyc_hold_temp_max_c, 1), d.programme.band_low_c + '–' + d.programme.band_high_c, names.has('AC_HOLD_NOT_MET')) +
+    row('F0 of holding (min)', fmt(t.f0_hold_min, 0), '≥ ' + fmt(t.f0_hold_min / t.f0_margin, 0), t.f0_margin < 1) +
+    row('Recorder difference (K)', fmt(t.sensor_diff_k), '≤ ' + L.sensor_diff_k, names.has('AC_SENSOR_DISAGREE')) +
+    row('Jacket above chamber (K)', fmt(t.jacket_above_chamber_k, 1), d.jacket.above_chamber_nominal_k.toFixed(1), names.has('AC_JACKET_HOT')) +
+    row('Leak test rise (mbar / 10 min)', fmt(r.lt_rise_mbar, 1), '≤ ' + L.leak_limit_mbar, names.has('AC_LEAK_FAIL')) +
+    row('Bowie-Dick ΔT (K)', fmt(r.bd_delta_t_c, 1), '< ' + L.bd_fail_k, names.has('AC_BD_FAIL')) +
+    row('Equilibration time (s)', fmt(r.bd_equil_time_s, 0), '≤ ' + L.equil_max_s, names.has('AC_EQUILIBRATION_SLOW')) +
+    row('Deepest vacuum (mbar)', fmt(r.cyc_vac_min_mbar, 0), d.vacuum.pulse_min_mbar.toFixed(0), names.has('AC_VACUUM_WEAK')) +
+    row('Steam per cycle (kg)', fmt(r.cyc_steam_kg, 1), '≤ ' + d.utilities.steam_max_kg, names.has('AC_STEAM_HIGH')) +
+    row('Energy per cycle (kWh)', fmt(r.cyc_energy_kwh, 2), fmt(t.energy_expected_kwh, 2), names.has('AC_ENERGY_HIGH')) +
+    row('Door seal life used (%)', fmt(t.seal_life_used_pct, 0), '≤ 100', names.has('AC_SEAL_LIFE'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the sterilizer behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  sealMat.color.setHex(names.has('AC_LEAK_FAIL') ? 0xda1e28 : names.has('AC_LEAK_RISING') || names.has('AC_SEAL_LIFE') ? 0xf1c21b : 0xd8a31a);
+  jacketMat.color.setHex(names.has('AC_JACKET_HOT') ? 0xc0504d : 0x8c97a3);
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.design.programme.name;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [cabMat, jacketMat].forEach(m => { m.transparent = true; m.opacity = cut ? .18 : 1; m.depthWrite = !cut; });
+  doors.forEach(d => { d.material.transparent = true; d.material.opacity = cut ? .25 : 1; d.material.depthWrite = !cut; });
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shownDoor = 0, shownP = 1.013, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  shownDoor += (doorOpen - shownDoor) * Math.min(1, dt * 3);
+  doors.forEach(d => d.position.y = CY + shownDoor * .82);          // vertical doors lift to open
+  shownP += (pressure - shownP) * Math.min(1, dt * 4);
+  steamMat.opacity = Math.max(0, Math.min(.55, (shownP - .3) / 3.2 * .55));
+  screen.material.emissive.setHex(phase === 3 ? 0x198038 : phase === 0 ? 0x0b3fae : 0x8a6d00);
+  heat.material.emissive.setHex(phase >= 1 && phase <= 3 ? 0xd04a00 : 0x3a1500);
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

@@ -1,0 +1,426 @@
+{
+ "$comment": "DG-6201 standby diesel generator set twin. Expected values in Maximo Monitor from the Cummins data sheet, NFPA 110, ISO 8528-5 and commissioning data; the controller, the ATS and the tank gauges send only what they measure.",
+ "twin": {
+  "id": "DG-6201",
+  "name": "Standby diesel generator set DG-6201",
+  "version": "1.0.0",
+  "folder": "genset-twin"
+ },
+ "identification": {
+  "asset": "DG-6201",
+  "assetnum": "DG-6201",
+  "manufacturer": "Cummins",
+  "model": "C2000 D5 (50 Hz, 2063 kVA / 1650 kW standby, QSK60-G3 engine, PI734F alternator)",
+  "description": "Data centre standby generator set 1 of the emergency power supply system: 1650 kW standby at 400 V, 50 Hz",
+  "site": "Demo data centre, generator yard, set 1",
+  "engine": "Cummins QSK60-G3: cast iron 60 deg V16, turbocharged and low temperature after-cooled, 60 L, 1500 rpm, electronic governor",
+  "alternator": "STAMFORD PI734F, 380-440 V, brushless, with automatic voltage regulator (AVR)",
+  "cooling": "Set-mounted radiator for 40 C ambient, jacket water heater for standby",
+  "fuel": "Day tank on the set, filled by a transfer pump from the bulk tank",
+  "starting": "24 V DC electric start, lead-acid starting batteries with a float charger",
+  "transfer": "Automatic transfer switch (ATS) between the utility and the set; it times every transfer",
+  "monitoring": "Generator set controller (Modbus), ATS controller, tank gauges, fuel water sensor"
+ },
+ "design": {
+  "rating": {
+   "standby_kva": 2063.0,
+   "standby_kw": 1650.0,
+   "prime_kva": 1875.0,
+   "prime_kw": 1500.0,
+   "voltage_v": 400.0,
+   "frequency_hz": 50.0,
+   "speed_rpm": 1500.0,
+   "source": "Cummins data sheet C2000 D5 DS48-CPGK (05/19): standby 2063 kVA (1650 kW), prime 1875 kVA (1500 kW), 1500 rpm; Emergency Standby Power (ESP) and Prime Power (PRP) in accordance with ISO 8528. 400 V within the PI734F 380-440 V range."
+  },
+  "engine": {
+   "model": "QSK60-G3",
+   "cylinders": 16,
+   "bore_mm": 159.0,
+   "stroke_mm": 190.0,
+   "lube_oil_l": 378.0,
+   "coolant_l": 456.0,
+   "governor": "electronic",
+   "start_v": 24.0,
+   "radiator_ambient_c": 40.0,
+   "heat_rejection_btu_min": 48925.0,
+   "source": "Cummins data sheet DS48-CPGK: QSK60-G3 cast iron 60 deg V16, bore 159 mm, stroke 190 mm, lube oil 378 L, coolant 456 L with radiator, electronic governor, 24 V DC starting, radiator ambient design 40 C, total heat rejection 48925 Btu/min at standby."
+  },
+  "fuel": {
+   "points_pct_load_lph": [
+    [
+     25,
+     122.0
+    ],
+    [
+     50,
+     208.0
+    ],
+    [
+     75,
+     300.0
+    ],
+    [
+     100,
+     406.0
+    ]
+   ],
+   "fuel_a_lph": 48.0,
+   "fuel_b_lph_per_kw": 0.168242424,
+   "fuel_c_lph_per_kw2": 2.9385e-05,
+   "density_kg_l": 0.84,
+   "full_load_lph": 406.0,
+   "source": "Cummins data sheet DS48-CPGK, standby fuel consumption 122 / 208 / 300 / 406 L/h at 1/4, 1/2, 3/4 and full load. Curve a + b P + c P^2 fitted to these four points by build_twin.py. Diesel density 0.84 kg/L: assumption: typical value, replace with the fuel supplier's certificate."
+  },
+  "exhaust": {
+   "full_load_c": 440.0,
+   "t0_c": 140.0,
+   "t_per_load_c": 300.0,
+   "t_per_ambient": 1.0,
+   "ambient_ref_c": 25.0,
+   "source": "Exhaust gas temperature 440 C at the standby rating: Cummins data sheet DS48-CPGK. The straight line 140 C + 300 C x load fraction through that point and the +1 K per K of ambient: assumption: typical value, replace with the engine performance data and the load-bank test log of your set."
+  },
+  "coolant": {
+   "thermostat_c": 85.0,
+   "rise_full_k": 55.0,
+   "heat_frac_no_load": 0.3,
+   "heater_setpoint_c": 40.0,
+   "source": "Coolant held at the thermostat while the radiator has spare capacity; above it the coolant settles at ambient + rise, the rise growing with the heat to reject (30 % of the full-load heat at no load). Radiator sized for 40 C ambient at full load (data sheet); thermostat 85 C, full-load rise 55 K and jacket water heater set point 40 C: assumption: typical value, replace with the engine and heater data."
+  },
+  "start": {
+   "type_s": 10.0,
+   "detect_budget_s": 1.0,
+   "start_budget_s": 8.5,
+   "transfer_budget_s": 0.5,
+   "crank_min_v_alert": 18.0,
+   "step_pct": 25.0,
+   "source": "NFPA 110 Type 10: power back at the transfer switch load terminals within 10 s. The split 1 s detection / 8.5 s start to ready-to-load / 0.5 s transfer is the one a Cummins PowerHour course on NFPA 110 uses. Lowest cranking voltage of a healthy 24 V battery and the largest load step the site applies: assumption: typical value, replace with the battery and starter data and the site's load-step plan."
+  },
+  "transient": {
+   "class": "G3",
+   "freq_dip_pct": 7.0,
+   "freq_recovery_s": 3.0,
+   "volt_dip_pct": 15.0,
+   "volt_recovery_s": 4.0,
+   "source": "ISO 8528-5 performance class G3, diesel: transient frequency dip <= 7 %, recovery <= 3 s; voltage dip <= 15 %, recovery <= 4 s (Kohler / Rehlko white paper, from Table 4 of ISO 8528-5:2022). Class G3 as the site requirement: assumption: typical value, replace with the site specification."
+  },
+  "tanks": {
+   "day_l": 1000.0,
+   "bulk_l": 25000.0,
+   "required_runtime_h": 48.0,
+   "design_load_kw": 1200.0,
+   "source": "Day tank 1000 L, bulk tank 25000 L, required run time at the standby rating 48 h and the data centre load the set carries in an outage 1200 kW: assumption: typical value, replace with the site's design basis (NFPA 110 calls the run time at rated load without refuelling the Class)."
+  },
+  "duty": {
+   "min_test_load_pct": 30.0,
+   "fuel_test_interval_d": 365.0,
+   "source": "NFPA 110 8.4.2: monthly exercise for at least 30 minutes at not less than 30 % of the standby nameplate kW, or at the manufacturer's minimum exhaust gas temperature; 8.3.7: fuel quality test at least annually."
+  },
+  "demo": {
+   "time_scale": 1,
+   "cycle_standby_s": 15,
+   "cycle_load_s": 90,
+   "cycle_cooldown_s": 15,
+   "test_load_kw": 990.0,
+   "note": "Demo only: the set runs a monthly test every two minutes or so of real time (ATS test transfer, start, 90 s on load, cool-down, stop). Counters such as light-load hours and fuel test age come from the failure modes, not from the demo clock."
+  }
+ },
+ "telemetry": {
+  "event": "genset",
+  "publish_every_s": 5,
+  "device_type": "STANDBY_DIESEL_GENSET",
+  "groups": {
+   "Engine": "Engine state, speed, fuel and coolant",
+   "Exhaust": "Exhaust bank and cylinder temperatures",
+   "Output": "Alternator output",
+   "Site": "Ambient",
+   "Start": "Last start (held until the next one)",
+   "Transfer": "Automatic transfer switch",
+   "Transient": "Last load step",
+   "Battery": "Starting batteries",
+   "Fuel": "Tanks and fuel quality",
+   "Duty": "Running history"
+  },
+  "points": [
+   {
+    "metric": "run_mode",
+    "path": "Engine.Mode",
+    "label": "Mode (0 standby, 1 starting, 2 cool-down, 3 test on load, 4 emergency on load)",
+    "unit": "code"
+   },
+   {
+    "metric": "engine_speed_rpm",
+    "path": "Engine.Speed",
+    "label": "Engine speed",
+    "unit": "rpm"
+   },
+   {
+    "metric": "fuel_rate_lph",
+    "path": "Engine.FuelRate",
+    "label": "Fuel rate (engine control module)",
+    "unit": "L/h"
+   },
+   {
+    "metric": "coolant_temp_c",
+    "path": "Engine.Coolant",
+    "label": "Coolant temperature, engine outlet",
+    "unit": "°C"
+   },
+   {
+    "metric": "oil_pressure_kpa",
+    "path": "Engine.OilPressure",
+    "label": "Lube oil pressure",
+    "unit": "kPa"
+   },
+   {
+    "metric": "exhaust_temp_a_c",
+    "path": "Exhaust.BankA",
+    "label": "Exhaust temperature, bank A (after turbine)",
+    "unit": "°C"
+   },
+   {
+    "metric": "exhaust_temp_b_c",
+    "path": "Exhaust.BankB",
+    "label": "Exhaust temperature, bank B (after turbine)",
+    "unit": "°C"
+   },
+   {
+    "metric": "exhaust_cyl_max_c",
+    "path": "Exhaust.CylMax",
+    "label": "Hottest cylinder exhaust port",
+    "unit": "°C"
+   },
+   {
+    "metric": "exhaust_cyl_min_c",
+    "path": "Exhaust.CylMin",
+    "label": "Coldest cylinder exhaust port",
+    "unit": "°C"
+   },
+   {
+    "metric": "output_kw",
+    "path": "Output.Power",
+    "label": "Active power",
+    "unit": "kW"
+   },
+   {
+    "metric": "output_kvar",
+    "path": "Output.Reactive",
+    "label": "Reactive power",
+    "unit": "kvar"
+   },
+   {
+    "metric": "voltage_v",
+    "path": "Output.Voltage",
+    "label": "Output voltage, line to line",
+    "unit": "V"
+   },
+   {
+    "metric": "frequency_hz",
+    "path": "Output.Frequency",
+    "label": "Output frequency",
+    "unit": "Hz"
+   },
+   {
+    "metric": "ambient_c",
+    "path": "Site.Ambient",
+    "label": "Air on the radiator",
+    "unit": "°C"
+   },
+   {
+    "metric": "last_crank_min_v",
+    "path": "Start.CrankMinV",
+    "label": "Lowest battery voltage while cranking, last start",
+    "unit": "V"
+   },
+   {
+    "metric": "last_start_ready_s",
+    "path": "Start.ReadyTime",
+    "label": "Start signal to rated voltage and frequency, last start",
+    "unit": "s"
+   },
+   {
+    "metric": "last_prestart_coolant_c",
+    "path": "Start.PrestartCoolant",
+    "label": "Coolant temperature at the last start",
+    "unit": "°C"
+   },
+   {
+    "metric": "last_outage_to_load_s",
+    "path": "Transfer.OutageToLoad",
+    "label": "Loss of normal power to load on the set, last transfer",
+    "unit": "s"
+   },
+   {
+    "metric": "ats_transfers_30d",
+    "path": "Transfer.Count30d",
+    "label": "Transfers to the set, last 30 days",
+    "unit": "count"
+   },
+   {
+    "metric": "last_step_pct",
+    "path": "Transient.StepSize",
+    "label": "Last load step, % of standby kW",
+    "unit": "%"
+   },
+   {
+    "metric": "last_step_freq_dip_pct",
+    "path": "Transient.FreqDip",
+    "label": "Frequency dip at the last load step",
+    "unit": "%"
+   },
+   {
+    "metric": "last_step_freq_recovery_s",
+    "path": "Transient.FreqRecovery",
+    "label": "Frequency recovery time at the last load step",
+    "unit": "s"
+   },
+   {
+    "metric": "last_step_volt_dip_pct",
+    "path": "Transient.VoltDip",
+    "label": "Voltage dip at the last load step",
+    "unit": "%"
+   },
+   {
+    "metric": "battery_v",
+    "path": "Battery.Voltage",
+    "label": "Starting battery voltage",
+    "unit": "V"
+   },
+   {
+    "metric": "day_tank_pct",
+    "path": "Fuel.DayTank",
+    "label": "Day tank level",
+    "unit": "%"
+   },
+   {
+    "metric": "bulk_tank_pct",
+    "path": "Fuel.BulkTank",
+    "label": "Bulk tank level",
+    "unit": "%"
+   },
+   {
+    "metric": "fuel_water_ppm",
+    "path": "Fuel.Water",
+    "label": "Water in fuel (day tank sensor)",
+    "unit": "ppm"
+   },
+   {
+    "metric": "fuel_test_age_d",
+    "path": "Fuel.TestAge",
+    "label": "Days since the last fuel quality test",
+    "unit": "d"
+   },
+   {
+    "metric": "light_load_h",
+    "path": "Duty.LightLoadHours",
+    "label": "Hours run below 30 % load since the last load-bank test",
+    "unit": "h"
+   },
+   {
+    "metric": "run_hours",
+    "path": "Duty.RunHours",
+    "label": "Engine running hours",
+    "unit": "h"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "fuel_ratio_alert": 1.08,
+   "exh_residual_alert_k": 40.0,
+   "exh_spread_alert_k": 60.0,
+   "coolant_residual_alert_k": 6.0,
+   "prestart_coolant_alert_c": 32.0,
+   "ats_time_alert_s": 1.5,
+   "min_test_exhaust_c": 230.0,
+   "light_load_alert_h": 8.0,
+   "fuel_water_alert_ppm": 200.0,
+   "day_tank_alert_pct": 60.0
+  },
+  "limits_source": "Type 10 (10 s), the 8.5 s start budget, the 30 % test load and the G3 transient limits: NFPA 110, the Cummins course and ISO 8528-5 (see design). Every other limit is an assumption: fuel ratio, exhaust residual and spread, coolant residual, pre-start coolant, ATS time, minimum test exhaust temperature (the twin's own curve at 30 % load), light-load hours, water in fuel and day tank level. Replace them with the maker's and the site's values."
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "starting_battery_weak": {
+   "name": "Starting battery weak (sulphation, a failed cell)",
+   "part": "battery",
+   "symptoms": "deep voltage dip while cranking, slow start, power back later than 10 s",
+   "rules": [
+    "GEN_CRANK_DIP",
+    "GEN_START_SLOW",
+    "GEN_TYPE10_FAIL"
+   ],
+   "default_ramp_min": 1
+  },
+  "jacket_heater_failure": {
+   "name": "Jacket water heater failed",
+   "part": "cooling",
+   "symptoms": "engine cold at the start: coolant near ambient",
+   "rules": [
+    "GEN_JW_HEATER_LOW"
+   ],
+   "default_ramp_min": 1
+  },
+  "ats_slow": {
+   "name": "Transfer switch slow (mechanism, timer setting)",
+   "part": "ats",
+   "symptoms": "set ready on time, load transferred late",
+   "rules": [
+    "GEN_ATS_SLOW",
+    "GEN_TYPE10_FAIL"
+   ],
+   "default_ramp_min": 1
+  },
+  "injector_fault": {
+   "name": "Injector fault on one cylinder",
+   "part": "engine",
+   "symptoms": "one cylinder exhaust port much colder than the others",
+   "rules": [
+    "GEN_EXH_SPREAD_HIGH"
+   ],
+   "default_ramp_min": 1
+  },
+  "air_restriction": {
+   "name": "Air filter restriction or turbocharger fouling",
+   "part": "engine",
+   "symptoms": "both banks hotter than the curve, more fuel per kW, deeper frequency dip on a load step",
+   "rules": [
+    "GEN_EXH_TEMP_HIGH",
+    "GEN_FUEL_RATE_HIGH",
+    "GEN_TRANSIENT_G3"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "radiator_fouling": {
+   "name": "Radiator fouled (dust, oil mist, blocked core)",
+   "part": "cooling",
+   "symptoms": "coolant above what the load and the ambient explain",
+   "rules": [
+    "GEN_COOLANT_HOT"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "light_load_testing": {
+   "name": "Monthly tests at light load (wet stacking)",
+   "part": "testing",
+   "symptoms": "test below 30 % load with cold exhaust, light-load hours pile up",
+   "rules": [
+    "GEN_TEST_LOAD_LOW",
+    "GEN_WET_STACK_RISK"
+   ],
+   "default_ramp_min": 1
+  },
+  "fuel_water": {
+   "name": "Water in the fuel",
+   "part": "fuel",
+   "symptoms": "fuel water sensor rising in the day tank",
+   "rules": [
+    "GEN_FUEL_WATER"
+   ],
+   "default_ramp_min": 1
+  }
+ },
+ "presentation": {
+  "title": "DG-6201 standby diesel generator set",
+  "dashboard": "STANDBY_DIESEL_GENSET"
+ }
+}

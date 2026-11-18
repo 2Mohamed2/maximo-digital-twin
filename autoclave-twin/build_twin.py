@@ -1,0 +1,156 @@
+"""Write twin/st-6601.twin.json: the large steam sterilizer twin (ST-6601).
+
+    python build_twin.py
+
+ST-6601 is a pass-through (double-door) porous-load steam sterilizer of a hospital sterile services department: a BMT
+Medical Technology STERIVAP HP 669-2 (MMM Group), 6 sterilization modules (STU), 453 l chamber, jacketed, with its own
+integrated electric steam generator (ED version), a two-stage vacuum pump and two independent control/recording systems.
+
+Sources and assumptions (every number below is either from a published source or labelled as an assumption in "source"):
+  BMT STERIVAP HP brochure (Sterivap_hp_EN.pdf, 2025): chamber 700 x 650 x 990 mm (h x w x d), 6 modules, 453 l, ED max input
+    47 kW / 80 A, approx. max consumption per cycle: water 0.08 m3, demineralised water 0.009 m3, steam 9 kg, electric energy
+    7.5 kWh (own steam generator) or 0.4 kWh (central steam); programme "wrapped materials 134 C / 7 min"; vacuum test and
+    Bowie & Dick test programmes; optional air detector; thermal degassing of the generator feed water.
+  HTM 01-01 Part C (England, 2016) and SHTM 01-01 Part C (Scotland, 2018): 134 C band 134-137 C, minimum holding time 3 min;
+    during holding the saturated steam temperature calculated from the chamber pressure must be within the band and within
+    2 C of the measured temperatures; air detector / Bowie-Dick fail at 2 C depression; NCG <= 3.5 %; dryness >= 0.9 (0.95
+    metal); superheat <= 25 C on expansion; vacuum leak test: <= 13 mbar rise in 10 min after 5 min stabilisation, start
+    below 70 mbar abs; equilibration time <= 15 s for chambers up to 800 l.
+  IAPWS-IF97 region 4: saturation temperature Ts(p) (Eq. 31) and saturation pressure ps(T) (Eq. 30).
+  Steam table: hg at 5 bar abs 2748.11 kJ/kg; hf of water at 20 C 83.9 kJ/kg.
+  F0 (lethality in equivalent minutes at 121.1 C, z = 10 K): textbook definition (PDA glossary and others).
+"""
+import json
+from pathlib import Path
+
+HERE = Path(__file__).parent
+
+A = "assumption: typical value, replace with "
+BMT = "BMT STERIVAP HP brochure (EN, 2025), technical parameters, model 669-2"
+HTM = "HTM 01-01 Part C (England) Table 1 and para 2.66 / SHTM 01-01 Part C (Scotland) para 3.98"
+
+twin = {
+    "$comment": "ST-6601 large steam sterilizer twin. Expected values in Maximo Monitor from the data sheet, the UK guidance limits and the IAPWS-IF97 steam equations; the controller sends only what it measures.",
+    "twin": {"id": "ST-6601", "name": "Steam sterilizer ST-6601", "version": "1.0.0", "folder": "autoclave-twin"},
+    "identification": {
+        "asset": "ST-6601", "assetnum": "ST-6601", "manufacturer": "BMT Medical Technology s.r.o. (MMM Group)",
+        "model": "STERIVAP HP 669-2 (ED: own integrated steam generator)",
+        "description": "Pass-through porous-load steam sterilizer, sterile services department, hospital",
+        "type": "Large steam sterilizer to EN 285, pre-vacuum (fractionated vacuum) porous-load cycles, jacketed chamber",
+        "doors": "Two vertical motor-driven doors (loading side in the clean packing room, unloading side in the sterile store)",
+        "control": "Two independent PLC systems (master-slave), each with its own chamber pressure and temperature sensors",
+        "steam": "Integrated electric steam generator fed with thermally degassed demineralised water",
+    },
+    "design": {
+        "chamber": {"height_mm": 700, "width_mm": 650, "depth_mm": 990, "volume_l": 453, "modules_stu": 6,
+                    "external_mm": "1918 x 1300 x 1290 (h x w x d)", "weight_kg": 1080, "max_input_kw": 47, "fuse_a": 80,
+                    "source": BMT + " (dimensions h x w x d, sterilization modules, chamber volume, weight ED, max input / fuses ED)."},
+        "programme": {"name": "Wrapped materials 134 C / 7 min (porous load)", "band_low_c": 134.0, "band_high_c": 137.0,
+                      "hold_s": 420.0, "min_hold_s": 180.0, "setpoint_c": 135.5,
+                      "source": "Hold time 7 min: " + BMT + " (standard validated programmes). Band 134-137 C and minimum holding "
+                                "time 3 min: " + HTM + ". Controller set point 135.5 C: " + A + "the validated set point of your cycle."},
+        "saturation": {"tolerance_k": 2.0, "sensor_tolerance_k": 1.0, "atm_bar": 1.01325,
+                       "source": "Saturated steam temperature from the chamber pressure must agree with the measured temperatures within "
+                                 "2 C: " + HTM + ". Sensor disagreement alert 1.0 K (half the 2 C tolerance): " + A + "your validation."},
+        "lethality": {"t_ref_c": 121.1, "z_k": 10.0,
+                      "source": "F0 = sum of 10^((T - 121.1)/10) x minutes: textbook definition (equivalent minutes at 121.1 C, z = 10 K)."},
+        "tests": {"leak_hold_min": 10.0, "leak_limit_mbar": 13.0, "leak_start_max_mbar": 70.0, "leak_warn_fraction": 0.6,
+                  "leak_every_h": 168.0, "bd_every_h": 24.0, "bd_fail_k": 2.0, "equil_max_s": 15.0,
+                  "source": "Vacuum leak test: <= 13 mbar rise in a 10 min hold after 5 min stabilisation, from below 70 mbar abs, weekly "
+                            "(SHTM 01-01 Part C paras 3.57-3.64, citing EN 285). Bowie-Dick daily, fail at 2 C (HTM 01-01 Part C 1.44). "
+                            "Equilibration time <= 15 s for chambers up to 800 l (SHTM 01-01 Part C 3.98). Early warning at 60 % of the leak "
+                            "limit: " + A + "your trend policy."},
+        "steam_quality": {"ncg_max_pct": 3.5, "dryness_min": 0.9, "dryness_min_metal": 0.95, "superheat_max_k": 25.0,
+                          "supply_nominal_barg": 4.0, "supply_alert_barg": 3.0,
+                          "source": "HTM 01-01 Part C paras 3.20, 3.221, 3.223 and the superheat test result (25 C). Supply nominal 4.0 bar g "
+                                    "as assumed by the HTM superheat test. Supply alert 3.0 bar g: " + A + "the generator set point of your machine."},
+        "jacket": {"above_chamber_nominal_k": 1.5, "above_chamber_alert_k": 4.0,
+                   "source": "Jacket kept slightly hotter than the chamber so the walls do not condense: " + A + "the manufacturer's jacket set point."},
+        "vacuum": {"pulse_min_mbar": 60.0, "alert_mbar": 100.0,
+                   "source": "Deepest vacuum of the air-removal pulses and its alert: " + A + "the values recorded at validation (OQ)."},
+        "utilities": {"steam_max_kg": 9.0, "water_max_l": 80.0, "demin_max_l": 9.0, "energy_max_kwh": 7.5, "energy_base_kwh": 0.4,
+                      "hg_kj_kg": 2748.11, "hf_feed_kj_kg": 83.9, "generator_eff": 0.95,
+                      "steam_alert_ratio": 1.10, "energy_alert_ratio": 1.15,
+                      "source": "Approx. max per cycle: steam 9 kg, water 0.08 m3, demineralised water 0.009 m3, electric energy 7.5 kWh (ED) "
+                                "and 0.4 kWh with central steam (the controls and pump, used here as the base load): " + BMT + ". hg at 5 bar abs "
+                                "(generator at 4 bar g) 2748.11 kJ/kg and hf at 20 C 83.9 kJ/kg: steam tables. Generator efficiency 0.95 and the "
+                                "alert ratios: " + A + "your own metered baseline."},
+        "door_seal": {"life_cycles": 6000,
+                      "source": "Door seal replacement interval in cycles: " + A + "the manufacturer's maintenance schedule (HTM 01-01 Part C 4.67: "
+                                "renew at the recommended interval)."},
+        "demo": {"time_scale": 35, "cycle_s": 90,
+                 "note": "Demo only: one 134 C porous-load cycle (about 50 min on the real machine) runs in 90 s of real time, and the "
+                         "Bowie-Dick and leak test results are refreshed after every cycle so a fault shows within a few cycles."},
+    },
+    "telemetry": {
+        "event": "sterilizer", "publish_every_s": 5, "device_type": "STEAM_STERILIZER_LARGE",
+        "groups": {"Chamber": "Chamber now", "Jacket": "Jacket now", "Steam": "Steam supply", "Door": "Doors and door seal",
+                   "Cycle": "Last completed porous-load cycle (holding stage)", "Use": "Utilities per cycle and counters",
+                   "Test": "Daily Bowie-Dick and weekly vacuum leak tests"},
+        "points": [
+            {"metric": "chamber_pressure_bar_a", "path": "Chamber.Pressure", "label": "Chamber pressure", "unit": "bar abs"},
+            {"metric": "chamber_temp_c", "path": "Chamber.Temperature", "label": "Chamber drain temperature (reference point)", "unit": "°C"},
+            {"metric": "cycle_phase", "path": "Chamber.Phase", "label": "Cycle phase (0 idle, 1 air removal, 2 heat-up, 3 holding, 4 exhaust, 5 drying, 6 air admission)", "unit": "code"},
+            {"metric": "jacket_pressure_bar_a", "path": "Jacket.Pressure", "label": "Jacket pressure", "unit": "bar abs"},
+            {"metric": "steam_supply_bar_g", "path": "Steam.SupplyPressure", "label": "Steam generator / supply pressure", "unit": "bar g"},
+            {"metric": "door_closed", "path": "Door.Closed", "label": "Both doors closed and locked (1 = yes)", "unit": "code"},
+            {"metric": "cyc_hold_pressure_bar_a", "path": "Cycle.HoldPressure", "label": "Mean chamber pressure during holding", "unit": "bar abs"},
+            {"metric": "cyc_hold_temp_mean_c", "path": "Cycle.HoldTempMean", "label": "Mean drain temperature during holding (control sensor)", "unit": "°C"},
+            {"metric": "cyc_hold_temp_min_c", "path": "Cycle.HoldTempMin", "label": "Lowest drain temperature during holding", "unit": "°C"},
+            {"metric": "cyc_hold_temp_max_c", "path": "Cycle.HoldTempMax", "label": "Highest drain temperature during holding", "unit": "°C"},
+            {"metric": "cyc_hold_temp2_mean_c", "path": "Cycle.HoldTempIndependent", "label": "Mean drain temperature during holding (independent recorder)", "unit": "°C"},
+            {"metric": "cyc_hold_time_s", "path": "Cycle.HoldTime", "label": "Holding time achieved (time in the band)", "unit": "s"},
+            {"metric": "cyc_jacket_pressure_bar_a", "path": "Cycle.JacketPressure", "label": "Mean jacket pressure during holding", "unit": "bar abs"},
+            {"metric": "cyc_vac_min_mbar", "path": "Cycle.VacuumMin", "label": "Deepest vacuum of the air-removal pulses", "unit": "mbar abs"},
+            {"metric": "cyc_result", "path": "Cycle.Result", "label": "Controller verdict on the last cycle (1 pass, 0 fail)", "unit": "code"},
+            {"metric": "cyc_steam_kg", "path": "Use.Steam", "label": "Steam used by the last cycle (generator feed meter)", "unit": "kg"},
+            {"metric": "cyc_water_l", "path": "Use.Water", "label": "Cooling / vacuum pump water used by the last cycle", "unit": "l"},
+            {"metric": "cyc_energy_kwh", "path": "Use.Energy", "label": "Electric energy used by the last cycle", "unit": "kWh"},
+            {"metric": "cycles_total", "path": "Use.CyclesTotal", "label": "Cycles since commissioning", "unit": "count"},
+            {"metric": "cycles_since_seal", "path": "Door.CyclesSinceSeal", "label": "Cycles since the door seals were renewed", "unit": "count"},
+            {"metric": "bd_result", "path": "Test.BDResult", "label": "Last Bowie-Dick test (1 pass, 0 fail)", "unit": "code"},
+            {"metric": "bd_delta_t_c", "path": "Test.BDDeltaT", "label": "Bowie-Dick: drain minus test-pack centre at the start of holding", "unit": "K"},
+            {"metric": "bd_equil_time_s", "path": "Test.BDEquilTime", "label": "Bowie-Dick: equilibration time of the test pack", "unit": "s"},
+            {"metric": "bd_hours_since", "path": "Test.BDHoursSince", "label": "Hours since the last Bowie-Dick test", "unit": "h"},
+            {"metric": "lt_rise_mbar", "path": "Test.LeakRise", "label": "Vacuum leak test: pressure rise in the 10 min hold", "unit": "mbar"},
+            {"metric": "lt_start_mbar", "path": "Test.LeakStart", "label": "Vacuum leak test: chamber pressure at the start of the hold", "unit": "mbar abs"},
+            {"metric": "lt_hours_since", "path": "Test.LeakHoursSince", "label": "Hours since the last vacuum leak test", "unit": "h"},
+        ],
+    },
+    "twin_model": {
+        "limits": {
+            "sat_dev_k": 2.0, "sensor_diff_k": 1.0, "leak_limit_mbar": 13.0, "leak_warn_mbar": 7.8, "equil_max_s": 15.0,
+            "bd_fail_k": 2.0, "vac_alert_mbar": 100.0, "jacket_alert_k": 4.0, "supply_alert_barg": 3.0,
+            "steam_alert_ratio": 1.10, "energy_alert_ratio": 1.15, "seal_life_cycles": 6000, "bd_overdue_h": 26.0, "leak_overdue_h": 192.0,
+        },
+    },
+    "failure_modes": {
+        "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+        "door_seal_wear": {"name": "Door seal worn (air leaks in under vacuum)", "part": "door",
+                           "symptoms": "leak test rise up, air in the chamber: drain colder than steam at the measured pressure, Bowie-Dick fails, slow equilibration",
+                           "rules": ["AC_LEAK_FAIL", "AC_AIR_IN_CHAMBER", "AC_BD_FAIL", "AC_EQUILIBRATION_SLOW", "AC_SEAL_LIFE"], "default_ramp_min": 1},
+        "ncg_in_steam": {"name": "Non-condensable gases in the steam (feed water degassing failed)", "part": "steam generator",
+                         "symptoms": "same air signature in the chamber and a failed Bowie-Dick, but the leak test passes",
+                         "rules": ["AC_AIR_IN_CHAMBER", "AC_BD_FAIL", "AC_EQUILIBRATION_SLOW"], "default_ramp_min": 1},
+        "jacket_overheat": {"name": "Jacket too hot (jacket pressure set too high)", "part": "jacket",
+                            "symptoms": "jacket well above the chamber, steam in the chamber superheated: drain hotter than saturation",
+                            "rules": ["AC_SUPERHEAT", "AC_JACKET_HOT"], "default_ramp_min": 1},
+        "vacuum_pump_wear": {"name": "Vacuum pump worn (air removal weak)", "part": "vacuum pump",
+                             "symptoms": "air-removal pulses do not reach their usual depth; cycles get longer", "rules": ["AC_VACUUM_WEAK"], "default_ramp_min": 1},
+        "steam_supply_low": {"name": "Steam supply pressure low (generator heater or supply fault)", "part": "steam generator",
+                             "symptoms": "supply pressure low, chamber cannot reach the 134 C band: cycle fails", "rules": ["AC_SUPPLY_LOW", "AC_HOLD_NOT_MET"], "default_ramp_min": 1},
+        "drain_trap_passing": {"name": "Chamber or jacket drain trap passing steam", "part": "drain",
+                               "symptoms": "steam and energy per cycle above the data sheet maximum, energy per kg of steam normal",
+                               "rules": ["AC_STEAM_HIGH"], "default_ramp_min": 1},
+        "generator_scaling": {"name": "Steam generator heaters scaled", "part": "steam generator",
+                              "symptoms": "more kWh per kg of steam than the steam tables allow", "rules": ["AC_ENERGY_HIGH"], "default_ramp_min": 1.5},
+        "sensor_drift": {"name": "Chamber temperature sensor drift", "part": "instrumentation",
+                         "symptoms": "control and independent recorder disagree", "rules": ["AC_SENSOR_DISAGREE"], "default_ramp_min": 0.5},
+    },
+    "presentation": {"title": "ST-6601 steam sterilizer", "dashboard": "STEAM_STERILIZER_LARGE"},
+}
+
+out = HERE / "twin" / "st-6601.twin.json"
+out.parent.mkdir(exist_ok=True)
+out.write_text(json.dumps(twin, indent=1, ensure_ascii=False), encoding="utf-8")
+print("written", out)

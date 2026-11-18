@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WFI-6701 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>WFI-6701</b><span class="g">Hot WFI loop · temperature · flow · conductivity · TOC</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-temp"><span class="dot"></span><span id="c-temp-t">loop –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Velocity, conductivity and pump curves →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the WFI loop model…</div>
+<div class="credit">10 m³ jacketed storage tank with a heated vent filter, hygienic loop pump, steam heater, a 180 m 316L loop with ten points of use and two point-of-use coolers, conductivity and TOC on the return. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-flow">Flow path</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The loop pipe is coloured by temperature (red hot, blue below 70 °C); the dots follow the water from the pump round the loop and back to the tank, slower when the return velocity falls.</div>
+<aside>
+  <section>
+    <h2>WFI-6701 twin</h2>
+    <p class="sub" id="sub">hot water-for-injection storage and distribution loop</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Loop min °C<b id="k-temp">–</b></div><div>Return m/s<b id="k-vel">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The loop sends only what it measures, and the LIMS sends the sample results. The return velocity, the Reynolds number, the USP &lt;645&gt; Stage 1 limit at the measured temperature, the pump curve pressure and the cooler pressure margin are computed from the twin file.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for WFI-6701: hot WFI tank, loop pump, steam heater, points of use and coolers, analysers and the LIMS results,\nwith injectable faults.\n\nThe real loop sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the expected\nvalues are computed in Monitor from the twin file only. This model only produces believable readings and fault fingerprints\nfor the tests, the figures and the live pages. Pure Python (math, random) so it also runs in the browser.\n\nPhysics of the stand-in (steady state at each reading):\n  The drive raises the supply flow a little when outlets open: Q_s = (Q0 + 0.5 x draw) x pump factor; Q_r = Q_s - draw.\n  The heater holds the supply at its setpoint; the loop loses about 12 kW, so T_return = T_supply - loss / (rho cp Q_r).\n  Pump: dp = (dp0 (n/n0)^2 - k Q^2) x wear factor; shaft power = Q dp / 36 / efficiency.\n  Raw conductivity of hot WFI = C25 x (1 + 0.022 (T - 25)) (assumed ionic temperature coefficient); TOC in ppb.\n  Faults: heater output down (supply to 66 C); draw forced to 9 m3/h; impeller wear (dp x 0.8, flow x 0.85, efficiency x 0.75);\n  seal leak (quench +35 K); cooler pressure reversal and telltale wet; still upset (C25 0.35 -> 1.5, TOC 45 -> 300 ppb);\n  biofilm at a cooled point of use (branch to 45 C, sub-loop cold 30 h, 25 CFU/100 mL, 0.3 EU/mL); vent heater off.\n\"\"\"\nimport math\nimport random\n\nfrom twin_calc import _k, rho\n\n\nclass Loop:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        self.k = _k(twin)\n        d = twin[\"design\"]\n        self.flow_per_draw = d[\"loop\"][\"flow_per_draw\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.nominal()\n\n    def nominal(self):\n        self.draw, self.cooling, self.cold_h, self.cycles, self.level = 0.0, False, 0.3, 16, 62.0\n\n    def vary(self):\n        \"\"\"A random but plausible state over a production day (used by the parity test).\"\"\"\n        r = self.rnd\n        self.draw = r.choice([0.0, 0.0, r.uniform(0.5, 3.5)])\n        self.cooling = r.random() < 0.3\n        self.cold_h, self.cycles, self.level = r.uniform(0, 1.5), r.randint(0, 40), r.uniform(30, 90)\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ---------------------------------------------------------------------------------------------------\n    def true(self):\n        f, k = self.faults, self.k\n        draw = self.draw + (9.0 - self.draw) * f[\"over_draw\"]\n        wear = f[\"pump_wear\"]\n        qs = (k[\"q0\"] + self.flow_per_draw * draw) * (1 - 0.15 * wear)\n        qr = max(0.3, qs - draw)\n        ts = k[\"tset\"] - 16.0 * f[\"heating_loss\"]\n        tank = ts + 0.3\n        loss_kw = 12.0 * (ts - 20) / (k[\"tset\"] - 20)\n        tr = ts - loss_kw / (rho(ts) * k[\"cp\"] * qr / 3600)\n        n = k[\"n0\"]\n        dp = (k[\"dp0\"] * (n / k[\"n0\"]) ** 2 - k[\"kq\"] * qs * qs) * (1 - 0.2 * wear)\n        eff = k[\"eff\"] * (1 - 0.25 * wear)\n        power = qs * dp / 36 / eff\n        quench = k[\"qin\"] + 0.1 * (ts - k[\"qin\"]) + 35.0 * f[\"seal_wear\"]\n        c25 = 0.35 + 1.15 * f[\"generator_upset\"]\n        toc = 45.0 + 255.0 * f[\"generator_upset\"]\n        b = f[\"biofilm_deadleg\"]\n        tmin = min(ts, tr, tank)\n        deadleg = tmin - 3.0 - 33.0 * b\n        cw = 1.5 + 2.5 * f[\"cooler_leak\"]\n        vent = 90.0 - 35.0 * f[\"vent_heater_fail\"]\n        pou = 25.0 if (self.cooling or b > 0.5) else ts - 6.0\n        return {\"qs\": qs, \"qr\": qr, \"ts\": ts, \"tr\": tr, \"tank\": tank, \"dp\": dp, \"power\": power, \"n\": n, \"quench\": quench,\n                \"c25\": c25, \"toc\": toc, \"deadleg\": deadleg, \"cw\": cw, \"telltale\": 1 if f[\"cooler_leak\"] > 0.5 else 0,\n                \"vent\": vent, \"pou\": pou, \"cold_h\": self.cold_h + 30.0 * b, \"micro\": 25.0 * b, \"eu\": 0.01 + 0.29 * b,\n                \"level\": self.level, \"cycles\": self.cycles}\n\n    # one published message ------------------------------------------------------------------------------------------\n    def reading(self, s):\n        ts, tr = s[\"ts\"] + self.n(0.08), s[\"tr\"] + self.n(0.08)\n        sp = 2.0 + s[\"dp\"] - 0.8 + self.n(0.01)\n        return {\n            \"supply_flow_m3h\": round(s[\"qs\"] * (1 + self.n(0.004)), 3),\n            \"return_flow_m3h\": round(s[\"qr\"] * (1 + self.n(0.004)), 3),\n            \"supply_temp_c\": round(ts, 2), \"return_temp_c\": round(tr, 2),\n            \"supply_pressure_bar\": round(sp, 3),\n            \"return_pressure_bar\": round(1.2 + self.n(0.01), 3),\n            \"tank_temp_c\": round(s[\"tank\"] + self.n(0.08), 2),\n            \"tank_level_pct\": round(s[\"level\"], 1),\n            \"vent_filter_temp_c\": round(s[\"vent\"] + self.n(0.2), 2),\n            \"cond_us_cm\": round(max(0.05, s[\"c25\"] * (1 + 0.022 * (tr - 25)) + self.n(0.01)), 3),\n            \"toc_ppb\": round(max(0.03, s[\"toc\"] * (1 + self.n(0.03))), 1),\n            \"pump_speed_rpm\": round(s[\"n\"] + self.n(2), 0),\n            \"pump_dp_bar\": round(s[\"dp\"] + self.n(0.01), 3),\n            \"pump_power_kw\": round(s[\"power\"] * (1 + self.n(0.01)), 3),\n            \"seal_quench_temp_c\": round(s[\"quench\"] + self.n(0.2), 2),\n            \"pou_temp_c\": round(s[\"pou\"] + self.n(0.2), 2),\n            \"cooler_cycles_24h\": s[\"cycles\"],\n            \"subloop_cold_h\": round(s[\"cold_h\"], 2),\n            \"cooler_wfi_bar\": round(sp - 0.6 + self.n(0.01), 3),\n            \"cooler_cw_bar\": round(s[\"cw\"] + self.n(0.01), 3),\n            \"cooler_telltale\": s[\"telltale\"],\n            \"deadleg_temp_c\": round(s[\"deadleg\"] + self.n(0.15), 2),\n            \"micro_cfu_100ml\": float(round(s[\"micro\"])),\n            \"endotoxin_eu_ml\": round(s[\"eu\"], 3),\n        }\n\n    def measure(self, vary=False):\n        if vary:\n            self.vary()\n        else:\n            self.nominal()\n        return self.reading(self.true())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The plant clock runs `demo.time_scale` times faster than real time. Between 06:00 and 22:00 production draws WFI: every\n    30 plant minutes one or two outlets open for 10 minutes (2.5 m3/h), and every other draw is a cooled draw from a point-of-use\n    cooler, after which the sub-loop is hot-flushed. At night the loop only circulates. The tank level falls during the day and\n    the still refills it.\n    \"\"\"\n\n    def __init__(self, twin, seed=6701):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.x = Loop(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = True, 0\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        \"\"\"Back to a healthy loop at once (all faults to zero).\"\"\"\n        for f in self.faults.values():\n            f.sev = f.target = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.x.faults[k] = f.sev\n        self.t += dt * self.scale\n        x = self.x\n        h = (self.t / 3600.0) % 24.0\n        m = (self.t / 60.0) % 30.0\n        day = 6.0 <= h < 22.0\n        slot = int(self.t // 1800)\n        x.draw = 2.5 if day and m < 10.0 else 0.0\n        x.cooling = x.draw > 0 and slot % 2 == 0\n        x.cold_h = (m / 60.0) if x.cooling else 0.0\n        x.cycles = 16                                   # 32 draws a day, every other one cooled\n        x.level = 75.0 - 25.0 * ((h - 6.0) / 16.0) if day else 50.0 + 25.0 * ((h - 22.0) % 24.0) / 8.0\n        return x.true()\n\n    def measure(self, true):\n        return self.x.reading(true)\n", "twin_calc": "\"\"\"The hot WFI loop twin's expectations (WFI-6701, hot water-for-injection storage and distribution loop).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nFlow and turbulence (EU GMP Annex 1 6.9):\n      v = Q / 3600 / (pi/4 x D^2)                      return velocity at the end of the loop, the lowest in the loop\n      Re = rho x v x D / mu                            rho and mu of water at the return temperature\n      rho(T) = 1000 x (1 - (T + 288.9414) / (508929.2 x (T + 68.12963)) x (T - 3.9863)^2)     (Tanaka form, kg/m3)\n      mu(T)  = 2.414e-5 x 10^(247.8 / (T + 273.15 - 140))                                     (Vogel, Pa s)\n  Hot water is very fluid (mu at 80 C is about a third of mu at 20 C), so Re is far above 4000 whenever water moves:\n  the qualified return velocity is the real criterion.\nTemperature (Annex 1 6.10, e.g. constant circulation above 70 C): loop minimum = min(supply, return, tank).\n  Heat lost by the loop = rho x cp x Q x (T_supply - T_return).\nConductivity (USP <645> Stage 1): the raw (non-compensated) conductivity is compared with the table value at the\n  temperature step not greater than the measured temperature (5 C steps, no interpolation):\n      limit = TABLE[floor(T / 5)],   ratio = conductivity / limit\nTOC (USP <643>, Ph. Eur.): ratio = TOC / 500 ppb.\nPump: expected differential pressure dp = dp0 x (n/n0)^2 - k x Q^2; hydraulic power = Q x dp / 36 (kW, Q in m3/h, dp in bar);\n  efficiency = hydraulic power / shaft power. Seal: quench water warms up when hot WFI leaks past the product-side seal.\nCooler (double tube sheet): WFI-side pressure minus chilled water pressure must stay positive; telltale wet = leak.\nDead leg: branch temperature below the loop minimum means the branch does not exchange with the loop.\nVent filter: housing temperature minus tank temperature must stay positive, or vapour condenses on the membrane.\nSample results (LIMS): microbial count / 10 CFU per 100 mL and endotoxin / 0.25 EU/mL.\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    lp, tp, fl, w, q, p = d[\"loop\"], d[\"temperature\"], d[\"flow\"], d[\"water\"], d[\"quality\"], d[\"pump\"]\n    return dict(ds=lp[\"supply_id_mm\"] / 1000, dr=lp[\"return_id_mm\"] / 1000, q0=lp[\"supply_flow_m3h\"],\n                tset=tp[\"supply_setpoint_c\"], cp=w[\"cp_kj_kgk\"], va=w[\"visc_a_pas\"], vb=w[\"visc_b_k\"], vc=w[\"visc_c_k\"],\n                table=list(q[\"usp645_stage1_us_cm\"]), step=q[\"usp645_step_c\"], toc=q[\"toc_limit_ppb\"],\n                eu=q[\"endotoxin_limit_eu_ml\"], cfu=q[\"micro_action_cfu_100ml\"],\n                n0=p[\"speed_rpm\"], dp0=p[\"dp0_bar\"], kq=p[\"k_bar_per_m3h2\"], eff=p[\"eff_design\"], qin=p[\"quench_in_c\"])\n\n\ndef area(dm):\n    return math.pi / 4 * dm * dm\n\n\ndef rho(t):\n    \"\"\"Density of water, kg/m3 (Tanaka et al. 2001 form).\"\"\"\n    return 1000 * (1 - (t + 288.9414) / (508929.2 * (t + 68.12963)) * (t - 3.9863) ** 2)\n\n\ndef mu(k, t):\n    \"\"\"Dynamic viscosity of water, Pa s (Vogel equation).\"\"\"\n    return k[\"va\"] * 10 ** (k[\"vb\"] / (t + 273.15 - k[\"vc\"]))\n\n\ndef stage1(k, t):\n    \"\"\"USP <645> Stage 1 limit at the table step not greater than t (uS/cm).\"\"\"\n    i = min(len(k[\"table\"]) - 1, max(0, int(math.floor(t / k[\"step\"]))))\n    return k[\"table\"][i]\n\n\ndef dp_expected(k, q, n):\n    return k[\"dp0\"] * (n / k[\"n0\"]) ** 2 - k[\"kq\"] * q * q\n\n\ndef _parts(twin):\n    k = _k(twin)\n    TR = \"df['RETURN_TEMP_C']\"\n    RHO = f\"(1000 * (1 - ({TR} + 288.9414) / (508929.2 * ({TR} + 68.12963)) * ({TR} - 3.9863) ** 2))\"\n    MU = f\"({k['va']} * np.power(10, {k['vb']} / ({TR} + {273.15 - k['vc']:.6g})))\"\n    VR = f\"(df['RETURN_FLOW_M3H'] / 3600 / {area(k['dr'])!r})\"\n    LIM = (f\"np.array({k['table']})[np.clip(np.floor({TR} / {k['step']}), 0, {len(k['table']) - 1}).astype(int)]\")\n    DPE = f\"({k['dp0']} * (df['PUMP_SPEED_RPM'] / {k['n0']}) ** 2 - {k['kq']} * df['SUPPLY_FLOW_M3H'] ** 2)\"\n    TMIN = \"np.minimum(np.minimum(df['SUPPLY_TEMP_C'], df['RETURN_TEMP_C']), df['TANK_TEMP_C'])\"\n    return dict(k=k, RHO=RHO, MU=MU, VR=VR, LIM=LIM, DPE=DPE, TMIN=TMIN)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"POU_DRAW_M3H\", \"df['SUPPLY_FLOW_M3H'] - df['RETURN_FLOW_M3H']\"),\n        (\"SUPPLY_VELOCITY_MS\", f\"df['SUPPLY_FLOW_M3H'] / 3600 / {area(k['ds'])!r}\"),\n        (\"RETURN_VELOCITY_MS\", p[\"VR\"]),\n        (\"RETURN_DENSITY_KGM3\", p[\"RHO\"]),\n        (\"RETURN_VISCOSITY_MPAS\", f\"{p['MU']} * 1000\"),\n        (\"RETURN_REYNOLDS\", f\"{p['RHO']} * {p['VR']} * {k['dr']} / {p['MU']}\"),\n        (\"LOOP_MIN_TEMP_C\", p[\"TMIN\"]),\n        (\"LOOP_HEAT_LOSS_KW\", f\"{p['RHO']} * {k['cp']} * df['RETURN_FLOW_M3H'] / 3600 * (df['SUPPLY_TEMP_C'] - df['RETURN_TEMP_C'])\"),\n        (\"COND_STAGE1_LIMIT\", p[\"LIM\"]),\n        (\"COND_RATIO\", f\"df['COND_US_CM'] / {p['LIM']}\"),\n        (\"TOC_RATIO\", f\"df['TOC_PPB'] / {k['toc']}\"),\n        (\"PUMP_DP_EXPECTED_BAR\", p[\"DPE\"]),\n        (\"PUMP_DP_RATIO\", f\"df['PUMP_DP_BAR'] / {p['DPE']}\"),\n        (\"PUMP_EFFICIENCY\", \"df['SUPPLY_FLOW_M3H'] * df['PUMP_DP_BAR'] / 36 / df['PUMP_POWER_KW']\"),\n        (\"SEAL_QUENCH_RISE_C\", f\"df['SEAL_QUENCH_TEMP_C'] - {k['qin']}\"),\n        (\"COOLER_DP_BAR\", \"df['COOLER_WFI_BAR'] - df['COOLER_CW_BAR']\"),\n        (\"DEADLEG_DELTA_C\", f\"{p['TMIN']} - df['DEADLEG_TEMP_C']\"),\n        (\"VENT_FILTER_MARGIN_C\", \"df['VENT_FILTER_TEMP_C'] - df['TANK_TEMP_C']\"),\n        (\"MICRO_RATIO\", f\"df['MICRO_CFU_100ML'] / {k['cfu']}\"),\n        (\"ENDOTOXIN_RATIO\", f\"df['ENDOTOXIN_EU_ML'] / {k['eu']}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    tr = r[\"return_temp_c\"]\n    rh, m = rho(tr), mu(k, tr)\n    vr = r[\"return_flow_m3h\"] / 3600 / area(k[\"dr\"])\n    lim = stage1(k, tr)\n    dpe = dp_expected(k, r[\"supply_flow_m3h\"], r[\"pump_speed_rpm\"])\n    tmin = min(r[\"supply_temp_c\"], tr, r[\"tank_temp_c\"])\n    return {\n        \"pou_draw_m3h\": r[\"supply_flow_m3h\"] - r[\"return_flow_m3h\"],\n        \"supply_velocity_ms\": r[\"supply_flow_m3h\"] / 3600 / area(k[\"ds\"]),\n        \"return_velocity_ms\": vr,\n        \"return_density_kgm3\": rh,\n        \"return_viscosity_mpas\": m * 1000,\n        \"return_reynolds\": rh * vr * k[\"dr\"] / m,\n        \"loop_min_temp_c\": tmin,\n        \"loop_heat_loss_kw\": rh * k[\"cp\"] * r[\"return_flow_m3h\"] / 3600 * (r[\"supply_temp_c\"] - tr),\n        \"cond_stage1_limit\": lim,\n        \"cond_ratio\": r[\"cond_us_cm\"] / lim,\n        \"toc_ratio\": r[\"toc_ppb\"] / k[\"toc\"],\n        \"pump_dp_expected_bar\": dpe,\n        \"pump_dp_ratio\": r[\"pump_dp_bar\"] / dpe,\n        \"pump_efficiency\": r[\"supply_flow_m3h\"] * r[\"pump_dp_bar\"] / 36 / r[\"pump_power_kw\"],\n        \"seal_quench_rise_c\": r[\"seal_quench_temp_c\"] - k[\"qin\"],\n        \"cooler_dp_bar\": r[\"cooler_wfi_bar\"] - r[\"cooler_cw_bar\"],\n        \"deadleg_delta_c\": tmin - r[\"deadleg_temp_c\"],\n        \"vent_filter_margin_c\": r[\"vent_filter_temp_c\"] - r[\"tank_temp_c\"],\n        \"micro_ratio\": r[\"micro_cfu_100ml\"] / k[\"cfu\"],\n        \"endotoxin_ratio\": r[\"endotoxin_eu_ml\"] / k[\"eu\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    TMIN, VR = p[\"TMIN\"], p[\"VR\"]\n    CR = f\"(df['COND_US_CM'] / {p['LIM']})\"\n    DPR = f\"(df['PUMP_DP_BAR'] / {p['DPE']})\"\n    return [\n        (\"WFI_COOLER_LEAK\", \"df['COOLER_TELLTALE'] > 0.5\", \"Critical\", \"cooler_leak\"),\n        (\"WFI_TEMP_LOW\", f\"{TMIN} < {L['temp_low_c']}\", \"High\", \"heating_loss\"),\n        (\"WFI_VELOCITY_LOW\", f\"{VR} < {L['velocity_min_ms']}\", \"High\", \"over_draw\"),\n        (\"WFI_COND_STAGE1_FAIL\", f\"{CR} > 1\", \"High\", \"generator_upset\"),\n        (\"WFI_TOC_LIMIT\", f\"df['TOC_PPB'] > {L['toc_limit_ppb']}\", \"High\", \"generator_upset\"),\n        (\"WFI_MICRO_ACTION\", f\"(df['MICRO_CFU_100ML'] >= {L['micro_action_cfu']}) | (df['ENDOTOXIN_EU_ML'] >= {L['endotoxin_limit_eu_ml']})\", \"High\", \"biofilm_deadleg\"),\n        (\"WFI_COOLER_DP_LOW\", f\"(df['COOLER_WFI_BAR'] - df['COOLER_CW_BAR']) < {L['cooler_dp_min_bar']}\", \"High\", \"cooler_leak\"),\n        (\"WFI_TEMP_MARGIN_LOW\", f\"({TMIN} < {L['temp_margin_c']}) & ({TMIN} >= {L['temp_low_c']})\", \"Medium\", \"heating_loss\"),\n        (\"WFI_COND_ALERT\", f\"({CR} > {L['cond_alert_ratio']}) & ({CR} <= 1)\", \"Medium\", \"generator_upset\"),\n        (\"WFI_TOC_ALERT\", f\"(df['TOC_PPB'] > {L['toc_alert_ppb']}) & (df['TOC_PPB'] <= {L['toc_limit_ppb']})\", \"Medium\", \"generator_upset\"),\n        (\"WFI_PUMP_HEAD_LOW\", f\"{DPR} < {L['pump_head_ratio_min']}\", \"Medium\", \"pump_wear\"),\n        (\"WFI_SEAL_LEAK\", f\"(df['SEAL_QUENCH_TEMP_C'] - {p['k']['qin']}) > {L['seal_rise_max_c']}\", \"Medium\", \"seal_wear\"),\n        (\"WFI_DEADLEG_COLD\", f\"({TMIN} - df['DEADLEG_TEMP_C']) > {L['deadleg_delta_c']}\", \"Medium\", \"biofilm_deadleg\"),\n        (\"WFI_SUBLOOP_SANITISE_DUE\", f\"df['SUBLOOP_COLD_H'] > {L['subloop_cold_max_h']}\", \"Medium\", \"biofilm_deadleg\"),\n        (\"WFI_VENT_FILTER_COLD\", f\"(df['VENT_FILTER_TEMP_C'] - df['TANK_TEMP_C']) < {L['vent_margin_min_c']}\", \"Medium\", \"vent_heater_fail\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    tmin, vr, cr, dpr = t[\"loop_min_temp_c\"], t[\"return_velocity_ms\"], t[\"cond_ratio\"], t[\"pump_dp_ratio\"]\n    add(r[\"cooler_telltale\"] > 0.5, \"WFI_COOLER_LEAK\", \"Critical\", \"Telltale between the cooler tube sheets is wet: a tube sheet leaks; isolate the point of use\",\n        \"cooler\", \"cooler_leak\")\n    add(tmin < L[\"temp_low_c\"], \"WFI_TEMP_LOW\", \"High\", f\"Loop minimum {tmin:.1f} \u00b0C, below {L['temp_low_c']:.0f} \u00b0C: no longer self-sanitising\",\n        \"heater\", \"heating_loss\")\n    add(vr < L[\"velocity_min_ms\"], \"WFI_VELOCITY_LOW\", \"High\", f\"Return velocity {vr:.2f} m/s, below the qualified {L['velocity_min_ms']} m/s \"\n        f\"({t['pou_draw_m3h']:.1f} m\u00b3/h drawn)\", \"points of use\", \"over_draw\")\n    add(cr > 1, \"WFI_COND_STAGE1_FAIL\", \"High\", f\"Conductivity {r['cond_us_cm']:.2f} \u00b5S/cm above the USP <645> Stage 1 limit \"\n        f\"{t['cond_stage1_limit']:.1f} at {r['return_temp_c']:.1f} \u00b0C\", \"water quality\", \"generator_upset\")\n    add(r[\"toc_ppb\"] > L[\"toc_limit_ppb\"], \"WFI_TOC_LIMIT\", \"High\", f\"TOC {r['toc_ppb']:.0f} ppb above {L['toc_limit_ppb']:.0f} ppb\", \"water quality\", \"generator_upset\")\n    add(r[\"micro_cfu_100ml\"] >= L[\"micro_action_cfu\"] or r[\"endotoxin_eu_ml\"] >= L[\"endotoxin_limit_eu_ml\"], \"WFI_MICRO_ACTION\", \"High\",\n        f\"Last sample {r['micro_cfu_100ml']:.0f} CFU/100 mL, endotoxin {r['endotoxin_eu_ml']:.3f} EU/mL: action level reached\", \"points of use\", \"biofilm_deadleg\")\n    add(t[\"cooler_dp_bar\"] < L[\"cooler_dp_min_bar\"], \"WFI_COOLER_DP_LOW\", \"High\", f\"Cooler WFI side only {t['cooler_dp_bar']:+.2f} bar above the chilled water\",\n        \"cooler\", \"cooler_leak\")\n    add(L[\"temp_low_c\"] <= tmin < L[\"temp_margin_c\"], \"WFI_TEMP_MARGIN_LOW\", \"Medium\", f\"Loop minimum {tmin:.1f} \u00b0C, below {L['temp_margin_c']:.0f} \u00b0C\",\n        \"heater\", \"heating_loss\")\n    add(L[\"cond_alert_ratio\"] < cr <= 1, \"WFI_COND_ALERT\", \"Medium\", f\"Conductivity at {cr * 100:.0f} % of the Stage 1 limit\", \"water quality\", \"generator_upset\")\n    add(L[\"toc_alert_ppb\"] < r[\"toc_ppb\"] <= L[\"toc_limit_ppb\"], \"WFI_TOC_ALERT\", \"Medium\", f\"TOC {r['toc_ppb']:.0f} ppb, above the {L['toc_alert_ppb']:.0f} ppb alert level\",\n        \"water quality\", \"generator_upset\")\n    add(dpr < L[\"pump_head_ratio_min\"], \"WFI_PUMP_HEAD_LOW\", \"Medium\", f\"Pump gives {dpr * 100:.0f} % of the curve's pressure at {r['supply_flow_m3h']:.1f} m\u00b3/h\",\n        \"pump\", \"pump_wear\")\n    add(t[\"seal_quench_rise_c\"] > L[\"seal_rise_max_c\"], \"WFI_SEAL_LEAK\", \"Medium\", f\"Seal quench water {t['seal_quench_rise_c']:.0f} K warmer than its inlet\",\n        \"pump seal\", \"seal_wear\")\n    add(t[\"deadleg_delta_c\"] > L[\"deadleg_delta_c\"], \"WFI_DEADLEG_COLD\", \"Medium\", f\"Worst branch {r['deadleg_temp_c']:.1f} \u00b0C, {t['deadleg_delta_c']:.0f} K below the loop\",\n        \"points of use\", \"biofilm_deadleg\")\n    add(r[\"subloop_cold_h\"] > L[\"subloop_cold_max_h\"], \"WFI_SUBLOOP_SANITISE_DUE\", \"Medium\", f\"Cooled sub-loop below 65 \u00b0C for {r['subloop_cold_h']:.1f} h without a hot flush\",\n        \"points of use\", \"biofilm_deadleg\")\n    add(t[\"vent_filter_margin_c\"] < L[\"vent_margin_min_c\"], \"WFI_VENT_FILTER_COLD\", \"Medium\", f\"Vent filter {t['vent_filter_margin_c']:+.1f} K against the tank: condensation risk\",\n        \"tank vent filter\", \"vent_heater_fail\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "WFI-6701 hot WFI storage and distribution loop twin. Expected values and pharmacopoeia limits in Maximo Monitor from the twin file; the loop sends only what it measures and the LIMS sends the sample results.", "twin": {"id": "WFI-6701", "name": "Hot WFI storage and distribution loop WFI-6701", "version": "1.0.0", "folder": "wfi-twin"}, "identification": {"asset": "WFI-6701", "assetnum": "WFI-6701", "manufacturer": "Plant-built 316L loop; Alfa Laval (pump); Veolia Sievers (TOC)", "model": "Hot WFI storage tank and recirculating distribution loop with point-of-use coolers", "description": "Hot water-for-injection storage and distribution loop of a sterile-products plant: tank, loop pump, steam heater, 10 points of use, 2 point-of-use coolers, online conductivity and TOC", "tank": "10 m3 jacketed 316L storage tank, spray ball, heated hydrophobic vent filter", "pump": "Alfa Laval LKH UltraPure hygienic centrifugal pump with a double mechanical seal (water quench), on a variable-speed drive", "heater": "Shell-and-tube steam heater on the loop supply (plant steam on the shell side)", "coolers": "Two point-of-use sub-loops with double tube sheet shell-and-tube coolers (chilled water on the shell side)", "analysers": "Veolia Sievers M500 online TOC analyser and a conductivity sensor with temperature, on the loop return"}, "design": {"loop": {"supply_id_mm": 47.5, "return_id_mm": 34.8, "length_m": 180.0, "points_of_use": 10, "cooled_points": 2, "supply_flow_m3h": 7.0, "flow_per_draw": 0.5, "source": "Internal diameters of ASME BPE 2 in (50.8 x 1.65 mm) and 1.5 in (38.1 x 1.65 mm) tube. Loop length, number of points of use, design supply flow and how the speed control raises the supply flow when outlets open (+0.5 m3/h per m3/h drawn): assumption: typical value, replace with your loop's design documents, qualification report and operating data"}, "temperature": {"supply_setpoint_c": 82.0, "annex1_min_c": 70.0, "margin_alert_c": 75.0, "loop_dt_design_c": 1.5, "source": "EU GMP Annex 1 (2022) 6.10 gives constant circulation above 70 C as an example of storage and distribution that minimises microbial growth: the twin's low limit. Supply setpoint, the 75 C warning and the design temperature drop along the loop: assumption: typical value, replace with your loop's design documents, qualification report and operating data"}, "flow": {"return_velocity_min_ms": 0.9, "reynolds_turbulent": 4000.0, "source": "EU GMP Annex 1 (2022) 6.9: flow turbulent, flow rate set at qualification and monitored. A minimum return velocity of about 0.9 to 1 m/s is commonly applied in design practice: assumption: typical value, replace with your loop's design documents, qualification report and operating data. Re > 4000 is the textbook threshold for fully turbulent pipe flow."}, "water": {"cp_kj_kgk": 4.19, "visc_a_pas": 2.414e-05, "visc_b_k": 247.8, "visc_c_k": 140.0, "source": "Viscosity: Vogel equation mu = A x 10^(B / (T - C)), T in K (textbook approximation, about 1 % at 80 C). Density: Tanaka et al. (2001) form, about 0.1 % at 80 C outside its 0-40 C fit range. cp of hot water: textbook value."}, "quality": {"usp645_stage1_us_cm": [0.6, 0.8, 0.9, 1.0, 1.1, 1.3, 1.4, 1.5, 1.7, 1.8, 1.9, 2.1, 2.2, 2.4, 2.5, 2.7, 2.7, 2.7, 2.7, 2.9, 3.1], "usp645_step_c": 5.0, "usp645_stage2_us_cm": 2.1, "toc_limit_ppb": 500.0, "endotoxin_limit_eu_ml": 0.25, "micro_action_cfu_100ml": 10.0, "cond_alert_ratio": 0.6, "toc_alert_ppb": 250.0, "source": "USP <645> Stage 1 table (non-compensated, next lower 5 C step, no interpolation) and Stage 2 2.1 uS/cm; USP <643> 0.50 mg C/L; Ph. Eur. Water for injections: TOC max 0.5 mg/L, endotoxins < 0.25 IU/mL, microbial action level 10 CFU/100 mL. Alert levels (60 % of the conductivity limit, 250 ppb TOC): assumption: typical value, replace with your loop's design documents, qualification report and operating data; Annex 1 6.13 asks for alert levels based on the qualification data."}, "pump": {"model": "Alfa Laval LKH UltraPure", "speed_rpm": 2900.0, "dp0_bar": 3.4, "k_bar_per_m3h2": 0.012, "eff_design": 0.45, "max_inlet_bar": 5.0, "temp_max_c": 140.0, "quench_lpm": [0.25, 0.5], "quench_in_c": 25.0, "source": "Alfa Laval LKH UltraPure leaflet: 316L wetted parts, Ra <= 0.5 um, EPDM USP Class VI, -10 to +140 C, max inlet 5 bar, double mechanical seal water 0.25-0.5 l/min. Pump curve dp = dp0 x (n/n0)^2 - k x Q^2, design efficiency and quench water inlet temperature: assumption: typical value, replace with your loop's design documents, qualification report and operating data (read them from the pump's own performance curve)."}, "cooler": {"dp_min_bar": 0.5, "type": "double tube sheet shell-and-tube", "source": "Keeping the WFI side at a higher pressure than the cooling water, and a double tube sheet with a telltale drain between the sheets, is common design practice for WFI coolers; Annex 1 6.22 asks that leaks from heating and cooling systems be detectable. Minimum pressure difference 0.5 bar: assumption: typical value, replace with your loop's design documents, qualification report and operating data"}, "deadleg": {"worst_branch_ld": 1.8, "ld_target": 2.0, "delta_alert_c": 10.0, "source": "Branch length / diameter of the worst point-of-use branch, from the isometric drawings: assumption: typical value, replace with your loop's design documents, qualification report and operating data. L/D <= 2 is the dead-leg design target recommended in ASME BPE (L measured from the main pipe wall). Temperature drop alert: assumption: typical value, replace with your loop's design documents, qualification report and operating data"}, "sanitisation": {"subloop_cold_max_h": 8.0, "thermal_range_c": [65.0, 80.0], "source": "USP <1231>: 65-80 C most commonly used for thermal sanitisation. Annex 1 6.12: sanitisation on a predetermined schedule. Maximum time a cooled sub-loop may stay below 65 C before its hot flush: assumption: typical value, replace with your loop's design documents, qualification report and operating data"}, "vent": {"margin_min_c": 3.0, "source": "Annex 1 6.11: prevent condensation on the tank vent filter (e.g. by heating). The heated housing must stay warmer than the tank vapour; minimum margin: assumption: typical value, replace with your loop's design documents, qualification report and operating data"}, "toc_analyser": {"model": "Veolia Sievers M500", "range_ppb": [0.03, 2500.0], "accuracy_pct": 5.0, "accuracy_ppb": 0.1, "sample_c": [1.0, 95.0], "analysis_min": 3.0, "source": "Sievers M500 specification 300 40070 Rev. D: 0.03-2,500 ppb, +-5 % or +-0.1 ppb, sample 1-95 C, 3 min online (base model 6 min), Modbus and 4-20 mA outputs."}, "demo": {"time_scale": 60, "note": "Demo only: the plant clock runs 60 times faster, so a production day of point-of-use draws (06:00 to 22:00) passes in 24 minutes."}}, "telemetry": {"event": "wfiloop", "publish_every_s": 10, "device_type": "WFI_LOOP", "groups": {"Loop": "Loop flows, pressures and temperatures", "Tank": "Storage tank and vent filter", "Quality": "Online analysers on the return", "Pump": "Loop pump and seal", "POU": "Points of use, coolers and dead legs", "Lab": "Sample results from the LIMS"}, "points": [{"metric": "supply_flow_m3h", "path": "Loop.SupplyFlow", "label": "Loop supply flow (after the pump)", "unit": "m\u00b3/h"}, {"metric": "return_flow_m3h", "path": "Loop.ReturnFlow", "label": "Loop return flow (before the tank)", "unit": "m\u00b3/h"}, {"metric": "supply_temp_c", "path": "Loop.SupplyTemp", "label": "Supply temperature after the heater", "unit": "\u00b0C"}, {"metric": "return_temp_c", "path": "Loop.ReturnTemp", "label": "Return temperature (at the analysers)", "unit": "\u00b0C"}, {"metric": "supply_pressure_bar", "path": "Loop.SupplyPressure", "label": "Supply pressure", "unit": "bar g"}, {"metric": "return_pressure_bar", "path": "Loop.ReturnPressure", "label": "Return pressure (before the back-pressure valve)", "unit": "bar g"}, {"metric": "tank_temp_c", "path": "Tank.Temperature", "label": "Storage tank temperature", "unit": "\u00b0C"}, {"metric": "tank_level_pct", "path": "Tank.Level", "label": "Storage tank level", "unit": "%"}, {"metric": "vent_filter_temp_c", "path": "Tank.VentFilterTemp", "label": "Heated vent filter housing temperature", "unit": "\u00b0C"}, {"metric": "cond_us_cm", "path": "Quality.Conductivity", "label": "Return conductivity, not temperature-compensated", "unit": "\u00b5S/cm"}, {"metric": "toc_ppb", "path": "Quality.TOC", "label": "Return TOC (online analyser)", "unit": "ppb C"}, {"metric": "pump_speed_rpm", "path": "Pump.Speed", "label": "Loop pump speed", "unit": "rpm"}, {"metric": "pump_dp_bar", "path": "Pump.DiffPressure", "label": "Loop pump differential pressure", "unit": "bar"}, {"metric": "pump_power_kw", "path": "Pump.Power", "label": "Loop pump shaft power (from the drive)", "unit": "kW"}, {"metric": "seal_quench_temp_c", "path": "Pump.QuenchOutTemp", "label": "Seal quench water outlet temperature", "unit": "\u00b0C"}, {"metric": "pou_temp_c", "path": "POU.CooledTemp", "label": "Cooled point-of-use sub-loop temperature", "unit": "\u00b0C"}, {"metric": "cooler_cycles_24h", "path": "POU.CoolerCycles24h", "label": "Cooled draws in the last 24 h", "unit": "count"}, {"metric": "subloop_cold_h", "path": "POU.SubloopColdHours", "label": "Hours the cooled sub-loop has been below 65 \u00b0C since its last hot flush", "unit": "h"}, {"metric": "cooler_wfi_bar", "path": "POU.CoolerWFIPressure", "label": "Cooler WFI-side pressure", "unit": "bar g"}, {"metric": "cooler_cw_bar", "path": "POU.CoolerCWPressure", "label": "Cooler chilled-water-side pressure", "unit": "bar g"}, {"metric": "cooler_telltale", "path": "POU.CoolerTelltale", "label": "Double tube sheet telltale wet (1 = leak)", "unit": "code"}, {"metric": "deadleg_temp_c", "path": "POU.DeadlegTemp", "label": "Temperature at the worst point-of-use branch", "unit": "\u00b0C"}, {"metric": "micro_cfu_100ml", "path": "Lab.Microbial", "label": "Worst point-of-use microbial count, last sample (R2A)", "unit": "CFU/100 mL"}, {"metric": "endotoxin_eu_ml", "path": "Lab.Endotoxin", "label": "Worst point-of-use endotoxin, last sample", "unit": "EU/mL"}]}, "twin_model": {"limits": {"temp_low_c": 70.0, "temp_margin_c": 75.0, "velocity_min_ms": 0.9, "cond_alert_ratio": 0.6, "toc_alert_ppb": 250.0, "toc_limit_ppb": 500.0, "micro_action_cfu": 10.0, "endotoxin_limit_eu_ml": 0.25, "pump_head_ratio_min": 0.9, "seal_rise_max_c": 20.0, "cooler_dp_min_bar": 0.5, "deadleg_delta_c": 10.0, "subloop_cold_max_h": 8.0, "vent_margin_min_c": 3.0, "$comment": "70 C: Annex 1 6.10 example; 500 ppb, 0.25 EU/mL, 10 CFU/100 mL and the USP <645> table: pharmacopoeia. Other limits: assumptions to be set from the qualification data."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "heating_loss": {"name": "Loop heating loss (steam valve or heater fouled)", "part": "heater", "symptoms": "supply and return temperature fall below 75 C, then below 70 C; the loop is no longer self-sanitising", "rules": ["WFI_TEMP_MARGIN_LOW", "WFI_TEMP_LOW"], "default_ramp_min": 1.5}, "over_draw": {"name": "Too many points of use open at once", "part": "points of use", "symptoms": "draw grows, return flow and return velocity collapse below the qualified minimum", "rules": ["WFI_VELOCITY_LOW"], "default_ramp_min": 0.5}, "pump_wear": {"name": "Loop pump impeller wear", "part": "pump", "symptoms": "differential pressure below the pump curve at the measured flow, efficiency down", "rules": ["WFI_PUMP_HEAD_LOW"], "default_ramp_min": 1.5}, "seal_wear": {"name": "Pump mechanical seal wear (hot WFI into the quench)", "part": "pump seal", "symptoms": "seal quench water outlet temperature rises", "rules": ["WFI_SEAL_LEAK"], "default_ramp_min": 1}, "cooler_leak": {"name": "Point-of-use cooler leak (pressure reversal, tube sheet leak)", "part": "cooler", "symptoms": "chilled water pressure above the WFI side, telltale between the tube sheets wet", "rules": ["WFI_COOLER_DP_LOW", "WFI_COOLER_LEAK"], "default_ramp_min": 1}, "generator_upset": {"name": "Feed or still upset (ionic and organic carry-over)", "part": "water quality", "symptoms": "conductivity above the USP <645> Stage 1 limit at the return temperature, TOC rising", "rules": ["WFI_COND_ALERT", "WFI_COND_STAGE1_FAIL", "WFI_TOC_ALERT", "WFI_TOC_LIMIT"], "default_ramp_min": 1}, "biofilm_deadleg": {"name": "Biofilm at a cooled point of use (dead leg, hot flush skipped)", "part": "points of use", "symptoms": "branch runs cold, sub-loop not hot-flushed, microbial count and endotoxin above action", "rules": ["WFI_DEADLEG_COLD", "WFI_SUBLOOP_SANITISE_DUE", "WFI_MICRO_ACTION"], "default_ramp_min": 1}, "vent_heater_fail": {"name": "Vent filter heater failure", "part": "tank vent filter", "symptoms": "vent filter housing colder than the tank: condensation wets the hydrophobic membrane", "rules": ["WFI_VENT_FILTER_COLD"], "default_ramp_min": 1}}, "presentation": {"title": "WFI-6701 hot WFI loop", "dashboard": "WFI_LOOP"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, showFlow = true;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene (1 unit = 1 m) ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(9, 9, 15); ctl.target.set(2.5, 1.2, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(6, 12, 8); scene.add(sun);
+scene.add(new THREE.GridHelper(30, 30, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .1, roughness: o.r ?? .8, transparent: o.t != null, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xc9ced4, { m: .7, r: .25 }), dark = M(0x3d4249, { m: .3 }), insul = M(0xd7d9dc, { m: .2, r: .5 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const tube = (pts, mat, r = .04) => { const g = new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p)), false, 'catmullrom', 0.01), 160, r, 10, false); const m = new THREE.Mesh(g, mat); scene.add(m); return m; };
+
+// storage tank: 2.2 m diameter, 3 m straight side, dished heads, on legs; jacket band; vent filter on top
+const TX = -3, TZ = 0, TR = 1.1, TH = 3.0, TY = 1.2;
+const shellMat = M(0xc9ced4, { m: .7, r: .25, t: 1 });
+const shell = at(cyl(TR, TR, TH, shellMat, 48), TX, TY + TH / 2, TZ); scene.add(shell);
+const topHead = at(new THREE.Mesh(new THREE.SphereGeometry(TR, 48, 16, 0, Math.PI * 2, 0, Math.PI / 2), shellMat), TX, TY + TH, TZ); topHead.scale.y = .35; scene.add(topHead);
+const botHead = at(new THREE.Mesh(new THREE.SphereGeometry(TR, 48, 16, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), shellMat), TX, TY, TZ); botHead.scale.y = .35; scene.add(botHead);
+const jacket = at(cyl(TR + .04, TR + .04, 1.6, M(0x9aa3ad, { m: .5, r: .4, t: 1 }), 48), TX, TY + .9, TZ); scene.add(jacket);
+[[.8, .8], [-.8, .8], [.8, -.8], [-.8, -.8]].forEach(([dx, dz]) => scene.add(at(cyl(.05, .05, TY, steel, 10), TX + dx, TY / 2 - .2, TZ + dz)));
+const water = cyl(TR - .03, TR - .03, 1, M(0x3d8fe0, { m: .05, r: .2, t: .6 }), 48); scene.add(water); water.visible = false;
+const ventMat = M(0xd9534f, { m: .3, r: .5 });
+const vent = at(cyl(.12, .12, .45, ventMat, 20), TX + .4, TY + TH + .55, TZ); scene.add(vent);
+scene.add(at(cyl(.03, .03, .3, steel, 8), TX + .4, TY + TH + .25, TZ));
+// loop pump (under the tank outlet) and steam heater
+const pumpMat = M(0xb8bec5, { m: .6, r: .3 });
+const PX = -0.6, PY = .35, PZ = 1.0;
+const motor = at(cyl(.16, .16, .55, M(0x8d949c, { m: .4, r: .5 }), 24), PX - .35, PY, PZ); motor.rotation.z = Math.PI / 2; scene.add(motor);
+const casing = at(cyl(.2, .2, .14, pumpMat, 28), PX, PY, PZ); casing.rotation.z = Math.PI / 2; scene.add(casing);
+const sealRing = at(cyl(.08, .08, .08, M(0x2f6db5, { m: .3 })), PX - .12, PY, PZ); sealRing.rotation.z = Math.PI / 2; scene.add(sealRing);
+const HX = .9, HY = .9, HZ = 1.0;
+const heater = at(cyl(.16, .16, 1.4, steel, 24), HX, HY, HZ); heater.rotation.z = Math.PI / 2; scene.add(heater);
+scene.add(at(cyl(.025, .025, .5, M(0xe0a030, { m: .4 })), HX - .4, HY + .4, HZ));
+// loop: from the heater along the room, up to 2.6 m, round the production area and back over the tank top
+const H = 2.6, LX0 = 1.8, LX1 = 11, LZ = 3.2;
+const loopMat = M(0xd04a3c, { m: .5, r: .35 });
+const loopPts = [[PX, PY, PZ], [HX - .7, HY, HZ], [HX + .7, HY, HZ], [LX0, HY, HZ], [LX0, H, HZ], [LX1, H, HZ], [LX1, H, -LZ / 2 - .2], [LX1, H, -LZ], [LX0, H, -LZ], [TX + 1.6, H + 1.6, -LZ], [TX + .5, TY + TH + .3, -.4]];
+const loopPipe = tube(loopPts, loopMat, .045);
+tube([[TX + .5, TY - .3, 0], [TX + .5, .35, .5], [PX - .7, PY, PZ]], loopMat, .055);
+// points of use: drop valves along the two long runs; two with a cooler
+const pous = [];
+for (let i = 0; i < 5; i++) { const x = LX0 + 1.4 + i * 1.8; [HZ, -LZ].forEach(z => { const v = at(box(.12, .18, .12, steel), x, H - .2, z); scene.add(v); scene.add(at(cyl(.025, .025, .9, steel, 8), x, H - .75, z)); pous.push([x, z]); }); }
+const coolerMat = M(0x5a86c5, { m: .4, r: .4 });
+const coolers = [[LX0 + 4.6, -LZ], [LX0 + 8.2, HZ]].map(([x, z]) => { const c = at(cyl(.12, .12, .9, coolerMat, 20), x, 1.2, z + (z > 0 ? .5 : -.5)); c.rotation.x = Math.PI / 2; scene.add(c); return c; });
+// dead-leg branch (sample valve with a temperature sensor) on the far run
+const DLX = LX0 + 6.4, DLZ = -LZ;
+const deadleg = at(cyl(.03, .03, .3, M(0x8a8f96, { m: .5 })), DLX, H - .15, DLZ + .15); deadleg.rotation.x = Math.PI / 2; scene.add(deadleg);
+// analyser panel on the return (conductivity, TOC)
+const ANX = -.4, ANY = 3.2, ANZ = -2.3;
+scene.add(at(box(.7, 1.0, .25, M(0x8a3ffc, { m: .2, r: .5 })), ANX, ANY, ANZ));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.08, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+scene.add(at(beacon, ANX, ANY + .6, ANZ));
+
+// flow dots along the loop
+const curve = new THREE.CatmullRomCurve3(loopPts.map(p => new THREE.Vector3(...p)), false, 'catmullrom', 0.01);
+const N = 90, dots = [], dotMat = new THREE.MeshBasicMaterial({ color: 0xbfe1ff });
+for (let i = 0; i < N; i++) { const d = new THREE.Mesh(new THREE.SphereGeometry(.05, 6, 4), dotMat); d.userData = { s: i / N }; scene.add(d); dots.push(d); }
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('tank', [TX, TY + TH + .9, TZ - .6]); lbl('vent', [TX + .4, TY + TH + 1.0, TZ + .2]); lbl('pump', [PX, PY + .35, PZ + .2]);
+lbl('supply', [HX + .5, HY + .4, HZ]); lbl('ret', [LX0, H + .3, -LZ]); lbl('quality', [ANX, ANY + .9, ANZ]);
+lbl('cooler', [LX0 + 4.6, 1.6, -LZ - .5]); lbl('deadleg', [DLX, H + .3, DLZ]); lbl('draw', [LX1 - 1, H + .3, HZ]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let level = 60, vel = 1.5, tmin = 80;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  level = r.tank_level_pct; vel = t.return_velocity_ms; tmin = t.loop_min_temp_c;
+  setLbl('tank', 'tank temperature · level', `${fmt(r.tank_temp_c, 1)} °C · ${fmt(r.tank_level_pct, 0)} %`, st(r.tank_temp_c < L.temp_low_c, r.tank_temp_c < L.temp_margin_c));
+  setLbl('vent', 'vent filter housing · margin over tank', `${fmt(r.vent_filter_temp_c, 1)} °C · ${fmt(t.vent_filter_margin_c, 1)} K`, st(names.has('WFI_VENT_FILTER_COLD')));
+  setLbl('pump', `pump dp ÷ curve · seal quench +${fmt(t.seal_quench_rise_c, 0)} K`, `${fmt(r.pump_dp_bar)} bar · ${fmt(t.pump_dp_ratio * 100, 0)} %`, st(names.has('WFI_SEAL_LEAK'), names.has('WFI_PUMP_HEAD_LOW')));
+  setLbl('supply', 'supply flow · temperature', `${fmt(r.supply_flow_m3h, 1)} m³/h · ${fmt(r.supply_temp_c, 1)} °C`, st(r.supply_temp_c < L.temp_low_c, r.supply_temp_c < L.temp_margin_c));
+  setLbl('ret', `return · velocity (min ${L.velocity_min_ms}) · Re`, `${fmt(r.return_temp_c, 1)} °C · ${fmt(t.return_velocity_ms)} m/s · ${fmt(t.return_reynolds / 1000, 0)}k`, st(names.has('WFI_VELOCITY_LOW') || names.has('WFI_TEMP_LOW'), names.has('WFI_TEMP_MARGIN_LOW')));
+  setLbl('quality', `conductivity ÷ USP <645> limit ${fmt(t.cond_stage1_limit, 1)} · TOC`, `${fmt(r.cond_us_cm)} µS/cm (${fmt(t.cond_ratio * 100, 0)} %) · ${fmt(r.toc_ppb, 0)} ppb`,
+    st(names.has('WFI_COND_STAGE1_FAIL') || names.has('WFI_TOC_LIMIT'), names.has('WFI_COND_ALERT') || names.has('WFI_TOC_ALERT')));
+  setLbl('cooler', `cooler WFI − chilled water · ${r.cooler_cycles_24h} cooled draws / 24 h`, `${fmt(t.cooler_dp_bar)} bar${r.cooler_telltale ? ' · TELLTALE WET' : ''}`, st(names.has('WFI_COOLER_LEAK') || names.has('WFI_COOLER_DP_LOW')));
+  setLbl('deadleg', `worst branch · ${fmt(t.deadleg_delta_c, 0)} K below the loop`, `${fmt(r.deadleg_temp_c, 1)} °C · ${fmt(r.micro_cfu_100ml, 0)} CFU/100 mL`, st(names.has('WFI_MICRO_ACTION'), names.has('WFI_DEADLEG_COLD') || names.has('WFI_SUBLOOP_SANITISE_DUE')));
+  setLbl('draw', 'drawn at the points of use', `${fmt(t.pou_draw_m3h, 1)} m³/h`, st(names.has('WFI_VELOCITY_LOW')));
+  $('k-health').textContent = ST.health; $('k-temp').textContent = fmt(tmin, 1); $('k-vel').textContent = fmt(vel);
+  $('c-temp-t').textContent = `loop ${fmt(tmin, 1)} °C`; $('c-temp').className = 'chip ' + (tmin < L.temp_low_c ? 'bad' : tmin < L.temp_margin_c ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Loop minimum (°C)', fmt(tmin, 1), '> ' + L.temp_low_c, names.has('WFI_TEMP_LOW')) +
+    row('Return velocity (m/s)', fmt(vel), '≥ ' + L.velocity_min_ms, names.has('WFI_VELOCITY_LOW')) +
+    row('Reynolds number (return)', fmt(t.return_reynolds, 0), '> ' + d.flow.reynolds_turbulent, t.return_reynolds < d.flow.reynolds_turbulent) +
+    row('Conductivity (µS/cm)', fmt(r.cond_us_cm), '≤ ' + fmt(t.cond_stage1_limit, 1), names.has('WFI_COND_STAGE1_FAIL')) +
+    row('TOC (ppb C)', fmt(r.toc_ppb, 0), '≤ ' + L.toc_limit_ppb, names.has('WFI_TOC_LIMIT')) +
+    row('Pump dp (bar)', fmt(r.pump_dp_bar), fmt(t.pump_dp_expected_bar), names.has('WFI_PUMP_HEAD_LOW')) +
+    row('Pump efficiency', fmt(t.pump_efficiency), fmt(d.pump.eff_design), false) +
+    row('Loop heat loss (kW)', fmt(t.loop_heat_loss_kw, 1), '', false) +
+    row('Cooler WFI − CW (bar)', fmt(t.cooler_dp_bar), '≥ ' + L.cooler_dp_min_bar, names.has('WFI_COOLER_DP_LOW')) +
+    row('Seal quench rise (K)', fmt(t.seal_quench_rise_c, 1), '≤ ' + L.seal_rise_max_c, names.has('WFI_SEAL_LEAK')) +
+    row('Vent filter margin (K)', fmt(t.vent_filter_margin_c, 1), '≥ ' + L.vent_margin_min_c, names.has('WFI_VENT_FILTER_COLD')) +
+    row('Microbial (CFU/100 mL)', fmt(r.micro_cfu_100ml, 0), '< ' + L.micro_action_cfu, names.has('WFI_MICRO_ACTION')) +
+    row('Endotoxin (EU/mL)', fmt(r.endotoxin_eu_ml, 3), '< ' + L.endotoxin_limit_eu_ml, r.endotoxin_eu_ml >= L.endotoxin_limit_eu_ml);
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the loop is hot, turbulent and in specification</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  loopMat.color.setHex(tmin < L.temp_low_c ? 0x4a7fd0 : tmin < L.temp_margin_c ? 0xd08a3c : 0xd04a3c);
+  ventMat.color.setHex(names.has('WFI_VENT_FILTER_COLD') ? 0x4a7fd0 : 0xd9534f);
+  sealRing.material.color.setHex(names.has('WFI_SEAL_LEAK') ? 0xda1e28 : 0x2f6db5);
+  coolers.forEach(c => c.material.color.setHex(names.has('WFI_COOLER_LEAK') ? 0xda1e28 : names.has('WFI_COOLER_DP_LOW') ? 0xf1c21b : 0x5a86c5));
+  deadleg.material.color.setHex(names.has('WFI_DEADLEG_COLD') ? 0x6fdc8c : 0x8a8f96);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [shellMat, jacket.material].forEach(m => { m.opacity = cut ? .18 : 1; m.depthWrite = !cut; });
+  water.visible = cut;
+};
+$('t-flow').classList.add('on');
+$('t-flow').onclick = () => { showFlow = !showFlow; $('t-flow').classList.toggle('on', showFlow); dots.forEach(d => d.visible = showFlow); };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shownLvl = 60, last = performance.now();
+function tick(now) {
+  const dt = Math.max(0, Math.min(.1, (now - last) / 1000)); last = now;
+  shownLvl += (level - shownLvl) * Math.min(1, dt * 2);
+  const lh = Math.max(.05, shownLvl / 100 * TH);
+  water.scale.y = lh; water.position.set(TX, TY + lh / 2, TZ);
+  const v = Math.max(.05, vel) * .03;
+  dots.forEach(d => { const u = d.userData; u.s = (((u.s + dt * (v || 0)) % 1) + 1) % 1; if (!isFinite(u.s)) u.s = 0; d.position.copy(curve.getPointAt(u.s)); });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

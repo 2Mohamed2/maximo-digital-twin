@@ -1,0 +1,103 @@
+{
+ "compressor": "Danfoss Maneurop MTZ160-4 (R448A, 50 Hz)",
+ "published": {
+  "en12900": {
+   "to": -10,
+   "tc": 45,
+   "sh": 10,
+   "sc": 0,
+   "q_w": 20140,
+   "p_kw": 9.87,
+   "i_a": 17.11,
+   "cop": 2.04
+  },
+  "ari": {
+   "to": -6.7,
+   "tc": 48.9,
+   "sh": 11.1,
+   "sc": 0,
+   "q_w": 21830,
+   "p_kw": 10.87
+  },
+  "displacement_m3h": 47.25,
+  "rpm": 2900,
+  "cylinders": 4,
+  "t_dis_max_c": 135,
+  "source": "Danfoss application guidelines Maneurop MT/MTZ, AB196386425654en-021701 (2024.02)"
+ },
+ "model": {
+  "clearance": 0.045,
+  "kappa": 1.1,
+  "shell_loss": 0.08,
+  "vol_loss_d": 0.12355,
+  "eta_overall": 0.59985,
+  "check_en12900": {
+   "q_kw": 20.14,
+   "p_kw": 9.87,
+   "t_dis_c": 89.3
+  },
+  "check_ari": {
+   "q_kw": 22.011,
+   "p_kw": 10.985,
+   "t_dis_c": 93.3,
+   "q_dev_pct": 0.83,
+   "p_dev_pct": 1.05
+  }
+ },
+ "polynomial": {
+  "form": "X = c1 + c2 to + c3 tc + c4 to^2 + c5 to tc + c6 tc^2 + c7 to^3 + c8 tc to^2 + c9 to tc^2 + c10 tc^3 (to, tc dew, C)",
+  "range": "to -20 ... 0 C, tc 20 ... 55 C, SH 10 K, SC 0 K",
+  "q_kw": [
+   52.55784,
+   1.9463958,
+   -0.41487961,
+   0.027210035,
+   -0.011603987,
+   -0.0011819895,
+   0.00014118054,
+   -0.00014912024,
+   -3.4307608e-05,
+   3.1219596e-06
+  ],
+  "p_kw": [
+   0.097746845,
+   -0.31382544,
+   0.32571832,
+   -0.0086358457,
+   0.0105305,
+   -0.0012372259,
+   -6.1491949e-05,
+   8.526264e-05,
+   -9.5305173e-06,
+   -6.0642879e-06
+  ],
+  "max_fit_err_pct": {
+   "q": 0.073,
+   "p": 0.151
+  }
+ },
+ "discharge": {
+  "m": 0.17074,
+  "max_fit_err_K": 3.87
+ },
+ "r448a": {
+  "dew": {
+   "A": 10.420419,
+   "B": 2259.6065,
+   "C": 257.25,
+   "max_err_K": 0.144
+  },
+  "bubble": {
+   "A": 10.062484,
+   "B": 2114.7218,
+   "C": 256.75,
+   "max_err_K": 0.113
+  },
+  "rho_liq_poly": [
+   -0.011526884,
+   -3.8993434,
+   1197.0186
+  ],
+  "source": "Hudson Technologies R-448A pressure temperature chart (psig converted to bar a with 1.01325 bar), liquid density table (lb/ft3 x 16.0185); fitted here"
+ }
+}

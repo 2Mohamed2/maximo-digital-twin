@@ -1,0 +1,276 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>FP-6501 Data Path</title>
+<meta name="description" content="Interactive 3D view: how an asset's sensor data travels through the plant control layer, the historian and a one-way DMZ into IBM Maximo Monitor, Health and Manage.">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Full-screen 3D scene, HUD panels float over it; phones get a bottom sheet. Single dark look (IBM Carbon g100). */
+:root{color-scheme:dark;--bg:#161616;--layer:#262626;--layer2:#393939;--line:#525252;--fg:#f4f4f4;--muted:#a8a8a8;--faint:#6f6f6f;
+  --blue:#4589ff;--green:#42be65;--yellow:#f1c21b;--red:#fa4d56;--sans:"IBM Plex Sans","Segoe UI",system-ui,sans-serif;--mono:"IBM Plex Mono",ui-monospace,Consolas,monospace;
+  padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+html,body{height:100%}body{margin:0;background:var(--bg);color:var(--fg);font:14px var(--sans);overflow:hidden}
+#stage{position:fixed;inset:0}#stage canvas{display:block}
+.hud{position:fixed;z-index:5;background:rgba(22,22,22,.86);border:1px solid var(--line);backdrop-filter:blur(6px)}
+#top{top:calc(12px + env(safe-area-inset-top,0px));left:max(16px,env(safe-area-inset-left,0px));max-width:min(560px,calc(100vw - 32px));padding:12px 14px}
+#top h1{margin:0;font-size:18px;font-weight:600;text-wrap:balance}
+#top p{margin:4px 0 10px;color:var(--muted);font-size:12.5px;line-height:1.45}
+#top a{color:#78a9ff}
+.legend{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:11px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}.legend i{width:18px;height:3px;display:inline-block;border-radius:2px}
+#panel{top:calc(12px + env(safe-area-inset-top,0px));right:max(16px,env(safe-area-inset-right,0px));width:340px;max-height:calc(100% - 150px);overflow:auto;padding:14px}
+#panel .x{position:absolute;top:8px;right:8px;padding:2px 8px;font-size:14px;line-height:1}
+#panel .eyebrow{font:500 10.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+#panel h2{margin:4px 0 6px;font-size:16px;font-weight:600}
+#panel .what{color:var(--muted);font-size:12.5px;line-height:1.5;margin:0 0 10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:5px 10px;font-size:12px;margin:8px 0 4px}.kv dt{color:var(--muted)}
+.kv dd{margin:0;font-family:var(--mono);font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.chip{font:11px var(--mono);padding:2px 7px;border:1px solid var(--line)}
+#bottom{left:50%;transform:translateX(-50%);bottom:calc(12px + env(safe-area-inset-bottom,0px));display:flex;flex-wrap:wrap;gap:10px;align-items:stretch;padding:10px 12px;max-width:calc(100vw - 32px)}
+.tile{min-width:140px;padding:6px 10px;border-left:3px solid var(--green);background:var(--layer)}
+.tile .lab{font:500 10px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+.tile .val{font:500 18px var(--mono);font-variant-numeric:tabular-nums;margin-top:2px}.tile .sub{font-size:11px;color:var(--muted)}
+.tile.warn{border-left-color:var(--yellow)}.tile.bad{border-left-color:var(--red)}
+.btns{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+button,.btn{font:500 12.5px var(--sans);color:var(--fg);background:var(--layer2);border:1px solid var(--line);padding:8px 12px;cursor:pointer;text-decoration:none}
+button:hover,.btn:hover{border-color:var(--blue)}button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+button.primary{background:var(--blue);border-color:var(--blue);color:#fff}button.danger{border-color:var(--red);color:#ffb3b8}
+.lbl{font:500 11px var(--sans);color:var(--fg);background:rgba(22,22,22,.82);border:1px solid var(--line);padding:2px 7px;white-space:nowrap;cursor:pointer;pointer-events:auto}
+.lbl small{display:block;font:10px var(--mono);color:var(--muted)}.lbl.sel{border-color:var(--blue)}
+.lbl.alarm{border-color:var(--yellow);color:var(--yellow)}.lbl.lock{border-color:var(--red);color:#ffb3b8}
+.zone{font:600 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--muted);white-space:nowrap;text-align:center;pointer-events:none}
+.zone b{display:block;font-weight:500;letter-spacing:.02em;text-transform:none;color:var(--faint);font-size:10px}
+#events{margin-top:10px;border-top:1px solid var(--line);padding-top:8px;font:11px var(--mono);color:var(--muted);max-height:160px;overflow:auto}
+#events div{padding:2px 0}#events .w{color:var(--yellow)}#events .r{color:#ffb3b8}#events .g{color:var(--green)}
+.note{font-size:11px;color:var(--faint);margin-top:8px;line-height:1.4}
+@media (max-width:760px){#top p,.legend{display:none}
+  #panel{top:auto;bottom:calc(118px + env(safe-area-inset-bottom,0px));left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));width:auto;max-height:34%}
+  #bottom{left:max(16px,env(safe-area-inset-left,0px));right:max(16px,env(safe-area-inset-right,0px));transform:none;max-width:none}.tile{min-width:0;flex:1 1 40%}}
+</style>
+</head>
+<body>
+<div id="stage" aria-label="3D view of the asset data path from the field to Maximo"></div>
+<div id="top" class="hud"><h1 id="h1"></h1><p id="intro"></p><div class="legend" id="legend"></div></div>
+<aside id="panel" class="hud" aria-live="polite"></aside>
+<div id="bottom" class="hud">
+  <div class="tile" id="t-val"><div class="lab" id="l-val"></div><div class="val" id="v-val"></div><div class="sub" id="s-val"></div></div>
+  <div class="tile" id="t-scada"><div class="lab" id="l-scada"></div><div class="val" id="v-scada">Normal</div><div class="sub">alarms only</div></div>
+  <div class="tile" id="t-health"><div class="lab">Maximo Health</div><div class="val" id="v-health">92</div><div class="sub" id="v-hsub">trend: stable</div></div>
+  <div class="btns">
+    <button class="danger" id="b-fault" type="button"></button>
+    <button id="b-send" type="button">Send readings</button>
+    <button id="b-fix" type="button">Repair</button>
+    <button id="b-rot" type="button" aria-pressed="false">Auto-rotate</button>
+    <a class="btn" id="b-twin" target="_blank" rel="noopener">Open the twin ↗</a>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/renderers/CSS2DRenderer.js"></script>
+<script>
+(() => {
+'use strict';
+const CFG = {"asset": {"id": "FP-6501", "desc": "Electric fire pump of the sprinkler and standpipe system of a distribution warehouse (one pump, city water supply)", "model": "A-C Fire Pump 8100 Series 8x6x18F horizontal split-case fire pump, curve A-8853, 16 in impeller", "groups": ["Pump", "Controller", "Motor", "Jockey", "Churn", "FlowTest", "Room", "Test"], "glyph": "pump"}, "scen": {"glyph": "pump", "fault": "Impeller and wear-ring wear", "metric": "Annual flow test, worst point ÷ listed curve", "unit": "×", "fmt": 2, "normal": 1.0, "warn": 0.97, "trip": 0.95, "dir": -1, "s1": "Annual flow test below 95 % of the curve", "s2": "Fire pump impaired: fire watch and insurer notified", "wo": "Open the upper casing, renew the wear rings, check the impeller, repeat the flow test", "domain": "firepump_fls"}, "dom": {"sees": "Fire alarm panel sees", "proto": {"wire": "Hard-wired supervisory contacts (pump running, power failure, phase reversal)", "ana": "Pressure transducer in the controller", "p1": "Modbus RTU/TCP or BACnet from the controller to the BMS", "p2": "BACnet/IP / OPC UA to the facility platform"}, "zones": ["pump room: fire pump + jockey + instruments", "fire pump controller", "fire alarm panel / BMS", "facility operations (OT)"], "ctl": ["Fire pump controller", "listed controller, start logic, event log", "Starts the fire pump when the system pressure falls to its start setting, runs the scheduled churn test, and logs every start with its pressure and time to run. Its communication module exposes pressures, states and counters."], "cm": ["Test rig and flow meter", "test header, flow meter, gauges", "Used at the annual flow test: flow through the test header, suction and discharge pressure and speed at each point. The results usually live on a paper or PDF test form."], "gw": ["Fire alarm panel and BMS", "supervisory signals and building trends", "The fire alarm panel receives pump running, power and phase alarms as supervisory signals; the BMS keeps short trends of the pressures. Neither compares the pump with its listed curve."], "hmi": ["Facility operator screen", "fire and life safety overview", "The facility team's screens: fire alarm events, supervisory signals and the pump room status."], "scada": ["Facility management platform", "portfolio of buildings", "Collects alarms and energy data across the sites. Built for operations and compliance logs, not for pump health."], "wall": ["Facility dashboard", "sites overview"]}, "post": "https://community.ibm.com/community/user/blogs/mohamed-chihaoui/2026/11/18/fire-pump-digital-twin-in-maximo", "code": "https://github.com/2Mohamed2/maximo-digital-twin/tree/main/firepump-twin", "twin": "../fp-6501-twin/"};
+const A = CFG.asset, S = CFG.scen, D = CFG.dom;
+const C = { blue: 0x4589ff, green: 0x42be65, yellow: 0xf1c21b, red: 0xfa4d56, purple: 0xa56eff, teal: 0x08bdba, cyan: 0x33b1ff, magenta: 0xff7eb6 };
+const PROTO = { wire: { name: D.proto.wire, color: C.yellow }, ana: { name: D.proto.ana, color: C.teal }, p1: { name: D.proto.p1, color: C.blue },
+  p2: { name: D.proto.p2, color: C.purple }, hist: { name: 'Historian replication', color: C.cyan }, mqtt: { name: 'MQTT / REST', color: C.green }, mx: { name: 'Maximo internal', color: C.magenta } };
+const hex = c => '#' + c.toString(16).padStart(6, '0');
+const $ = id => document.getElementById(id);
+$('h1').textContent = `${A.id}: where its data goes`;
+$('intro').innerHTML = `From the sensors on ${A.id} · ${A.desc}, through the ${D.ctl[0]}, the ${D.gw[0]} and ${D.scada[0].split(' / ')[0]}, across the DMZ and into Maximo. Drag to orbit, scroll to zoom, click any box. Values are typical examples. <a href="${CFG.post}" target="_blank" rel="noopener">Read the post</a> · <a href="${CFG.code}" target="_blank" rel="noopener">Twin code</a>`;
+$('legend').innerHTML = Object.values(PROTO).map(p => `<span><i style="background:${hex(p.color)}"></i>${p.name}</span>`).join('');
+$('l-val').textContent = S.metric; $('l-scada').textContent = D.sees; $('b-fault').textContent = 'Start: ' + S.fault.toLowerCase();
+$('b-twin').href = CFG.twin;
+const fmt = v => Number(v).toFixed(S.fmt) + ' ' + S.unit;
+$('s-val').textContent = `alarm ${fmt(S.warn)} · trip ${fmt(S.trip)}`;
+
+// renderer
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true }); renderer.setPixelRatio(Math.min(devicePixelRatio, 2)); renderer.setClearColor(0x161616); stage.appendChild(renderer.domElement);
+const labels = new THREE.CSS2DRenderer(); labels.domElement.style.cssText = 'position:absolute;top:0;pointer-events:none'; stage.appendChild(labels.domElement);
+const scene = new THREE.Scene(); scene.fog = new THREE.Fog(0x161616, 80, 160);
+const camera = new THREE.PerspectiveCamera(42, 1, 0.1, 400); camera.position.set(-2, 40, 70);
+const controls = new THREE.OrbitControls(camera, renderer.domElement); controls.target.set(7, 1, 0); controls.enableDamping = true; controls.maxPolarAngle = Math.PI * 0.47; controls.minDistance = 12; controls.maxDistance = 120;
+scene.add(new THREE.HemisphereLight(0xcfe0ff, 0x202020, 0.75)); const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(-20, 40, 25); scene.add(sun);
+scene.add(new THREE.GridHelper(120, 60, 0x333333, 0x262626));
+const mat = (color, o = {}) => new THREE.MeshStandardMaterial({ color, roughness: o.r ?? 0.6, metalness: o.m ?? 0.2, emissive: o.e ?? 0, emissiveIntensity: o.ei ?? 1, transparent: !!o.t, opacity: o.t ?? 1 });
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const cyl = (rt, rb, h, m, seg = 24) => new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+function label(h, cls = 'lbl') { const d = document.createElement('div'); d.className = cls; d.innerHTML = h; return new THREE.CSS2DObject(d); }
+
+// Purdue zones
+const ZONES = [{ x: -30, w: 12, n: 'Level 0' }, { x: -17, w: 10, n: 'Level 1' }, { x: -5, w: 12, n: 'Level 2' }, { x: 8.5, w: 13, n: 'Level 3' }, { x: 19.5, w: 7, n: 'DMZ', s: 'one-way out' }, { x: 31, w: 14, n: 'Level 4', s: 'enterprise IT · Maximo' }];
+ZONES.forEach((z, i) => {
+  const tint = z.n === 'DMZ' ? C.red : i >= 5 ? C.green : C.blue;
+  const pl = new THREE.Mesh(new THREE.PlaneGeometry(z.w - .6, 26), new THREE.MeshBasicMaterial({ color: tint, transparent: true, opacity: z.n === 'DMZ' ? .07 : .035, depthWrite: false }));
+  pl.rotation.x = -Math.PI / 2; pl.position.set(z.x, .02, 0); scene.add(pl);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.PlaneGeometry(z.w - .6, 26)), new THREE.LineBasicMaterial({ color: tint, transparent: true, opacity: .35 }));
+  e.rotation.x = -Math.PI / 2; e.position.copy(pl.position); scene.add(e);
+  const l = label(`${z.n}<b>${z.s || D.zones[i]}</b>`, 'zone'); l.position.set(z.x, .1, 14.5); scene.add(l);
+});
+
+// asset glyphs (schematic, typical proportions)
+const steel = mat(0xb4b4b4, { m: .55, r: .35 }), dark = mat(0x6f6f6f, { m: .4 }), blueM = mat(0x4a6fa5, { m: .3 }), porc = mat(0x7a5a46, { r: .7 }), glass = mat(0x9ec5ff, { t: .35, r: .2 });
+const GLYPH = {
+  pump: g => { g.add(at(box(7, .4, 3, dark), 0, .2, 0)); const v = cyl(1.6, 1.6, 1.4, blueM); v.rotation.x = Math.PI / 2; g.add(at(v, -1.8, 2, 0)); const m = cyl(1.1, 1.1, 3.6, blueM); m.rotation.z = Math.PI / 2; g.add(at(m, 1.6, 1.6, 0)); const p = cyl(.5, .5, 3, steel); g.add(at(p, -1.8, 4, 0)); },
+  chiller: g => { [-1.3, 1.3].forEach(z => { const s = cyl(1.1, 1.1, 7, steel); s.rotation.z = Math.PI / 2; g.add(at(s, 0, 1.4, z)); }); g.add(at(box(2.4, 2, 2, blueM), -1, 3.6, 0)); g.add(at(box(1.6, 2.4, 1.2, dark), 3.6, 1.2, 2.6)); },
+  tower: g => { g.add(at(box(6, 6, 4, mat(0x8fa3b8, { m: .3 })), 0, 3, 0)); const f = cyl(1.6, 1.6, .6, dark); g.add(at(f, 0, 6.4, 0)); g.add(at(box(6.4, .5, 4.4, dark), 0, .25, 0)); },
+  valve: g => { const p = cyl(.7, .7, 9, steel); p.rotation.z = Math.PI / 2; g.add(at(p, 0, 1.5, 0)); g.add(at(new THREE.Mesh(new THREE.SphereGeometry(1.2, 20, 14), blueM), 0, 1.5, 0)); g.add(at(cyl(.2, .2, 2, steel), 0, 3.2, 0)); g.add(at(box(1.6, 1.6, 1.6, mat(0x2b5aa8)), 0, 4.8, 0)); },
+  turbine: g => { const c = cyl(1.6, 2.2, 8, steel); c.rotation.z = Math.PI / 2; g.add(at(c, -.5, 2.4, 0)); g.add(at(box(3, 4.5, 3.4, dark), 5, 2.25, 0)); g.add(at(box(2.4, 3, 3, blueM), -6, 1.5, 0)); g.add(at(cyl(.9, .9, 3, dark), 3.6, 5, 0)); },
+  transformer: g => { g.add(at(box(4, 4, 3, mat(0x7d8a7a, { m: .3 })), 0, 2, 0)); [-1.2, 0, 1.2].forEach(x => { g.add(at(cyl(.22, .32, 2.4, porc, 12), x, 5.2, 0)); }); [-2.6, 2.6].forEach(x => { for (let i = 0; i < 4; i++) g.add(at(box(.15, 3, 2.4, dark), x + (x < 0 ? -1 : 1) * i * .3, 2, 0)); }); },
+  cable: g => { g.add(at(box(10, .4, 2.6, mat(0x5b4a3a)), 0, .2, 0)); [-.7, 0, .7].forEach(z => { const c = cyl(.25, .25, 10, mat(0x222222)); c.rotation.z = Math.PI / 2; g.add(at(c, 0, .6, z)); }); g.add(at(box(1.4, 3, 1.4, dark), -4.6, 1.5, 0)); g.add(at(cyl(.18, .26, 2.2, porc, 12), -4.6, 4, 0)); },
+  line: g => { [-4, 4].forEach(x => { g.add(at(box(.4, 8, .4, dark), x, 4, 0)); g.add(at(box(.3, .3, 4, dark), x, 7.6, 0)); }); const pts = []; for (let i = 0; i <= 20; i++) { const t = i / 20; pts.push(new THREE.Vector3(-4 + 8 * t, 7.4 - 1.6 * Math.sin(Math.PI * t), 1.6)); } g.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts), 40, .06, 6, false), mat(0x9a9a9a))); },
+  battery: g => { for (let r = 0; r < 3; r++) { g.add(at(box(6, .2, 1.4, dark), 0, .9 + r * 1.4, 0)); for (let i = 0; i < 8; i++) g.add(at(box(.6, 1, .9, mat(r === 1 && i === 5 ? 0x8a6d1d : 0x3d3d3d)), -2.6 + i * .75, 1.5 + r * 1.4, 0)); } },
+  capbank: g => { g.add(at(box(6, .3, 3, dark), 0, 3, 0)); [0, 1].forEach(r => { for (let i = 0; i < 6; i++) g.add(at(box(.7, 1.6, .5, mat(0xa0a0a0, { m: .5 })), -2.4 + i * .95, 3.95, -.7 + r * 1.4)); }); [-2.6, 2.6].forEach(x => g.add(at(box(.25, 3, .25, dark), x, 1.5, 0))); },
+  ro: g => { for (let r = 0; r < 3; r++) for (let i = 0; i < 2; i++) { const v = cyl(.45, .45, 7, mat(0xe0e0e0, { m: .2 })); v.rotation.z = Math.PI / 2; g.add(at(v, 0, 1 + r * 1.1, -.6 + i * 1.2)); } g.add(at(box(1.6, 1.6, 1.6, blueM), -4.6, .8, 0)); },
+  blower: g => { g.add(at(box(4, 3, 2.6, mat(0x4f6f8f, { m: .3 })), 0, 1.5, 0)); const d = cyl(.6, .6, 4, steel); d.rotation.z = Math.PI / 2; g.add(at(d, 3.6, 2.4, 0)); g.add(at(box(1.4, 2.4, 1.6, dark), -2.8, 1.2, 0)); },
+  filter: g => { g.add(at(box(8, 2.2, 4.4, mat(0x6f7a85, { r: .8 })), 0, 1.1, 0)); g.add(at(box(7.6, .2, 4, mat(0x3b6ea8, { t: .7 })), 0, 2.15, 0)); g.add(at(box(1, .6, 4.6, dark), 0, 2.6, 0)); },
+  pipeline: g => { const p = cyl(.8, .8, 11, mat(0x3f5f7f, { m: .3 })); p.rotation.z = Math.PI / 2; g.add(at(p, 0, 1, 0)); [-3, 2].forEach(x => g.add(at(box(.6, 1.6, 2, dark), x, 1, 0))); g.add(at(box(1.4, 1.4, 1.4, blueM), 4.6, 2.2, 0)); },
+  recip: g => { g.add(at(box(6, .6, 2.4, dark), 0, .3, 0)); g.add(at(box(2.4, 1.6, 2, blueM), 0, 1.4, 0)); [-1, 1].forEach(s => { const c = cyl(.75, .75, 2.2, steel); c.rotation.z = Math.PI / 2; g.add(at(c, s * 2.6, 1.4, 0)); g.add(at(cyl(.25, .25, .8, dark), s * 2.6, 2.5, 0)); }); },
+  heater: g => { g.add(at(box(4, 5, 3, mat(0x7a5a46, { r: .8 })), 0, 2.5, 0)); g.add(at(box(2.4, 1.4, 2, dark), 0, 5.7, 0)); g.add(at(cyl(.5, .6, 4, steel), 0, 8.4, 0)); for (let i = 0; i < 4; i++) g.add(at(cyl(.12, .12, .5, mat(0xff8a3d, { e: 0xff6a00, ei: .8 })), -1.2 + i * .8, .25, 0)); },
+  tank: g => { g.add(at(cyl(3.2, 3.2, 4, mat(0xd0d4d8, { m: .3 })), 0, 2, 0)); g.add(at(cyl(3.1, 3.1, .15, dark), 0, 3.3, 0)); g.add(at(box(.2, 4.6, .2, dark), 3.4, 2.3, 0)); },
+  wind: g => { g.add(at(cyl(.35, .55, 9, mat(0xe8e8e8, { m: .2 })), 0, 4.5, 0)); g.add(at(box(2.4, .9, .9, mat(0xe8e8e8, { m: .2 })), .4, 9.3, 0)); const h = new THREE.Group(); at(h, -.9, 9.3, 0); for (let i = 0; i < 3; i++) { const b = box(.12, 4, .35, mat(0xf4f4f4)); b.position.y = 2; const r = new THREE.Group(); r.rotation.x = i * 2 * Math.PI / 3; r.add(b); h.add(r); } g.add(h); },
+  pv: g => { for (let r = 0; r < 2; r++) for (let i = 0; i < 4; i++) { const p = box(1.6, .08, 1, mat(0x1d3b6e, { m: .3, r: .2 })); p.rotation.x = -.45; g.add(at(p, -2.6 + i * 1.75, 1.1, -1 + r * 2)); } g.add(at(box(1.2, 1.4, .8, mat(0xc6c6c6)), 4.4, .7, 0)); },
+  pumpjack: g => { g.add(at(box(6, .3, 1.6, dark), 0, .15, 0)); g.add(at(box(.3, 3.4, .3, dark), 0, 1.8, 0)); g.add(at(box(6, .35, .35, mat(0x2b5aa8)), .3, 3.6, 0)); g.add(at(box(.6, 1.6, .6, mat(0x2b5aa8)), 3.4, 3.2, 0)); g.add(at(cyl(.06, .06, 3.2, steel), 3.5, 1.6, 0)); g.add(at(box(1.2, 1, 1.2, blueM), -2.4, .8, 0)); },
+  uv: g => { const r = cyl(.9, .9, 6, steel); r.rotation.z = Math.PI / 2; g.add(at(r, 0, 2, 0)); [-4, 4].forEach(x => { const f = cyl(.6, .6, 2, steel); f.rotation.z = Math.PI / 2; g.add(at(f, x, 2, 0)); }); g.add(at(box(1.6, 2.4, 1, dark), 0, 1.2, 2)); g.add(at(cyl(.12, .12, 5.6, mat(0x8fd1ff, { e: 0x4fa3ff, ei: .6 })), 0, 2, 0).rotateZ(Math.PI / 2)); },
+};
+
+// nodes
+const nodes = {}, pickables = [];
+function node(id, group, pos, title, sub, info) {
+  group.position.copy(pos); group.userData.id = id; scene.add(group);
+  group.traverse(o => { if (o.isMesh) { o.userData.id = id; pickables.push(o); } });
+  const l = label(`${title}<small>${sub}</small>`); const top = new THREE.Box3().setFromObject(group).max.y;
+  l.position.set(pos.x, top + 1.2, pos.z); scene.add(l); l.element.addEventListener('click', e => { e.stopPropagation(); select(id); });
+  nodes[id] = { group, lbl: l, info, lamps: [] }; return nodes[id];
+}
+function lamp(n, x, y, z, color = C.green, r = .18) { const m = new THREE.Mesh(new THREE.SphereGeometry(r, 16, 12), new THREE.MeshStandardMaterial({ color, emissive: color, emissiveIntensity: 1.2 })); m.position.set(x, y, z); n.group.add(m); m.userData.id = n.group.userData.id; n.lamps.push(m); pickables.push(m); return m; }
+const setLamp = (m, c) => { m.material.color.setHex(c); m.material.emissive.setHex(c); };
+function cabinet(w, h, d, face = 0x393939) { const g = new THREE.Group(); g.add(at(box(w, h, d, mat(0x4c4c4c, { m: .4, r: .5 })), 0, h / 2, 0)); g.add(at(box(w * .86, h * .8, .05, mat(face, { r: .4 })), 0, h / 2, d / 2 + .03)); return g; }
+function screen(w, h, color) { const g = new THREE.Group(); g.add(box(w + .2, h + .2, .15, mat(0x1f1f1f))); const s = new THREE.Mesh(new THREE.PlaneGeometry(w, h), new THREE.MeshBasicMaterial({ color })); s.position.z = .08; g.add(s); g.userData.screen = s; return g; }
+
+const ag = new THREE.Group(); (GLYPH[A.glyph] || GLYPH.pump)(ag);
+const N_A = node('asset', ag, new THREE.Vector3(-30, 0, 0), A.id, A.desc.length > 34 ? A.desc.slice(0, 33) + '…' : A.desc, {
+  eyebrow: 'Level 0 · field', title: `${A.id} · ${A.desc}`,
+  what: `${A.model}. Its sensors are wired to the local control layer. Schematic shape, not manufacturer CAD.`,
+  kv: [['Watched here', S.metric], ['Alarm at', fmt(S.warn)], ['Trip at', fmt(S.trip)], ['Sensor groups', A.groups.join(', ')]], chips: A.groups });
+const bb = new THREE.Box3().setFromObject(ag); for (let i = 0; i < 3; i++) lamp(N_A, -2 + i * 2, bb.max.y + .35, 0, C.green, .2);
+const mk = (id, g, x, z, t, info, l) => { const n = node(id, g, new THREE.Vector3(x, 0, z), t[0], t[1], { eyebrow: info[0], title: t[0], what: t[2] || info[1], kv: info[2] || [], chips: info[3] || [] }); if (l) lamp(n, ...l); return n; };
+const N_C = mk('ctl', cabinet(2.2, 4.2, 1.4), -18.5, -4, D.ctl, ['Level 1 · local control', '', [['Publishes', D.proto.p1]], ['alarms', 'status', 'values']], [0, 3.4, .76]);
+const N_M = mk('cm', cabinet(2, 3.4, 1.2, 0x24324a), -16, 5, D.cm, ['Level 1 · condition monitoring', '', [['Keeps', 'the continuous trend']], ['trend', 'events']], [0, 2.8, .66]);
+const N_G = mk('gw', cabinet(1.8, 4.6, 1.4), -6.5, 0, D.gw, ['Level 2', '', [['Upstream', D.proto.p2], ['Typical points sent', `${S.s1}, ${S.s2}, status`]]], [0, 3.9, .76]);
+const hg = new THREE.Group(); hg.add(at(box(3.2, 1.1, 1.6, mat(0x4c4c4c)), 0, .55, 0)); const hs = screen(2.4, 1.4, 0x0f2a1a); hs.position.set(0, 2, -.2); hg.add(hs);
+const N_H = mk('hmi', hg, -3, 7, D.hmi, ['Level 2', '']);
+const N_S = mk('scada', cabinet(2.2, 5, 1.6, 0x2a2440), 5.5, -3, D.scada, ['Level 3 · operations', '', [['Sees for ' + A.id, `${S.s1} / ${S.s2}`], ['Usually not', 'the trend behind them']]], [0, 4.3, .86]);
+const wg = new THREE.Group(); const ws = screen(7, 3, 0x10233f); ws.position.y = 3.6; wg.add(ws); wg.add(at(box(.3, 2.2, .3, mat(0x4c4c4c)), -3, 1.1, 0)); wg.add(at(box(.3, 2.2, .3, mat(0x4c4c4c)), 3, 1.1, 0));
+const N_W = mk('wall', wg, 9.5, -8.5, [D.wall[0], D.wall[1], 'The overview the operators watch. Alarms from ' + A.id + ' appear here.'], ['Level 3', '']);
+const N_HI = mk('hist', cabinet(1.8, 4.2, 1.4, 0x13303d), 11.5, 3.5, ['Historian', 'e.g. AVEVA PI', 'Stores every point it receives as long time series. The usual place to get the continuous trend out of OT.'], ['Level 3', '', [['Out to IT', 'one-way replica through the DMZ']], ['time series', 'OPC UA']], [0, 3.6, .76, C.cyan]);
+const dz = new THREE.Group(); dz.add(at(box(.4, 5, 16, mat(C.red, { t: .18, r: .3 })), -1.6, 2.5, 0)); dz.add(at(box(1.6, 1, 1.6, mat(0x4c4c4c, { m: .5 })), .8, .5, 0));
+const arrow = new THREE.Mesh(new THREE.ConeGeometry(.35, .8, 16), mat(C.red, { e: C.red, ei: .6 })); arrow.rotation.z = -Math.PI / 2; arrow.position.set(.8, 1.35, 0); dz.add(arrow);
+mk('dmz', dz, 19.5, 0, ['Data diode / DMZ', 'OT → IT only', 'Data leaves OT through a DMZ, often through a hardware data diode, so nothing on the IT side can send commands back into the plant.'], ['DMZ', '', [['Direction', 'OT → IT only']], ['IEC 62443', 'one-way']]);
+const N_E = mk('edge', cabinet(1.6, 3.4, 1.2, 0x173326), 26, 0, ['Edge / MQTT broker', 'IT side of the DMZ', 'Turns the historian replica into device messages for Maximo Monitor: one device per asset, sensor values only.'], ['Level 4 · enterprise IT', '', [['Out', 'MQTT to Maximo Monitor']], ['MQTT', 'Kepware', 'Node-RED']], [0, 2.8, .66]);
+const mg = new THREE.Group(); const ms = screen(3.2, 2, 0x0f2a1a); ms.position.y = 2.4; mg.add(ms); mg.add(at(box(.25, 1.4, .25, mat(0x4c4c4c)), 0, .7, 0));
+mk('monitor', mg, 31, -6, ['Maximo Monitor', 'trends · anomaly · twin', `Runs the twin's functions on the device data and raises an anomaly when ${S.metric.toLowerCase()} drifts, before the control system would alarm.`], ['Level 4 · Maximo', '']);
+const hl = new THREE.Group(); const ring = new THREE.Mesh(new THREE.TorusGeometry(1.2, .18, 12, 48), mat(C.green, { e: C.green, ei: .5 })); ring.position.y = 2.6; hl.add(ring); hl.add(at(box(.25, 1.6, .25, mat(0x4c4c4c)), 0, .8, 0));
+mk('health', hl, 36, 0, ['Maximo Health', 'health + risk score', 'Turns the Monitor scores into a health and risk score, so the asset shows up in the maintenance and replacement plan.'], ['Level 4 · Maximo', '']);
+const mn = new THREE.Group(); const mns = screen(2.6, 1.7, 0x1a1a2e); mns.position.y = 2.2; mn.add(mns); mn.add(at(box(.25, 1.3, .25, mat(0x4c4c4c)), 0, .65, 0));
+mk('manage', mn, 31, 7, ['Maximo Manage', 'work order', `Creates the work order on ${A.id}: ${S.wo.toLowerCase()}.`], ['Level 4 · Maximo', '']);
+
+// links + packets
+const links = [];
+function anchor(id, dy = 1.6) { const b = new THREE.Box3().setFromObject(nodes[id].group); return new THREE.Vector3((b.min.x + b.max.x) / 2, Math.min(b.max.y, dy), (b.min.z + b.max.z) / 2); }
+function link(a, b, proto, o = {}) {
+  const pa = anchor(a), pb = anchor(b), mid = pa.clone().lerp(pb, .5); mid.y += o.arc ?? (2 + pa.distanceTo(pb) * .12);
+  const curve = new THREE.CatmullRomCurve3([pa, mid, pb]);
+  scene.add(new THREE.Mesh(new THREE.TubeGeometry(curve, 48, .06, 6, false), new THREE.MeshBasicMaterial({ color: PROTO[proto].color, transparent: true, opacity: o.dashed ? .35 : .7 })));
+  const L = { a, b, proto, curve, packets: [], rate: o.rate ?? 1, acc: Math.random(), carries: o.carries || '' }; links.push(L); return L;
+}
+const LK = {
+  wire: link('asset', 'ctl', 'wire', { rate: 0, carries: 'alarm contacts, status' }), ana: link('asset', 'cm', 'ana', { rate: 1.6, carries: S.metric.toLowerCase() + ' and other sensors' }),
+  c_g: link('ctl', 'gw', 'p1', { rate: 1, carries: 'alarms, status, values' }), m_g: link('cm', 'gw', 'p1', { rate: .7, carries: 'trend values' }),
+  g_h: link('gw', 'hmi', 'p1', { rate: .6, carries: 'alarm list, events' }), g_s: link('gw', 'scada', 'p2', { rate: .25, carries: 'alarms + status (lean point list)' }),
+  s_w: link('scada', 'wall', 'p2', { rate: .3, carries: 'overview' }), s_h: link('scada', 'hist', 'hist', { rate: .6, carries: 'all points' }),
+  g_hi: link('gw', 'hist', 'hist', { rate: .6, dashed: true, carries: 'extra analogue points' }), h_d: link('hist', 'dmz', 'hist', { rate: .9, carries: 'historian replica' }),
+  m_d: link('cm', 'dmz', 'mqtt', { rate: .4, dashed: true, arc: 9, carries: 'vendor monitoring feed (optional)' }), d_e: link('dmz', 'edge', 'hist', { rate: .9, carries: 'replica on the IT side' }),
+  e_m: link('edge', 'monitor', 'mqtt', { rate: 1.4, carries: 'device messages (sensors only)' }), m_h: link('monitor', 'health', 'mx', { rate: .5, carries: 'scores' }),
+  h_m: link('health', 'manage', 'mx', { rate: 0, carries: 'work order trigger' }),
+};
+const pg = new THREE.SphereGeometry(.2, 12, 8);
+function spawn(L, color, speed = .35, size = 1) { const m = new THREE.Mesh(pg, new THREE.MeshBasicMaterial({ color: color ?? PROTO[L.proto].color })); m.scale.setScalar(size); scene.add(m); L.packets.push({ m, t: 0, speed }); }
+
+// scenario
+const st = { v: S.normal, fault: false, stage: 0, health: 92, wo: false, anomaly: false };
+const bad = x => S.dir > 0 ? x >= x : x <= x;
+const past = (x, lim) => S.dir > 0 ? x >= lim : x <= lim;
+const anomalyAt = S.normal + (S.warn - S.normal) * .3;
+const ev = []; function event(m, c = '') { const t = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }); ev.unshift(`<div class="${c}">${t}  ${m}</div>`); if (ev.length > 40) ev.pop(); const e = $('events'); if (e) e.innerHTML = ev.join(''); }
+let selected = 'asset';
+function select(id, user = true) {
+  selected = id; if (user) delete $('panel').dataset.closed;
+  Object.entries(nodes).forEach(([k, n]) => n.lbl.element.classList.toggle('sel', k === id));
+  const i = nodes[id].info;
+  const live = { asset: [['Now', fmt(st.v)]], scada: [['Alarm state', ['Normal', S.s1, S.s2][st.stage]]], monitor: [['Anomaly', st.anomaly ? 'yes: ' + S.fault.toLowerCase() : 'no']], health: [['Health score', Math.round(st.health)]], manage: [['Work order', st.wo ? 'WO 4711 · ' + S.wo + ' · APPR' : 'none']] }[id] || [];
+  const ls = links.filter(l => l.a === id || l.b === id);
+  $('panel').innerHTML = `<button class="x" id="b-x" type="button" aria-label="Hide details">×</button><div class="eyebrow">${i.eyebrow}</div><h2>${i.title}</h2><p class="what">${i.what}</p>
+    <dl class="kv">${[...live, ...i.kv].map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>
+    <div class="chips">${(i.chips || []).map(c => `<span class="chip">${c}</span>`).join('')}</div>
+    ${ls.length ? `<dl class="kv" style="margin-top:12px">${ls.map(l => `<dt style="color:${hex(PROTO[l.proto].color)}">${l.a === id ? '→ ' + nodes[l.b].info.title.split(' · ')[0] : '← ' + nodes[l.a].info.title.split(' · ')[0]}</dt><dd>${PROTO[l.proto].name}: ${l.carries}</dd>`).join('')}</dl>` : ''}
+    <div id="events">${ev.join('') || '<div>No events yet. Start the degradation below.</div>'}</div>
+    <p class="note">Example values for illustration; real set points come from the asset's data sheet and the operator's settings.</p>`;
+  const P = $('panel'); if (!P.dataset.closed) P.hidden = false;
+  $('b-x').onclick = () => { P.hidden = true; P.dataset.closed = '1'; };
+}
+const bF = $('b-fault'), bR = $('b-rot');
+bF.onclick = () => { st.fault = !st.fault; bF.textContent = st.fault ? 'Stop: ' + S.fault.toLowerCase() : 'Start: ' + S.fault.toLowerCase(); event(st.fault ? S.fault + ' started' : S.fault + ' paused', st.fault ? 'w' : ''); };
+$('b-send').onclick = () => { [LK.wire, LK.ana, LK.c_g, LK.g_s, LK.g_h, LK.e_m].forEach(L => spawn(L, 0xffffff, .55, 1.3)); event('Readings sent: ' + fmt(st.v), 'g'); };
+$('b-fix').onclick = () => { Object.assign(st, { v: S.normal, fault: false, stage: 0, health: 92, wo: false, anomaly: false }); bF.textContent = 'Start: ' + S.fault.toLowerCase(); event('Repaired: ' + S.wo.toLowerCase() + '; work order completed', 'g'); refresh(); select(selected, false); };
+bR.onclick = () => { controls.autoRotate = !controls.autoRotate; bR.setAttribute('aria-pressed', controls.autoRotate); bR.classList.toggle('primary', controls.autoRotate); };
+const tile = (id, c) => { const t = $(id); t.classList.remove('warn', 'bad'); if (c) t.classList.add(c); };
+function refresh() {
+  $('v-val').textContent = fmt(st.v); tile('t-val', st.stage === 2 ? 'bad' : st.stage === 1 || st.anomaly ? 'warn' : '');
+  $('v-scada').textContent = ['Normal', S.s1, S.s2][st.stage]; tile('t-scada', st.stage === 2 ? 'bad' : st.stage === 1 ? 'warn' : '');
+  $('v-health').textContent = Math.round(st.health); $('v-hsub').textContent = st.anomaly ? (st.wo ? 'anomaly · WO raised' : 'anomaly: ' + S.fault.toLowerCase()) : 'trend: stable';
+  tile('t-health', st.health < 50 ? 'bad' : st.health < 80 ? 'warn' : '');
+  const col = st.stage === 2 ? C.red : st.stage === 1 ? C.yellow : C.green;
+  N_A.lamps.forEach((m, i) => setLamp(m, i === 1 ? col : (st.anomaly ? C.yellow : C.green)));
+  [N_C, N_G, N_S].forEach(n => setLamp(n.lamps[0], col)); setLamp(N_M.lamps[0], st.anomaly ? C.yellow : C.green);
+  ws.userData.screen.material.color.setHex(st.stage === 2 ? 0x4a1015 : st.stage === 1 ? 0x3d320a : 0x10233f);
+  hs.userData.screen.material.color.setHex(st.stage ? (st.stage === 2 ? 0x4a1015 : 0x3d320a) : 0x0f2a1a);
+  ms.userData.screen.material.color.setHex(st.anomaly ? 0x3d320a : 0x0f2a1a); mns.userData.screen.material.color.setHex(st.wo ? 0x2a1f4a : 0x1a1a2e);
+  const hc = st.health < 50 ? C.red : st.health < 80 ? C.yellow : C.green; ring.material.color.setHex(hc); ring.material.emissive.setHex(hc);
+  ['asset', 'scada'].forEach(k => { nodes[k].lbl.element.classList.toggle('alarm', st.stage === 1); nodes[k].lbl.element.classList.toggle('lock', st.stage === 2); });
+  nodes.monitor.lbl.element.classList.toggle('alarm', st.anomaly && st.stage < 2);
+}
+setInterval(() => {
+  const span = Math.abs(S.trip - S.normal), jitter = span * .004 * (Math.random() - .5);
+  if (st.fault && !past(st.v, S.trip + S.dir * span * .05)) st.v += S.dir * span * .012;
+  st.v += jitter;
+  const prev = st.stage; st.stage = past(st.v, S.trip) ? 2 : past(st.v, S.warn) ? 1 : 0;
+  if (st.fault && !st.anomaly && past(st.v, anomalyAt)) { st.anomaly = true; event('Monitor: ' + S.fault.toLowerCase() + ' trend detected on ' + A.id + ' (before any ' + D.sees.split(' ')[0] + ' alarm)', 'w'); spawn(LK.m_h, C.yellow, .4, 1.4); }
+  if (st.anomaly) st.health = Math.max(28, st.health - (st.stage ? .9 : .35));
+  if (st.anomaly && !st.wo && st.health < 75) { st.wo = true; event('Manage: WO 4711 created, ' + S.wo.toLowerCase(), 'w'); spawn(LK.h_m, C.magenta, .35, 1.5); }
+  if (st.stage !== prev && st.stage > prev) { event(D.sees.split(' ')[0] + ': ' + (st.stage === 1 ? S.s1 : S.s2), st.stage === 2 ? 'r' : 'w'); const c = st.stage === 2 ? C.red : C.yellow; [LK.wire, LK.c_g, LK.g_s, LK.g_h, LK.s_w].forEach(L => spawn(L, c, .5, 1.5)); }
+  refresh(); if (['asset', 'scada', 'monitor', 'health', 'manage'].includes(selected)) select(selected, false);
+}, 600);
+
+// picking + loop
+const ray = new THREE.Raycaster(), ptr = new THREE.Vector2(); let down = null;
+renderer.domElement.addEventListener('pointerdown', e => { down = [e.clientX, e.clientY]; });
+renderer.domElement.addEventListener('pointerup', e => { if (!down || Math.hypot(e.clientX - down[0], e.clientY - down[1]) > 5) return; const r = renderer.domElement.getBoundingClientRect();
+  ptr.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1); ray.setFromCamera(ptr, camera); const h = ray.intersectObjects(pickables, false)[0]; if (h && h.object.userData.id) select(h.object.userData.id); });
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); labels.setSize(w, h); camera.aspect = w / h; camera.position.z = w < 760 ? 96 : 70; camera.updateProjectionMatrix(); }
+addEventListener('resize', resize); resize();
+const clock = new THREE.Clock(), reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+function tick() { const dt = Math.min(clock.getDelta(), .05);
+  links.forEach(L => { if (L.rate > 0 && !reduce) { L.acc += dt * L.rate; if (L.acc >= 1) { L.acc = 0; spawn(L, undefined, .3); } }
+    L.packets = L.packets.filter(p => { p.t += dt * p.speed; if (p.t >= 1) { scene.remove(p.m); p.m.material.dispose(); return false; } p.m.position.copy(L.curve.getPointAt(p.t)); return true; }); });
+  arrow.position.x = .8 + Math.sin(clock.elapsedTime * 3) * .15; ring.rotation.z += dt * .4; controls.update(); renderer.render(scene, camera); labels.render(scene, camera); requestAnimationFrame(tick); }
+refresh(); select('asset'); tick();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,406 @@
+{
+ "$comment": "WFI-6701 hot WFI storage and distribution loop twin. Expected values and pharmacopoeia limits in Maximo Monitor from the twin file; the loop sends only what it measures and the LIMS sends the sample results.",
+ "twin": {
+  "id": "WFI-6701",
+  "name": "Hot WFI storage and distribution loop WFI-6701",
+  "version": "1.0.0",
+  "folder": "wfi-twin"
+ },
+ "identification": {
+  "asset": "WFI-6701",
+  "assetnum": "WFI-6701",
+  "manufacturer": "Plant-built 316L loop; Alfa Laval (pump); Veolia Sievers (TOC)",
+  "model": "Hot WFI storage tank and recirculating distribution loop with point-of-use coolers",
+  "description": "Hot water-for-injection storage and distribution loop of a sterile-products plant: tank, loop pump, steam heater, 10 points of use, 2 point-of-use coolers, online conductivity and TOC",
+  "tank": "10 m3 jacketed 316L storage tank, spray ball, heated hydrophobic vent filter",
+  "pump": "Alfa Laval LKH UltraPure hygienic centrifugal pump with a double mechanical seal (water quench), on a variable-speed drive",
+  "heater": "Shell-and-tube steam heater on the loop supply (plant steam on the shell side)",
+  "coolers": "Two point-of-use sub-loops with double tube sheet shell-and-tube coolers (chilled water on the shell side)",
+  "analysers": "Veolia Sievers M500 online TOC analyser and a conductivity sensor with temperature, on the loop return"
+ },
+ "design": {
+  "loop": {
+   "supply_id_mm": 47.5,
+   "return_id_mm": 34.8,
+   "length_m": 180.0,
+   "points_of_use": 10,
+   "cooled_points": 2,
+   "supply_flow_m3h": 7.0,
+   "flow_per_draw": 0.5,
+   "source": "Internal diameters of ASME BPE 2 in (50.8 x 1.65 mm) and 1.5 in (38.1 x 1.65 mm) tube. Loop length, number of points of use, design supply flow and how the speed control raises the supply flow when outlets open (+0.5 m3/h per m3/h drawn): assumption: typical value, replace with your loop's design documents, qualification report and operating data"
+  },
+  "temperature": {
+   "supply_setpoint_c": 82.0,
+   "annex1_min_c": 70.0,
+   "margin_alert_c": 75.0,
+   "loop_dt_design_c": 1.5,
+   "source": "EU GMP Annex 1 (2022) 6.10 gives constant circulation above 70 C as an example of storage and distribution that minimises microbial growth: the twin's low limit. Supply setpoint, the 75 C warning and the design temperature drop along the loop: assumption: typical value, replace with your loop's design documents, qualification report and operating data"
+  },
+  "flow": {
+   "return_velocity_min_ms": 0.9,
+   "reynolds_turbulent": 4000.0,
+   "source": "EU GMP Annex 1 (2022) 6.9: flow turbulent, flow rate set at qualification and monitored. A minimum return velocity of about 0.9 to 1 m/s is commonly applied in design practice: assumption: typical value, replace with your loop's design documents, qualification report and operating data. Re > 4000 is the textbook threshold for fully turbulent pipe flow."
+  },
+  "water": {
+   "cp_kj_kgk": 4.19,
+   "visc_a_pas": 2.414e-05,
+   "visc_b_k": 247.8,
+   "visc_c_k": 140.0,
+   "source": "Viscosity: Vogel equation mu = A x 10^(B / (T - C)), T in K (textbook approximation, about 1 % at 80 C). Density: Tanaka et al. (2001) form, about 0.1 % at 80 C outside its 0-40 C fit range. cp of hot water: textbook value."
+  },
+  "quality": {
+   "usp645_stage1_us_cm": [
+    0.6,
+    0.8,
+    0.9,
+    1.0,
+    1.1,
+    1.3,
+    1.4,
+    1.5,
+    1.7,
+    1.8,
+    1.9,
+    2.1,
+    2.2,
+    2.4,
+    2.5,
+    2.7,
+    2.7,
+    2.7,
+    2.7,
+    2.9,
+    3.1
+   ],
+   "usp645_step_c": 5.0,
+   "usp645_stage2_us_cm": 2.1,
+   "toc_limit_ppb": 500.0,
+   "endotoxin_limit_eu_ml": 0.25,
+   "micro_action_cfu_100ml": 10.0,
+   "cond_alert_ratio": 0.6,
+   "toc_alert_ppb": 250.0,
+   "source": "USP <645> Stage 1 table (non-compensated, next lower 5 C step, no interpolation) and Stage 2 2.1 uS/cm; USP <643> 0.50 mg C/L; Ph. Eur. Water for injections: TOC max 0.5 mg/L, endotoxins < 0.25 IU/mL, microbial action level 10 CFU/100 mL. Alert levels (60 % of the conductivity limit, 250 ppb TOC): assumption: typical value, replace with your loop's design documents, qualification report and operating data; Annex 1 6.13 asks for alert levels based on the qualification data."
+  },
+  "pump": {
+   "model": "Alfa Laval LKH UltraPure",
+   "speed_rpm": 2900.0,
+   "dp0_bar": 3.4,
+   "k_bar_per_m3h2": 0.012,
+   "eff_design": 0.45,
+   "max_inlet_bar": 5.0,
+   "temp_max_c": 140.0,
+   "quench_lpm": [
+    0.25,
+    0.5
+   ],
+   "quench_in_c": 25.0,
+   "source": "Alfa Laval LKH UltraPure leaflet: 316L wetted parts, Ra <= 0.5 um, EPDM USP Class VI, -10 to +140 C, max inlet 5 bar, double mechanical seal water 0.25-0.5 l/min. Pump curve dp = dp0 x (n/n0)^2 - k x Q^2, design efficiency and quench water inlet temperature: assumption: typical value, replace with your loop's design documents, qualification report and operating data (read them from the pump's own performance curve)."
+  },
+  "cooler": {
+   "dp_min_bar": 0.5,
+   "type": "double tube sheet shell-and-tube",
+   "source": "Keeping the WFI side at a higher pressure than the cooling water, and a double tube sheet with a telltale drain between the sheets, is common design practice for WFI coolers; Annex 1 6.22 asks that leaks from heating and cooling systems be detectable. Minimum pressure difference 0.5 bar: assumption: typical value, replace with your loop's design documents, qualification report and operating data"
+  },
+  "deadleg": {
+   "worst_branch_ld": 1.8,
+   "ld_target": 2.0,
+   "delta_alert_c": 10.0,
+   "source": "Branch length / diameter of the worst point-of-use branch, from the isometric drawings: assumption: typical value, replace with your loop's design documents, qualification report and operating data. L/D <= 2 is the dead-leg design target recommended in ASME BPE (L measured from the main pipe wall). Temperature drop alert: assumption: typical value, replace with your loop's design documents, qualification report and operating data"
+  },
+  "sanitisation": {
+   "subloop_cold_max_h": 8.0,
+   "thermal_range_c": [
+    65.0,
+    80.0
+   ],
+   "source": "USP <1231>: 65-80 C most commonly used for thermal sanitisation. Annex 1 6.12: sanitisation on a predetermined schedule. Maximum time a cooled sub-loop may stay below 65 C before its hot flush: assumption: typical value, replace with your loop's design documents, qualification report and operating data"
+  },
+  "vent": {
+   "margin_min_c": 3.0,
+   "source": "Annex 1 6.11: prevent condensation on the tank vent filter (e.g. by heating). The heated housing must stay warmer than the tank vapour; minimum margin: assumption: typical value, replace with your loop's design documents, qualification report and operating data"
+  },
+  "toc_analyser": {
+   "model": "Veolia Sievers M500",
+   "range_ppb": [
+    0.03,
+    2500.0
+   ],
+   "accuracy_pct": 5.0,
+   "accuracy_ppb": 0.1,
+   "sample_c": [
+    1.0,
+    95.0
+   ],
+   "analysis_min": 3.0,
+   "source": "Sievers M500 specification 300 40070 Rev. D: 0.03-2,500 ppb, +-5 % or +-0.1 ppb, sample 1-95 C, 3 min online (base model 6 min), Modbus and 4-20 mA outputs."
+  },
+  "demo": {
+   "time_scale": 60,
+   "note": "Demo only: the plant clock runs 60 times faster, so a production day of point-of-use draws (06:00 to 22:00) passes in 24 minutes."
+  }
+ },
+ "telemetry": {
+  "event": "wfiloop",
+  "publish_every_s": 10,
+  "device_type": "WFI_LOOP",
+  "groups": {
+   "Loop": "Loop flows, pressures and temperatures",
+   "Tank": "Storage tank and vent filter",
+   "Quality": "Online analysers on the return",
+   "Pump": "Loop pump and seal",
+   "POU": "Points of use, coolers and dead legs",
+   "Lab": "Sample results from the LIMS"
+  },
+  "points": [
+   {
+    "metric": "supply_flow_m3h",
+    "path": "Loop.SupplyFlow",
+    "label": "Loop supply flow (after the pump)",
+    "unit": "m³/h"
+   },
+   {
+    "metric": "return_flow_m3h",
+    "path": "Loop.ReturnFlow",
+    "label": "Loop return flow (before the tank)",
+    "unit": "m³/h"
+   },
+   {
+    "metric": "supply_temp_c",
+    "path": "Loop.SupplyTemp",
+    "label": "Supply temperature after the heater",
+    "unit": "°C"
+   },
+   {
+    "metric": "return_temp_c",
+    "path": "Loop.ReturnTemp",
+    "label": "Return temperature (at the analysers)",
+    "unit": "°C"
+   },
+   {
+    "metric": "supply_pressure_bar",
+    "path": "Loop.SupplyPressure",
+    "label": "Supply pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "return_pressure_bar",
+    "path": "Loop.ReturnPressure",
+    "label": "Return pressure (before the back-pressure valve)",
+    "unit": "bar g"
+   },
+   {
+    "metric": "tank_temp_c",
+    "path": "Tank.Temperature",
+    "label": "Storage tank temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "tank_level_pct",
+    "path": "Tank.Level",
+    "label": "Storage tank level",
+    "unit": "%"
+   },
+   {
+    "metric": "vent_filter_temp_c",
+    "path": "Tank.VentFilterTemp",
+    "label": "Heated vent filter housing temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "cond_us_cm",
+    "path": "Quality.Conductivity",
+    "label": "Return conductivity, not temperature-compensated",
+    "unit": "µS/cm"
+   },
+   {
+    "metric": "toc_ppb",
+    "path": "Quality.TOC",
+    "label": "Return TOC (online analyser)",
+    "unit": "ppb C"
+   },
+   {
+    "metric": "pump_speed_rpm",
+    "path": "Pump.Speed",
+    "label": "Loop pump speed",
+    "unit": "rpm"
+   },
+   {
+    "metric": "pump_dp_bar",
+    "path": "Pump.DiffPressure",
+    "label": "Loop pump differential pressure",
+    "unit": "bar"
+   },
+   {
+    "metric": "pump_power_kw",
+    "path": "Pump.Power",
+    "label": "Loop pump shaft power (from the drive)",
+    "unit": "kW"
+   },
+   {
+    "metric": "seal_quench_temp_c",
+    "path": "Pump.QuenchOutTemp",
+    "label": "Seal quench water outlet temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "pou_temp_c",
+    "path": "POU.CooledTemp",
+    "label": "Cooled point-of-use sub-loop temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "cooler_cycles_24h",
+    "path": "POU.CoolerCycles24h",
+    "label": "Cooled draws in the last 24 h",
+    "unit": "count"
+   },
+   {
+    "metric": "subloop_cold_h",
+    "path": "POU.SubloopColdHours",
+    "label": "Hours the cooled sub-loop has been below 65 °C since its last hot flush",
+    "unit": "h"
+   },
+   {
+    "metric": "cooler_wfi_bar",
+    "path": "POU.CoolerWFIPressure",
+    "label": "Cooler WFI-side pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "cooler_cw_bar",
+    "path": "POU.CoolerCWPressure",
+    "label": "Cooler chilled-water-side pressure",
+    "unit": "bar g"
+   },
+   {
+    "metric": "cooler_telltale",
+    "path": "POU.CoolerTelltale",
+    "label": "Double tube sheet telltale wet (1 = leak)",
+    "unit": "code"
+   },
+   {
+    "metric": "deadleg_temp_c",
+    "path": "POU.DeadlegTemp",
+    "label": "Temperature at the worst point-of-use branch",
+    "unit": "°C"
+   },
+   {
+    "metric": "micro_cfu_100ml",
+    "path": "Lab.Microbial",
+    "label": "Worst point-of-use microbial count, last sample (R2A)",
+    "unit": "CFU/100 mL"
+   },
+   {
+    "metric": "endotoxin_eu_ml",
+    "path": "Lab.Endotoxin",
+    "label": "Worst point-of-use endotoxin, last sample",
+    "unit": "EU/mL"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "temp_low_c": 70.0,
+   "temp_margin_c": 75.0,
+   "velocity_min_ms": 0.9,
+   "cond_alert_ratio": 0.6,
+   "toc_alert_ppb": 250.0,
+   "toc_limit_ppb": 500.0,
+   "micro_action_cfu": 10.0,
+   "endotoxin_limit_eu_ml": 0.25,
+   "pump_head_ratio_min": 0.9,
+   "seal_rise_max_c": 20.0,
+   "cooler_dp_min_bar": 0.5,
+   "deadleg_delta_c": 10.0,
+   "subloop_cold_max_h": 8.0,
+   "vent_margin_min_c": 3.0,
+   "$comment": "70 C: Annex 1 6.10 example; 500 ppb, 0.25 EU/mL, 10 CFU/100 mL and the USP <645> table: pharmacopoeia. Other limits: assumptions to be set from the qualification data."
+  }
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "heating_loss": {
+   "name": "Loop heating loss (steam valve or heater fouled)",
+   "part": "heater",
+   "symptoms": "supply and return temperature fall below 75 C, then below 70 C; the loop is no longer self-sanitising",
+   "rules": [
+    "WFI_TEMP_MARGIN_LOW",
+    "WFI_TEMP_LOW"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "over_draw": {
+   "name": "Too many points of use open at once",
+   "part": "points of use",
+   "symptoms": "draw grows, return flow and return velocity collapse below the qualified minimum",
+   "rules": [
+    "WFI_VELOCITY_LOW"
+   ],
+   "default_ramp_min": 0.5
+  },
+  "pump_wear": {
+   "name": "Loop pump impeller wear",
+   "part": "pump",
+   "symptoms": "differential pressure below the pump curve at the measured flow, efficiency down",
+   "rules": [
+    "WFI_PUMP_HEAD_LOW"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "seal_wear": {
+   "name": "Pump mechanical seal wear (hot WFI into the quench)",
+   "part": "pump seal",
+   "symptoms": "seal quench water outlet temperature rises",
+   "rules": [
+    "WFI_SEAL_LEAK"
+   ],
+   "default_ramp_min": 1
+  },
+  "cooler_leak": {
+   "name": "Point-of-use cooler leak (pressure reversal, tube sheet leak)",
+   "part": "cooler",
+   "symptoms": "chilled water pressure above the WFI side, telltale between the tube sheets wet",
+   "rules": [
+    "WFI_COOLER_DP_LOW",
+    "WFI_COOLER_LEAK"
+   ],
+   "default_ramp_min": 1
+  },
+  "generator_upset": {
+   "name": "Feed or still upset (ionic and organic carry-over)",
+   "part": "water quality",
+   "symptoms": "conductivity above the USP <645> Stage 1 limit at the return temperature, TOC rising",
+   "rules": [
+    "WFI_COND_ALERT",
+    "WFI_COND_STAGE1_FAIL",
+    "WFI_TOC_ALERT",
+    "WFI_TOC_LIMIT"
+   ],
+   "default_ramp_min": 1
+  },
+  "biofilm_deadleg": {
+   "name": "Biofilm at a cooled point of use (dead leg, hot flush skipped)",
+   "part": "points of use",
+   "symptoms": "branch runs cold, sub-loop not hot-flushed, microbial count and endotoxin above action",
+   "rules": [
+    "WFI_DEADLEG_COLD",
+    "WFI_SUBLOOP_SANITISE_DUE",
+    "WFI_MICRO_ACTION"
+   ],
+   "default_ramp_min": 1
+  },
+  "vent_heater_fail": {
+   "name": "Vent filter heater failure",
+   "part": "tank vent filter",
+   "symptoms": "vent filter housing colder than the tank: condensation wets the hydrophobic membrane",
+   "rules": [
+    "WFI_VENT_FILTER_COLD"
+   ],
+   "default_ramp_min": 1
+  }
+ },
+ "presentation": {
+  "title": "WFI-6701 hot WFI loop",
+  "dashboard": "WFI_LOOP"
+ }
+}

@@ -1,0 +1,340 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FP-6501 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>FP-6501</b><span class="g">Electric fire pump · 1000 gpm at 107 psi · jockey pump and controller</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-test"><span class="dot"></span><span id="c-test-t">flow test –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Pump curve and tests →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the fire pump model…</div>
+<div class="credit">Horizontal split-case fire pump (8x6 casing, double-suction impeller), 125 hp motor, listed controller, jockey pump, OS&amp;Y valves and test header. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-run">Spin the pump</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The controller runs a churn test (no flow) on a schedule; the annual flow test points are compared with the listed curve after speed correction.</div>
+<aside>
+  <section>
+    <h2>FP-6501 twin</h2>
+    <p class="sub" id="sub">fire pump</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Flow test vs curve<b id="k-ft">–</b></div><div>System<b id="k-sys">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a few minutes of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The controller and the test rig send only what they measure. Every expected value is computed from the twin file: the listed pump curve, the NFPA 20 and NFPA 25 rules and the controller settings.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for FP-6501: the fire pump, its motor and controller, the jockey pump, the system pressure and the test records,\nwith injectable faults.\n\nThe real controller and test rig send the same points (see telemetry.points in the twin file). Nothing here is used by\nMonitor: the expected values are computed in Monitor from the twin file only. This model only produces believable readings\nand fault fingerprints for the tests, the figures and the live twin pages. Pure Python (math, random) so it also runs in the\nbrowser under Pyodide.\n\"\"\"\nimport math\nimport random\n\n\ndef _h(c, q_gpm):\n    q = q_gpm / 1000.0\n    return c[0] + c[1] * q + c[2] * q * q + c[3] * q * q * q\n\n\nclass FirePump:\n    def __init__(self, twin, seed=1):\n        self.t = twin\n        d = twin[\"design\"]\n        self.p, self.s, self.m, self.sup = d[\"pump\"], d[\"settings\"], d[\"motor\"], d[\"supply\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true pump ---------------------------------------------------------------------------------------------------------\n    def head_true(self, q_gpm, speed):\n        \"\"\"Net pressure the pump really gives at flow q and speed (affinity laws around the worn curve).\"\"\"\n        n0, p0, q0 = self.p[\"rated_speed_rpm\"], self.p[\"rated_net_psi\"], self.p[\"rated_flow_gpm\"]\n        w = self.faults[\"impeller_wear\"]\n        qc = q_gpm * n0 / speed\n        h = _h(self.p[\"head_poly_kgpm\"], qc) * (1 - 0.07 * w) - 0.03 * w * p0 * (qc / q0) ** 2\n        return h * (speed / n0) ** 2\n\n    def current(self, q_gpm, speed, volts):\n        n0, m = self.p[\"rated_speed_rpm\"], self.m\n        bhp = _h(self.p[\"bhp_poly_kgpm\"], q_gpm * n0 / speed) * (speed / n0) ** 3\n        return bhp * 745.7 / (math.sqrt(3) * volts * m[\"efficiency\"] * m[\"power_factor\"])\n\n    def static_suction(self):\n        return self.s[\"nominal_static_suction_psi\"] - 14.0 * self.faults[\"weak_supply\"]\n\n    def start_psi(self):\n        return self.s[\"fire_pump_start_psi\"] - 12.0 * self.faults[\"pressure_sensing_drift\"]\n\n    def jockey_ok(self):\n        return self.faults[\"jockey_failed\"] <= 0.3\n\n    # one published message (pump at standby) ----------------------------------------------------------------------------\n    def measure(self):\n        f, s = self.faults, self.s\n        suction = self.static_suction() + self.n(0.3)\n        if self.jockey_ok():\n            system = self.rnd.uniform(s[\"jockey_start_psi\"] + 0.5, s[\"jockey_stop_psi\"])\n        else:\n            system = s[\"jockey_start_psi\"] - 1.0 - 3.0 * f[\"jockey_failed\"] + self.n(0.3)\n        rpm_c = 1792 + self.n(1.5)\n        rq, rr = 1000 + self.n(8), 1781 + self.n(2)\n        pq, pr = 1500 + self.n(10), 1772 + self.n(2)\n        return {\n            \"suction_psi\": round(suction, 2), \"discharge_psi\": round(system, 2), \"flow_gpm\": 0.0, \"speed_rpm\": 0.0, \"pump_running\": 0,\n            \"motor_current_a\": 0.0, \"supply_voltage_v\": round(self.m[\"voltage_v\"] + self.n(2), 1),\n            \"last_start_psi\": round(self.start_psi() + self.n(0.6), 1),\n            \"time_to_run_s\": round(s[\"time_to_run_s\"] + 10.0 * f[\"starter_fault\"] + self.n(0.15), 2),\n            \"auto_starts_30d\": (1 + round(2 * f[\"jockey_failed\"])) if not self.jockey_ok() else 0,\n            \"jockey_starts_24h\": 0 if not self.jockey_ok() else max(1, round(4 + 60 * f[\"system_leak\"] + self.n(1))),\n            \"jockey_run_min_24h\": 0.0 if not self.jockey_ok() else round(max(0.5, 6 + 200 * f[\"system_leak\"] + self.n(0.5)), 1),\n            \"churn_net_psi\": round(self.head_true(0, rpm_c) * (1 + self.n(0.003)), 2), \"churn_rpm\": round(rpm_c, 1),\n            \"churn_packing_c\": round(38 + 60 * f[\"packing_overtight\"] + self.n(1), 1),\n            \"ft_rated_gpm\": round(rq, 1), \"ft_rated_net_psi\": round(self.head_true(rq, rr) * (1 + self.n(0.004)), 2), \"ft_rated_rpm\": round(rr, 1),\n            \"ft_peak_gpm\": round(pq, 1), \"ft_peak_net_psi\": round(self.head_true(pq, pr) * (1 + self.n(0.004)), 2), \"ft_peak_rpm\": round(pr, 1),\n            \"ft_peak_suction_psi\": round(self.sup[\"residual_at_peak_psi\"] - 22.0 * f[\"weak_supply\"] + self.n(0.5), 2),\n            \"room_temp_c\": round(18 + self.n(0.5), 1),\n            \"days_since_churn\": round(self.rnd.uniform(0.2, 6.5) + 40 * f[\"tests_skipped\"], 1),\n            \"days_since_flow_test\": round(200 + self.rnd.uniform(0, 20) + 300 * f[\"tests_skipped\"], 0),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    At standby the system pressure leaks down slowly; the jockey pump starts at its start pressure and stops at its stop\n    pressure. Every `demo.churn_every_s` real seconds the controller runs a no-flow (churn) test for `demo.churn_run_s`\n    seconds: start signal, time to run, the motor at speed, no flow. At the end of the test the churn pressure, speed and\n    packing temperature are stored. If the jockey pump has failed, the pressure falls to the fire pump start pressure and the\n    controller starts the fire pump on its own (an unplanned start), which then runs its minimum run time.\n    \"\"\"\n    def __init__(self, twin, seed=6501):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.every = float(demo.get(\"churn_every_s\", 45))\n        self.run_s = float(demo.get(\"churn_run_s\", 20))\n        self.fp = FirePump(twin, seed)\n        s = twin[\"design\"][\"settings\"]\n        self.jstart, self.jstop = s[\"jockey_start_psi\"], s[\"jockey_stop_psi\"]\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 0.0\n        self.running, self.trip = False, 0\n        self.reset()\n        self.last = self.fp.measure()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.timer, self.test, self.auto = 0.0, None, None\n        self.p_sys, self.jockey, self.speed, self.running = 158.0, False, 0.0, False\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.fp.faults[k] = f.sev\n        self.t += dt * self.scale\n        fp = self.fp\n        suction = fp.static_suction()\n        ttr = self.twin[\"design\"][\"settings\"][\"time_to_run_s\"] + 10.0 * fp.faults[\"starter_fault\"]\n        # scheduled churn test\n        if self.test is None and self.auto is None:\n            self.timer += dt\n            if self.timer >= self.every:\n                self.timer = 0.0\n                if fp.faults[\"tests_skipped\"] < 0.3:\n                    self.test = 0.0\n        phase = self.test if self.test is not None else self.auto\n        if phase is not None:\n            phase += dt\n            on = phase >= ttr\n            target = 1792.0 if on else 0.0\n            self.speed += (target - self.speed) * min(1.0, dt * 1.5)\n            if self.test is not None:\n                self.test = phase\n                if phase >= ttr + self.run_s:\n                    m = fp.measure()\n                    for key in (\"churn_net_psi\", \"churn_rpm\", \"churn_packing_c\"):\n                        self.last[key] = m[key]\n                    self.test, self.speed = None, 0.0\n            else:\n                self.auto = phase\n                if phase >= ttr + self.run_s:\n                    self.auto, self.speed = None, 0.0\n            self.running = phase >= ttr and (self.test is not None or self.auto is not None)\n            self.jockey = False\n            if self.running:\n                self.p_sys = suction + fp.head_true(0, max(self.speed, 300))\n        else:\n            self.running = False\n            leak = 0.35 + 0.6 * fp.faults[\"system_leak\"]\n            self.p_sys -= leak * dt\n            if fp.jockey_ok():\n                if self.p_sys < self.jstart:\n                    self.jockey = True\n                if self.jockey:\n                    self.p_sys += 2.0 * dt\n                    if self.p_sys >= self.jstop:\n                        self.jockey = False\n            else:\n                self.jockey = False\n            if self.p_sys <= fp.start_psi():\n                self.auto = 0.0\n            self.p_sys = max(self.p_sys, suction)\n        return {\"running\": self.running, \"speed\": self.speed if self.running else 0.0, \"system_psi\": self.p_sys, \"suction_psi\": suction,\n                \"jockey\": self.jockey, \"testing\": self.test is not None, \"auto\": self.auto is not None}\n\n    def measure(self, true):\n        r = self.fp.measure()\n        for key in (\"churn_net_psi\", \"churn_rpm\", \"churn_packing_c\"):\n            r[key] = self.last[key]\n        r[\"suction_psi\"] = round(true[\"suction_psi\"] + self.fp.n(0.2), 2)\n        r[\"discharge_psi\"] = round(true[\"system_psi\"] + self.fp.n(0.2), 2)\n        r[\"pump_running\"] = 1 if true[\"running\"] else 0\n        if true[\"running\"]:\n            sp = true[\"speed\"] + self.fp.n(1.0)\n            r[\"speed_rpm\"] = round(sp, 1)\n            r[\"motor_current_a\"] = round(self.fp.current(0.0, max(sp, 300), r[\"supply_voltage_v\"]) + self.fp.n(0.5), 1)\n        return r\n", "twin_calc": "\"\"\"The fire pump twin's expectations (FP-6501, electric horizontal split-case fire pump with jockey pump and controller).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nThe listed curve (net pressure against flow at the rated speed N0 = 1780 rpm) is a cubic fitted to the maker's curve:\n      H(Q) = h0 + h1 q + h2 q^2 + h3 q^3,  q = Q / 1000 gpm\nAffinity laws (speed correction, as NFPA 25 asks before a test is compared with the curve). A point measured at speed n:\n      Q_corr = Q x N0 / n        P_corr = P x (N0 / n)^2\n  so the pump at speed n should give  P_expected(Q, n) = (n / N0)^2 x H(Q x N0 / n).\nNFPA 20 (listing envelope): churn <= 140 % of rated net pressure, net pressure at 150 % of rated flow >= 65 % of rated.\nNFPA 25 (annual flow test): at the 100 % and 150 % points the speed-corrected net pressure must be at least 95 % of the\n  reference curve at the corrected flow:  ratio = P_corr / H(Q_corr) >= 0.95.  The weekly churn test gives one more point\n  between annual tests: churn ratio = P_churn x (N0 / n)^2 / H(0).\nMotor current expected: I = BHP(Q_corr) x (n / N0)^3 x 745.7 / (sqrt(3) x V x efficiency x power factor).\nJockey pump: the make-up flow over a day is the system's leakage:  leak (gpm) = jockey flow x run minutes / 1440.\n\"\"\"\nimport math\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    p, s, m, sp, L = d[\"pump\"], d[\"settings\"], d[\"motor\"], d[\"supply\"], twin[\"twin_model\"][\"limits\"]\n    return dict(h=p[\"head_poly_kgpm\"], b=p[\"bhp_poly_kgpm\"], q0=p[\"rated_flow_gpm\"], n0=p[\"rated_speed_rpm\"], p0=p[\"rated_net_psi\"],\n                fla=m[\"fla_a\"], v0=m[\"voltage_v\"], eff=m[\"efficiency\"], pf=m[\"power_factor\"], jf=s[\"jockey_flow_gpm\"],\n                jstart=s[\"jockey_start_psi\"], jstop=s[\"jockey_stop_psi\"], fpstart=s[\"fire_pump_start_psi\"], smin=L[\"suction_min_psi\"])\n\n\ndef H(k, q_gpm):\n    \"\"\"Curve net pressure (psi) at the rated speed, flow in gpm.\"\"\"\n    q = q_gpm / 1000.0\n    h = k[\"h\"]\n    return h[0] + h[1] * q + h[2] * q * q + h[3] * q * q * q\n\n\ndef BHP(k, q_gpm):\n    q = q_gpm / 1000.0\n    b = k[\"b\"]\n    return b[0] + b[1] * q + b[2] * q * q + b[3] * q * q * q\n\n\ndef _poly(c, x):\n    return f\"({c[0]} + {c[1]} * {x} + {c[2]} * {x} ** 2 + {c[3]} * {x} ** 3)\"\n\n\ndef _parts(twin):\n    k = _k(twin)\n    n0 = k[\"n0\"]\n    S = \"np.maximum(df['SPEED_RPM'], 300)\"\n    RUN = \"((df['PUMP_RUNNING'] > 0.5) & (df['SPEED_RPM'] > 300))\"\n    QL = f\"(df['FLOW_GPM'] * {n0} / {S} / 1000)\"\n    PEXP = f\"(({S} / {n0}) ** 2 * {_poly(k['h'], QL)})\"\n    IEXP = f\"({_poly(k['b'], QL)} * ({S} / {n0}) ** 3 * {745.7 / (math.sqrt(3) * k['eff'] * k['pf']):.9g} / df['SUPPLY_VOLTAGE_V'])\"\n    NET = \"(df['DISCHARGE_PSI'] - df['SUCTION_PSI'])\"\n    CC = f\"(df['CHURN_NET_PSI'] * ({n0} / df['CHURN_RPM']) ** 2)\"\n    RQ = f\"(df['FT_RATED_GPM'] * {n0} / df['FT_RATED_RPM'])\"\n    RP = f\"(df['FT_RATED_NET_PSI'] * ({n0} / df['FT_RATED_RPM']) ** 2)\"\n    PQ = f\"(df['FT_PEAK_GPM'] * {n0} / df['FT_PEAK_RPM'])\"\n    PP = f\"(df['FT_PEAK_NET_PSI'] * ({n0} / df['FT_PEAK_RPM']) ** 2)\"\n    RR = f\"({RP} / {_poly(k['h'], f'({RQ} / 1000)')})\"\n    PR = f\"({PP} / {_poly(k['h'], f'({PQ} / 1000)')})\"\n    CR = f\"({CC} / {k['h'][0]})\"\n    LEAK = f\"(df['JOCKEY_RUN_MIN_24H'] * {k['jf']} / 1440)\"\n    return dict(k=k, S=S, RUN=RUN, PEXP=PEXP, IEXP=IEXP, NET=NET, CC=CC, RQ=RQ, RP=RP, PQ=PQ, PP=PP, RR=RR, PR=PR, CR=CR, LEAK=LEAK)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"NET_PSI\", p[\"NET\"]),\n        (\"EXPECTED_NET_PSI\", f\"np.where({p['RUN']}, {p['PEXP']}, 0)\"),\n        (\"LIVE_PERF_RATIO\", f\"np.where({p['RUN']}, {p['NET']} / {p['PEXP']}, 1)\"),\n        (\"EXPECTED_CURRENT_A\", f\"np.where({p['RUN']}, {p['IEXP']}, 0)\"),\n        (\"MOTOR_LOAD_PCT\", f\"df['MOTOR_CURRENT_A'] / {k['fla']} * 100\"),\n        (\"CHURN_NET_CORR_PSI\", p[\"CC\"]),\n        (\"CHURN_RATIO\", p[\"CR\"]),\n        (\"CHURN_PCT_RATED\", f\"{p['CC']} / {k['p0']} * 100\"),\n        (\"FT_RATED_GPM_CORR\", p[\"RQ\"]),\n        (\"FT_RATED_NET_CORR_PSI\", p[\"RP\"]),\n        (\"FT_RATED_RATIO\", p[\"RR\"]),\n        (\"FT_PEAK_GPM_CORR\", p[\"PQ\"]),\n        (\"FT_PEAK_NET_CORR_PSI\", p[\"PP\"]),\n        (\"FT_PEAK_RATIO\", p[\"PR\"]),\n        (\"FT_PEAK_PCT_RATED\", f\"{p['PP']} / {k['p0']} * 100\"),\n        (\"FT_MIN_RATIO\", f\"np.minimum({p['RR']}, {p['PR']})\"),\n        (\"JOCKEY_LEAK_GPM\", p[\"LEAK\"]),\n        (\"START_PSI_DEV\", f\"df['LAST_START_PSI'] - {k['fpstart']}\"),\n        (\"SUCTION_MARGIN_TEST_PSI\", f\"df['FT_PEAK_SUCTION_PSI'] - {k['smin']}\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    n0 = k[\"n0\"]\n    s = max(r[\"speed_rpm\"], 300)\n    run = r[\"pump_running\"] > 0.5 and r[\"speed_rpm\"] > 300\n    ql = r[\"flow_gpm\"] * n0 / s\n    pexp = (s / n0) ** 2 * H(k, ql)\n    iexp = BHP(k, ql) * (s / n0) ** 3 * float(f\"{745.7 / (math.sqrt(3) * k['eff'] * k['pf']):.9g}\") / r[\"supply_voltage_v\"]\n    net = r[\"discharge_psi\"] - r[\"suction_psi\"]\n    cc = r[\"churn_net_psi\"] * (n0 / r[\"churn_rpm\"]) ** 2\n    rq, rp = r[\"ft_rated_gpm\"] * n0 / r[\"ft_rated_rpm\"], r[\"ft_rated_net_psi\"] * (n0 / r[\"ft_rated_rpm\"]) ** 2\n    pq, pp = r[\"ft_peak_gpm\"] * n0 / r[\"ft_peak_rpm\"], r[\"ft_peak_net_psi\"] * (n0 / r[\"ft_peak_rpm\"]) ** 2\n    rr, pr = rp / H(k, rq), pp / H(k, pq)\n    return {\n        \"net_psi\": net, \"expected_net_psi\": pexp if run else 0.0, \"live_perf_ratio\": net / pexp if run else 1.0,\n        \"expected_current_a\": iexp if run else 0.0, \"motor_load_pct\": r[\"motor_current_a\"] / k[\"fla\"] * 100,\n        \"churn_net_corr_psi\": cc, \"churn_ratio\": cc / k[\"h\"][0], \"churn_pct_rated\": cc / k[\"p0\"] * 100,\n        \"ft_rated_gpm_corr\": rq, \"ft_rated_net_corr_psi\": rp, \"ft_rated_ratio\": rr,\n        \"ft_peak_gpm_corr\": pq, \"ft_peak_net_corr_psi\": pp, \"ft_peak_ratio\": pr, \"ft_peak_pct_rated\": pp / k[\"p0\"] * 100,\n        \"ft_min_ratio\": min(rr, pr), \"jockey_leak_gpm\": r[\"jockey_run_min_24h\"] * k[\"jf\"] / 1440,\n        \"start_psi_dev\": r[\"last_start_psi\"] - k[\"fpstart\"], \"suction_margin_test_psi\": r[\"ft_peak_suction_psi\"] - k[\"smin\"],\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"FP_PEAK_BELOW_65\", f\"{p['PP']} / {k['p0']} * 100 < {L['peak_min_pct']}\", \"Critical\", None),\n        (\"FP_CURVE_DEGRADED\", f\"np.minimum({p['RR']}, {p['PR']}) < {L['curve_ratio_min']}\", \"High\", \"impeller_wear\"),\n        (\"FP_SUCTION_LOW_TEST\", f\"df['FT_PEAK_SUCTION_PSI'] < {L['suction_min_psi']}\", \"High\", \"weak_supply\"),\n        (\"FP_JOCKEY_FAILED\", f\"(df['JOCKEY_STARTS_24H'] < 0.5) & (df['PUMP_RUNNING'] < 0.5) & (df['DISCHARGE_PSI'] < {k['jstart']})\", \"High\", \"jockey_failed\"),\n        (\"FP_START_SLOW\", f\"df['TIME_TO_RUN_S'] > {L['time_to_run_max_s']}\", \"High\", \"starter_fault\"),\n        (\"FP_ROOM_COLD\", f\"df['ROOM_TEMP_C'] < {L['room_min_c']}\", \"High\", None),\n        (\"FP_FLOW_TEST_OVERDUE\", f\"df['DAYS_SINCE_FLOW_TEST'] > {L['flow_test_overdue_days']}\", \"High\", \"tests_skipped\"),\n        (\"FP_CHURN_DEVIATION\", f\"np.abs({p['CR']} - 1) > {L['churn_dev_max']}\", \"Medium\", \"impeller_wear\"),\n        (\"FP_SUPPLY_STATIC_LOW\", f\"(df['PUMP_RUNNING'] < 0.5) & (df['SUCTION_PSI'] < {L['static_suction_alert_psi']})\", \"Medium\", \"weak_supply\"),\n        (\"FP_JOCKEY_CYCLING\", f\"df['JOCKEY_STARTS_24H'] > {L['jockey_starts_max']}\", \"Medium\", \"system_leak\"),\n        (\"FP_LEAK_HIGH\", f\"{p['LEAK']} > {L['leak_gpm_max']}\", \"Medium\", \"system_leak\"),\n        (\"FP_UNPLANNED_STARTS\", \"df['AUTO_STARTS_30D'] > 0.5\", \"Medium\", \"jockey_failed\"),\n        (\"FP_START_PRESSURE_OFF\", f\"np.abs(df['LAST_START_PSI'] - {k['fpstart']}) > {L['start_psi_dev_max']}\", \"Medium\", \"pressure_sensing_drift\"),\n        (\"FP_PACKING_HOT\", f\"df['CHURN_PACKING_C'] > {L['packing_max_c']}\", \"Medium\", \"packing_overtight\"),\n        (\"FP_CHURN_TEST_OVERDUE\", f\"df['DAYS_SINCE_CHURN'] > {L['churn_overdue_days']}\", \"Medium\", \"tests_skipped\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    add(t[\"ft_peak_pct_rated\"] < L[\"peak_min_pct\"], \"FP_PEAK_BELOW_65\", \"Critical\",\n        f\"At 150 % flow the pump gave {t['ft_peak_pct_rated']:.0f} % of rated pressure: below the NFPA 20 listing minimum of {L['peak_min_pct']:.0f} %\", \"pump\")\n    add(t[\"ft_min_ratio\"] < L[\"curve_ratio_min\"], \"FP_CURVE_DEGRADED\", \"High\",\n        f\"Annual flow test at {t['ft_min_ratio'] * 100:.1f} % of the curve (100 % point {t['ft_rated_ratio'] * 100:.1f} %, 150 % point {t['ft_peak_ratio'] * 100:.1f} %): below 95 %\",\n        \"pump\", \"impeller_wear\")\n    add(r[\"ft_peak_suction_psi\"] < L[\"suction_min_psi\"], \"FP_SUCTION_LOW_TEST\", \"High\",\n        f\"Suction fell to {r['ft_peak_suction_psi']:.1f} psi at 150 % flow, below {L['suction_min_psi']:.0f} psi\", \"supply\", \"weak_supply\")\n    add(r[\"jockey_starts_24h\"] < 0.5 and r[\"pump_running\"] < 0.5 and r[\"discharge_psi\"] < k[\"jstart\"], \"FP_JOCKEY_FAILED\", \"High\",\n        f\"System at {r['discharge_psi']:.0f} psi, below the jockey start ({k['jstart']:.0f} psi), and no jockey start in 24 h\", \"jockey\", \"jockey_failed\")\n    add(r[\"time_to_run_s\"] > L[\"time_to_run_max_s\"], \"FP_START_SLOW\", \"High\", f\"Last start took {r['time_to_run_s']:.1f} s from signal to running\", \"controller\", \"starter_fault\")\n    add(r[\"room_temp_c\"] < L[\"room_min_c\"], \"FP_ROOM_COLD\", \"High\", f\"Pump room at {r['room_temp_c']:.1f} \u00b0C, below {L['room_min_c']} \u00b0C\", \"room\")\n    add(r[\"days_since_flow_test\"] > L[\"flow_test_overdue_days\"], \"FP_FLOW_TEST_OVERDUE\", \"High\",\n        f\"Last annual flow test {r['days_since_flow_test']:.0f} days ago\", \"testing\", \"tests_skipped\")\n    add(abs(t[\"churn_ratio\"] - 1) > L[\"churn_dev_max\"], \"FP_CHURN_DEVIATION\", \"Medium\",\n        f\"Churn {t['churn_net_corr_psi']:.1f} psi at rated speed, {(t['churn_ratio'] - 1) * 100:+.1f} % from the curve\", \"pump\", \"impeller_wear\")\n    add(r[\"pump_running\"] < 0.5 and r[\"suction_psi\"] < L[\"static_suction_alert_psi\"], \"FP_SUPPLY_STATIC_LOW\", \"Medium\",\n        f\"Static suction {r['suction_psi']:.1f} psi, below {L['static_suction_alert_psi']:.0f} psi\", \"supply\", \"weak_supply\")\n    add(r[\"jockey_starts_24h\"] > L[\"jockey_starts_max\"], \"FP_JOCKEY_CYCLING\", \"Medium\", f\"Jockey pump started {r['jockey_starts_24h']:.0f} times in 24 h\", \"jockey\", \"system_leak\")\n    add(t[\"jockey_leak_gpm\"] > L[\"leak_gpm_max\"], \"FP_LEAK_HIGH\", \"Medium\", f\"Make-up flow {t['jockey_leak_gpm']:.2f} gpm: the system is leaking\", \"system\", \"system_leak\")\n    add(r[\"auto_starts_30d\"] > 0.5, \"FP_UNPLANNED_STARTS\", \"Medium\", f\"{r['auto_starts_30d']:.0f} automatic fire pump starts in 30 days without a fire or a test\", \"controller\", \"jockey_failed\")\n    add(abs(r[\"last_start_psi\"] - k[\"fpstart\"]) > L[\"start_psi_dev_max\"], \"FP_START_PRESSURE_OFF\", \"Medium\",\n        f\"Last start at {r['last_start_psi']:.1f} psi, set point {k['fpstart']:.0f} psi\", \"controller\", \"pressure_sensing_drift\")\n    add(r[\"churn_packing_c\"] > L[\"packing_max_c\"], \"FP_PACKING_HOT\", \"Medium\", f\"Packing at {r['churn_packing_c']:.0f} \u00b0C after the churn test\", \"pump\", \"packing_overtight\")\n    add(r[\"days_since_churn\"] > L[\"churn_overdue_days\"], \"FP_CHURN_TEST_OVERDUE\", \"Medium\", f\"Last churn test {r['days_since_churn']:.0f} days ago\", \"testing\", \"tests_skipped\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "FP-6501 fire pump twin. Expected values in Maximo Monitor from the listed pump curve, NFPA 20 / NFPA 25 rules and the controller settings; the controller and the test rig send only what they measure.", "twin": {"id": "FP-6501", "name": "Fire pump FP-6501", "version": "1.0.0", "folder": "firepump-twin"}, "identification": {"asset": "FP-6501", "assetnum": "FP-6501", "manufacturer": "A-C Fire Pump", "model": "8100 Series 8x6x18F horizontal split-case fire pump, curve A-8853, 16 in impeller", "description": "Electric fire pump of the sprinkler and standpipe system of a distribution warehouse (one pump, city water supply)", "driver": "125 hp, 1780 rpm, 460 V 3-phase induction motor (open drip-proof), flexible coupling", "controller": "Listed electric fire pump controller, across-the-line start, pressure transducer and event log", "jockey": "Vertical multistage jockey (pressure maintenance) pump with its own controller", "listing": "UL listed and FM approved for 1000 gpm at 72-122 psi (8x6x18F casing, per curve A-8853)", "pump": "Horizontal split-case, single stage, 8x6 casing (8 in suction, 6 in discharge), 6-vane impeller trimmed to 16 in (the trim is an assumption: replace with your pump's nameplate)"}, "design": {"pump": {"rated_flow_gpm": 1000.0, "rated_speed_rpm": 1780.0, "rated_net_psi": 107.0, "impeller_in": 16.0, "impeller_max_in": 17.2, "impeller_min_in": 13.0, "vanes": 6, "approval_range_psi": [72, 122], "curve_flow_gpm": [0, 250, 500, 750, 1000, 1250, 1500, 1750, 2000], "curve_head_psi": [112.8, 113.1, 112.2, 110.1, 107.1, 101.8, 94.9, 85.3, 72.7], "curve_bhp": [48.3, 57.3, 69.1, 81.3, 92.7, 101.7, 107.8, 111.1, 112.2], "head_poly_kgpm": [112.909091, 1.035354, -3.309091, -3.620202], "bhp_poly_kgpm": [47.753535, 38.256614, 15.015296, -9.088215], "fit_max_residual_psi": 0.2, "source": "A-C Fire Pump curve A-8853 (8x6x18F, 8100 Series, 1780 rpm, 1000 GPM), 16 in impeller (curve B): points read from the published curve image, about +/- 1.5 psi / +/- 2 hp. Replace with the certified shop test curve of your pump. Rated pressure = the curve at 1000 gpm; the fit is a cubic in thousands of gpm (largest residual 0.20 psi). The curve is total head in psi; the twin uses it as net pressure (discharge - suction), as NFPA 25 test sheets do, and neglects the velocity pressure difference between the 8 in and 6 in flanges."}, "nfpa20": {"churn_max_pct": 140.0, "peak_flow_pct": 150.0, "peak_min_pct": 65.0, "source": "NFPA 20 (Installation of Stationary Pumps for Fire Protection): shut-off head not above 140 % of rated head; 150 % of rated capacity at not less than 65 % of rated head."}, "nfpa25": {"min_ratio": 0.95, "churn_test_interval_days": 7, "flow_test_interval_days": 365, "electric_min_run_min": 10, "source": "NFPA 25 (Inspection, Testing and Maintenance of Water-Based Fire Protection Systems): annual flow test at churn, 100 % and 150 %; speed-corrected net pressure at least 95 % of the reference curve; electric no-flow test of at least 10 min. NFPA 25 allows a MONTHLY no-flow test for most electric pumps; this site keeps a weekly test (site programme, the twin's interval)."}, "motor": {"rated_hp": 125.0, "fla_a": 156.0, "voltage_v": 460.0, "efficiency": 0.945, "power_factor": 0.87, "service_factor": 1.15, "source": "assumption: typical value, replace with the motor nameplate. 125 hp is chosen above the 16 in curve's largest power (about 112 bhp); full-load current, efficiency and power factor are typical of a 125 hp 460 V 4-pole motor."}, "settings": {"churn_psi": 112.9, "min_static_suction_psi": 50.0, "nominal_static_suction_psi": 55.0, "jockey_stop_psi": 163, "jockey_start_psi": 153, "fire_pump_start_psi": 148, "time_to_run_s": 4.0, "jockey_flow_gpm": 10.0, "source": "NFPA 20 annex method: jockey stop = churn (curve at 0 gpm) + minimum static suction; jockey start 10 psi below the stop; fire pump start 5 psi below the jockey start. Minimum and nominal static suction of the city main, normal time to run of an across-the-line start and the jockey pump flow: assumption: typical value, replace with the water authority's flow test, the controller's commissioning record and the jockey pump data sheet."}, "supply": {"residual_at_peak_psi": 32.0, "suction_min_psi": 20.0, "source": "Suction pressure at 150 % flow during the acceptance test, and the minimum the water authority allows at the suction flange: assumption: typical value, replace with your water authority's limit. NFPA 20 is commonly quoted as allowing the suction pressure to fall to 0 psi at 150 % flow; many authorities ask for 20 psi."}, "demo": {"time_scale": 60, "churn_every_s": 60, "churn_run_s": 20, "note": "Demo only: the controller runs a no-flow (churn) test every 60 s of real time instead of every week, and the stored annual flow test follows the injected fault directly, as if the test were repeated."}}, "telemetry": {"event": "firepump", "publish_every_s": 10, "device_type": "FIRE_PUMP_ELECTRIC", "groups": {"Pump": "Pump pressures, flow and speed", "Motor": "Motor supply", "Controller": "Fire pump controller", "Jockey": "Jockey pump and system", "Churn": "Last no-flow (churn) test", "FlowTest": "Last annual flow test", "Room": "Pump room", "Test": "Test calendar"}, "points": [{"metric": "suction_psi", "path": "Pump.Suction", "label": "Suction pressure", "unit": "psi"}, {"metric": "discharge_psi", "path": "Pump.Discharge", "label": "Discharge pressure (= system pressure at standby)", "unit": "psi"}, {"metric": "flow_gpm", "path": "Pump.Flow", "label": "Flow through the test meter (0 at churn and standby)", "unit": "gpm"}, {"metric": "speed_rpm", "path": "Pump.Speed", "label": "Pump speed", "unit": "rpm"}, {"metric": "pump_running", "path": "Controller.Running", "label": "Fire pump running (1 = running)", "unit": "code"}, {"metric": "motor_current_a", "path": "Motor.Current", "label": "Motor current (average of 3 phases)", "unit": "A"}, {"metric": "supply_voltage_v", "path": "Motor.Voltage", "label": "Supply voltage at the controller", "unit": "V"}, {"metric": "last_start_psi", "path": "Controller.StartPressure", "label": "System pressure at the last automatic start", "unit": "psi"}, {"metric": "time_to_run_s", "path": "Controller.TimeToRun", "label": "Last start: start signal to motor running", "unit": "s"}, {"metric": "auto_starts_30d", "path": "Controller.AutoStarts30d", "label": "Automatic starts on low pressure, not tests, last 30 days", "unit": "count"}, {"metric": "jockey_starts_24h", "path": "Jockey.Starts24h", "label": "Jockey pump starts, last 24 h", "unit": "count"}, {"metric": "jockey_run_min_24h", "path": "Jockey.RunMinutes24h", "label": "Jockey pump running time, last 24 h", "unit": "min"}, {"metric": "churn_net_psi", "path": "Churn.NetPressure", "label": "Net pressure at the end of the last churn test", "unit": "psi"}, {"metric": "churn_rpm", "path": "Churn.Speed", "label": "Speed during the last churn test", "unit": "rpm"}, {"metric": "churn_packing_c", "path": "Churn.PackingTemp", "label": "Packing gland temperature at the end of the last churn test", "unit": "\u00b0C"}, {"metric": "ft_rated_gpm", "path": "FlowTest.RatedFlow", "label": "Annual test, 100 % point: flow", "unit": "gpm"}, {"metric": "ft_rated_net_psi", "path": "FlowTest.RatedNet", "label": "Annual test, 100 % point: net pressure", "unit": "psi"}, {"metric": "ft_rated_rpm", "path": "FlowTest.RatedSpeed", "label": "Annual test, 100 % point: speed", "unit": "rpm"}, {"metric": "ft_peak_gpm", "path": "FlowTest.PeakFlow", "label": "Annual test, 150 % point: flow", "unit": "gpm"}, {"metric": "ft_peak_net_psi", "path": "FlowTest.PeakNet", "label": "Annual test, 150 % point: net pressure", "unit": "psi"}, {"metric": "ft_peak_rpm", "path": "FlowTest.PeakSpeed", "label": "Annual test, 150 % point: speed", "unit": "rpm"}, {"metric": "ft_peak_suction_psi", "path": "FlowTest.PeakSuction", "label": "Annual test, 150 % point: suction pressure", "unit": "psi"}, {"metric": "room_temp_c", "path": "Room.Temperature", "label": "Pump room temperature", "unit": "\u00b0C"}, {"metric": "days_since_churn", "path": "Test.DaysSinceChurn", "label": "Days since the last churn test", "unit": "d"}, {"metric": "days_since_flow_test", "path": "Test.DaysSinceFlowTest", "label": "Days since the last annual flow test", "unit": "d"}]}, "twin_model": {"limits": {"curve_ratio_min": 0.95, "churn_dev_max": 0.05, "peak_min_pct": 65.0, "suction_min_psi": 20.0, "static_suction_alert_psi": 45.0, "jockey_starts_max": 24, "leak_gpm_max": 1.0, "start_psi_dev_max": 5.0, "time_to_run_max_s": 10.0, "packing_max_c": 70.0, "room_min_c": 4.4, "churn_overdue_days": 10, "flow_test_overdue_days": 395}, "source": "95 % (NFPA 25) and 65 % (NFPA 20) are from the standards. Room 4.4 \u00b0C (40 \u00b0F) is the pump-room minimum commonly applied for electric pumps in NFPA 25 weekly inspections. Every other limit: assumption: typical value, replace with your own maintenance strategy."}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "impeller_wear": {"name": "Impeller and wear-ring wear", "part": "pump", "symptoms": "churn pressure a few % low; annual test points fall below 95 % of the curve, most at 150 %", "rules": ["FP_CHURN_DEVIATION", "FP_CURVE_DEGRADED"], "default_ramp_min": 1.5}, "weak_supply": {"name": "Weak water supply or partly closed suction valve", "part": "supply", "symptoms": "static suction low; suction at 150 % flow below the authority minimum", "rules": ["FP_SUPPLY_STATIC_LOW", "FP_SUCTION_LOW_TEST"], "default_ramp_min": 1}, "system_leak": {"name": "Leak in the sprinkler system", "part": "system", "symptoms": "jockey pump starts many times a day; make-up flow above 1 gpm", "rules": ["FP_JOCKEY_CYCLING", "FP_LEAK_HIGH"], "default_ramp_min": 1}, "jockey_failed": {"name": "Jockey pump failed", "part": "jockey", "symptoms": "no jockey starts, system pressure below the jockey start; the fire pump starts on its own", "rules": ["FP_JOCKEY_FAILED", "FP_UNPLANNED_STARTS"], "default_ramp_min": 0.5}, "pressure_sensing_drift": {"name": "Controller pressure transducer drift", "part": "controller", "symptoms": "the fire pump starts far from its set pressure", "rules": ["FP_START_PRESSURE_OFF"], "default_ramp_min": 1}, "starter_fault": {"name": "Starter or contactor fault", "part": "controller", "symptoms": "time from start signal to running grows", "rules": ["FP_START_SLOW"], "default_ramp_min": 1}, "packing_overtight": {"name": "Packing overtightened or dry", "part": "pump", "symptoms": "no drip at the glands, packing hot at the end of the churn test", "rules": ["FP_PACKING_HOT"], "default_ramp_min": 1}, "tests_skipped": {"name": "Churn and flow tests skipped", "part": "testing", "symptoms": "days since the last churn test and the last flow test grow", "rules": ["FP_CHURN_TEST_OVERDUE", "FP_FLOW_TEST_OVERDUE"], "default_ramp_min": 1}}, "presentation": {"title": "FP-6501 electric fire pump", "dashboard": "FIRE_PUMP_ELECTRIC"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(3.6, 2.6, 4.2); ctl.target.set(-0.2, 0.55, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 7, 5); scene.add(sun);
+const grid = new THREE.GridHelper(12, 24, 0x3a3f47, 0x2a2e35); scene.add(grid);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), red = M(0xb3262d, { m: .3 }), redPaint = M(0xc8202a, { m: .25, r: .5 }), bronze = M(0xb08d57, { m: .8, r: .3 });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const alongX = o => { o.rotation.z = Math.PI / 2; return o; };
+const alongZ = o => { o.rotation.x = Math.PI / 2; return o; };
+// base plate and concrete pad
+scene.add(at(box(2.7, .12, 1.1, M(0x8d8f91, { m: 0, r: .9 })), 0, .06, 0));
+scene.add(at(box(2.5, .1, .8, M(0x6b1c20, { m: .3 })), 0, .17, 0));
+// pump: split casing (lower half solid, upper half shell), shaft centre y = .62
+const CY = .62, PX = -.55;
+const casingMat = M(0xc8202a, { m: .3, ds: true });
+const lower = new THREE.Mesh(new THREE.SphereGeometry(.36, 40, 20, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), casingMat); lower.scale.set(.85, 1, 1); scene.add(at(lower, PX, CY, 0));
+const upper = new THREE.Mesh(new THREE.SphereGeometry(.36, 40, 20, 0, Math.PI * 2, 0, Math.PI / 2), casingMat); upper.scale.set(.85, 1, 1); scene.add(at(upper, PX, CY, 0));
+scene.add(at(box(.68, .035, .78, M(0x9e1a22)), PX, CY, 0));                 // horizontal split flange
+scene.add(at(box(.5, .3, .5, casingMat), PX, .36, 0));                       // casing feet / volute bottom
+// suction (8 in) on -z and discharge (6 in) on +z, both horizontal from the lower casing
+const sPipe = alongZ(cyl(.11, .11, 1.0, M(0x8c97a3, { m: .5 }))); scene.add(at(sPipe, PX, .45, -.85));
+const dPipe = alongZ(cyl(.085, .085, .7, M(0x8c97a3, { m: .5 }))); scene.add(at(dPipe, PX, .45, .7));
+[[-.38, .17], [.38, .14]].forEach(([z, r]) => scene.add(at(alongZ(cyl(r, r, .04, steel)), PX, .45, z)));
+// discharge riser with check valve, OS&Y gate valve and the test header
+scene.add(at(cyl(.085, .085, 1.3, M(0x8c97a3, { m: .5 })), PX, 1.1, 1.05));
+scene.add(at(alongZ(cyl(.085, .085, .4, M(0x8c97a3, { m: .5 }))), PX, .45, 1.05 - .2));
+scene.add(at(box(.24, .22, .2, redPaint), PX, .95, 1.05));                  // check valve body
+scene.add(at(box(.22, .28, .16, redPaint), PX, 1.35, 1.05));               // OS&Y gate valve body
+scene.add(at(cyl(.015, .015, .35, steel), PX, 1.66, 1.05)); scene.add(at(new THREE.Mesh(new THREE.TorusGeometry(.1, .012, 8, 30), steel), PX, 1.72, 1.05));
+scene.add(at(alongX(cyl(.07, .07, 1.6, M(0x8c97a3, { m: .5 }))), PX - .8, 1.2, 1.05));  // to the test header
+const header = at(box(.25, .35, .25, M(0xd8a31a, { m: .5 })), PX - 1.6, 1.2, 1.05); scene.add(header);
+[-.08, .08].forEach(y => scene.add(at(alongZ(cyl(.035, .035, .16, bronze)), PX - 1.6, 1.2 + y, 1.25)));
+// suction OS&Y valve
+scene.add(at(box(.28, .3, .2, redPaint), PX, .45, -1.15)); scene.add(at(cyl(.015, .015, .4, steel), PX, .78, -1.15));
+scene.add(at(new THREE.Mesh(new THREE.TorusGeometry(.12, .012, 8, 30), steel), PX, .98, -1.15));
+// bearing housings, shaft, coupling guard, motor
+const shaft = alongX(cyl(.03, .03, 1.5, steel)); scene.add(at(shaft, -.25, CY, 0));
+[PX - .42, PX + .42].forEach(x => { scene.add(at(alongX(cyl(.08, .09, .16, casingMat)), x, CY, 0)); scene.add(at(box(.1, .3, .12, casingMat), x, CY - .2, 0)); });
+const glands = [PX - .3, PX + .3].map(x => { const g = at(alongX(cyl(.07, .07, .06, bronze)), x, CY, 0); scene.add(g); return g; });
+const guard = at(box(.36, .24, .3, M(0xf1c21b, { m: .2, r: .6, t: 1 })), .1, CY, 0); scene.add(guard);
+const coupling = alongX(cyl(.08, .08, .12, dark)); scene.add(at(coupling, .1, CY, 0));
+const motorMat = M(0x2f6db5, { m: .35 });
+scene.add(at(alongX(cyl(.3, .3, .85, motorMat)), .72, CY, 0));
+for (let i = 0; i < 9; i++) scene.add(at(alongX(cyl(.315, .315, .03, motorMat)), .4 + i * .08, CY, 0));
+scene.add(at(alongX(cyl(.3, .26, .14, dark)), 1.2, CY, 0));
+scene.add(at(box(.2, .18, .2, motorMat), .72, CY + .36, 0));
+scene.add(at(box(.6, .3, .5, motorMat), .72, .3, 0));
+// impeller (double suction) inside the casing: hub, two shrouds, six vanes
+const imp = new THREE.Group(); at(imp, PX, CY, 0); scene.add(imp);
+imp.add(alongX(cyl(.25, .25, .03, bronze)));
+[-.07, .07].forEach(x => imp.add(at(alongX(cyl(.25, .12, .03, bronze)), x, 0, 0)));
+for (let i = 0; i < 6; i++) { const v = box(.13, .2, .02, bronze); v.position.set(0, Math.cos(i * Math.PI / 3) * .14, Math.sin(i * Math.PI / 3) * .14); v.rotation.x = -i * Math.PI / 3; imp.add(v); }
+// fire pump controller (red cabinet), jockey pump and its controller, sensing line
+scene.add(at(box(.6, 1.1, .3, redPaint), 1.6, .75, -1.0)); scene.add(at(box(.3, .2, .02, M(0x111418)), 1.6, 1.0, -.84));
+const lamp = new THREE.Mesh(new THREE.SphereGeometry(.04, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(lamp, 1.6, 1.22, -.84));
+scene.add(at(cyl(.07, .07, .65, steel), -1.7, .5, -.9)); scene.add(at(cyl(.09, .09, .3, motorMat), -1.7, .98, -.9));
+scene.add(at(box(.3, .4, .15, M(0x8a3ffc, { m: .2 })), -1.7, .75, -1.35));
+const tube = (pts, c = 0x9fb3c8, r = .012) => scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 40, r, 6, false), M(c, { m: .7 })));
+tube([[PX, 1.6, .95], [0, 1.7, 0], [1.6, 1.4, -.9]]);                      // pressure sensing line to the controller
+tube([[-1.7, .3, -.9], [-1.2, .3, -.9], [PX, .45, -.6]], 0x8c97a3, .03);   // jockey suction from the pump suction
+tube([[-1.7, 1.1, -.9], [-1.2, 1.5, 0], [PX, 1.5, 1.0]], 0x8c97a3, .025);  // jockey discharge into the system
+tube([[1.6, .2, -.85], [1.2, .2, -.4], [.72, .3, -.25]], 0x222222, .02);   // motor power cable
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('suction', [PX, .75, -1.5]); lbl('system', [PX, 1.85, 1.05]); lbl('speed', [.72, 1.05, 0]); lbl('churn', [PX, 1.08, 0]);
+lbl('ft', [PX - 1.6, 1.5, 1.05]); lbl('jockey', [-1.7, 1.25, -.9]); lbl('ctrl', [1.6, 1.45, -1.0]); lbl('packing', [PX + .3, .85, .25]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let rpm = 0;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design, s = d.settings;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  rpm = r.pump_running ? r.speed_rpm : 0;
+  setLbl('suction', r.pump_running ? 'suction (running)' : 'static suction', `${fmt(r.suction_psi, 1)} psi`, st(names.has('FP_SUPPLY_STATIC_LOW'), r.suction_psi < s.nominal_static_suction_psi - 5));
+  setLbl('system', `system · jockey ${s.jockey_start_psi}–${s.jockey_stop_psi} · pump start ${s.fire_pump_start_psi}`, `${fmt(r.discharge_psi, 1)} psi`, st(names.has('FP_JOCKEY_FAILED'), r.discharge_psi < s.jockey_start_psi));
+  setLbl('speed', r.pump_running ? 'running · current / expected' : 'standby', r.pump_running ? `${fmt(r.speed_rpm, 0)} rpm · ${fmt(r.motor_current_a, 0)} / ${fmt(t.expected_current_a, 0)} A` : `${fmt(r.supply_voltage_v, 0)} V available`, '');
+  setLbl('churn', `last churn test · ${fmt(r.days_since_churn, 1)} d ago`, `${fmt(t.churn_net_corr_psi, 1)} psi · ${fmt(t.churn_ratio * 100, 1)} % of curve`, st(names.has('FP_CHURN_DEVIATION') || names.has('FP_CHURN_TEST_OVERDUE'), Math.abs(t.churn_ratio - 1) > .03));
+  setLbl('ft', `annual flow test · ${fmt(r.days_since_flow_test, 0)} d ago`, `100 % ${fmt(t.ft_rated_ratio * 100, 1)} · 150 % ${fmt(t.ft_peak_ratio * 100, 1)} % of curve`, st(names.has('FP_CURVE_DEGRADED') || names.has('FP_FLOW_TEST_OVERDUE') || names.has('FP_PEAK_BELOW_65'), t.ft_min_ratio < .98));
+  setLbl('jockey', 'jockey starts · make-up flow', `${r.jockey_starts_24h} / 24 h · ${fmt(t.jockey_leak_gpm, 2)} gpm`, st(names.has('FP_JOCKEY_CYCLING') || names.has('FP_LEAK_HIGH') || names.has('FP_JOCKEY_FAILED'), r.jockey_starts_24h > 12));
+  setLbl('ctrl', `controller · last start · auto starts 30 d: ${r.auto_starts_30d}`, `${fmt(r.last_start_psi, 1)} psi · ${fmt(r.time_to_run_s, 1)} s to run`, st(names.has('FP_START_SLOW') || names.has('FP_START_PRESSURE_OFF') || names.has('FP_UNPLANNED_STARTS'), r.time_to_run_s > 7));
+  setLbl('packing', `packing after churn · room ${fmt(r.room_temp_c, 0)} °C`, `${fmt(r.churn_packing_c, 0)} °C`, st(names.has('FP_PACKING_HOT') || names.has('FP_ROOM_COLD'), r.churn_packing_c > 55));
+  $('k-health').textContent = ST.health; $('k-ft').textContent = fmt(t.ft_min_ratio * 100, 1) + ' %'; $('k-sys').textContent = fmt(r.discharge_psi, 0) + ' psi';
+  $('c-test-t').textContent = `flow test ${t.ft_min_ratio >= L.curve_ratio_min ? 'passes' : 'FAILS'} the 95 % rule`; $('c-test').className = 'chip ' + (t.ft_min_ratio >= L.curve_ratio_min ? 'ok' : 'bad');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Net pressure now (psi)', fmt(t.net_psi, 1), r.pump_running ? fmt(t.expected_net_psi, 1) : 'standby') +
+    row('Churn at 1780 rpm (psi)', fmt(t.churn_net_corr_psi, 1), fmt(d.settings.churn_psi, 1), names.has('FP_CHURN_DEVIATION')) +
+    row('Flow test 100 % point (% curve)', fmt(t.ft_rated_ratio * 100, 1), '≥ 95', t.ft_rated_ratio < L.curve_ratio_min) +
+    row('Flow test 150 % point (% curve)', fmt(t.ft_peak_ratio * 100, 1), '≥ 95', t.ft_peak_ratio < L.curve_ratio_min) +
+    row('150 % point (% of rated psi)', fmt(t.ft_peak_pct_rated, 1), '≥ 65', names.has('FP_PEAK_BELOW_65')) +
+    row('Suction at 150 % (psi)', fmt(r.ft_peak_suction_psi, 1), '≥ ' + L.suction_min_psi, names.has('FP_SUCTION_LOW_TEST')) +
+    row('Jockey starts / 24 h', r.jockey_starts_24h, '≤ ' + L.jockey_starts_max, names.has('FP_JOCKEY_CYCLING') || names.has('FP_JOCKEY_FAILED')) +
+    row('Make-up flow (gpm)', fmt(t.jockey_leak_gpm, 2), '≤ ' + L.leak_gpm_max, names.has('FP_LEAK_HIGH')) +
+    row('Last start pressure (psi)', fmt(r.last_start_psi, 1), fmt(s.fire_pump_start_psi, 0), names.has('FP_START_PRESSURE_OFF')) +
+    row('Time to run (s)', fmt(r.time_to_run_s, 1), '≤ ' + L.time_to_run_max_s, names.has('FP_START_SLOW')) +
+    row('Motor current (A)', fmt(r.motor_current_a, 0), r.pump_running ? fmt(t.expected_current_a, 0) : '–') +
+    row('Packing after churn (°C)', fmt(r.churn_packing_c, 0), '≤ ' + L.packing_max_c, names.has('FP_PACKING_HOT'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the pump behaves as listed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  lamp.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  lamp.material.emissive.copy(lamp.material.color);
+  glands.forEach(g => g.material = names.has('FP_PACKING_HOT') ? red : bronze);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  casingMat.transparent = true; casingMat.opacity = cut ? .2 : 1; casingMat.depthWrite = !cut;
+  guard.material.opacity = cut ? .25 : 1; guard.material.depthWrite = !cut;
+};
+let localSpin = 0;
+$('t-run').onclick = () => { localSpin = 10; };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let shown = 0, last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  let target = rpm;
+  if (localSpin > 0) { localSpin = Math.max(0, localSpin - dt); target = Math.max(target, 1780); }
+  shown += (target - shown) * Math.min(1, dt * 1.5);
+  const w = shown / 60 * 2 * Math.PI * 0.02;            // shown at 1/50 of the real speed so the vanes stay visible
+  imp.rotation.x += w * dt * 50 / 50; shaft.rotation.x += w * dt; coupling.rotation.x += w * dt;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
