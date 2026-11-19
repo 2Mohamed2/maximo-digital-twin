@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AMI-7301 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>AMI-7301</b><span class="g">LV feeder metering · check meter + 24 smart meters</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-bal"><span class="dot"></span><span id="c-bal-t">balance –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Energy balance and voltages →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the feeder model…</div>
+<div class="credit">250 kVA kiosk substation with check meter and data concentrator, 480 m LV cable, four street cabinets, 24 homes with three-phase smart meters. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-cab">Look into cabinet D</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Each reading is one 15-minute meter interval; the plant clock runs 90 times faster than real time. Cable glow: red L1, blue L2, green L3, grey neutral.</div>
+<aside>
+  <section>
+    <h2>AMI-7301 twin</h2>
+    <p class="sub" id="sub">metering system of LV feeder 1</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Unexplained loss<b id="k-ntl">–</b></div><div>Plant time<b id="k-time">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over about a minute of real time (more than an hour of plant time). The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The head-end sends only what the meters measure. The technical loss, the expected end voltage and the neutral spread are computed from the twin file: the cable records, the meter data sheets and the transformer data.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for AMI-7301: one LV feeder with 24 customers, its check meter, smart meters and data concentrator.\n\nThe real head-end sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model solves the feeder with complex phasors (phase\nand neutral conductors, the transformer impedance, constant-power loads), which is fuller than the twin's linear formulas,\nso the twin's residuals show a realistic modelling error. Pure Python: math and random only.\n\"\"\"\nimport cmath\nimport math\nimport random\n\nA120 = cmath.exp(-2j * math.pi / 3)\nPH = [1, A120, A120 * A120]                      # L1, L2, L3 unit phasors\nHEAVY = [0, 1, 2, 0, 1, 2,  0, 1, 2, 0, 2, 1,  0, 0, 0, 0, 1, 2,  0, 0, 1, 0, 2, 0]   # heavy terminal of each customer\nTHIEF, VACANT, EOL = 21, 9, 23                  # customer indices: bypass at cabinet D, an empty house at B, end-of-feeder meter\nLOST = [6, 7, 8, 10, 11, 12, 13, 14, 15, 16]    # meters behind the noisy PLC segment (cabinets B and C)\n\n\ndef profile(h):\n    \"\"\"Diversified residential load per customer as a share of its evening peak (assumption, used by the stand-in only).\"\"\"\n    pts = [(0, .16), (5, .13), (7, .38), (8.5, .45), (12, .32), (16, .38), (18, .80), (19.5, 1.0), (21, .85), (23, .32), (24, .16)]\n    h %= 24\n    for (h0, v0), (h1, v1) in zip(pts, pts[1:]):\n        if h0 <= h <= h1:\n            return v0 + (v1 - v0) * (h - h0) / (h1 - h0)\n    return pts[0][1]\n\n\nclass Feeder:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.net, self.tr, self.me, self.ld = d[\"network\"], d[\"transformer\"], d[\"meters\"], d[\"load\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        kt = self.net[\"derived\"][\"temp_factor\"]\n        self.z = [complex(s[\"r20_ohm_km\"] * kt * s[\"length_m\"] / 1000, s[\"x_ohm_km\"] * s[\"length_m\"] / 1000) for s in self.net[\"sections\"]]\n        sv = self.net[\"service\"]\n        self.zs = complex(sv[\"r20_ohm_km\"] * kt * sv[\"length_m\"] / 1000, sv[\"x_ohm_km\"] * sv[\"length_m\"] / 1000)\n        vb = 400.0\n        zb = vb * vb / (self.tr[\"rating_kva\"] * 1000)\n        ur = self.tr[\"pk_w\"] / (self.tr[\"rating_kva\"] * 1000)\n        uk = self.tr[\"uk_pct\"] / 100\n        self.zt = complex(ur * zb, math.sqrt(uk * uk - ur * ur) * zb)\n        self.node = [i // 6 for i in range(24)]\n        r = random.Random(73)\n        self.scale = [r.uniform(0.6, 1.45) for _ in range(24)]\n        self.err = [r.uniform(-0.004, 0.004) for _ in range(24)]       # in-service error of each customer meter (class B: MPE 1 %)\n        self.cerr = [r.uniform(-0.002, 0.002) for _ in range(3)]       # check meter + CT error per phase (class 0.5S)\n        self.tanphi = math.tan(math.acos(self.net[\"pf\"]))\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ------------------------------------------------------------------------------------------------------\n    def loads(self, hour):\n        \"\"\"Per customer, per meter terminal: active power (W).\"\"\"\n        f = self.faults\n        pk, night = self.ld[\"kw_per_customer_peak\"] * 1000, self.ld[\"kw_per_customer_night\"] * 1000\n        base = profile(hour)\n        out = []\n        for c in range(24):\n            p = pk * base * self.scale[c] * max(0.3, 1 + self.n(0.12))\n            p = max(p, night * 0.5 * self.scale[c])\n            if c == VACANT:\n                p = 800.0 * max(0.3, 1 + self.n(0.1)) if f[\"relay_stuck\"] >= 0.3 else 0.0\n            w = [0.2, 0.2, 0.2]\n            w[HEAVY[c]] = 0.6\n            out.append([p * x for x in w])\n        return out\n\n    def state(self, hour):\n        f = self.faults\n        P = self.loads(hour)\n        rot = [1 if (f[\"phase_mismapping\"] > 0 and self.node[c] == 2 and c - 12 < round(6 * f[\"phase_mismapping\"])) else 0 for c in range(24)]\n        theft = 2500.0 * f[\"bypass_theft\"]\n        zn_extra = 2.0 * f[\"loose_neutral\"]\n        e0 = self.net[\"no_load_v\"] * (1 + 0.05 * f[\"tap_setting\"])\n        U = [[e0 * PH[p] for p in range(3)] for _ in range(5)]           # node 0 = busbar, 1..4 = cabinets A..D\n        for _ in range(6):\n            Ic = []                                                     # per customer, per network phase (complex A)\n            for c in range(24):\n                k = self.node[c] + 1\n                ic = [0j, 0j, 0j]\n                for t in range(3):\n                    p = (t + rot[c]) % 3\n                    s = complex(P[c][t], P[c][t] * self.tanphi)\n                    ic[p] += (s / U[k][p]).conjugate()\n                if c == THIEF and theft > 0:\n                    ic[0] += (complex(theft, 0) / U[k][0]).conjugate()\n                Ic.append(ic)\n            Isec = []\n            for s in range(4):\n                Isec.append([sum(Ic[c][p] for c in range(24) if self.node[c] >= s) for p in range(3)])\n            U0 = [e0 * PH[p] - self.zt * Isec[0][p] for p in range(3)]\n            E, VN = list(U0), 0j\n            newU = [U0]\n            for s in range(4):\n                zn = self.z[s] + (zn_extra if s == 3 else 0)\n                E = [E[p] - self.z[s] * Isec[s][p] for p in range(3)]\n                VN = VN + zn * sum(Isec[s])\n                newU.append([E[p] - VN for p in range(3)])\n            U = newU\n        # meters: voltage at the meter terminals (after the service cable) and metered power\n        meters = []\n        for c in range(24):\n            k = self.node[c] + 1\n            ret = sum(Ic[c])\n            um = [U[k][p] - self.zs * Ic[c][p] - self.zs * ret for p in range(3)]\n            pt = []\n            for t in range(3):\n                p = (t + rot[c]) % 3\n                i_t = (complex(P[c][t], P[c][t] * self.tanphi) / U[k][p]).conjugate()\n                pt.append((um[p] * i_t.conjugate()).real * (1 + self.err[c]))\n            meters.append({\"node\": \"ABCD\"[self.node[c]], \"v\": [abs(x) for x in um], \"p_terminal\": pt,\n                           \"i_service\": [abs(x) for x in Ic[c]], \"p_metered\": sum(pt)})\n        loss = sum(abs(Isec[s][p]) ** 2 * self.z[s].real for s in range(4) for p in range(3))\n        loss += sum(abs(sum(Isec[s])) ** 2 * (self.z[s].real + (zn_extra if s == 3 else 0)) for s in range(4))\n        loss += sum((sum(abs(x) ** 2 for x in Ic[c]) + abs(sum(Ic[c])) ** 2) * self.zs.real for c in range(24))\n        pin = [(U0[p] * Isec[0][p].conjugate()).real for p in range(3)]\n        return {\"U\": U, \"Ihead\": Isec[0], \"pin\": pin, \"meters\": meters, \"rot\": rot, \"loss_w\": loss, \"theft_w\": theft,\n                \"load_w\": sum(sum(x) for x in P), \"hour\": hour % 24}\n\n    # one published message (one 15-minute interval) ------------------------------------------------------------------\n    def measure(self, hour, st=None):\n        f = self.faults\n        st = st or self.state(hour)\n        dt = self.me[\"interval_min\"] / 60.0\n        pin = [st[\"pin\"][p] * (1 + self.cerr[p]) for p in range(3)]\n        pin = [x + self.me[\"meter_w_per_phase\"] * 24 + self.me[\"concentrator_w\"] / 3 for x in pin]\n        if f[\"ct_polarity\"] >= 0.5:\n            pin[1] = -pin[1]\n        imp = [round(max(x, 0) * dt / 1000 + abs(self.n(0.0004)), 4) for x in pin]\n        exp_ = round(sum(max(-x, 0) for x in pin) * dt / 1000, 4)\n        lost = set(LOST[:round(len(LOST) * f[\"concentrator_comms\"])])\n        cust = [0.0, 0.0, 0.0]\n        vs = []\n        for c, m in enumerate(st[\"meters\"]):\n            if c in lost:\n                continue\n            for t in range(3):\n                cust[t] += m[\"p_terminal\"][t] * dt / 1000                # the head-end maps terminal t to network phase t\n            vs += m[\"v\"]\n        ih = [abs(x) for x in st[\"Ihead\"]]\n        i_n = abs(sum(st[\"Ihead\"]))\n        ub = [abs(x) for x in st[\"U\"][0]]\n        eol = st[\"meters\"][EOL][\"v\"]\n        return {\n            \"feeder_kwh_l1\": imp[0], \"feeder_kwh_l2\": imp[1], \"feeder_kwh_l3\": imp[2], \"feeder_kwh_export\": exp_,\n            \"feeder_i_l1\": round(ih[0] * (1 + self.n(0.002)), 2), \"feeder_i_l2\": round(ih[1] * (1 + self.n(0.002)), 2),\n            \"feeder_i_l3\": round(ih[2] * (1 + self.n(0.002)), 2), \"feeder_i_n\": round(i_n * (1 + self.n(0.003)), 2),\n            \"v_bus_l1\": round(ub[0] + self.n(0.08), 2), \"v_bus_l2\": round(ub[1] + self.n(0.08), 2), \"v_bus_l3\": round(ub[2] + self.n(0.08), 2),\n            \"cust_kwh_l1\": round(cust[0], 4), \"cust_kwh_l2\": round(cust[1], 4), \"cust_kwh_l3\": round(cust[2], 4),\n            \"reads_ok\": 24 - len(lost), \"reads_24h_pct\": round(min(100.0, 99.7 + self.n(0.1)) - 40 * f[\"concentrator_comms\"], 2),\n            \"v_min_cust\": round(min(vs) + self.n(0.08), 2), \"v_max_cust\": round(max(vs) + self.n(0.08), 2),\n            \"v_end_l1\": round(eol[0] + self.n(0.08), 2), \"v_end_l2\": round(eol[1] + self.n(0.08), 2), \"v_end_l3\": round(eol[2] + self.n(0.08), 2),\n            \"tamper_events_24h\": 1 if f[\"bypass_theft\"] > 0.2 else 0,\n            \"clock_offset_max_s\": round(1.2 + abs(self.n(0.6)) + 110 * f[\"clock_drift\"], 1),\n            \"relays_cmd_open\": 1, \"relays_open\": 0 if f[\"relay_stuck\"] >= 0.3 else 1,\n            \"kwh_on_open_relays\": round(st[\"meters\"][VACANT][\"p_metered\"] * dt / 1000, 4),\n        }\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    t is the plant clock in seconds of the day. step(dt) advances it by dt x time_scale, so with a 10 s publish period each\n    reading is one 15-minute interval. Warm-up steps of 2 s or more (the in-browser shim) do not move the clock, so the page\n    opens at the visitor's local time.\n    \"\"\"\n    def __init__(self, twin, seed=7301):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.start = float(demo.get(\"start_hour\", 19.0)) * 3600\n        self.f = Feeder(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = self.start\n        self.running, self.trip = True, 0\n        self.last = None\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.t = self.start\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def hour(self):\n        return (self.t / 3600.0) % 24\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.f.faults[k] = f.sev\n        if dt >= 2.0:          # in-browser warm-up: the clock stays on the visitor's time and nothing needs solving\n            return {\"hour\": self.hour(), \"state\": None}\n        self.t += dt * self.scale\n        st = self.f.state(self.hour())\n        self.last = st\n        return {\"hour\": st[\"hour\"], \"load_kw\": st[\"load_w\"] / 1000, \"loss_kw\": st[\"loss_w\"] / 1000, \"theft_kw\": st[\"theft_w\"] / 1000,\n                \"v_end\": [abs(x) for x in st[\"U\"][4]], \"state\": st}\n\n    def measure(self, true):\n        return self.f.measure(true[\"hour\"], true.get(\"state\"))\n", "twin_calc": "\"\"\"The LV feeder metering twin's expectations (AMI-7301: check meter, 24 smart meters, data concentrator).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nEvery reading is one 15-minute interval (dt = 0.25 h). Each expression works on that one reading only.\n\nEnergy balance:\n    feeder energy  E_F = E_F1 + E_F2 + E_F3          (check meter at the transformer LV terminals)\n    customer sum   E_C = E_C1 + E_C2 + E_C3          (head-end, per phase of the network model)\n    technical loss E_T = dt x [ R_loss x (I1^2 + I2^2 + I3^2) + R_loss x IN^2 + P_meters ] / 1000\n        R_loss = sum f_k^2 R_k + R_service / N        f_k = share of the customers beyond the start of section k\n        P_meters = 3 x 0.45 W x N + concentrator (voltage circuits the customer meters do not register)\n    unexplained (non-technical) loss  NTL = E_F - E_C - E_T,   NTL % = 100 x NTL / E_F\n    per phase: NTL_p % = 100 x (E_Fp - E_Cp - E_Tp) / (E_F / 3), E_Tp = dt (R_loss Ip^2 + R_loss IN^2 / 3 + P_meters / 3)\n  The transformer losses (no-load + load x (S/Sr)^2) are upstream of the check meter: shown, never subtracted.\n  The balance is only judged when every meter was read (coverage >= 99 %); the phase split only when the neutral is sound\n  (a shifted neutral moves power between the phases by itself).\nVoltage along the feeder (simple radial load flow with the measured head currents):\n    V_end expected = V_bus avg - I avg x (R_drop cos phi + X_drop sin phi),  R_drop = sum f_k R_k + R_service / N\n    cos phi = P / (V I) from the check meter.  The average of the three phase voltages hardly moves when the neutral point\n    shifts (the three projections cancel), so the residual of the average sees the phase conductors; the spread of the\n    three end voltages, beyond what the current unbalance explains, sees the neutral:\n    spread excess = (max - min of V_end) - (max - min of V_bus) - (I max - I min) x R_drop - sqrt(3) x IN x R_drop\n  EN 50160 (as commonly quoted): 230 V +/- 10 % -> 207 to 253 V for 10-minute means.\n\"\"\"\n\nSQ3 = 1.7320508075688772\n\n\ndef _g(v):\n    \"\"\"The constant exactly as it is written into the Monitor expression (6 significant digits).\"\"\"\n    return float(f\"{v:.6g}\")\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    n, t, m = d[\"network\"], d[\"transformer\"], d[\"meters\"]\n    dv = n[\"derived\"]\n    dt = m[\"interval_min\"] / 60.0\n    pm = 3 * m[\"meter_w_per_phase\"] * m[\"n_meters\"] + m[\"concentrator_w\"]\n    return dict(dt=dt, n=m[\"n_meters\"], rl=dv[\"r_loss_ohm\"], rd=dv[\"r_drop_ohm\"], xd=dv[\"x_drop_ohm\"], pm=pm,\n                sr=t[\"rating_kva\"], pk=t[\"pk_w\"], po=t[\"po_w\"], vn=n[\"voltage_nominal_v\"], v0=n[\"no_load_v\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    c = lambda s: f\"df['{s.upper()}']\"\n    FK = f\"({c('feeder_kwh_l1')} + {c('feeder_kwh_l2')} + {c('feeder_kwh_l3')})\"\n    CK = f\"({c('cust_kwh_l1')} + {c('cust_kwh_l2')} + {c('cust_kwh_l3')})\"\n    COV = f\"({c('reads_ok')} / {k['n']} * 100)\"\n    a = k[\"dt\"] / 1000\n    TL = (f\"({a:.6g} * ({k['rl']} * ({c('feeder_i_l1')} ** 2 + {c('feeder_i_l2')} ** 2 + {c('feeder_i_l3')} ** 2)\"\n          f\" + {k['rl']} * {c('feeder_i_n')} ** 2 + {k['pm']:.6g}))\")\n    NTL = f\"({FK} - {CK} - {TL})\"\n    NTLP = f\"({NTL} / {FK} * 100)\"\n\n    def ph(p):\n        return (f\"(({c('feeder_kwh_l' + p)} - {c('cust_kwh_l' + p)} - {a:.6g} * ({k['rl']} * {c('feeder_i_l' + p)} ** 2\"\n                f\" + {k['rl'] / 3:.6g} * {c('feeder_i_n')} ** 2 + {k['pm'] / 3:.6g})) / ({FK} / 3) * 100)\")\n    P1, P2, P3 = ph(\"1\"), ph(\"2\"), ph(\"3\")\n    mx = lambda x, y, z: f\"np.maximum(np.maximum({x}, {y}), {z})\"\n    mn = lambda x, y, z: f\"np.minimum(np.minimum({x}, {y}), {z})\"\n    SPR = f\"({mx(P1, P2, P3)} - {mn(P1, P2, P3)})\"\n    VB = f\"(({c('v_bus_l1')} + {c('v_bus_l2')} + {c('v_bus_l3')}) / 3)\"\n    VE = f\"(({c('v_end_l1')} + {c('v_end_l2')} + {c('v_end_l3')}) / 3)\"\n    IA = f\"(({c('feeder_i_l1')} + {c('feeder_i_l2')} + {c('feeder_i_l3')}) / 3)\"\n    VI = f\"({c('v_bus_l1')} * {c('feeder_i_l1')} + {c('v_bus_l2')} * {c('feeder_i_l2')} + {c('v_bus_l3')} * {c('feeder_i_l3')})\"\n    PF = f\"np.minimum({FK} * 1000 / {k['dt']} / {VI}, 1)\"\n    VEX = f\"({VB} - {IA} * ({k['rd']} * {PF} + {k['xd']} * np.sqrt(1 - {PF} ** 2)))\"\n    ve = [c(f\"v_end_l{i}\") for i in \"123\"]\n    vb = [c(f\"v_bus_l{i}\") for i in \"123\"]\n    ii = [c(f\"feeder_i_l{i}\") for i in \"123\"]\n    SPX = (f\"(({mx(*ve)} - {mn(*ve)}) - ({mx(*vb)} - {mn(*vb)}) - ({mx(*ii)} - {mn(*ii)}) * {k['rd']}\"\n           f\" - {SQ3 * k['rd']:.6g} * {c('feeder_i_n')})\")\n    LD = f\"({VI} / 1000 / {k['sr']} * 100)\"\n    return dict(k=k, FK=FK, CK=CK, COV=COV, TL=TL, NTL=NTL, NTLP=NTLP, P1=P1, P2=P2, P3=P3, SPR=SPR, VB=VB, VE=VE, VEX=VEX,\n                SPX=SPX, LD=LD)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    L = twin[\"twin_model\"][\"limits\"]\n    return [\n        (\"FEEDER_KWH\", p[\"FK\"]),\n        (\"CUST_KWH\", p[\"CK\"]),\n        (\"READ_COVERAGE_PCT\", p[\"COV\"]),\n        (\"TECH_LOSS_KWH\", p[\"TL\"]),\n        (\"TECH_LOSS_PCT\", f\"{p['TL']} / {p['FK']} * 100\"),\n        (\"NTL_KWH\", p[\"NTL\"]),\n        (\"NTL_PCT\", p[\"NTLP\"]),\n        (\"NTL_L1_PCT\", p[\"P1\"]),\n        (\"NTL_L2_PCT\", p[\"P2\"]),\n        (\"NTL_L3_PCT\", p[\"P3\"]),\n        (\"PHASE_SPREAD_PCT\", p[\"SPR\"]),\n        (\"V_BUS_AVG\", p[\"VB\"]),\n        (\"V_END_EXPECTED\", p[\"VEX\"]),\n        (\"V_END_RESIDUAL\", f\"{p['VE']} - {p['VEX']}\"),\n        (\"V_END_SPREAD_EXCESS\", p[\"SPX\"]),\n        (\"V_MAX_HEADROOM\", f\"{L['en50160_high_v']} - df['V_MAX_CUST']\"),\n        (\"V_MIN_HEADROOM\", f\"df['V_MIN_CUST'] - {L['en50160_low_v']}\"),\n        (\"TRAFO_LOAD_PCT\", p[\"LD\"]),\n        (\"TRAFO_LOSS_KWH\", f\"{k['dt']} * ({k['po']} + {k['pk']} * ({p['LD']} / 100) ** 2) / 1000\"),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    L = twin[\"twin_model\"][\"limits\"]\n    dt, rl, rd, xd, pm = k[\"dt\"], k[\"rl\"], k[\"rd\"], k[\"xd\"], k[\"pm\"]\n    a = _g(dt / 1000)\n    fk = r[\"feeder_kwh_l1\"] + r[\"feeder_kwh_l2\"] + r[\"feeder_kwh_l3\"]\n    ck = r[\"cust_kwh_l1\"] + r[\"cust_kwh_l2\"] + r[\"cust_kwh_l3\"]\n    cov = r[\"reads_ok\"] / k[\"n\"] * 100\n    i1, i2, i3, i_n = r[\"feeder_i_l1\"], r[\"feeder_i_l2\"], r[\"feeder_i_l3\"], r[\"feeder_i_n\"]\n    tl = a * (rl * (i1 ** 2 + i2 ** 2 + i3 ** 2) + rl * i_n ** 2 + _g(pm))\n    ntl = fk - ck - tl\n    ph = {}\n    for p, i in ((\"1\", i1), (\"2\", i2), (\"3\", i3)):\n        ph[p] = (r[\"feeder_kwh_l\" + p] - r[\"cust_kwh_l\" + p] - a * (rl * i ** 2 + _g(rl / 3) * i_n ** 2 + _g(pm / 3))) / (fk / 3) * 100\n    vb = (r[\"v_bus_l1\"] + r[\"v_bus_l2\"] + r[\"v_bus_l3\"]) / 3\n    ve = (r[\"v_end_l1\"] + r[\"v_end_l2\"] + r[\"v_end_l3\"]) / 3\n    ia = (i1 + i2 + i3) / 3\n    vi = r[\"v_bus_l1\"] * i1 + r[\"v_bus_l2\"] * i2 + r[\"v_bus_l3\"] * i3\n    pf = min(fk * 1000 / dt / vi, 1)\n    vex = vb - ia * (rd * pf + xd * (1 - pf ** 2) ** 0.5)\n    vend = (r[\"v_end_l1\"], r[\"v_end_l2\"], r[\"v_end_l3\"])\n    vbus = (r[\"v_bus_l1\"], r[\"v_bus_l2\"], r[\"v_bus_l3\"])\n    spx = (max(vend) - min(vend)) - (max(vbus) - min(vbus)) - (max(i1, i2, i3) - min(i1, i2, i3)) * rd - _g(SQ3 * rd) * i_n\n    ld = vi / 1000 / k[\"sr\"] * 100\n    return {\n        \"feeder_kwh\": fk, \"cust_kwh\": ck, \"read_coverage_pct\": cov, \"tech_loss_kwh\": tl, \"tech_loss_pct\": tl / fk * 100,\n        \"ntl_kwh\": ntl, \"ntl_pct\": ntl / fk * 100, \"ntl_l1_pct\": ph[\"1\"], \"ntl_l2_pct\": ph[\"2\"], \"ntl_l3_pct\": ph[\"3\"],\n        \"phase_spread_pct\": max(ph.values()) - min(ph.values()), \"v_bus_avg\": vb, \"v_end_expected\": vex,\n        \"v_end_residual\": ve - vex, \"v_end_spread_excess\": spx,\n        \"v_max_headroom\": L[\"en50160_high_v\"] - r[\"v_max_cust\"], \"v_min_headroom\": r[\"v_min_cust\"] - L[\"en50160_low_v\"],\n        \"trafo_load_pct\": ld, \"trafo_loss_kwh\": dt * (k[\"po\"] + k[\"pk\"] * (ld / 100) ** 2) / 1000,\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    cov_ok = f\"({p['COV']} >= {L['coverage_min_pct']})\"\n    N, hi, lo = p[\"NTLP\"], L[\"ntl_alert_pct\"], L[\"ntl_negative_pct\"]\n    bus_ok = f\"({p['VB']} <= {L['bus_high_v']}) & ({p['VB']} >= {L['bus_low_v']})\"\n    return [\n        (\"AMI_LOSS_UNEXPLAINED\", f\"{cov_ok} & ({N} > {hi})\", \"High\", \"bypass_theft\"),\n        (\"AMI_LOSS_NEGATIVE\", f\"{cov_ok} & ({N} < {-lo})\", \"High\", \"ct_polarity\"),\n        (\"AMI_TAMPER\", \"df['TAMPER_EVENTS_24H'] > 0.5\", \"High\", \"bypass_theft\"),\n        (\"AMI_NEUTRAL_SHIFT\", f\"{p['SPX']} > {L['neutral_shift_v']}\", \"High\", \"loose_neutral\"),\n        (\"AMI_RELAY_MISMATCH\", f\"((df['RELAYS_CMD_OPEN'] - df['RELAYS_OPEN']) > 0.5) | (df['KWH_ON_OPEN_RELAYS'] > {L['relay_kwh']})\", \"High\", \"relay_stuck\"),\n        (\"AMI_PHASE_MAPPING\", f\"{cov_ok} & ({N} <= {hi}) & ({N} >= {-lo}) & ({p['SPX']} <= {L['neutral_shift_v']}) & ({p['SPR']} > {L['phase_spread_pct']})\", \"Medium\", \"phase_mismapping\"),\n        (\"AMI_REVERSE_ENERGY\", f\"df['FEEDER_KWH_EXPORT'] > {L['export_alert_kwh']}\", \"Medium\", \"ct_polarity\"),\n        (\"AMI_VOLTAGE_OUT\", f\"((df['V_MIN_CUST'] < {L['en50160_low_v']}) | (df['V_MAX_CUST'] > {L['en50160_high_v']})) & {bus_ok}\", \"Medium\", \"loose_neutral\"),\n        (\"AMI_BUS_VOLTAGE\", f\"({p['VB']} > {L['bus_high_v']}) | ({p['VB']} < {L['bus_low_v']})\", \"Medium\", \"tap_setting\"),\n        (\"AMI_READS_LOW\", f\"{p['COV']} < {L['coverage_min_pct']}\", \"Medium\", \"concentrator_comms\"),\n        (\"AMI_CLOCK_DRIFT\", f\"df['CLOCK_OFFSET_MAX_S'] > {L['clock_offset_s']}\", \"Low\", \"clock_drift\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    cov_ok = t[\"read_coverage_pct\"] >= L[\"coverage_min_pct\"]\n    n = t[\"ntl_pct\"]\n    bus_ok = L[\"bus_low_v\"] <= t[\"v_bus_avg\"] <= L[\"bus_high_v\"]\n    worst = max((\"L1\", t[\"ntl_l1_pct\"]), (\"L2\", t[\"ntl_l2_pct\"]), (\"L3\", t[\"ntl_l3_pct\"]), key=lambda x: x[1])\n    add(cov_ok and n > L[\"ntl_alert_pct\"], \"AMI_LOSS_UNEXPLAINED\", \"High\",\n        f\"Unexplained loss {n:.1f} % ({t['ntl_kwh']:.2f} kWh in 15 min), mostly on {worst[0]}\", \"customer meter\", \"bypass_theft\")\n    add(cov_ok and n < -L[\"ntl_negative_pct\"], \"AMI_LOSS_NEGATIVE\", \"High\",\n        f\"Customers registered {-t['ntl_kwh']:.2f} kWh more than the feeder delivered ({n:.1f} %): check meter under-reads\", \"check meter\", \"ct_polarity\")\n    add(r[\"tamper_events_24h\"] > 0.5, \"AMI_TAMPER\", \"High\", f\"{r['tamper_events_24h']:.0f} terminal cover / magnetic field event(s) in 24 h\", \"customer meter\", \"bypass_theft\")\n    add(t[\"v_end_spread_excess\"] > L[\"neutral_shift_v\"], \"AMI_NEUTRAL_SHIFT\", \"High\",\n        f\"End-of-feeder phase voltages {r['v_end_l1']:.0f} / {r['v_end_l2']:.0f} / {r['v_end_l3']:.0f} V: {t['v_end_spread_excess']:.1f} V more spread than the unbalance explains\",\n        \"LV network\", \"loose_neutral\")\n    add((r[\"relays_cmd_open\"] - r[\"relays_open\"]) > 0.5 or r[\"kwh_on_open_relays\"] > L[\"relay_kwh\"], \"AMI_RELAY_MISMATCH\", \"High\",\n        f\"{r['relays_cmd_open']:.0f} disconnector(s) commanded open, {r['relays_open']:.0f} confirmed; {r['kwh_on_open_relays']:.2f} kWh registered\", \"customer meter\", \"relay_stuck\")\n    add(cov_ok and -L[\"ntl_negative_pct\"] <= n <= L[\"ntl_alert_pct\"] and t[\"v_end_spread_excess\"] <= L[\"neutral_shift_v\"]\n        and t[\"phase_spread_pct\"] > L[\"phase_spread_pct\"], \"AMI_PHASE_MAPPING\", \"Medium\",\n        f\"Total balance fine ({n:.1f} %) but phases differ by {t['phase_spread_pct']:.1f} points (L1 {t['ntl_l1_pct']:+.1f}, L2 {t['ntl_l2_pct']:+.1f}, L3 {t['ntl_l3_pct']:+.1f} %)\",\n        \"network model\", \"phase_mismapping\")\n    add(r[\"feeder_kwh_export\"] > L[\"export_alert_kwh\"], \"AMI_REVERSE_ENERGY\", \"Medium\",\n        f\"Check meter registers {r['feeder_kwh_export']:.2f} kWh export on a feeder without generation\", \"check meter\", \"ct_polarity\")\n    add((r[\"v_min_cust\"] < L[\"en50160_low_v\"] or r[\"v_max_cust\"] > L[\"en50160_high_v\"]) and bus_ok, \"AMI_VOLTAGE_OUT\", \"Medium\",\n        f\"Customer voltages {r['v_min_cust']:.0f} to {r['v_max_cust']:.0f} V, outside {L['en50160_low_v']:.0f}-{L['en50160_high_v']:.0f} V, busbar normal\", \"LV network\", \"loose_neutral\")\n    add(not bus_ok, \"AMI_BUS_VOLTAGE\", \"Medium\",\n        f\"Busbar {t['v_bus_avg']:.1f} V, outside {L['bus_low_v']:.0f}-{L['bus_high_v']:.0f} V: transformer tap or MV voltage\", \"transformer\", \"tap_setting\")\n    add(not cov_ok, \"AMI_READS_LOW\", \"Medium\",\n        f\"Only {r['reads_ok']:.0f} of {twin['design']['meters']['n_meters']} meters read ({t['read_coverage_pct']:.0f} %): balance not judged\", \"concentrator\", \"concentrator_comms\")\n    add(r[\"clock_offset_max_s\"] > L[\"clock_offset_s\"], \"AMI_CLOCK_DRIFT\", \"Low\", f\"A meter clock is {r['clock_offset_max_s']:.0f} s off\", \"customer meter\", \"clock_drift\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "AMI-7301: the metering system of one LV feeder. Expected values in Maximo Monitor from the network model, the meter and transformer data; the head-end sends only what the meters measure.", "twin": {"id": "AMI-7301", "name": "LV feeder metering system AMI-7301", "version": "1.0.0", "folder": "ami-twin"}, "identification": {"asset": "AMI-7301", "assetnum": "AMI-7301", "manufacturer": "Landis+Gyr E350 customer meters, Itron ACE SL7000 check meter,", "model": "PLC data concentrator and head-end system (AMI)", "description": "Metering system of LV feeder 1 of a 250 kVA distribution substation: check meter, 24 smart meters, data concentrator", "customer_meter": "Landis+Gyr E350 series 2 ZMF110Cx three-phase direct-connected meter with disconnector, 3 x 230/400 V, 5(100) A, IEC class 1 / MID class B, PLC communication module", "check_meter": "Itron ACE SL7000 transformer-connected meter, class 0.5S, on 300/5 A CTs at the transformer LV terminals", "concentrator": "PLC data concentrator in the substation (DLMS/COSEM over PLC to the meters, IP backhaul to the head-end system)", "transformer": "250 kVA 20/0.42 kV liquid-immersed distribution transformer, Dyn11, feeding this one LV feeder"}, "design": {"network": {"voltage_nominal_v": 230.0, "no_load_v": 242.5, "frequency_hz": 50, "pf": 0.95, "temp_c": 40.0, "alpha_per_k": 0.00403, "sections": [{"name": "TX-A", "to": "A", "length_m": 120, "cable": "NAYY-J 4x185 SE", "r20_ohm_km": 0.164, "x_ohm_km": 0.08, "customers": 6}, {"name": "A-B", "to": "B", "length_m": 120, "cable": "NAYY-J 4x185 SE", "r20_ohm_km": 0.164, "x_ohm_km": 0.08, "customers": 6}, {"name": "B-C", "to": "C", "length_m": 120, "cable": "NAYY-J 4x95 SE", "r20_ohm_km": 0.32, "x_ohm_km": 0.08, "customers": 6}, {"name": "C-D", "to": "D", "length_m": 120, "cable": "NAYY-J 4x95 SE", "r20_ohm_km": 0.32, "x_ohm_km": 0.08, "customers": 6}], "service": {"cable": "NYY-J 4x16 RM (copper)", "length_m": 20, "r20_ohm_km": 1.15, "x_ohm_km": 0.08}, "customers": 24, "derived": {"r_drop_ohm": 0.069373, "x_drop_ohm": 0.024, "r_loss_ohm": 0.047231, "temp_factor": 1.0806, "r_service_ohm": 0.024854}, "source": "Radial feeder: four 120 m sections to four street cabinets with 6 customers each, cable types from the network records. Resistances at 20 C: NAYY-J 4x185 SE 0.164 ohm/km, 4x95 SE 0.32 ohm/km (manufacturer data, = IEC 60228), service cable NYY-J 4x16 copper 1.15 ohm/km (IEC 60228 class 2). Corrected to 40 C with alpha = 0.00403 /K (commonly quoted for aluminium). Lengths, reactance 0.08 ohm/km, 40 C, pf 0.95, 420 V no-load voltage: assumption: typical value, replace with your network model (GIS), cable records and HES configuration."}, "transformer": {"rating_kva": 250.0, "uk_pct": 4.0, "pk_w": 2350.0, "po_w": 270.0, "tap_pct": 0.0, "source": "Load and no-load losses: maximum values of Commission Regulation (EU) 548/2014 Table I.1, Tier 2, 250 kVA liquid-immersed (Ak 2350 W, A0-10 % 270 W). uk 4 % and the 0 % tap position: assumption: typical value, replace with your network model (GIS), cable records and HES configuration."}, "meters": {"interval_min": 15, "n_meters": 24, "meter_w_per_phase": 0.45, "concentrator_w": 5.0, "customer_class": "IEC 62053-21 class 1 / MID class B (MPE 1 % from Itr to Imax at +5 to +30 C)", "check_class": "IEC 62053-22 class 0.5S (meter) on class 0.5S CTs (assumption)", "source": "E350 series 2 technical data: voltage-circuit active power 0.45 W per phase (typical), not registered by the meter itself but seen by the check meter. Check meter: ACE SL7000 class 0.5S, CT connection Ib 1 A Imax 10 A (Itron brochure); CT ratio 300/5 A class 0.5S and concentrator consumption 5 W: assumption: typical value, replace with your network model (GIS), cable records and HES configuration."}, "load": {"kw_per_customer_peak": 2.4, "kw_per_customer_night": 0.35, "source": "Residential diversified load shape (night, morning and evening peaks) used by the stand-in only: assumption: typical value, replace with your network model (GIS), cable records and HES configuration."}, "demo": {"time_scale": 90, "start_hour": 19.0, "note": "Demo only: the plant clock runs 90 times faster, so each published reading (every 10 s) is one 15-minute meter interval and a day passes in 16 minutes. The page opens at the visitor's local time."}}, "telemetry": {"event": "ami", "publish_every_s": 10, "device_type": "AMI_LV_FEEDER", "groups": {"Feeder": "Check meter at the transformer LV terminals (one 15-minute interval)", "Customers": "Customer smart meters, summed by the head-end per phase of the network model", "Voltage": "Voltages at the meters (10-minute means inside the interval)", "Health": "Meter and head-end health"}, "points": [{"metric": "feeder_kwh_l1", "path": "Feeder.EnergyL1", "label": "Check meter import energy, phase L1", "unit": "kWh"}, {"metric": "feeder_kwh_l2", "path": "Feeder.EnergyL2", "label": "Check meter import energy, phase L2", "unit": "kWh"}, {"metric": "feeder_kwh_l3", "path": "Feeder.EnergyL3", "label": "Check meter import energy, phase L3", "unit": "kWh"}, {"metric": "feeder_kwh_export", "path": "Feeder.EnergyExport", "label": "Check meter export energy, all phases", "unit": "kWh"}, {"metric": "feeder_i_l1", "path": "Feeder.CurrentL1", "label": "Feeder current L1 (interval mean)", "unit": "A"}, {"metric": "feeder_i_l2", "path": "Feeder.CurrentL2", "label": "Feeder current L2 (interval mean)", "unit": "A"}, {"metric": "feeder_i_l3", "path": "Feeder.CurrentL3", "label": "Feeder current L3 (interval mean)", "unit": "A"}, {"metric": "feeder_i_n", "path": "Feeder.CurrentN", "label": "Feeder neutral current (interval mean)", "unit": "A"}, {"metric": "v_bus_l1", "path": "Voltage.BusL1", "label": "LV busbar voltage L1-N", "unit": "V"}, {"metric": "v_bus_l2", "path": "Voltage.BusL2", "label": "LV busbar voltage L2-N", "unit": "V"}, {"metric": "v_bus_l3", "path": "Voltage.BusL3", "label": "LV busbar voltage L3-N", "unit": "V"}, {"metric": "cust_kwh_l1", "path": "Customers.EnergyL1", "label": "Sum of customer meters on L1 (network model phase)", "unit": "kWh"}, {"metric": "cust_kwh_l2", "path": "Customers.EnergyL2", "label": "Sum of customer meters on L2 (network model phase)", "unit": "kWh"}, {"metric": "cust_kwh_l3", "path": "Customers.EnergyL3", "label": "Sum of customer meters on L3 (network model phase)", "unit": "kWh"}, {"metric": "reads_ok", "path": "Customers.ReadsOK", "label": "Customer meters read for this interval", "unit": "count"}, {"metric": "reads_24h_pct", "path": "Customers.DailyReadPct", "label": "Interval reads received, last 24 h", "unit": "%"}, {"metric": "v_min_cust", "path": "Voltage.MinCustomer", "label": "Lowest voltage at any customer meter", "unit": "V"}, {"metric": "v_max_cust", "path": "Voltage.MaxCustomer", "label": "Highest voltage at any customer meter", "unit": "V"}, {"metric": "v_end_l1", "path": "Voltage.EndL1", "label": "End-of-feeder meter voltage L1-N (cabinet D)", "unit": "V"}, {"metric": "v_end_l2", "path": "Voltage.EndL2", "label": "End-of-feeder meter voltage L2-N (cabinet D)", "unit": "V"}, {"metric": "v_end_l3", "path": "Voltage.EndL3", "label": "End-of-feeder meter voltage L3-N (cabinet D)", "unit": "V"}, {"metric": "tamper_events_24h", "path": "Health.TamperEvents", "label": "Terminal cover open / magnetic field events, last 24 h", "unit": "count"}, {"metric": "clock_offset_max_s", "path": "Health.ClockOffsetMax", "label": "Largest meter clock offset found at the last read", "unit": "s"}, {"metric": "relays_cmd_open", "path": "Health.RelaysCommandedOpen", "label": "Meters whose disconnector was commanded open", "unit": "count"}, {"metric": "relays_open", "path": "Health.RelaysOpen", "label": "Meters reporting the disconnector open", "unit": "count"}, {"metric": "kwh_on_open_relays", "path": "Health.EnergyOnOpenRelays", "label": "Energy registered by meters commanded open", "unit": "kWh"}]}, "twin_model": {"limits": {"coverage_min_pct": 99.0, "ntl_alert_pct": 3.0, "ntl_negative_pct": 2.0, "phase_spread_pct": 8.0, "export_alert_kwh": 0.05, "neutral_shift_v": 8.0, "en50160_low_v": 207.0, "en50160_high_v": 253.0, "bus_low_v": 226.0, "bus_high_v": 246.0, "clock_offset_s": 10.0, "relay_kwh": 0.01}, "source": "Unexplained loss 3 % and negative loss 2 % of the feeder energy, phase spread 8 points, neutral shift 8 V, busbar band 226-246 V, clock offset 10 s, coverage 99 %: assumptions (typical revenue protection and network practice). 207 / 253 V: 230 V +/- 10 %, the EN 50160 LV band as commonly quoted."}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "bypass_theft": {"name": "Meter bypass (energy theft)", "part": "customer meter", "symptoms": "feeder energy above the customer sum plus losses, on one phase; terminal cover opened", "rules": ["AMI_LOSS_UNEXPLAINED", "AMI_TAMPER"], "default_ramp_min": 1}, "ct_polarity": {"name": "Check meter CT wired reversed on L2", "part": "check meter", "symptoms": "one phase registers as export; customers exceed the feeder", "rules": ["AMI_LOSS_NEGATIVE", "AMI_REVERSE_ENERGY"], "default_ramp_min": 0.5}, "phase_mismapping": {"name": "Wrong phase in the network model (cabinet C)", "part": "network model", "symptoms": "total balance fine, one phase shows loss and another a gain", "rules": ["AMI_PHASE_MAPPING"], "default_ramp_min": 1}, "loose_neutral": {"name": "Loose neutral connection in cabinet D", "part": "LV network", "symptoms": "end-of-feeder phase voltages split apart; one goes high, one low", "rules": ["AMI_NEUTRAL_SHIFT", "AMI_VOLTAGE_OUT"], "default_ramp_min": 1.5}, "tap_setting": {"name": "Transformer off-load tap set too high", "part": "transformer", "symptoms": "busbar and every meter high by the same amount", "rules": ["AMI_BUS_VOLTAGE"], "default_ramp_min": 1}, "concentrator_comms": {"name": "Data concentrator loses a PLC segment", "part": "concentrator", "symptoms": "meters behind cabinets B and C not read; apparent loss is not real", "rules": ["AMI_READS_LOW"], "default_ramp_min": 1}, "clock_drift": {"name": "Meter clock drift (sync failing)", "part": "customer meter", "symptoms": "clock offset grows at every read; intervals shift", "rules": ["AMI_CLOCK_DRIFT"], "default_ramp_min": 1.5}, "relay_stuck": {"name": "Disconnector stuck closed", "part": "customer meter", "symptoms": "a meter commanded open still reports closed and registers energy", "rules": ["AMI_RELAY_MISMATCH"], "default_ramp_min": 0.5}}, "presentation": {"title": "AMI-7301 LV feeder metering system", "dashboard": "AMI_LV_FEEDER"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const sgn = (v, d = 1) => (v == null || isNaN(v)) ? '–' : (v >= 0 ? '+' : '') + Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 400);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(-6, 24, 40); ctl.target.set(19, 0, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.8));
+const sun = new THREE.DirectionalLight(0xffffff, 0.8); sun.position.set(20, 40, 25); scene.add(sun);
+const ground = new THREE.Mesh(new THREE.PlaneGeometry(140, 60), new THREE.MeshStandardMaterial({ color: 0x2a2e35, roughness: 1 })); ground.rotation.x = -Math.PI / 2; scene.add(ground);
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .3, roughness: o.r ?? .6, transparent: !!o.t, opacity: o.t ?? 1, emissive: o.e ?? 0x000000 });
+const cyl = (r1, r2, h, m, s = 24) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+// kiosk substation: transformer + LV board with check meter + concentrator
+const kioskMat = M(0x8a9a8a, { t: 1 });
+const kiosk = at(box(5, 3, 3.4, kioskMat), -4, 1.5, 0); scene.add(kiosk);
+scene.add(at(box(5.3, .2, 3.7, M(0x5d6b5d)), -4, 3.1, 0));
+const trafo = at(box(2, 2, 1.6, M(0x5e7f66, { m: .4 })), -5.2, 1.1, 0); scene.add(trafo);
+for (let i = 0; i < 5; i++) scene.add(at(box(.1, 1.6, 1.4, M(0x4a6352)), -6.3 - i * .14, 1.1, 0));
+scene.add(at(box(1.2, 2, .4, M(0x9aa3ad)), -3.0, 1.2, 1.2));
+const checkMeter = at(box(.5, .6, .2, M(0x8a3ffc, { e: 0x220044 })), -3.0, 1.6, 1.45); scene.add(checkMeter);
+const conc = at(box(.6, .4, .25, M(0x0f62fe, { e: 0x001844 })), -2.2, 1.1, 1.5); scene.add(conc);
+// LV cable (buried, shown as three phase conductors + neutral glowing lines) and cabinets
+const CABX = [10, 22, 34, 46], PHC = [0xda1e28, 0x0f62fe, 0x24a148, 0x8d8d8d];
+const cables = [];
+PHC.forEach((c, i) => { const m = M(c, { e: c, m: .1 }); m.emissiveIntensity = .35; const g = cyl(.07, .07, 48, m, 8); g.rotation.z = Math.PI / 2; scene.add(at(g, 22, .08, -.45 + i * .3)); cables.push(m); });
+const cabMat = M(0x4e6e58, { t: 1 }), cabs = [], nbars = [];
+CABX.forEach((x, k) => {
+  const c = at(box(1.4, 1.3, .7, cabMat), x, .65, 1.4); scene.add(c); cabs.push(c);
+  for (let p = 0; p < 4; p++) { const bm = M(p < 3 ? 0xc8a24a : 0x9a9a9a, { m: .8, r: .3 }); const b = at(box(1.1, .06, .06, bm), x, .35 + p * .22, 1.4); scene.add(b); if (p === 3) nbars.push(bm); }
+});
+// homes: 6 per cabinet, 3 each side of the street, each with a meter box
+const houses = [], meters = [];
+CABX.forEach((x, k) => {
+  for (let j = 0; j < 6; j++) {
+    const side = j < 3 ? 1 : -1, hx = x - 4 + (j % 3) * 4, hz = side * 9;
+    const wall = M(0xb9b2a5); const h = at(box(3, 2.4, 3, wall), hx, 1.2, hz); scene.add(h);
+    const roof = new THREE.Mesh(new THREE.ConeGeometry(2.4, 1.4, 4), M(0x7a4b3a)); roof.rotation.y = Math.PI / 4; scene.add(at(roof, hx, 3.1, hz));
+    const mm = M(0xf4f4f4, { e: 0x0a2a10 }); const mb = at(box(.45, .55, .12, mm), hx + .7, 1.0, hz - side * 1.56); scene.add(mb);
+    const svc = cyl(.03, .03, Math.abs(hz) - 2.0, M(0x6f6f6f), 6); svc.rotation.x = Math.PI / 2; scene.add(at(svc, hx + .7, .05, side * (Math.abs(hz) / 2 + .2)));
+    houses.push({ mesh: h, wall, x: hx, z: hz }); meters.push(mm);
+  }
+});
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.25, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, -4, 3.6, 0));
+// indices as in physics.py: thief M22, empty house M10, end-of-feeder meter M24
+const THIEF = 21, VACANT = 9, EOL = 23;
+const jumper = at(box(.5, .08, .08, M(0xda1e28, { e: 0x880000 })), houses[THIEF].x + .7, .7, houses[THIEF].z + 1.62); jumper.visible = false; scene.add(jumper);
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('feeder', [-3, 4.2, 1.4]); lbl('bus', [-6, 3.6, -1.2]); lbl('cust', [16, 4.6, 9]); lbl('loss', [22, 2.4, 0]);
+lbl('phase', [34, 4.6, -9]); lbl('end', [46, 2.6, 1.4]); lbl('vrange', [40, 4.6, 9]); lbl('health', [10, 4.6, -9]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let curA = [0, 0, 0, 0];
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, n = TW.design.meters.n_meters;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  const has = (...a) => a.some(x => names.has(x));
+  curA = [r.feeder_i_l1, r.feeder_i_l2, r.feeder_i_l3, r.feeder_i_n];
+  setLbl('feeder', 'check meter · 15 min · currents L1/L2/L3', `${fmt(t.feeder_kwh)} kWh · ${fmt(r.feeder_i_l1, 0)}/${fmt(r.feeder_i_l2, 0)}/${fmt(r.feeder_i_l3, 0)} A${r.feeder_kwh_export > 0.001 ? ' · export ' + fmt(r.feeder_kwh_export) : ''}`, st(has('AMI_REVERSE_ENERGY', 'AMI_LOSS_NEGATIVE')));
+  setLbl('bus', `busbar · load ${fmt(t.trafo_load_pct, 0)} %`, `${fmt(r.v_bus_l1, 1)}/${fmt(r.v_bus_l2, 1)}/${fmt(r.v_bus_l3, 1)} V`, st(has('AMI_BUS_VOLTAGE'), t.v_bus_avg > L.bus_high_v - 2));
+  setLbl('cust', `customer meters · read ${fmt(r.reads_ok, 0)}/${n}`, `${fmt(t.cust_kwh)} kWh · ${fmt(t.read_coverage_pct, 0)} %`, st(has('AMI_READS_LOW')));
+  setLbl('loss', 'technical · unexplained loss', `${fmt(t.tech_loss_pct, 1)} % · ${sgn(t.ntl_pct)} %`, st(has('AMI_LOSS_UNEXPLAINED', 'AMI_LOSS_NEGATIVE'), t.read_coverage_pct >= L.coverage_min_pct && t.ntl_pct > L.ntl_alert_pct * .6));
+  setLbl('phase', `unexplained per phase · spread ${fmt(t.phase_spread_pct, 1)}`, `${sgn(t.ntl_l1_pct)} / ${sgn(t.ntl_l2_pct)} / ${sgn(t.ntl_l3_pct)} %`, st(has('AMI_PHASE_MAPPING')));
+  setLbl('end', `end of feeder · expected ${fmt(t.v_end_expected, 1)} · spread excess ${sgn(t.v_end_spread_excess)}`, `${fmt(r.v_end_l1, 0)}/${fmt(r.v_end_l2, 0)}/${fmt(r.v_end_l3, 0)} V`, st(has('AMI_NEUTRAL_SHIFT'), t.v_end_spread_excess > L.neutral_shift_v * .6));
+  setLbl('vrange', `customer voltages (${L.en50160_low_v}-${L.en50160_high_v} V)`, `${fmt(r.v_min_cust, 0)} to ${fmt(r.v_max_cust, 0)} V`, st(has('AMI_VOLTAGE_OUT'), t.v_min_headroom < 8 || t.v_max_headroom < 4));
+  setLbl('health', `tamper · relays open/commanded · clock`, `${fmt(r.tamper_events_24h, 0)} · ${fmt(r.relays_open, 0)}/${fmt(r.relays_cmd_open, 0)} · ${fmt(r.clock_offset_max_s, 0)} s`, st(has('AMI_TAMPER', 'AMI_RELAY_MISMATCH'), has('AMI_CLOCK_DRIFT')));
+  $('k-health').textContent = ST.health; $('k-ntl').textContent = sgn(t.ntl_pct) + ' %';
+  const h = ST.plant_time_h; $('k-time').textContent = h == null ? '–' : `${String(Math.floor(h)).padStart(2, '0')}:${String(Math.floor((h % 1) * 60)).padStart(2, '0')}`;
+  const balOk = t.read_coverage_pct >= L.coverage_min_pct;
+  $('c-bal-t').textContent = balOk ? `balance ${sgn(t.ntl_pct)} %` : 'balance not judged';
+  $('c-bal').className = 'chip ' + (!balOk ? 'warn' : (t.ntl_pct > L.ntl_alert_pct || t.ntl_pct < -L.ntl_negative_pct) ? 'bad' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (nm, v, e, bad) => `<span>${nm}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Feeder energy (kWh)', fmt(t.feeder_kwh, 3), '–') +
+    row('Customers + technical (kWh)', fmt(t.cust_kwh + t.tech_loss_kwh, 3), fmt(t.feeder_kwh, 3), has('AMI_LOSS_UNEXPLAINED', 'AMI_LOSS_NEGATIVE')) +
+    row('Technical loss (kWh)', fmt(t.tech_loss_kwh, 3), fmt(t.tech_loss_pct, 1) + ' %') +
+    row('Unexplained loss (%)', sgn(t.ntl_pct, 2), `−${L.ntl_negative_pct} to +${L.ntl_alert_pct}`, has('AMI_LOSS_UNEXPLAINED', 'AMI_LOSS_NEGATIVE')) +
+    row('Phase spread (points)', fmt(t.phase_spread_pct, 1), '≤ ' + L.phase_spread_pct, has('AMI_PHASE_MAPPING')) +
+    row('Meters read', `${fmt(r.reads_ok, 0)}/${n}`, '≥ ' + L.coverage_min_pct + ' %', has('AMI_READS_LOW')) +
+    row('End voltage, average (V)', fmt((r.v_end_l1 + r.v_end_l2 + r.v_end_l3) / 3, 1), fmt(t.v_end_expected, 1)) +
+    row('Neutral spread excess (V)', sgn(t.v_end_spread_excess), '≤ ' + L.neutral_shift_v, has('AMI_NEUTRAL_SHIFT')) +
+    row('Busbar voltage (V)', fmt(t.v_bus_avg, 1), `${L.bus_low_v}-${L.bus_high_v}`, has('AMI_BUS_VOLTAGE')) +
+    row('Lowest / highest customer (V)', `${fmt(r.v_min_cust, 0)} / ${fmt(r.v_max_cust, 0)}`, `${L.en50160_low_v}-${L.en50160_high_v}`, has('AMI_VOLTAGE_OUT')) +
+    row('Transformer load / loss', `${fmt(t.trafo_load_pct, 0)} % · ${fmt(t.trafo_loss_kwh * 1000, 0)} Wh`, 'upstream');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the feeder and its meters behave as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  // visuals driven by the fault state and the reading
+  jumper.visible = (fs.bypass_theft || 0) > .2;
+  houses[THIEF].wall.emissive.setHex(jumper.visible ? 0x3a0000 : 0x000000);
+  houses[VACANT].wall.color.setHex((fs.relay_stuck || 0) >= .3 ? 0xd9c27a : 0x6f6a62);
+  nbars[3].emissive.setHex((fs.loose_neutral || 0) > .1 ? 0xaa0000 : 0x000000);
+  conc.material.emissive.setHex((fs.concentrator_comms || 0) > .1 ? 0x661100 : 0x001844);
+  const lost = new Set([6, 7, 8, 10, 11, 12, 13, 14, 15, 16].slice(0, Math.round(10 * (fs.concentrator_comms || 0))));
+  meters.forEach((m, i) => m.emissive.setHex(lost.has(i) ? 0x000000 : i === EOL ? 0x0a1a44 : 0x0a2a10));
+  checkMeter.material.emissive.setHex((fs.ct_polarity || 0) >= .5 ? 0x660000 : 0x220044);
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  [cabMat, kioskMat].forEach(m => { m.transparent = true; m.opacity = cut ? .2 : 1; m.depthWrite = !cut; });
+  houses.forEach(h => { h.wall.transparent = true; h.wall.opacity = cut ? .35 : 1; });
+};
+$('t-cab').onclick = () => { cam.position.set(46, 3.2, 6.5); ctl.target.set(46, .6, 1.4); ctl.update(); if (!cut) $('t-cut').onclick(); };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+function tick(now) {
+  const pulse = .5 + .5 * Math.sin(now / 300);
+  cables.forEach((m, i) => { m.emissiveIntensity = .15 + Math.min(1, (curA[i] || 0) / 120) * (.4 + .3 * pulse); });
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
