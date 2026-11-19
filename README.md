@@ -1,6 +1,6 @@
 # Digital Twin for Maximo
 
-Code that goes with sixty-nine IBM Community posts on building physics-based digital twins of Maximo assets
+Code that goes with seventy-one IBM Community posts on building physics-based digital twins of Maximo assets
 with standard Maximo Monitor and Maximo Manage features:
 
 | Asset | Twin folder | Post |

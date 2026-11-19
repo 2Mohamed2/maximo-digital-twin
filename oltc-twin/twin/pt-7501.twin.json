@@ -1,0 +1,389 @@
+{
+ "$comment": "PT-7501 OLTC and HV bushing twin. Expected values in Maximo Monitor from nameplate, OLTC, regulator and bushing data; the device sends only what it measures.",
+ "twin": {
+  "id": "PT-7501",
+  "name": "Power transformer PT-7501: on-load tap-changer and HV bushings",
+  "version": "1.0.0",
+  "folder": "oltc-twin"
+ },
+ "identification": {
+  "asset": "PT-7501",
+  "assetnum": "PT-7501",
+  "manufacturer": "Grid transformer with Maschinenfabrik Reinhausen OLTC and OIP HV bushings",
+  "model": "60 MVA 132/33 kV, OLTC VACUTAP VRS III 700 Y, motor drive ETOS, bushings OIP type GOB class",
+  "description": "Grid transformer T1 of a 132/33 kV primary substation: on-load tap-changer and HV bushing twin",
+  "transformer": "60 MVA ONAF, 132/33 kV, YNd11, HV tapping +/-10 % in 16 steps at the HV neutral end (assumption: typical design)",
+  "oltc": "Maschinenfabrik Reinhausen VACUTAP VRS III 700 Y (vacuum diverter switch, change-over selector), 17 positions",
+  "motor_drive": "MR ETOS motor-drive unit; TAPCON voltage regulator (automatic voltage control)",
+  "bushings": "3 x HV condenser bushings, oil-impregnated paper (OIP), porcelain, 2 kV test tap (for example Hitachi Energy GOB class)",
+  "monitoring": "Bushing monitor on the test taps (for example MR MSENSE BM-T: C1 and tan delta per bushing), OLTC monitoring in the motor drive, OLTC oil temperature and online DGA in the OLTC and main tank oil"
+ },
+ "design": {
+  "transformer": {
+   "rated_mva": 60.0,
+   "hv_kv": 132.0,
+   "lv_kv": 33.0,
+   "lv_rated_a": 1049.7,
+   "hv_rated_a": 262.4,
+   "uk_pct": 12.5,
+   "load_loss_kw": 260.0,
+   "source": "Rated power, voltages, vector group, short-circuit impedance uk and load losses: assumption: typical value, replace with your nameplate and routine test report (IEC 60076-1)"
+  },
+  "tapping": {
+   "positions": 17,
+   "neutral": 9,
+   "step_pct": 1.25,
+   "step_voltage_v": 952.6,
+   "direction": "a higher position removes HV turns and raises the LV voltage",
+   "source": "Tapping range +/-10 % in 16 steps of 1.25 % on the HV winding: assumption: typical value, replace with your nameplate. Within the VACUTAP VRS III 700 Y limits published by MR (max. 4500 V step voltage, max. 35 positions with change-over selector, 700 A)."
+  },
+  "oltc": {
+   "type": "VACUTAP VRS III 700 Y",
+   "rated_through_current_a": 700.0,
+   "max_step_voltage_v": 4500.0,
+   "maint_ops": 300000,
+   "maint_years": 10.0,
+   "interrupter_life_ops": 600000,
+   "wear_exponent": 2.0,
+   "ops_per_day_expected": 30.0,
+   "source": "MR VACUTAP VR flyer: 700 A, 4500 V, 300,000 tap-change operations without maintenance; interrupter replacement after 600,000 operations (the figure MR gives for arc-furnace duty, used here as the interrupter life at rated current). Time-based inspection after 10 years, wear per operation proportional to (switched current / rated current)^2 and 30 operations per day: assumption: typical value, replace with the operating instructions of your tap-changer and your regulation history."
+  },
+  "regulator": {
+   "setpoint_kv": 33.0,
+   "band_pct": 1.0,
+   "t1_s": 20.0,
+   "band_min_factor": 0.6,
+   "source": "MR TAPCON operating instructions: the bandwidth must always be greater than 0.6 x step voltage / nominal voltage x 100 %; delay time T1 20 s at commissioning. Setpoint and the +/-1.0 % band: assumption: typical value, replace with your regulator settings."
+  },
+  "motor": {
+   "op_time_s": 5.5,
+   "current_a": 1.6,
+   "current_temp_coeff": 0.006,
+   "ref_temp_c": 20.0,
+   "source": "Duration of one tap change (Megger: usually 3 to 10 s for resistor-type OLTCs) and mean motor current during the change, with +0.6 % per K below 20 degC for thicker grease: assumption: typical value, replace with the commissioning signature of your motor-drive unit."
+  },
+  "thermal": {
+   "oltc_minus_top_oil_k": -4.0,
+   "source": "Normal OLTC compartment oil temperature minus main-tank top-oil temperature: assumption: typical value, replace with your commissioning trend. A healthy compartment runs cooler than the main tank (T&D World, differential temperature monitoring)."
+  },
+  "dga": {
+   "main_c2h2_ppm": 0.5,
+   "main_c2h4_ppm": 8.0,
+   "source": "Background gases of the main tank: assumption: typical value, replace with your DGA history. A vacuum OLTC compartment normally shows gases in the same range as the main tank (Transformer Magazine tap-changer column); IEEE C57.139 gives the LTC interpretation (not read: the excess limits are assumptions)."
+  },
+  "bushings": {
+   "phases": [
+    "L1",
+    "L2",
+    "L3"
+   ],
+   "c1_pf": [
+    418.0,
+    422.0,
+    415.0
+   ],
+   "tand_pct": [
+    0.32,
+    0.35,
+    0.33
+   ],
+   "source": "Nameplate C1 and tan delta at 20 degC of the three HV bushings: assumption: typical value, replace with the rating plates or routine test reports. Order of magnitude: a short between two layers raises C1 by about 4 % in a 138 kV bushing with 20 to 30 layers; healthy OIP power factor around 0.25 % (Transformer Technology)."
+  },
+  "demo": {
+   "time_scale": 1,
+   "voltage_swing_pct": 3.0,
+   "voltage_period_s": 360.0,
+   "note": "Demo only: the 132 kV grid voltage swings +/-3 % over 6 minutes so the regulator changes taps every minute or so. The counters (operations per day and per year, wear, years since maintenance) and the gas levels come from the failure modes, not from the demo clock."
+  }
+ },
+ "telemetry": {
+  "event": "oltc",
+  "publish_every_s": 10,
+  "device_type": "TRANSFORMER_OLTC_BUSHING",
+  "groups": {
+   "Grid": "Voltages and load",
+   "AVR": "Voltage regulator and tap position",
+   "Drive": "Motor-drive unit, last tap change",
+   "Duty": "Operation counters and wear",
+   "Temp": "Oil temperatures",
+   "DGA": "Dissolved gases, OLTC and main tank",
+   "Bushing": "HV bushing monitor (test taps)"
+  },
+  "points": [
+   {
+    "metric": "hv_voltage_kv",
+    "path": "Grid.HVVoltage",
+    "label": "HV voltage (line to line)",
+    "unit": "kV"
+   },
+   {
+    "metric": "lv_voltage_kv",
+    "path": "Grid.LVVoltage",
+    "label": "LV busbar voltage (line to line)",
+    "unit": "kV"
+   },
+   {
+    "metric": "lv_current_a",
+    "path": "Grid.LVCurrent",
+    "label": "LV load current",
+    "unit": "A"
+   },
+   {
+    "metric": "power_factor",
+    "path": "Grid.PowerFactor",
+    "label": "Power factor of the load",
+    "unit": ""
+   },
+   {
+    "metric": "tap_position",
+    "path": "AVR.TapPosition",
+    "label": "Tap position (1..17, 9 = rated)",
+    "unit": "pos"
+   },
+   {
+    "metric": "avr_setpoint_kv",
+    "path": "AVR.Setpoint",
+    "label": "Regulator desired value",
+    "unit": "kV"
+   },
+   {
+    "metric": "avr_band_pct",
+    "path": "AVR.Bandwidth",
+    "label": "Regulator bandwidth (+/-)",
+    "unit": "%"
+   },
+   {
+    "metric": "motor_current_a",
+    "path": "Drive.MotorCurrent",
+    "label": "Mean motor current, last tap change",
+    "unit": "A"
+   },
+   {
+    "metric": "op_time_s",
+    "path": "Drive.OperationTime",
+    "label": "Duration of the last tap change",
+    "unit": "s"
+   },
+   {
+    "metric": "cabinet_temp_c",
+    "path": "Drive.CabinetTemp",
+    "label": "Motor-drive cabinet temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "ops_total",
+    "path": "Duty.OpsTotal",
+    "label": "Tap-change operations since commissioning",
+    "unit": "count"
+   },
+   {
+    "metric": "ops_since_maint",
+    "path": "Duty.OpsSinceMaint",
+    "label": "Operations since the last OLTC maintenance",
+    "unit": "count"
+   },
+   {
+    "metric": "ops_24h",
+    "path": "Duty.Ops24h",
+    "label": "Operations in the last 24 hours",
+    "unit": "count"
+   },
+   {
+    "metric": "ops_365d",
+    "path": "Duty.Ops365d",
+    "label": "Operations in the last 365 days",
+    "unit": "count"
+   },
+   {
+    "metric": "years_since_maint",
+    "path": "Duty.YearsSinceMaint",
+    "label": "Years since the last OLTC maintenance",
+    "unit": "a"
+   },
+   {
+    "metric": "wear_sum_pu",
+    "path": "Duty.WearSum",
+    "label": "Sum of (switched current / rated current)^2 since new interrupters",
+    "unit": "pu²"
+   },
+   {
+    "metric": "top_oil_temp_c",
+    "path": "Temp.TopOil",
+    "label": "Main tank top-oil temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "oltc_oil_temp_c",
+    "path": "Temp.OLTCOil",
+    "label": "OLTC compartment oil temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "ambient_temp_c",
+    "path": "Temp.Ambient",
+    "label": "Ambient temperature",
+    "unit": "°C"
+   },
+   {
+    "metric": "main_c2h2_ppm",
+    "path": "DGA.MainC2H2",
+    "label": "Acetylene in main tank oil",
+    "unit": "ppm"
+   },
+   {
+    "metric": "main_c2h4_ppm",
+    "path": "DGA.MainC2H4",
+    "label": "Ethylene in main tank oil",
+    "unit": "ppm"
+   },
+   {
+    "metric": "oltc_c2h2_ppm",
+    "path": "DGA.OLTCC2H2",
+    "label": "Acetylene in OLTC oil",
+    "unit": "ppm"
+   },
+   {
+    "metric": "oltc_c2h4_ppm",
+    "path": "DGA.OLTCC2H4",
+    "label": "Ethylene in OLTC oil",
+    "unit": "ppm"
+   },
+   {
+    "metric": "bsh_c1_l1_pf",
+    "path": "Bushing.C1L1",
+    "label": "Bushing L1 capacitance C1",
+    "unit": "pF"
+   },
+   {
+    "metric": "bsh_c1_l2_pf",
+    "path": "Bushing.C1L2",
+    "label": "Bushing L2 capacitance C1",
+    "unit": "pF"
+   },
+   {
+    "metric": "bsh_c1_l3_pf",
+    "path": "Bushing.C1L3",
+    "label": "Bushing L3 capacitance C1",
+    "unit": "pF"
+   },
+   {
+    "metric": "bsh_tand_l1_pct",
+    "path": "Bushing.TanDeltaL1",
+    "label": "Bushing L1 tan delta (20 °C)",
+    "unit": "%"
+   },
+   {
+    "metric": "bsh_tand_l2_pct",
+    "path": "Bushing.TanDeltaL2",
+    "label": "Bushing L2 tan delta (20 °C)",
+    "unit": "%"
+   },
+   {
+    "metric": "bsh_tand_l3_pct",
+    "path": "Bushing.TanDeltaL3",
+    "label": "Bushing L3 tan delta (20 °C)",
+    "unit": "%"
+   }
+  ]
+ },
+ "twin_model": {
+  "limits": {
+   "tap_mismatch_steps": 1.0,
+   "ops_ratio_alert": 2.5,
+   "motor_current_ratio_alert": 1.3,
+   "op_time_ratio_alert": 1.2,
+   "wear_alert_pct": 80.0,
+   "temp_diff_alert_k": 2.0,
+   "oltc_c2h2_excess_ppm": 10.0,
+   "oltc_c2h4_excess_ppm": 50.0,
+   "c1_alert_pct": 5.0,
+   "c1_limit_pct": 10.0,
+   "tand_ratio_alert": 2.0,
+   "tand_limit_pct": 0.7,
+   "source": "C1 limits 5 % / 10 %: MR MSENSE BM recommendation. tan delta: alert at twice the nameplate value (commonly applied) and at 0.7 % (the IEC 60137 limit for new OIP bushings as commonly quoted, used here as a service alarm). All other limits: assumption: typical value, replace with your own alarm philosophy."
+  }
+ },
+ "failure_modes": {
+  "$comment": "Each failure mode: what degrades, how it shows, the rules that see it.",
+  "contact_wear": {
+   "name": "Vacuum interrupter contacts near end of life",
+   "part": "oltc",
+   "symptoms": "accumulated (I/Ir)^2 of the switched current approaches the interrupter life",
+   "rules": [
+    "OLTC_CONTACT_WEAR"
+   ],
+   "default_ramp_min": 1
+  },
+  "vacuum_loss": {
+   "name": "Vacuum interrupter loss of vacuum (arc in oil)",
+   "part": "oltc",
+   "symptoms": "acetylene in the OLTC oil far above the main tank",
+   "rules": [
+    "OLTC_DGA_ARCING"
+   ],
+   "default_ramp_min": 1
+  },
+  "drive_stiff": {
+   "name": "Motor drive or mechanism stiff",
+   "part": "drive",
+   "symptoms": "motor current and tap-change duration up at the same cabinet temperature",
+   "rules": [
+    "OLTC_MOTOR_CURRENT_HIGH",
+    "OLTC_OP_SLOW"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "tap_sensor_fault": {
+   "name": "Tap-position transmitter fault",
+   "part": "drive",
+   "symptoms": "reported tap disagrees with the LV voltage the windings must give",
+   "rules": [
+    "OLTC_TAP_MISMATCH"
+   ],
+   "default_ramp_min": 0.5
+  },
+  "band_too_narrow": {
+   "name": "Hunting: regulator bandwidth set too narrow",
+   "part": "regulator",
+   "symptoms": "bandwidth below 0.6 step, operations per day several times normal",
+   "rules": [
+    "OLTC_BAND_NARROW",
+    "OLTC_HUNTING"
+   ],
+   "default_ramp_min": 1
+  },
+  "compartment_heating": {
+   "name": "Diverter compartment overheating (poor contact)",
+   "part": "oltc",
+   "symptoms": "OLTC oil warmer than the main tank, ethylene in the OLTC oil",
+   "rules": [
+    "OLTC_TEMP_DIFF",
+    "OLTC_DGA_HEATING"
+   ],
+   "default_ramp_min": 1.5
+  },
+  "bushing_layer_short": {
+   "name": "HV bushing partial breakdown (layer short, C1 step up)",
+   "part": "bushing",
+   "symptoms": "C1 of one bushing up by several %, tan delta unchanged",
+   "rules": [
+    "BSH_C1_HIGH"
+   ],
+   "default_ramp_min": 1
+  },
+  "bushing_moisture": {
+   "name": "HV bushing moisture or ageing (tan delta up)",
+   "part": "bushing",
+   "symptoms": "tan delta of one bushing up, C1 unchanged",
+   "rules": [
+    "BSH_TAND_RISE",
+    "BSH_TAND_LIMIT"
+   ],
+   "default_ramp_min": 1.5
+  }
+ },
+ "presentation": {
+  "title": "PT-7501 on-load tap-changer and HV bushings",
+  "dashboard": "TRANSFORMER_OLTC_BUSHING"
+ }
+}

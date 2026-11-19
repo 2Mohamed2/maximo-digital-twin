@@ -1,0 +1,353 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PT-7501 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>PT-7501</b><span class="g">60 MVA 132/33 kV · on-load tap-changer and HV bushings</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-tap"><span class="dot"></span><span id="c-tap-t">tap –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Regulation, drive and bushings →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the transformer model…</div>
+<div class="credit">60 MVA 132/33 kV grid transformer with an in-tank vacuum on-load tap-changer, motor-drive cabinet and three OIP condenser bushings on the HV side. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. The drive shaft turns and the tap indicator moves whenever the regulator changes tap.</div>
+<aside>
+  <section>
+    <h2>PT-7501 twin</h2>
+    <p class="sub" id="sub">on-load tap-changer and HV bushings</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Tap (expected)<b id="k-tap">–</b></div><div>Worst C1 change<b id="k-c1">–</b></div></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The device sends only what it measures. The expected LV voltage and tap, the motor-drive signature, the wear, the maintenance due and the bushing changes are computed from the twin file: the nameplate, the tap-changer and regulator data and the bushing rating plates.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for PT-7501: grid, voltage regulator, on-load tap-changer, motor drive, OLTC oil and HV bushings, with faults.\n\nThe real device sends the same points (see telemetry.points in the twin file). Nothing here is used by Monitor: the\nexpected values are computed in Monitor from the twin file only. This model only produces believable readings and fault\nfingerprints for the tests, the figures and the live pages.\n\"\"\"\nimport math\nimport random\n\n\nclass Transformer:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.tr, self.tp, self.ol, self.rg, self.mo = d[\"transformer\"], d[\"tapping\"], d[\"oltc\"], d[\"regulator\"], d[\"motor\"]\n        self.th, self.dg, self.bs = d[\"thermal\"], d[\"dga\"], d[\"bushings\"]\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.r = self.tr[\"load_loss_kw\"] / (self.tr[\"rated_mva\"] * 1000)\n        self.x = math.sqrt((self.tr[\"uk_pct\"] / 100) ** 2 - self.r ** 2)\n        self.s = self.tp[\"step_pct\"] / 100\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # physics ---------------------------------------------------------------------------------------------------------\n    def drop(self, ipu, pf):\n        return ipu * (self.r * pf + self.x * math.sqrt(1 - pf * pf))\n\n    def v2(self, v1, tap, ipu, pf):\n        return v1 / (1 - (tap - self.tp[\"neutral\"]) * self.s) - self.drop(ipu, pf)\n\n    def band(self):\n        return self.rg[\"band_pct\"] - 0.5 * self.faults[\"band_too_narrow\"]\n\n    def last_op(self, cab):\n        \"\"\"Mean motor current and duration of a tap change made now.\"\"\"\n        st = self.faults[\"drive_stiff\"]\n        i = self.mo[\"current_a\"] * (1 + self.mo[\"current_temp_coeff\"] * (self.mo[\"ref_temp_c\"] - cab)) * (1 + 0.6 * st)\n        return i + self.n(0.02), self.mo[\"op_time_s\"] * (1 + 0.45 * st) + self.n(0.04)\n\n    def operating_point(self):\n        \"\"\"A random steady operating point with the regulator settled (used by the tests).\"\"\"\n        v1 = 1.0 + self.n(0.015)\n        ipu = min(1.0, max(0.15, 0.55 + self.n(0.15)))\n        pf = min(0.99, max(0.85, 0.94 + self.n(0.02)))\n        amb = 28 + self.n(6)\n        vs = self.rg[\"setpoint_kv\"] / self.tr[\"lv_kv\"]\n        tap = round(self.tp[\"neutral\"] + (1 - v1 / (vs + self.drop(ipu, pf))) / self.s)\n        tap = max(1, min(self.tp[\"positions\"], tap))\n        cab = amb + 8\n        mi, mt = self.last_op(cab)\n        return {\"v1\": v1, \"ipu\": ipu, \"pf\": pf, \"tap\": tap, \"amb\": amb, \"cab\": cab, \"motor_i\": mi, \"op_t\": mt}\n\n    def reading(self, st):\n        f, tr, bs = self.faults, self.tr, self.bs\n        v2 = self.v2(st[\"v1\"], st[\"tap\"], st[\"ipu\"], st[\"pf\"])\n        top = st[\"amb\"] + 12 + 33 * st[\"ipu\"] ** 2 + self.n(0.2)\n        main_c2h2, main_c2h4 = self.dg[\"main_c2h2_ppm\"] + abs(self.n(0.1)), self.dg[\"main_c2h4_ppm\"] + self.n(0.3)\n        hunt = f[\"band_too_narrow\"]\n        c1 = [c * (1 + self.n(0.0015)) for c in bs[\"c1_pf\"]]\n        c1[1] *= 1 + 0.065 * f[\"bushing_layer_short\"]\n        td = [t + self.n(0.008) for t in bs[\"tand_pct\"]]\n        td[2] += 0.65 * f[\"bushing_moisture\"]\n        return {\n            \"hv_voltage_kv\": round(st[\"v1\"] * tr[\"hv_kv\"] + self.n(0.05), 3),\n            \"lv_voltage_kv\": round(v2 * tr[\"lv_kv\"] + self.n(0.02), 3),\n            \"lv_current_a\": round(st[\"ipu\"] * tr[\"lv_rated_a\"] + self.n(1.0), 1),\n            \"power_factor\": round(min(0.999, st[\"pf\"] + self.n(0.002)), 4),\n            \"tap_position\": int(st[\"tap\"] + round(2 * f[\"tap_sensor_fault\"])),\n            \"avr_setpoint_kv\": self.rg[\"setpoint_kv\"], \"avr_band_pct\": round(self.band(), 2),\n            \"motor_current_a\": round(st[\"motor_i\"], 3), \"op_time_s\": round(st[\"op_t\"], 2), \"cabinet_temp_c\": round(st[\"cab\"] + self.n(0.2), 1),\n            \"ops_total\": int(161000 + 4000 * hunt), \"ops_since_maint\": int(70400 + 4000 * hunt),\n            \"ops_24h\": max(0, int(round(self.ol[\"ops_per_day_expected\"] * (1 + 4 * hunt) + self.n(3)))),\n            \"ops_365d\": int(11000 + 25000 * hunt + self.n(150)), \"years_since_maint\": 6.4,\n            \"wear_sum_pu\": round(6200 + 0.85 * self.ol[\"interrupter_life_ops\"] * f[\"contact_wear\"] + abs(self.n(20)), 1),\n            \"top_oil_temp_c\": round(top, 2),\n            \"oltc_oil_temp_c\": round(top + self.th[\"oltc_minus_top_oil_k\"] + 10 * f[\"compartment_heating\"] + self.n(0.3), 2),\n            \"ambient_temp_c\": round(st[\"amb\"] + self.n(0.1), 2),\n            \"main_c2h2_ppm\": round(main_c2h2, 2), \"main_c2h4_ppm\": round(main_c2h4, 2),\n            \"oltc_c2h2_ppm\": round(main_c2h2 + 0.8 + 140 * f[\"vacuum_loss\"] + abs(self.n(0.2)), 2),\n            \"oltc_c2h4_ppm\": round(main_c2h4 + 4 + 25 * f[\"vacuum_loss\"] + 160 * f[\"compartment_heating\"] + self.n(0.5), 2),\n            \"bsh_c1_l1_pf\": round(c1[0], 2), \"bsh_c1_l2_pf\": round(c1[1], 2), \"bsh_c1_l3_pf\": round(c1[2], 2),\n            \"bsh_tand_l1_pct\": round(td[0], 4), \"bsh_tand_l2_pct\": round(td[1], 4), \"bsh_tand_l3_pct\": round(td[2], 4),\n        }\n\n    def measure(self):\n        return self.reading(self.operating_point())\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The load follows a daily profile on the plant clock (seconds of the day). For the demo the 132 kV grid voltage swings\n    +/-3 % over 6 minutes, so the regulator leaves its band about once a minute: after the delay T1 it starts a tap change,\n    the motor drive runs for the operation time and the tap moves one step. The duration and mean motor current of the\n    last tap change are kept until the next one, as the motor-drive monitoring does.\n    \"\"\"\n\n    def __init__(self, twin, seed=7501):\n        self.twin = twin\n        d = twin[\"design\"]\n        demo = d.get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.swing = float(demo.get(\"voltage_swing_pct\", 3.0)) / 100\n        self.period = float(demo.get(\"voltage_period_s\", 360.0))\n        self.u = Transformer(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 12 * 3600.0\n        self.running, self.trip = True, 0\n        self.reset()\n\n    def reset(self):\n        u = self.u\n        self.clock, self.walk, self.timer, self.op = 0.0, 0.0, 0.0, None\n        st = u.operating_point()\n        st.update(v1=1.0, ipu=0.6, pf=0.95, amb=30.0, cab=38.0)\n        vs = u.rg[\"setpoint_kv\"] / u.tr[\"lv_kv\"]\n        st[\"tap\"] = round(u.tp[\"neutral\"] + (1 - 1.0 / (vs + u.drop(0.6, 0.95))) / u.s)\n        st[\"motor_i\"], st[\"op_t\"] = u.last_op(st[\"cab\"])\n        self.st = st\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        u, st = self.u, self.st\n        for k, f in self.faults.items():\n            f.step(dt)\n            u.faults[k] = f.sev\n        self.t += dt * self.scale\n        self.clock += dt\n        h = (self.t / 3600.0) % 24\n        self.walk = max(-0.05, min(0.05, self.walk + u.n(0.002) * math.sqrt(max(dt, 0.0))))\n        st[\"ipu\"] = max(0.2, min(1.0, 0.55 + 0.22 * math.sin(2 * math.pi * (h - 13) / 24) + self.walk))\n        st[\"amb\"] = 30 + 7 * math.sin(2 * math.pi * (h - 9) / 24)\n        st[\"cab\"] = st[\"amb\"] + 8\n        st[\"v1\"] = 1.0 + self.swing * math.sin(2 * math.pi * self.clock / self.period)\n        # regulator and tap change\n        if self.op is not None:\n            self.op[\"left\"] -= dt\n            if self.op[\"left\"] <= 0:\n                st[\"tap\"] = max(1, min(u.tp[\"positions\"], st[\"tap\"] + self.op[\"dir\"]))\n                st[\"motor_i\"], st[\"op_t\"] = self.op[\"i\"], self.op[\"t\"]\n                self.op, self.timer = None, 0.0\n        v2 = u.v2(st[\"v1\"], st[\"tap\"], st[\"ipu\"], st[\"pf\"])\n        dev = (v2 * u.tr[\"lv_kv\"] / u.rg[\"setpoint_kv\"] - 1) * 100\n        if self.op is None:\n            if abs(dev) > u.band():\n                self.timer += dt\n                if self.timer >= u.rg[\"t1_s\"]:\n                    i, t = u.last_op(st[\"cab\"])\n                    self.op = {\"dir\": 1 if dev < 0 else -1, \"left\": t, \"i\": i, \"t\": t}\n            else:\n                self.timer = 0.0\n        return {\"v1\": st[\"v1\"], \"v2\": v2, \"tap\": st[\"tap\"], \"dev_pct\": dev, \"op_active\": self.op is not None,\n                \"op_dir\": self.op[\"dir\"] if self.op else 0, \"timer\": self.timer}\n\n    def measure(self, true):\n        return self.u.reading(self.st)\n", "twin_calc": "\"\"\"The on-load tap-changer and HV bushing twin's expectations (PT-7501, 60 MVA 132/33 kV grid transformer).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\n\nVoltage regulation (tap n, neutral n0, step s, taps on the HV winding, a higher tap removes HV turns):\n      V2 (pu) = V1 (pu) / (1 - (n - n0) s) - dV,     dV = I (pu) x (r cos phi + x sin phi)\n  r = load losses / rated power, x = sqrt(uk^2 - r^2), both rounded to 6 decimals. The twin predicts the LV voltage from the REPORTED tap and compares it\n  with the measured LV voltage (a tap transmitter fault shows as a residual of whole steps), and it computes the tap the\n  regulator SHOULD be on to hold the desired value:  n_expected = n0 + (1 - V1 / (Vset + dV)) / s.\n  The regulator bandwidth must be greater than 0.6 x step (MR TAPCON instructions), or the tap-changer hunts.\nMotor-drive signature (last tap change): mean motor current against the commissioning value corrected for the cabinet\n  temperature, I_exp = I0 x (1 + k x (20 - T_cab)); duration against the commissioning value.\nDuty: contact wear = sum over operations of (I_switched / I_rated)^2 / interrupter life (operations at rated current);\n  maintenance due = max(operations since maintenance / 300,000, years since maintenance / interval): whichever comes first.\nOLTC oil: compartment temperature minus top-oil temperature (normally negative); acetylene and ethylene in the OLTC oil in\n  excess of the main tank (a vacuum OLTC gasses like the main tank).\nBushings (from the test-tap monitor): C1 change = C1 / C1 nameplate - 1 per bushing (worst of three);\n  tan delta ratio = tan delta / tan delta nameplate (worst of three) and the largest tan delta.\n\"\"\"\nimport math\n\nPH = (\"l1\", \"l2\", \"l3\")\n\n\ndef _k(twin):\n    d = twin[\"design\"]\n    tr, tp, ol, rg, mo, th, bs = d[\"transformer\"], d[\"tapping\"], d[\"oltc\"], d[\"regulator\"], d[\"motor\"], d[\"thermal\"], d[\"bushings\"]\n    r = round(tr[\"load_loss_kw\"] / (tr[\"rated_mva\"] * 1000), 6)\n    x = round(math.sqrt((tr[\"uk_pct\"] / 100) ** 2 - r ** 2), 6)\n    return dict(hv=tr[\"hv_kv\"], lv=tr[\"lv_kv\"], ilv=tr[\"lv_rated_a\"], r=r, x=x, n0=tp[\"neutral\"], s=tp[\"step_pct\"] / 100,\n                bmin=rg[\"band_min_factor\"] * tp[\"step_pct\"], ir=ol[\"rated_through_current_a\"], mops=ol[\"maint_ops\"], myr=ol[\"maint_years\"],\n                life=ol[\"interrupter_life_ops\"], opd=ol[\"ops_per_day_expected\"], t0=mo[\"op_time_s\"], i0=mo[\"current_a\"], kt=mo[\"current_temp_coeff\"],\n                tref=mo[\"ref_temp_c\"], c1=bs[\"c1_pf\"], tand=bs[\"tand_pct\"])\n\n\ndef _parts(twin):\n    k = _k(twin)\n    V1 = f\"(df['HV_VOLTAGE_KV'] / {k['hv']})\"\n    DV = (f\"(df['LV_CURRENT_A'] / {k['ilv']} * ({k['r']} * df['POWER_FACTOR'] + {k['x']} * np.sqrt(1 - df['POWER_FACTOR'] ** 2)))\")\n    VS = f\"(df['AVR_SETPOINT_KV'] / {k['lv']})\"\n    V2E = f\"({V1} / (1 - (df['TAP_POSITION'] - {k['n0']}) * {k['s']}) - {DV})\"\n    TE = f\"({k['n0']} + (1 - {V1} / ({VS} + {DV})) / {k['s']})\"\n    RES = f\"((df['LV_VOLTAGE_KV'] / {k['lv']} - {V2E}) * 100)\"\n    IE = f\"({k['i0']} * (1 + {k['kt']} * ({k['tref']} - df['CABINET_TEMP_C'])))\"\n    C1 = [f\"(df['BSH_C1_{p.upper()}_PF'] / {c} - 1) * 100\" for p, c in zip(PH, k[\"c1\"])]\n    C1M = f\"np.maximum(np.maximum({C1[0]}, {C1[1]}), {C1[2]})\"\n    TR = [f\"df['BSH_TAND_{p.upper()}_PCT'] / {t}\" for p, t in zip(PH, k[\"tand\"])]\n    TRM = f\"np.maximum(np.maximum({TR[0]}, {TR[1]}), {TR[2]})\"\n    TM = \"np.maximum(np.maximum(df['BSH_TAND_L1_PCT'], df['BSH_TAND_L2_PCT']), df['BSH_TAND_L3_PCT'])\"\n    WEAR = f\"(df['WEAR_SUM_PU'] / {k['life']} * 100)\"\n    DUE = f\"(np.maximum(df['OPS_SINCE_MAINT'] / {k['mops']}, df['YEARS_SINCE_MAINT'] / {k['myr']}) * 100)\"\n    REM = f\"np.minimum(({k['mops']} - df['OPS_SINCE_MAINT']) / np.maximum(df['OPS_365D'], 1), {k['myr']} - df['YEARS_SINCE_MAINT'])\"\n    return dict(k=k, V1=V1, DV=DV, V2E=V2E, TE=TE, RES=RES, IE=IE, C1M=C1M, TRM=TRM, TM=TM, WEAR=WEAR, DUE=DUE, REM=REM)\n\n\ndef monitor_expressions(twin):\n    p = _parts(twin)\n    k = p[\"k\"]\n    return [\n        (\"LOAD_DROP_PCT\", f\"{p['DV']} * 100\"),\n        (\"LV_VOLTAGE_EXPECTED_KV\", f\"{p['V2E']} * {k['lv']}\"),\n        (\"LV_VOLTAGE_RESIDUAL_PCT\", p[\"RES\"]),\n        (\"TAP_EXPECTED\", p[\"TE\"]),\n        (\"TAP_DEVIATION\", f\"df['TAP_POSITION'] - {p['TE']}\"),\n        (\"VOLTAGE_DEVIATION_PCT\", \"(df['LV_VOLTAGE_KV'] / df['AVR_SETPOINT_KV'] - 1) * 100\"),\n        (\"BAND_MARGIN_PCT\", f\"df['AVR_BAND_PCT'] - {k['bmin']:.6g}\"),\n        (\"OPS_RATIO\", f\"df['OPS_24H'] / {k['opd']}\"),\n        (\"MOTOR_CURRENT_EXPECTED_A\", p[\"IE\"]),\n        (\"MOTOR_CURRENT_RATIO\", f\"df['MOTOR_CURRENT_A'] / {p['IE']}\"),\n        (\"OP_TIME_RATIO\", f\"df['OP_TIME_S'] / {k['t0']}\"),\n        (\"CONTACT_WEAR_PCT\", p[\"WEAR\"]),\n        (\"MAINT_DUE_PCT\", p[\"DUE\"]),\n        (\"MAINT_REMAINING_YEARS\", p[\"REM\"]),\n        (\"OLTC_TEMP_DIFF_K\", \"df['OLTC_OIL_TEMP_C'] - df['TOP_OIL_TEMP_C']\"),\n        (\"OLTC_C2H2_EXCESS_PPM\", \"df['OLTC_C2H2_PPM'] - df['MAIN_C2H2_PPM']\"),\n        (\"OLTC_C2H4_EXCESS_PPM\", \"df['OLTC_C2H4_PPM'] - df['MAIN_C2H4_PPM']\"),\n        (\"BSH_C1_CHANGE_MAX_PCT\", p[\"C1M\"]),\n        (\"BSH_TAND_RATIO_MAX\", p[\"TRM\"]),\n        (\"BSH_TAND_MAX_PCT\", p[\"TM\"]),\n    ]\n\n\ndef evaluate(twin, r):\n    k = _k(twin)\n    v1 = r[\"hv_voltage_kv\"] / k[\"hv\"]\n    pf = r[\"power_factor\"]\n    dv = r[\"lv_current_a\"] / k[\"ilv\"] * (k[\"r\"] * pf + k[\"x\"] * math.sqrt(1 - pf ** 2))\n    vs = r[\"avr_setpoint_kv\"] / k[\"lv\"]\n    v2e = v1 / (1 - (r[\"tap_position\"] - k[\"n0\"]) * k[\"s\"]) - dv\n    te = k[\"n0\"] + (1 - v1 / (vs + dv)) / k[\"s\"]\n    ie = k[\"i0\"] * (1 + k[\"kt\"] * (k[\"tref\"] - r[\"cabinet_temp_c\"]))\n    c1 = max((r[f\"bsh_c1_{p}_pf\"] / c - 1) * 100 for p, c in zip(PH, k[\"c1\"]))\n    trm = max(r[f\"bsh_tand_{p}_pct\"] / t for p, t in zip(PH, k[\"tand\"]))\n    return {\n        \"load_drop_pct\": dv * 100, \"lv_voltage_expected_kv\": v2e * k[\"lv\"],\n        \"lv_voltage_residual_pct\": (r[\"lv_voltage_kv\"] / k[\"lv\"] - v2e) * 100,\n        \"tap_expected\": te, \"tap_deviation\": r[\"tap_position\"] - te,\n        \"voltage_deviation_pct\": (r[\"lv_voltage_kv\"] / r[\"avr_setpoint_kv\"] - 1) * 100,\n        \"band_margin_pct\": r[\"avr_band_pct\"] - k[\"bmin\"], \"ops_ratio\": r[\"ops_24h\"] / k[\"opd\"],\n        \"motor_current_expected_a\": ie, \"motor_current_ratio\": r[\"motor_current_a\"] / ie, \"op_time_ratio\": r[\"op_time_s\"] / k[\"t0\"],\n        \"contact_wear_pct\": r[\"wear_sum_pu\"] / k[\"life\"] * 100,\n        \"maint_due_pct\": max(r[\"ops_since_maint\"] / k[\"mops\"], r[\"years_since_maint\"] / k[\"myr\"]) * 100,\n        \"maint_remaining_years\": min((k[\"mops\"] - r[\"ops_since_maint\"]) / max(r[\"ops_365d\"], 1), k[\"myr\"] - r[\"years_since_maint\"]),\n        \"oltc_temp_diff_k\": r[\"oltc_oil_temp_c\"] - r[\"top_oil_temp_c\"],\n        \"oltc_c2h2_excess_ppm\": r[\"oltc_c2h2_ppm\"] - r[\"main_c2h2_ppm\"], \"oltc_c2h4_excess_ppm\": r[\"oltc_c2h4_ppm\"] - r[\"main_c2h4_ppm\"],\n        \"bsh_c1_change_max_pct\": c1, \"bsh_tand_ratio_max\": trm,\n        \"bsh_tand_max_pct\": max(r[\"bsh_tand_l1_pct\"], r[\"bsh_tand_l2_pct\"], r[\"bsh_tand_l3_pct\"]),\n    }\n\n\ndef alert_rules(twin):\n    L = twin[\"twin_model\"][\"limits\"]\n    p = _parts(twin)\n    k = p[\"k\"]\n    tm = L[\"tap_mismatch_steps\"] * k[\"s\"] * 100\n    return [\n        (\"BSH_C1_CRITICAL\", f\"{p['C1M']} >= {L['c1_limit_pct']}\", \"Critical\", \"bushing_layer_short\"),\n        (\"BSH_C1_HIGH\", f\"({p['C1M']} >= {L['c1_alert_pct']}) & ({p['C1M']} < {L['c1_limit_pct']})\", \"High\", \"bushing_layer_short\"),\n        (\"BSH_TAND_LIMIT\", f\"{p['TM']} >= {L['tand_limit_pct']}\", \"High\", \"bushing_moisture\"),\n        (\"OLTC_DGA_ARCING\", f\"(df['OLTC_C2H2_PPM'] - df['MAIN_C2H2_PPM']) > {L['oltc_c2h2_excess_ppm']}\", \"High\", \"vacuum_loss\"),\n        (\"OLTC_TEMP_DIFF\", f\"(df['OLTC_OIL_TEMP_C'] - df['TOP_OIL_TEMP_C']) > {L['temp_diff_alert_k']}\", \"High\", \"compartment_heating\"),\n        (\"BSH_TAND_RISE\", f\"{p['TRM']} >= {L['tand_ratio_alert']}\", \"Medium\", \"bushing_moisture\"),\n        (\"OLTC_DGA_HEATING\", f\"(df['OLTC_C2H4_PPM'] - df['MAIN_C2H4_PPM']) > {L['oltc_c2h4_excess_ppm']}\", \"Medium\", \"compartment_heating\"),\n        (\"OLTC_MOTOR_CURRENT_HIGH\", f\"df['MOTOR_CURRENT_A'] / {p['IE']} > {L['motor_current_ratio_alert']}\", \"Medium\", \"drive_stiff\"),\n        (\"OLTC_OP_SLOW\", f\"df['OP_TIME_S'] / {k['t0']} > {L['op_time_ratio_alert']}\", \"Medium\", \"drive_stiff\"),\n        (\"OLTC_TAP_MISMATCH\", f\"np.abs({p['RES']}) > {tm:.6g}\", \"Medium\", \"tap_sensor_fault\"),\n        (\"OLTC_HUNTING\", f\"df['OPS_24H'] / {k['opd']} > {L['ops_ratio_alert']}\", \"Medium\", \"band_too_narrow\"),\n        (\"OLTC_CONTACT_WEAR\", f\"{p['WEAR']} > {L['wear_alert_pct']}\", \"Medium\", \"contact_wear\"),\n        (\"OLTC_MAINT_DUE\", f\"{p['DUE']} >= 100\", \"Medium\", None),\n        (\"OLTC_BAND_NARROW\", f\"df['AVR_BAND_PCT'] < {k['bmin']:.6g}\", \"Low\", \"band_too_narrow\"),\n    ]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\n\n\ndef conditions(twin, r, t):\n    L = twin[\"twin_model\"][\"limits\"]\n    k = _k(twin)\n    tm = L[\"tap_mismatch_steps\"] * k[\"s\"] * 100\n    out = []\n\n    def add(cond, name, sev, text, part, fm=None):\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text, \"part\": part, \"failure_mode\": fm})\n    c1, trm, tmax = t[\"bsh_c1_change_max_pct\"], t[\"bsh_tand_ratio_max\"], t[\"bsh_tand_max_pct\"]\n    add(c1 >= L[\"c1_limit_pct\"], \"BSH_C1_CRITICAL\", \"Critical\", f\"Bushing C1 up {c1:.1f} % on its nameplate: several layers shorted, take the transformer out\", \"bushing\", \"bushing_layer_short\")\n    add(L[\"c1_alert_pct\"] <= c1 < L[\"c1_limit_pct\"], \"BSH_C1_HIGH\", \"High\", f\"Bushing C1 up {c1:.1f} % on its nameplate: partial breakdown between layers\", \"bushing\", \"bushing_layer_short\")\n    add(tmax >= L[\"tand_limit_pct\"], \"BSH_TAND_LIMIT\", \"High\", f\"Bushing tan delta {tmax:.2f} %, at or above {L['tand_limit_pct']} %\", \"bushing\", \"bushing_moisture\")\n    add(t[\"oltc_c2h2_excess_ppm\"] > L[\"oltc_c2h2_excess_ppm\"], \"OLTC_DGA_ARCING\", \"High\",\n        f\"Acetylene in the OLTC oil {t['oltc_c2h2_excess_ppm']:.0f} ppm above the main tank: arcing outside the vacuum\", \"oltc\", \"vacuum_loss\")\n    add(t[\"oltc_temp_diff_k\"] > L[\"temp_diff_alert_k\"], \"OLTC_TEMP_DIFF\", \"High\",\n        f\"OLTC oil {t['oltc_temp_diff_k']:+.1f} K against the top oil: the compartment makes heat\", \"oltc\", \"compartment_heating\")\n    add(trm >= L[\"tand_ratio_alert\"], \"BSH_TAND_RISE\", \"Medium\", f\"Bushing tan delta {trm:.1f} x its nameplate value\", \"bushing\", \"bushing_moisture\")\n    add(t[\"oltc_c2h4_excess_ppm\"] > L[\"oltc_c2h4_excess_ppm\"], \"OLTC_DGA_HEATING\", \"Medium\",\n        f\"Ethylene in the OLTC oil {t['oltc_c2h4_excess_ppm']:.0f} ppm above the main tank: overheated contact\", \"oltc\", \"compartment_heating\")\n    add(t[\"motor_current_ratio\"] > L[\"motor_current_ratio_alert\"], \"OLTC_MOTOR_CURRENT_HIGH\", \"Medium\",\n        f\"Motor current {r['motor_current_a']:.2f} A, {t['motor_current_ratio']:.2f} x expected at {r['cabinet_temp_c']:.0f} \u00b0C\", \"drive\", \"drive_stiff\")\n    add(t[\"op_time_ratio\"] > L[\"op_time_ratio_alert\"], \"OLTC_OP_SLOW\", \"Medium\", f\"Tap change took {r['op_time_s']:.1f} s, {t['op_time_ratio']:.2f} x commissioning\", \"drive\", \"drive_stiff\")\n    add(abs(t[\"lv_voltage_residual_pct\"]) > tm, \"OLTC_TAP_MISMATCH\", \"Medium\",\n        f\"LV voltage {t['lv_voltage_residual_pct']:+.2f} % from what tap {r['tap_position']:.0f} must give: tap reading wrong\", \"drive\", \"tap_sensor_fault\")\n    add(t[\"ops_ratio\"] > L[\"ops_ratio_alert\"], \"OLTC_HUNTING\", \"Medium\", f\"{r['ops_24h']:.0f} tap changes in 24 h, {t['ops_ratio']:.1f} x normal\", \"regulator\", \"band_too_narrow\")\n    add(t[\"contact_wear_pct\"] > L[\"wear_alert_pct\"], \"OLTC_CONTACT_WEAR\", \"Medium\", f\"Interrupter contact wear {t['contact_wear_pct']:.0f} % of life\", \"oltc\", \"contact_wear\")\n    add(t[\"maint_due_pct\"] >= 100, \"OLTC_MAINT_DUE\", \"Medium\", f\"OLTC maintenance due ({t['maint_due_pct']:.0f} % of the interval)\", \"oltc\")\n    add(r[\"avr_band_pct\"] < k[\"bmin\"], \"OLTC_BAND_NARROW\", \"Low\", f\"Bandwidth \u00b1{r['avr_band_pct']:.2f} % is below 0.6 step (\u00b1{k['bmin']:.2f} %)\", \"regulator\", \"band_too_narrow\")\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "PT-7501 OLTC and HV bushing twin. Expected values in Maximo Monitor from nameplate, OLTC, regulator and bushing data; the device sends only what it measures.", "twin": {"id": "PT-7501", "name": "Power transformer PT-7501: on-load tap-changer and HV bushings", "version": "1.0.0", "folder": "oltc-twin"}, "identification": {"asset": "PT-7501", "assetnum": "PT-7501", "manufacturer": "Grid transformer with Maschinenfabrik Reinhausen OLTC and OIP HV bushings", "model": "60 MVA 132/33 kV, OLTC VACUTAP VRS III 700 Y, motor drive ETOS, bushings OIP type GOB class", "description": "Grid transformer T1 of a 132/33 kV primary substation: on-load tap-changer and HV bushing twin", "transformer": "60 MVA ONAF, 132/33 kV, YNd11, HV tapping +/-10 % in 16 steps at the HV neutral end (assumption: typical design)", "oltc": "Maschinenfabrik Reinhausen VACUTAP VRS III 700 Y (vacuum diverter switch, change-over selector), 17 positions", "motor_drive": "MR ETOS motor-drive unit; TAPCON voltage regulator (automatic voltage control)", "bushings": "3 x HV condenser bushings, oil-impregnated paper (OIP), porcelain, 2 kV test tap (for example Hitachi Energy GOB class)", "monitoring": "Bushing monitor on the test taps (for example MR MSENSE BM-T: C1 and tan delta per bushing), OLTC monitoring in the motor drive, OLTC oil temperature and online DGA in the OLTC and main tank oil"}, "design": {"transformer": {"rated_mva": 60.0, "hv_kv": 132.0, "lv_kv": 33.0, "lv_rated_a": 1049.7, "hv_rated_a": 262.4, "uk_pct": 12.5, "load_loss_kw": 260.0, "source": "Rated power, voltages, vector group, short-circuit impedance uk and load losses: assumption: typical value, replace with your nameplate and routine test report (IEC 60076-1)"}, "tapping": {"positions": 17, "neutral": 9, "step_pct": 1.25, "step_voltage_v": 952.6, "direction": "a higher position removes HV turns and raises the LV voltage", "source": "Tapping range +/-10 % in 16 steps of 1.25 % on the HV winding: assumption: typical value, replace with your nameplate. Within the VACUTAP VRS III 700 Y limits published by MR (max. 4500 V step voltage, max. 35 positions with change-over selector, 700 A)."}, "oltc": {"type": "VACUTAP VRS III 700 Y", "rated_through_current_a": 700.0, "max_step_voltage_v": 4500.0, "maint_ops": 300000, "maint_years": 10.0, "interrupter_life_ops": 600000, "wear_exponent": 2.0, "ops_per_day_expected": 30.0, "source": "MR VACUTAP VR flyer: 700 A, 4500 V, 300,000 tap-change operations without maintenance; interrupter replacement after 600,000 operations (the figure MR gives for arc-furnace duty, used here as the interrupter life at rated current). Time-based inspection after 10 years, wear per operation proportional to (switched current / rated current)^2 and 30 operations per day: assumption: typical value, replace with the operating instructions of your tap-changer and your regulation history."}, "regulator": {"setpoint_kv": 33.0, "band_pct": 1.0, "t1_s": 20.0, "band_min_factor": 0.6, "source": "MR TAPCON operating instructions: the bandwidth must always be greater than 0.6 x step voltage / nominal voltage x 100 %; delay time T1 20 s at commissioning. Setpoint and the +/-1.0 % band: assumption: typical value, replace with your regulator settings."}, "motor": {"op_time_s": 5.5, "current_a": 1.6, "current_temp_coeff": 0.006, "ref_temp_c": 20.0, "source": "Duration of one tap change (Megger: usually 3 to 10 s for resistor-type OLTCs) and mean motor current during the change, with +0.6 % per K below 20 degC for thicker grease: assumption: typical value, replace with the commissioning signature of your motor-drive unit."}, "thermal": {"oltc_minus_top_oil_k": -4.0, "source": "Normal OLTC compartment oil temperature minus main-tank top-oil temperature: assumption: typical value, replace with your commissioning trend. A healthy compartment runs cooler than the main tank (T&D World, differential temperature monitoring)."}, "dga": {"main_c2h2_ppm": 0.5, "main_c2h4_ppm": 8.0, "source": "Background gases of the main tank: assumption: typical value, replace with your DGA history. A vacuum OLTC compartment normally shows gases in the same range as the main tank (Transformer Magazine tap-changer column); IEEE C57.139 gives the LTC interpretation (not read: the excess limits are assumptions)."}, "bushings": {"phases": ["L1", "L2", "L3"], "c1_pf": [418.0, 422.0, 415.0], "tand_pct": [0.32, 0.35, 0.33], "source": "Nameplate C1 and tan delta at 20 degC of the three HV bushings: assumption: typical value, replace with the rating plates or routine test reports. Order of magnitude: a short between two layers raises C1 by about 4 % in a 138 kV bushing with 20 to 30 layers; healthy OIP power factor around 0.25 % (Transformer Technology)."}, "demo": {"time_scale": 1, "voltage_swing_pct": 3.0, "voltage_period_s": 360.0, "note": "Demo only: the 132 kV grid voltage swings +/-3 % over 6 minutes so the regulator changes taps every minute or so. The counters (operations per day and per year, wear, years since maintenance) and the gas levels come from the failure modes, not from the demo clock."}}, "telemetry": {"event": "oltc", "publish_every_s": 10, "device_type": "TRANSFORMER_OLTC_BUSHING", "groups": {"Grid": "Voltages and load", "AVR": "Voltage regulator and tap position", "Drive": "Motor-drive unit, last tap change", "Duty": "Operation counters and wear", "Temp": "Oil temperatures", "DGA": "Dissolved gases, OLTC and main tank", "Bushing": "HV bushing monitor (test taps)"}, "points": [{"metric": "hv_voltage_kv", "path": "Grid.HVVoltage", "label": "HV voltage (line to line)", "unit": "kV"}, {"metric": "lv_voltage_kv", "path": "Grid.LVVoltage", "label": "LV busbar voltage (line to line)", "unit": "kV"}, {"metric": "lv_current_a", "path": "Grid.LVCurrent", "label": "LV load current", "unit": "A"}, {"metric": "power_factor", "path": "Grid.PowerFactor", "label": "Power factor of the load", "unit": ""}, {"metric": "tap_position", "path": "AVR.TapPosition", "label": "Tap position (1..17, 9 = rated)", "unit": "pos"}, {"metric": "avr_setpoint_kv", "path": "AVR.Setpoint", "label": "Regulator desired value", "unit": "kV"}, {"metric": "avr_band_pct", "path": "AVR.Bandwidth", "label": "Regulator bandwidth (+/-)", "unit": "%"}, {"metric": "motor_current_a", "path": "Drive.MotorCurrent", "label": "Mean motor current, last tap change", "unit": "A"}, {"metric": "op_time_s", "path": "Drive.OperationTime", "label": "Duration of the last tap change", "unit": "s"}, {"metric": "cabinet_temp_c", "path": "Drive.CabinetTemp", "label": "Motor-drive cabinet temperature", "unit": "\u00b0C"}, {"metric": "ops_total", "path": "Duty.OpsTotal", "label": "Tap-change operations since commissioning", "unit": "count"}, {"metric": "ops_since_maint", "path": "Duty.OpsSinceMaint", "label": "Operations since the last OLTC maintenance", "unit": "count"}, {"metric": "ops_24h", "path": "Duty.Ops24h", "label": "Operations in the last 24 hours", "unit": "count"}, {"metric": "ops_365d", "path": "Duty.Ops365d", "label": "Operations in the last 365 days", "unit": "count"}, {"metric": "years_since_maint", "path": "Duty.YearsSinceMaint", "label": "Years since the last OLTC maintenance", "unit": "a"}, {"metric": "wear_sum_pu", "path": "Duty.WearSum", "label": "Sum of (switched current / rated current)^2 since new interrupters", "unit": "pu\u00b2"}, {"metric": "top_oil_temp_c", "path": "Temp.TopOil", "label": "Main tank top-oil temperature", "unit": "\u00b0C"}, {"metric": "oltc_oil_temp_c", "path": "Temp.OLTCOil", "label": "OLTC compartment oil temperature", "unit": "\u00b0C"}, {"metric": "ambient_temp_c", "path": "Temp.Ambient", "label": "Ambient temperature", "unit": "\u00b0C"}, {"metric": "main_c2h2_ppm", "path": "DGA.MainC2H2", "label": "Acetylene in main tank oil", "unit": "ppm"}, {"metric": "main_c2h4_ppm", "path": "DGA.MainC2H4", "label": "Ethylene in main tank oil", "unit": "ppm"}, {"metric": "oltc_c2h2_ppm", "path": "DGA.OLTCC2H2", "label": "Acetylene in OLTC oil", "unit": "ppm"}, {"metric": "oltc_c2h4_ppm", "path": "DGA.OLTCC2H4", "label": "Ethylene in OLTC oil", "unit": "ppm"}, {"metric": "bsh_c1_l1_pf", "path": "Bushing.C1L1", "label": "Bushing L1 capacitance C1", "unit": "pF"}, {"metric": "bsh_c1_l2_pf", "path": "Bushing.C1L2", "label": "Bushing L2 capacitance C1", "unit": "pF"}, {"metric": "bsh_c1_l3_pf", "path": "Bushing.C1L3", "label": "Bushing L3 capacitance C1", "unit": "pF"}, {"metric": "bsh_tand_l1_pct", "path": "Bushing.TanDeltaL1", "label": "Bushing L1 tan delta (20 \u00b0C)", "unit": "%"}, {"metric": "bsh_tand_l2_pct", "path": "Bushing.TanDeltaL2", "label": "Bushing L2 tan delta (20 \u00b0C)", "unit": "%"}, {"metric": "bsh_tand_l3_pct", "path": "Bushing.TanDeltaL3", "label": "Bushing L3 tan delta (20 \u00b0C)", "unit": "%"}]}, "twin_model": {"limits": {"tap_mismatch_steps": 1.0, "ops_ratio_alert": 2.5, "motor_current_ratio_alert": 1.3, "op_time_ratio_alert": 1.2, "wear_alert_pct": 80.0, "temp_diff_alert_k": 2.0, "oltc_c2h2_excess_ppm": 10.0, "oltc_c2h4_excess_ppm": 50.0, "c1_alert_pct": 5.0, "c1_limit_pct": 10.0, "tand_ratio_alert": 2.0, "tand_limit_pct": 0.7, "source": "C1 limits 5 % / 10 %: MR MSENSE BM recommendation. tan delta: alert at twice the nameplate value (commonly applied) and at 0.7 % (the IEC 60137 limit for new OIP bushings as commonly quoted, used here as a service alarm). All other limits: assumption: typical value, replace with your own alarm philosophy."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "contact_wear": {"name": "Vacuum interrupter contacts near end of life", "part": "oltc", "symptoms": "accumulated (I/Ir)^2 of the switched current approaches the interrupter life", "rules": ["OLTC_CONTACT_WEAR"], "default_ramp_min": 1}, "vacuum_loss": {"name": "Vacuum interrupter loss of vacuum (arc in oil)", "part": "oltc", "symptoms": "acetylene in the OLTC oil far above the main tank", "rules": ["OLTC_DGA_ARCING"], "default_ramp_min": 1}, "drive_stiff": {"name": "Motor drive or mechanism stiff", "part": "drive", "symptoms": "motor current and tap-change duration up at the same cabinet temperature", "rules": ["OLTC_MOTOR_CURRENT_HIGH", "OLTC_OP_SLOW"], "default_ramp_min": 1.5}, "tap_sensor_fault": {"name": "Tap-position transmitter fault", "part": "drive", "symptoms": "reported tap disagrees with the LV voltage the windings must give", "rules": ["OLTC_TAP_MISMATCH"], "default_ramp_min": 0.5}, "band_too_narrow": {"name": "Hunting: regulator bandwidth set too narrow", "part": "regulator", "symptoms": "bandwidth below 0.6 step, operations per day several times normal", "rules": ["OLTC_BAND_NARROW", "OLTC_HUNTING"], "default_ramp_min": 1}, "compartment_heating": {"name": "Diverter compartment overheating (poor contact)", "part": "oltc", "symptoms": "OLTC oil warmer than the main tank, ethylene in the OLTC oil", "rules": ["OLTC_TEMP_DIFF", "OLTC_DGA_HEATING"], "default_ramp_min": 1.5}, "bushing_layer_short": {"name": "HV bushing partial breakdown (layer short, C1 step up)", "part": "bushing", "symptoms": "C1 of one bushing up by several %, tan delta unchanged", "rules": ["BSH_C1_HIGH"], "default_ramp_min": 1}, "bushing_moisture": {"name": "HV bushing moisture or ageing (tan delta up)", "part": "bushing", "symptoms": "tan delta of one bushing up, C1 unchanged", "rules": ["BSH_TAND_RISE", "BSH_TAND_LIMIT"], "default_ramp_min": 1.5}}, "presentation": {"title": "PT-7501 on-load tap-changer and HV bushings", "dashboard": "TRANSFORMER_OLTC_BUSHING"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const sgn = (v, d = 1) => (v == null || isNaN(v)) ? '–' : (v >= 0 ? '+' : '') + Number(v).toFixed(d);
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.1, 300);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(9.5, 7.2, 10.5); ctl.target.set(0.3, 2.6, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(6, 12, 8); scene.add(sun);
+scene.add(new THREE.GridHelper(24, 24, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .4, roughness: o.r ?? .5, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const cyl = (r1, r2, h, m, s = 32) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const grey = M(0x7d8a96, { m: .45 }), dark = M(0x3d4249), steel = M(0xb9bec4, { m: .65, r: .3 }), porc = M(0x7a4a32, { m: .1, r: .35 });
+const copper = M(0xb87333, { m: .7, r: .35 }), coreM = M(0x5a5f66, { m: .6 }), insul = M(0xd9c79a, { m: .05, r: .7 });
+// plinth and tank (4.2 x 2.6 x 2.2 m)
+scene.add(at(box(5.0, .3, 2.8, M(0x9a9a92, { m: 0, r: .9 })), 0, .15, 0));
+const tankMat = M(0x7d8a96, { m: .45, ds: true });
+const tank = at(box(4.2, 2.6, 2.2, tankMat), 0, 1.6, 0); scene.add(tank);
+const cover = at(box(4.4, .12, 2.4, grey), 0, 2.96, 0); scene.add(cover);
+// radiators on the back (-z) and fans
+for (let i = 0; i < 9; i++) scene.add(at(box(.06, 2.0, .9, grey), -1.8 + i * .45, 1.55, -1.6));
+[-1.2, 0, 1.2].forEach(x => { const f = cyl(.32, .32, .12, dark); f.rotation.x = Math.PI / 2; scene.add(at(f, x, .45, -2.12)); });
+// core and windings (visible in cutaway)
+const inner = new THREE.Group(); scene.add(inner);
+inner.add(at(box(3.0, .25, .5, coreM), -.3, 2.55, 0)); inner.add(at(box(3.0, .25, .5, coreM), -.3, .55, 0));
+[-1.3, -.3, .7].forEach(x => { inner.add(at(cyl(.2, .2, 1.8, coreM), x, 1.55, 0)); inner.add(at(cyl(.42, .42, 1.6, copper), x, 1.55, 0)); inner.add(at(cyl(.5, .5, 1.5, M(0x3b6e8f, { m: .2, t: .9 })), x, 1.55, 0)); });
+// OLTC: diverter switch oil compartment (insulating cylinder) + tap selector cage, under a head on the cover
+const oltcX = 1.55, oltcZ = .45;
+const comp = at(cyl(.28, .28, 1.5, M(0xc9a227, { m: .05, r: .6, t: .95 })), oltcX, 2.1, oltcZ); inner.add(comp);
+const sel = new THREE.Group(); at(sel, oltcX, .85, oltcZ); inner.add(sel);
+for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; sel.add(at(cyl(.025, .025, .9, insul, 8), Math.cos(a) * .3, 0, Math.sin(a) * .3)); }
+sel.add(at(cyl(.06, .06, 1.0, steel, 12), 0, 0, 0));
+const compHot = at(cyl(.2, .2, 1.2, new THREE.MeshStandardMaterial({ color: 0xda1e28, emissive: 0xda1e28, emissiveIntensity: .0, transparent: true, opacity: 0 })), oltcX, 2.1, oltcZ); inner.add(compHot);
+scene.add(at(cyl(.36, .36, .22, grey), oltcX, 3.12, oltcZ));                       // OLTC head
+scene.add(at(cyl(.12, .12, .12, dark), oltcX, 3.29, oltcZ));                        // upper gear
+// drive shaft: horizontal from head to the tank edge, bevel gear, vertical down to the motor-drive cabinet on the +x side
+const shaftH = cyl(.035, .035, .65, steel, 12); shaftH.rotation.z = Math.PI / 2; scene.add(at(shaftH, oltcX + .35, 3.25, oltcZ));
+scene.add(at(box(.16, .16, .16, dark), 2.25, 3.25, oltcZ));
+const shaftV = cyl(.035, .035, 1.35, steel, 12); scene.add(at(shaftV, 2.25, 2.55, oltcZ));
+const drive = at(box(.5, .95, .7, M(0x9aa4ad, { m: .3 })), 2.4, 1.4, oltcZ); scene.add(drive);
+const winM = new THREE.MeshStandardMaterial({ color: 0x0b2e4f, emissive: 0x0b2e4f, emissiveIntensity: .4 });
+scene.add(at(box(.02, .28, .34, winM), 2.66, 1.6, oltcZ));
+const pointer = at(box(.02, .12, .02, M(0xf1c21b, { m: .1 })), 2.68, 1.6, oltcZ); scene.add(pointer);
+const shaftMark = at(box(.08, .02, .02, M(0xda1e28, { m: .1 })), 2.25, 2.4, oltcZ + .04); scene.add(shaftMark);
+// conservator with OLTC compartment and Buchholz pipe
+const cons = cyl(.42, .42, 3.4, grey); cons.rotation.z = Math.PI / 2; scene.add(at(cons, -.2, 4.25, -.95));
+const consO = cyl(.43, .43, .7, M(0x6f7f8c, { m: .45 })); consO.rotation.z = Math.PI / 2; scene.add(at(consO, 1.6, 4.25, -.95));
+[-1.4, 1.0].forEach(x => scene.add(at(box(.1, 1.2, .1, dark), x, 3.6, -.95)));
+scene.add(at(cyl(.05, .05, 1.1, steel, 10), -.2, 3.5, -.7));
+scene.add(at(box(.2, .18, .18, dark), -.2, 3.55, -.7));
+// HV bushings (3 x OIP, porcelain with sheds) on the front half, LV bushings at the back
+const BUSH = [];
+function bushing(x, z, h, rB, sheds, hv) {
+  const g = new THREE.Group(); at(g, x, 3.0, z); scene.add(g);
+  g.add(at(cyl(rB * 1.6, rB * 1.6, .18, grey), 0, .09, 0));                           // flange (test tap here)
+  const pm = porc.clone(); pm.transparent = true;
+  const sh = new THREE.Group(); g.add(sh);
+  sh.add(at(cyl(rB, rB * 1.1, h, pm), 0, .18 + h / 2, 0));
+  for (let i = 0; i < sheds; i++) sh.add(at(cyl(rB * 1.55, rB * 1.55, .035, pm, 24), 0, .3 + i * (h - .25) / sheds, 0));
+  g.add(at(cyl(rB * .9, rB * .9, .2, steel), 0, .28 + h, 0));                           // top cap
+  g.add(at(cyl(.03, .03, .35, steel, 8), 0, .52 + h, 0));
+  let core = null;
+  if (hv) { core = at(cyl(rB * .55, rB * .55, h * .9, M(0xd9c79a, { m: .05, r: .6 })), 0, .2 + h * .45, 0); g.add(core);
+    g.add(at(box(.1, .08, .1, M(0x0f62fe, { m: .3 })), rB * 1.65, .1, 0)); }               // test-tap adapter
+  return { g, pm, core };
+}
+[-1.3, -.3, .7].forEach(x => BUSH.push(bushing(x, .55, 1.9, .13, 14, true)));
+[-1.3, -.3, .7].forEach(x => bushing(x, -.5, .55, .1, 4, false));
+// monitoring cabinet with bushing monitor and DGA
+scene.add(at(box(.6, 1.1, .4, M(0xc6ccd2, { m: .2 })), -2.5, 1.0, 1.2));
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.07, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 })); scene.add(at(beacon, -2.5, 1.65, 1.2));
+const cable = (pts, c = 0x4589ff) => scene.add(new THREE.Mesh(new THREE.TubeGeometry(new THREE.CatmullRomCurve3(pts.map(p => new THREE.Vector3(...p))), 30, .015, 6, false), M(c, { m: .3 })));
+cable([[-1.15, 3.1, .55], [-1.9, 3.1, .9], [-2.5, 1.6, 1.2]]); cable([[-.15, 3.1, .55], [-1.9, 3.05, 1.0], [-2.5, 1.55, 1.2]]); cable([[.85, 3.1, .55], [-1.9, 3.0, 1.1], [-2.5, 1.5, 1.2]]);
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl("b1", [-1.3, 5.25, .55]); lbl("b2", [-.3, 5.95, .55]); lbl("b3", [.7, 5.25, .55]);
+lbl('tap', [2.6, 2.2, oltcZ + .3]); lbl('drive', [2.7, .9, oltcZ + .5]); lbl('duty', [1.55, 3.6, oltcZ + .4]);
+lbl('temp', [1.0, 4.9, -.95]); lbl('dga', [2.0, 3.0, -1.4]); lbl('grid', [-2.5, 2.1, 1.2]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); L.el.style.display = v.z < 1 ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let lastTap = null, spin = 0, spinDir = 1, tapShown = 9;
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  if (lastTap !== null && r.tap_position !== lastTap) { spin = r.op_time_s || 5.5; spinDir = r.tap_position > lastTap ? 1 : -1; }
+  lastTap = r.tap_position;
+  const ph = ['l1', 'l2', 'l3'];
+  ph.forEach((p, i) => {
+    const c1 = (r[`bsh_c1_${p}_pf`] / d.bushings.c1_pf[i] - 1) * 100, td = r[`bsh_tand_${p}_pct`], rat = td / d.bushings.tand_pct[i];
+    setLbl('b' + (i + 1), `HV bushing ${p.toUpperCase()} · C1 change · tan δ`, `${sgn(c1)} % · ${fmt(td)} %`,
+      st(c1 >= L.c1_alert_pct || td >= L.tand_limit_pct, c1 >= L.c1_alert_pct / 2 || rat >= L.tand_ratio_alert));
+    BUSH[i].core.material.color.setHex(c1 >= L.c1_alert_pct ? 0xda1e28 : rat >= L.tand_ratio_alert ? 0xb28600 : 0xd9c79a);
+  });
+  setLbl('tap', `tap · expected · LV ${fmt(r.lv_voltage_kv)} kV (set ${fmt(r.avr_setpoint_kv, 1)} ±${fmt(r.avr_band_pct, 2)} %)`, `${r.tap_position} · ${fmt(t.tap_expected, 1)} · residual ${sgn(t.lv_voltage_residual_pct, 2)} %`,
+    st(names.has('OLTC_TAP_MISMATCH'), names.has('OLTC_BAND_NARROW')));
+  setLbl('drive', 'last tap change · motor current (expected)', `${fmt(r.op_time_s)} s · ${fmt(r.motor_current_a)} A (${fmt(t.motor_current_expected_a)})`,
+    st(names.has('OLTC_MOTOR_CURRENT_HIGH') || names.has('OLTC_OP_SLOW'), t.motor_current_ratio > 1.15 || t.op_time_ratio > 1.1));
+  setLbl('duty', 'operations 24 h · contact wear · maintenance due', `${r.ops_24h} · ${fmt(t.contact_wear_pct, 1)} % · ${fmt(t.maint_due_pct, 0)} %`,
+    st(names.has('OLTC_HUNTING') || names.has('OLTC_CONTACT_WEAR') || names.has('OLTC_MAINT_DUE'), t.ops_ratio > 1.5));
+  setLbl('temp', 'OLTC oil minus top oil', `${sgn(t.oltc_temp_diff_k)} K (top ${fmt(r.top_oil_temp_c, 1)} °C)`, st(names.has('OLTC_TEMP_DIFF'), t.oltc_temp_diff_k > 0));
+  setLbl('dga', 'OLTC oil above main tank: C2H2 · C2H4', `${sgn(t.oltc_c2h2_excess_ppm)} · ${sgn(t.oltc_c2h4_excess_ppm)} ppm`, st(names.has('OLTC_DGA_ARCING') || names.has('OLTC_DGA_HEATING')));
+  setLbl('grid', 'HV · load · power factor', `${fmt(r.hv_voltage_kv, 1)} kV · ${fmt(r.lv_current_a, 0)} A · ${fmt(r.power_factor)}`, '');
+  compHot.material.opacity = Math.min(.7, Math.max(0, t.oltc_temp_diff_k + 2) / 8);
+  compHot.material.emissiveIntensity = compHot.material.opacity;
+  $('k-health').textContent = ST.health; $('k-tap').textContent = `${r.tap_position} (${fmt(t.tap_expected, 1)})`; $('k-c1').textContent = sgn(t.bsh_c1_change_max_pct) + ' %';
+  $('c-tap-t').textContent = `tap ${r.tap_position} · LV ${fmt(r.lv_voltage_kv)} kV`; $('c-tap').className = 'chip ' + (names.has('OLTC_TAP_MISMATCH') ? 'bad' : Math.abs(t.voltage_deviation_pct) > r.avr_band_pct ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    row('Tap position', r.tap_position, fmt(t.tap_expected, 1), false) +
+    row('LV voltage (kV)', fmt(r.lv_voltage_kv), fmt(t.lv_voltage_expected_kv), names.has('OLTC_TAP_MISMATCH')) +
+    row('Deviation from setpoint (%)', sgn(t.voltage_deviation_pct, 2), '±' + fmt(r.avr_band_pct, 2), false) +
+    row('Bandwidth (%)', '±' + fmt(r.avr_band_pct, 2), '≥ ±' + fmt(0.6 * d.tapping.step_pct, 2), names.has('OLTC_BAND_NARROW')) +
+    row('Operations, 24 h', r.ops_24h, fmt(d.oltc.ops_per_day_expected, 0), names.has('OLTC_HUNTING')) +
+    row('Motor current (A)', fmt(r.motor_current_a), fmt(t.motor_current_expected_a), names.has('OLTC_MOTOR_CURRENT_HIGH')) +
+    row('Tap-change duration (s)', fmt(r.op_time_s), fmt(d.motor.op_time_s, 1), names.has('OLTC_OP_SLOW')) +
+    row('Contact wear (%)', fmt(t.contact_wear_pct, 1), '< ' + L.wear_alert_pct, names.has('OLTC_CONTACT_WEAR')) +
+    row('Maintenance due (%)', fmt(t.maint_due_pct, 0), `${fmt(t.maint_remaining_years, 1)} a left`, names.has('OLTC_MAINT_DUE')) +
+    row('OLTC oil − top oil (K)', sgn(t.oltc_temp_diff_k), fmt(d.thermal.oltc_minus_top_oil_k, 0), names.has('OLTC_TEMP_DIFF')) +
+    row('OLTC C2H2 / C2H4 excess (ppm)', `${fmt(t.oltc_c2h2_excess_ppm, 1)} / ${fmt(t.oltc_c2h4_excess_ppm, 0)}`, `< ${L.oltc_c2h2_excess_ppm} / ${L.oltc_c2h4_excess_ppm}`, names.has('OLTC_DGA_ARCING') || names.has('OLTC_DGA_HEATING')) +
+    ['l1', 'l2', 'l3'].map((p, i) => row(`Bushing ${p.toUpperCase()} C1 (pF)`, fmt(r[`bsh_c1_${p}_pf`], 1), fmt(d.bushings.c1_pf[i], 1), (r[`bsh_c1_${p}_pf`] / d.bushings.c1_pf[i] - 1) * 100 >= L.c1_alert_pct)).join('') +
+    ['l1', 'l2', 'l3'].map((p, i) => row(`Bushing ${p.toUpperCase()} tan δ (%)`, fmt(r[`bsh_tand_${p}_pct`], 3), fmt(d.bushings.tand_pct[i], 2), r[`bsh_tand_${p}_pct`] / d.bushings.tand_pct[i] >= L.tand_ratio_alert)).join('');
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the tap-changer and bushings behave as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut);
+  tankMat.transparent = true; tankMat.opacity = cut ? .18 : 1; tankMat.depthWrite = !cut;
+  BUSH.forEach(b => { b.pm.opacity = cut ? .3 : 1; b.pm.depthWrite = !cut; });
+};
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (spin > 0) { spin = Math.max(0, spin - dt); shaftV.rotation.y += spinDir * dt * 6; shaftMark.position.x = 2.25 + .04 * Math.cos(shaftV.rotation.y); shaftMark.position.z = oltcZ + .04 * Math.sin(shaftV.rotation.y); sel.rotation.y += spinDir * dt * .4; }
+  if (lastTap !== null) { tapShown += (lastTap - tapShown) * Math.min(1, dt * 2); pointer.position.y = 1.6 + (tapShown - 9) / 8 * .12; }
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

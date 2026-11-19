@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GIS-7401 3D Twin</title>
+<style>
+:root{--layer:#fff;--border:#e0e0e0;--text:#161616;--text2:#525252;--text3:#8d8d8d;--blue:#0f62fe;--green:#24a148;--yellow:#f1c21b;--orange:#ff832b;--red:#da1e28;
+  --font:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;--mono:"IBM Plex Mono",Menlo,Consolas,monospace}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;background:#1c1f24;color:var(--text);font-family:var(--font);font-size:14px;overflow:hidden}
+header{position:fixed;top:0;left:0;right:0;height:48px;background:#161616;color:#f4f4f4;display:flex;align-items:center;gap:14px;padding:0 16px;z-index:5;border-bottom:1px solid #393939}
+header b{font-weight:600} header .g{color:#c6c6c6} header .sp{flex:1} header a{color:#78a9ff;text-decoration:none;font-size:12px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:12px;padding:2px 10px;border-radius:12px;background:#393939;white-space:nowrap}
+.dot{width:8px;height:8px;border-radius:50%;background:#8d8d8d}.ok .dot{background:var(--green)}.bad .dot{background:var(--red)}.warn .dot{background:var(--yellow)}
+#stage,#labels,#loading{position:fixed;top:48px;left:0;right:380px;bottom:0}
+#labels{pointer-events:none;overflow:hidden}
+#loading{display:flex;align-items:center;justify-content:center;color:#c6c6c6;font-size:13px;z-index:3;text-align:center;padding:20px}
+.lbl{position:absolute;transform:translate(-50%,-100%);background:rgba(22,22,22,.88);color:#f4f4f4;font-family:var(--mono);font-size:11px;
+  padding:3px 7px;border-left:3px solid #4589ff;white-space:nowrap;margin-top:-10px}
+.lbl small{color:#a8a8a8;font-family:var(--font);font-size:10px;display:block}
+.lbl.warn{border-color:var(--yellow)} .lbl.bad{border-color:var(--red);background:rgba(162,25,31,.94)}
+.lbl::after{content:"";position:absolute;left:50%;bottom:-10px;width:1px;height:10px;background:rgba(244,244,244,.7)}
+aside{position:fixed;top:48px;right:0;bottom:0;width:380px;background:var(--layer);border-left:1px solid var(--border);overflow-y:auto;padding:16px}
+aside h2{font-size:14px;margin:0 0 2px} aside .sub{font-size:12px;color:var(--text2);margin:0 0 10px}
+aside section{border-bottom:1px solid var(--border);padding:0 0 14px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:1fr auto auto;gap:4px 10px;font-size:12px;align-items:baseline}
+.kv .v{font-family:var(--mono);text-align:right} .kv .e{font-family:var(--mono);color:var(--text3);text-align:right}
+.kv .h{color:var(--text2);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.3px}
+.kv .bad{color:var(--red);font-weight:600}
+.parts{display:grid;grid-template-columns:120px 1fr 40px;gap:5px 8px;font-size:12px;align-items:center}
+.bar{height:10px;background:#f4f4f4;position:relative}.bar i{position:absolute;left:0;top:0;bottom:0;background:var(--blue)}
+.alerts{list-style:none;margin:0;padding:0}.alerts li{display:flex;gap:8px;padding:6px 0;font-size:12px;border-bottom:1px solid #f4f4f4}
+.sev{font-size:10px;padding:1px 7px;border-radius:9px;color:#fff;white-space:nowrap;height:16px}
+.sev.Critical{background:var(--red)}.sev.High{background:var(--orange)}.sev.Medium{background:#b28600}.sev.Low{background:var(--blue)}
+.empty{color:var(--text3);font-size:12px}
+.big{display:flex;gap:18px;margin:6px 0 4px}.big div{font-size:11px;color:var(--text2)}.big b{display:block;font-size:24px;font-weight:300;color:var(--text);font-family:var(--font)}
+.faults{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+button{font-family:var(--font);font-size:12px;border:0;padding:6px 8px;cursor:pointer;background:#0f62fe;color:#fff;text-align:left}
+button.ghost{background:transparent;color:#0f62fe;border:1px solid #0f62fe} button.on{background:#a2191f}
+input{font-family:var(--mono);font-size:12px;padding:6px 8px;border:0;border-bottom:1px solid #8d8d8d;background:#f4f4f4;width:100%;margin-bottom:8px}
+.tools{position:fixed;left:12px;bottom:12px;display:flex;gap:6px;z-index:4}
+.tools button{background:rgba(22,22,22,.85);color:#f4f4f4;border:1px solid #525252} .tools button.on{background:#0f62fe;border-color:#0f62fe}
+.legend{position:fixed;right:392px;bottom:12px;background:rgba(22,22,22,.85);color:#c6c6c6;font-size:11px;padding:8px 10px;z-index:4;line-height:1.6;max-width:300px}
+.credit{position:fixed;left:12px;top:58px;color:#8d8d8d;font-size:11px;z-index:4;max-width:60%}
+@media (max-width:820px){#stage,#labels,#loading{right:0;bottom:46%} aside{top:54%;width:100%;border-left:0;border-top:1px solid var(--border)} .legend{display:none} header .g{display:none}}
+</style>
+</head>
+<body>
+<header>
+  <b>GIS-7401</b><span class="g">145 kV gas-insulated feeder bay · four SF6 compartments</span>
+  <span class="chip" id="c-link"><span class="dot"></span><span id="c-link-t">connecting…</span></span>
+  <span class="chip" id="c-hi"><span class="dot"></span><span id="c-hi-t">bay HI –</span></span>
+  <span class="sp"></span>
+  <a href="./curves/">Gas balance and health index →</a>
+</header>
+<div id="stage"></div>
+<div id="labels"></div>
+<div id="loading">Building the switchgear bay…</div>
+<div class="credit">One 145 kV GIS feeder bay: busbar, busbar disconnector, circuit breaker with CTs, line disconnector and earthing switches, VT and cable sealing end. Typical proportions, not vendor CAD. Drag to orbit, scroll to zoom.</div>
+<div class="tools"><button id="t-cut">Cutaway</button><button id="t-gas">Colour by gas</button><button id="t-view">Reset view</button></div>
+<div class="legend">Tags: blue = normal, yellow = near a limit, red = past a limit from the twin file. Green rings are the gas-tight barrier insulators between compartments. Each compartment has its own density transmitter and UHF sensor.</div>
+<aside>
+  <section>
+    <h2>GIS-7401 twin</h2>
+    <p class="sub" id="sub">132 kV cable feeder bay</p>
+    <div class="big"><div>Health<b id="k-health">–</b></div><div>Bay health index<b id="k-hi">–</b></div><div>SF6 in the bay<b id="k-mass">–</b></div></div>
+  </section>
+  <section>
+    <h2>Four parts of the bay health index</h2>
+    <p class="sub">100 = every indicator normal; 40 = one indicator at its limit. The bay is as good as its weakest part.</p>
+    <div class="parts" id="parts"></div>
+  </section>
+  <section>
+    <div class="kv" id="kv"></div>
+  </section>
+  <section>
+    <h2>Conditions</h2>
+    <ul class="alerts" id="alerts"><li class="empty">none</li></ul>
+  </section>
+  <section>
+    <h2>Inject a failure mode</h2>
+    <p class="sub">Each one ramps in over a minute or so of real time. The twin computes the same rules as Maximo Monitor.</p>
+    <div id="key"><input id="demokey" placeholder="demo key" autocomplete="off"></div>
+    <div class="faults" id="faults"></div>
+    <p style="margin:8px 0 0"><button class="ghost" id="b-clear">Clear all faults</button></p>
+  </section>
+  <section style="border:0">
+    <p class="sub">The bay sends only what its sensors and IEDs measure. Densities at 20 °C, SF6 mass, leak rates, days to alarm and the health index are computed from the twin file: the maker's ratings, the gas schematic and NIST SF6 data.</p>
+  </section>
+</aside>
+<script src="https://cdn.jsdelivr.net/pyodide/v0.26.4/full/pyodide.js"></script>
+<script>
+/* Server-less twin: physics.py + twin_calc.py run in this browser (Pyodide); /api/* is answered here. */
+(() => {
+  const PY = {"physics": "\"\"\"A stand-in for GIS-7401: one 145 kV gas-insulated bay (four SF6 compartments, breaker, switches, VT, CT), with injectable faults.\n\nThe real bay sends the same points (see telemetry.points in the twin file): gas density transmitters, the UHF partial\ndischarge monitor, the bay controller's breaker and switch monitoring, the protection relay's CT and VT values. Nothing\nhere is used by Monitor: the expected values are computed in Monitor from the twin file only. This model only produces\nbelievable readings and fault fingerprints for the tests, the figures and the live pages. Pure Python (math, random).\n\"\"\"\nimport math\nimport random\n\nCOMPS = (\"cb\", \"bb\", \"ld\", \"vt\")\nT20 = 293.15\n\n\nclass SF6:\n    \"\"\"The twin file's SF6 equation of state, solved the other way round (density -> pressure at a temperature).\"\"\"\n    def __init__(self, twin):\n        s = twin[\"design\"][\"sf6\"]\n        self.R, self.a, self.q = s[\"r_j_kgk\"], s[\"eos_a\"], s[\"eos_q\"]\n\n    def z(self, p, T):\n        a = self.a\n        return 1 + p * (a[0] + a[1] / T + a[2] / T ** 2) + a[3] * p ** 2 / T\n\n    def rho_from_p20(self, p20):\n        q1, q2 = self.q\n        d = p20 * 1e6 / (self.R * T20)\n        for _ in range(30):\n            f = d * self.R * T20 * (1 + q1 * d + q2 * d * d) / 1e6 - p20\n            df = self.R * T20 * (1 + 2 * q1 * d + 3 * q2 * d * d) / 1e6\n            d -= f / df\n        return d\n\n    def p_from_rho(self, rho, T):\n        p = rho * self.R * T / 1e6\n        for _ in range(40):\n            p = rho * self.R * T * self.z(p, T) / 1e6\n        return p\n\n\nclass Bay:\n    def __init__(self, twin, seed=1):\n        self.tw = twin\n        d = twin[\"design\"]\n        self.cmp, self.b, self.sw, self.ld, self.ins = d[\"compartments\"], d[\"breaker\"], d[\"switches\"], d[\"load\"], d[\"instr\"]\n        self.ir = d[\"rating\"][\"ir_a\"]\n        self.sf6 = SF6(twin)\n        self.rnd = random.Random(seed)\n        self.faults = {k: 0.0 for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.ops = 412\n\n    def set_fault(self, name, severity):\n        self.faults[name] = max(0.0, min(1.0, severity))\n\n    def clear(self):\n        for k in self.faults:\n            self.faults[k] = 0.0\n\n    def n(self, s):\n        return self.rnd.gauss(0, s)\n\n    # true state ----------------------------------------------------------------------------------------------------------\n    def true_state(self, hour):\n        L = self.ld\n        prof = 0.5 - 0.5 * math.cos(2 * math.pi * (hour - 4) / 24)\n        load = L[\"min_a\"] + (L[\"peak_a\"] - L[\"min_a\"]) * prof\n        amb = L[\"hall_c\"] + L[\"hall_swing_c\"] * math.sin(2 * math.pi * (hour - 9) / 24)\n        return {\"hour\": hour, \"load_a\": load, \"amb_c\": amb}\n\n    # one operation of the breaker and of the two switches (what the bay controller records) --------------------------------\n    def operate(self):\n        f, b, sw = self.faults, self.b, self.sw\n        self.ops += 1\n        return {\n            \"cb_open_ms\": round(b[\"open_ms\"] * (1 + 0.30 * f[\"cb_slow_mechanism\"]) + self.n(0.25), 2),\n            \"cb_close_ms\": round(b[\"close_ms\"] * (1 + 0.20 * f[\"cb_slow_mechanism\"]) + self.n(0.4), 2),\n            \"cb_armature_ms\": round(b[\"armature_ms\"] * (1 + 0.45 * f[\"cb_slow_mechanism\"]) + self.n(0.08), 2),\n            \"cb_trip_coil_a\": round(b[\"coil_v\"] / b[\"coil_r_ohm\"] * (1 + self.n(0.01)), 3),\n            \"cb_charge_s\": round(b[\"charge_s\"] + self.n(0.2), 2),\n            \"ds1_motor_a\": round(sw[\"ds1_motor_a\"] * (1 + 0.5 * f[\"ds_motor_wear\"]) + self.n(0.03), 3),\n            \"ds1_time_s\": round(sw[\"ds1_time_s\"] * (1 + 0.4 * f[\"ds_motor_wear\"]) + self.n(0.03), 2),\n            \"es2_motor_a\": round(sw[\"es2_motor_a\"] + self.n(0.03), 3),\n            \"es2_time_s\": round(sw[\"es2_time_s\"] + self.n(0.03), 2),\n        }\n\n    # one published message --------------------------------------------------------------------------------------------------\n    def measure(self, true, ops=None):\n        f = self.faults\n        ops = ops or self.operate()\n        load, amb = true[\"load_a\"], true[\"amb_c\"]\n        r = {}\n        base_p20 = {\"cb\": -0.002, \"bb\": -0.003, \"ld\": -0.002, \"vt\": -0.001}\n        h2o = {\"cb\": 80.0, \"bb\": 60.0, \"ld\": 70.0, \"vt\": 90.0}\n        for c in COMPS:\n            cc = self.cmp[c]\n            p20 = cc[\"fill_mpa\"] + base_p20[c]\n            slope = -0.3 + self.n(0.15)\n            if c == \"cb\":\n                p20 -= 0.035 * f[\"cb_compartment_leak\"]\n                slope -= 110 * f[\"cb_compartment_leak\"]\n            T = amb + cc[\"heat_k\"] * (load / self.ir) ** 2 + self.n(0.1)\n            p = self.sf6.p_from_rho(self.sf6.rho_from_p20(p20), T + 273.15)\n            if c == \"bb\":                                         # the transmitter drifts, the gas does not\n                p += 0.030 * f[\"density_sensor_drift\"] * (T + 273.15) / T20\n                slope += 35 * f[\"density_sensor_drift\"]\n            p += self.n(0.0004)\n            w = h2o[c] + 0.6 * (amb - 24) + self.n(2) + (450 * f[\"moisture_ingress\"] if c == \"ld\" else 0)\n            dbm = -72 + self.n(1.2) + (38 * f[\"internal_pd\"] if c == \"bb\" else 0)\n            pps = abs(self.n(1.5)) + (250 * f[\"internal_pd\"] if c == \"bb\" else 0)\n            r.update({f\"gas_{c}_p_mpa\": round(p, 5), f\"gas_{c}_t_c\": round(T, 2), f\"gas_{c}_slope_kpa_yr\": round(slope, 2),\n                      f\"gas_{c}_h2o_ppmv\": round(w, 1), f\"pd_{c}_dbm\": round(dbm, 1), f\"pd_{c}_pps\": round(pps, 1)})\n        vbus = 132.0 * (1.01 + 0.01 * math.sin(2 * math.pi * true[\"hour\"] / 24)) + self.n(0.05)\n        i = load + self.n(1.0)\n        r.update(ops)\n        r.update({\n            \"cb_so2_ppmv\": round(0.4 + 9.0 * f[\"cb_contact_wear\"] + abs(self.n(0.05)), 2),\n            \"cb_wear_ka2s\": round(140 + 300 * f[\"cb_contact_wear\"], 1), \"cb_ops\": self.ops,\n            \"vt_bus_kv\": round(vbus, 3), \"vt_bay_kv\": round(vbus * (1 + 0.02 * f[\"vt_drift\"] + self.n(0.0008)), 3),\n            \"ct_meas_a\": round(i, 1), \"ct_prot_a\": round(i * (1 + self.n(0.002)), 1), \"amb_t_c\": round(amb + self.n(0.1), 2),\n        })\n        return r\n\n\nclass Fault:\n    \"\"\"A failure mode whose severity ramps towards a target (0..1).\"\"\"\n    def __init__(self):\n        self.sev, self.target, self.rate = 0.0, 0.0, 0.0\n\n    def set(self, target, ramp_s):\n        self.target = max(0.0, min(1.0, target))\n        self.rate = abs(self.target - self.sev) / max(ramp_s, 1.0)\n\n    def step(self, dt):\n        if self.sev < self.target:\n            self.sev = min(self.target, self.sev + self.rate * dt)\n        elif self.sev > self.target:\n            self.sev = max(self.target, self.sev - self.rate * dt)\n\n\nclass Plant:\n    \"\"\"The live stand-in used by the twin pages (same interface as the other twins' Plant).\n\n    The bay carries the feeder load of a daily profile (plant clock x time_scale). Every `demo.op_every_s` real seconds\n    the breaker opens and recloses and the switches run, so the bay controller's last-operation values refresh. Steps of\n    2 s or more (the browser warm-up) skip the operations.\n    \"\"\"\n    def __init__(self, twin, seed=7401):\n        self.twin = twin\n        demo = twin[\"design\"].get(\"demo\", {})\n        self.scale = float(demo.get(\"time_scale\", 1))\n        self.every = float(demo.get(\"op_every_s\", 30))\n        self.bay = Bay(twin, seed)\n        self.faults = {k: Fault() for k in twin[\"failure_modes\"] if not k.startswith(\"$\")}\n        self.t = 9 * 3600.0\n        self.running, self.trip = True, 0\n        self.timer, self.op_age = 0.0, 99.0\n        self.last = self.bay.operate()\n\n    def set_fault(self, name, severity, ramp_s):\n        self.faults[name].set(severity, ramp_s)\n\n    def clear_faults(self, ramp_s=5):\n        for f in self.faults.values():\n            f.set(0.0, ramp_s)\n\n    def reset(self):\n        self.timer = 0.0\n\n    def fault_state(self):\n        return {k: round(f.sev, 3) for k, f in self.faults.items()}\n\n    def step(self, dt=1.0):\n        for k, f in self.faults.items():\n            f.step(dt)\n            self.bay.faults[k] = f.sev\n        self.t += dt * self.scale\n        if 0 < dt < 2.0:\n            self.timer += dt\n            self.op_age += dt\n            if self.timer >= self.every:\n                self.timer, self.op_age = 0.0, 0.0\n                self.last = self.bay.operate()\n        true = self.bay.true_state((self.t / 3600.0) % 24)\n        true[\"op_age_s\"] = self.op_age\n        return true\n\n    def measure(self, true):\n        return self.bay.measure(true, dict(self.last))\n", "twin_calc": "\"\"\"The gas-insulated switchgear bay twin's expectations (GIS-7401, Hitachi Energy ELK-04 C 145 kV, four SF6 compartments).\n\nOne definition, two outputs:\n  monitor_expressions(twin) -> pandas expressions for Maximo Monitor PythonExpression functions\n  evaluate(twin, reading)   -> the same numbers in Python (tests, figures, the worked example)\nBoth come from the same formula functions below: they run once on column placeholders (which print themselves as pandas\ncode) and once on the numbers of a reading, so the two outputs cannot drift apart.\n\nGas mass balance, per compartment (p = absolute pressure in MPa, T = gas temperature in K):\n    Z(p, T) = 1 + p (a0 + a1/T + a2/T^2) + a3 p^2 / T          SF6 compressibility, fitted to NIST data\n    rho     = p 1e6 / (R T Z)                                   density, kg/m3 (R = 56.93 J/kg K)\n    p20     = rho R 293.15 (1 + q1 rho + q2 rho^2) / 1e6        pressure the same gas has at 20 C (what density monitors show)\n    mass    = rho x V                                           kg of SF6 in the compartment\n  The gas monitor sends the 30-day trend of p20 (kPa/yr), because Monitor works on one reading at a time. Then\n    leak rate (% of the gas per year) = -trend / (rho R 293.15 (1 + 2 q1 rho + 3 q2 rho^2)) x 100   (= -d rho / rho)\n    days to the alarm density          = (p20 - p20_alarm) / -trend x 365\n  compared with the tightness class (0.5 %/yr; IEC 62271-203:2022 type tests new SF6 compartments to 0.1 %/yr).\nBreaker: opening time, trip coil armature time and spring charging time against the routine-test values; contact wear =\n  sum of I^2 t (kA^2 s) kept by the bay controller, against the allowance.\nSwitches: motor peak current and operating time of the busbar disconnector DS1 and the line earthing switch ES2.\nInstrument transformers: bay VT against the busbar VT (disconnectors closed); protection core against metering core of the CT.\nBay health index: each of the four parts = 100 - 60 x u_worst, with u = (value - normal) / (limit - normal) clipped to 0..1.5,\n  so a part reads 100 when every indicator is normal, 40 with one indicator at its limit and 10 at most 1.5 x beyond.\n  The bay health index is the weakest part: a bay is only as available as its worst part.\n\"\"\"\nimport math\n\nCOMPS = (\"cb\", \"bb\", \"ld\", \"vt\")\nT20 = 293.15\n\n\n# ---- column placeholders that print themselves as pandas code ----------------------------------------------------------\ndef _s(x):\n    return x.s if isinstance(x, E) else repr(float(x)) if not isinstance(x, int) else str(x)\n\n\nclass E:\n    def __init__(self, s):\n        self.s = s\n\n    def _b(self, op, o, rev=False):\n        return E(f\"({_s(o)} {op} {self.s})\" if rev else f\"({self.s} {op} {_s(o)})\")\n\n    __add__ = lambda a, o: a._b(\"+\", o)\n    __radd__ = lambda a, o: a._b(\"+\", o, True)\n    __sub__ = lambda a, o: a._b(\"-\", o)\n    __rsub__ = lambda a, o: a._b(\"-\", o, True)\n    __mul__ = lambda a, o: a._b(\"*\", o)\n    __rmul__ = lambda a, o: a._b(\"*\", o, True)\n    __truediv__ = lambda a, o: a._b(\"/\", o)\n    __rtruediv__ = lambda a, o: a._b(\"/\", o, True)\n    __pow__ = lambda a, o: a._b(\"**\", o)\n    __lt__ = lambda a, o: a._b(\"<\", o)\n    __gt__ = lambda a, o: a._b(\">\", o)\n    __and__ = lambda a, o: a._b(\"&\", o)\n    __rand__ = lambda a, o: a._b(\"&\", o, True)\n    __or__ = lambda a, o: a._b(\"|\", o)\n    __ror__ = lambda a, o: a._b(\"|\", o, True)\n    __neg__ = lambda a: E(f\"(-{a.s})\")\n\n\ndef _any_e(xs):\n    return any(isinstance(x, E) for x in xs)\n\n\ndef mx(*xs):\n    if not _any_e(xs):\n        return max(xs)\n    out = _s(xs[0])\n    for x in xs[1:]:\n        out = f\"np.maximum({out}, {_s(x)})\"\n    return E(out)\n\n\ndef mn(*xs):\n    if not _any_e(xs):\n        return min(xs)\n    out = _s(xs[0])\n    for x in xs[1:]:\n        out = f\"np.minimum({out}, {_s(x)})\"\n    return E(out)\n\n\ndef ab(x):\n    return E(f\"np.abs({x.s})\") if isinstance(x, E) else abs(x)\n\n\ndef clip(x, lo, hi):\n    return E(f\"np.clip({x.s}, {_s(lo)}, {_s(hi)})\") if isinstance(x, E) else min(max(x, lo), hi)\n\n\ndef anyof(*xs):\n    out = xs[0]\n    for x in xs[1:]:\n        out = out | x\n    return out\n\n\n# ---- constants from the twin file ----------------------------------------------------------------------------------------\ndef _k(twin):\n    d = twin[\"design\"]\n    s, b, sw, g, pd, ins = d[\"sf6\"], d[\"breaker\"], d[\"switches\"], d[\"gas_quality\"], d[\"pd\"], d[\"instr\"]\n    k = dict(R=s[\"r_j_kgk\"], a=s[\"eos_a\"], q=s[\"eos_q\"], gwp=s[\"gwp100\"],\n             open=b[\"open_ms\"], close=b[\"close_ms\"], arm=b[\"armature_ms\"], coil=b[\"coil_v\"] / b[\"coil_r_ohm\"], charge=b[\"charge_s\"],\n             allow=b[\"wear_allow_ka2s\"], ds1m=sw[\"ds1_motor_a\"], ds1t=sw[\"ds1_time_s\"], es2m=sw[\"es2_motor_a\"], es2t=sw[\"es2_time_s\"],\n             noise=pd[\"noise_dbm\"], h2o0=60.0)\n    for c in COMPS:\n        cc = d[\"compartments\"][c]\n        k[c] = dict(V=cc[\"volume_m3\"], fill=cc[\"fill_mpa\"], alarm=cc[\"alarm_mpa\"], minimum=cc[\"minimum_mpa\"], name=cc[\"name\"])\n    return k\n\n\n# ---- the formulas (run on placeholders or on numbers) ------------------------------------------------------------------\ndef rho(k, r, c):\n    p, T = r(f\"gas_{c}_p_mpa\"), r(f\"gas_{c}_t_c\") + 273.15\n    a = k[\"a\"]\n    return p * 1e6 / (k[\"R\"] * T * (1 + p * (a[0] + a[1] / T + a[2] / T ** 2) + a[3] * p ** 2 / T))\n\n\ndef p20(k, r, c):\n    d = rho(k, r, c)\n    return d * k[\"R\"] * T20 * (1 + k[\"q\"][0] * d + k[\"q\"][1] * d ** 2) / 1e6\n\n\ndef leak_pct(k, r, c):\n    d = rho(k, r, c)\n    return mx(-r(f\"gas_{c}_slope_kpa_yr\") * 1000 / (d * k[\"R\"] * T20 * (1 + 2 * k[\"q\"][0] * d + 3 * k[\"q\"][1] * d ** 2)) * 100, 0)\n\n\ndef days(k, r, c):\n    return mn(mx((p20(k, r, c) - k[c][\"alarm\"]) * 1000 / mx(-r(f\"gas_{c}_slope_kpa_yr\"), 0.01) * 365, 0), 9999)\n\n\ndef u(x, normal, limit, umax=1.5):\n    return clip((x - normal) / (limit - normal), 0, umax)\n\n\ndef _formulas(twin, r):\n    k, L = _k(twin), twin[\"twin_model\"][\"limits\"]\n    P = {c: p20(k, r, c) for c in COMPS}\n    f = {f\"p20_{c}_mpa\": P[c] for c in COMPS}\n    f[\"sf6_mass_kg\"] = rho(k, r, \"cb\") * k[\"cb\"][\"V\"] + rho(k, r, \"bb\") * k[\"bb\"][\"V\"] + rho(k, r, \"ld\") * k[\"ld\"][\"V\"] + rho(k, r, \"vt\") * k[\"vt\"][\"V\"]\n    LEAK = mx(*[leak_pct(k, r, c) for c in COMPS])\n    DAYS = mn(*[days(k, r, c) for c in COMPS])\n    f[\"leak_pct_yr_max\"] = LEAK\n    f[\"days_to_alarm_min\"] = DAYS\n    OPEN = r(\"cb_open_ms\") / k[\"open\"]\n    ARM = r(\"cb_armature_ms\") / k[\"arm\"]\n    CHG = r(\"cb_charge_s\") / k[\"charge\"]\n    WEAR = r(\"cb_wear_ka2s\") / k[\"allow\"] * 100\n    COIL = ab(r(\"cb_trip_coil_a\") / k[\"coil\"] - 1)\n    f[\"cb_open_ratio\"], f[\"cb_charge_ratio\"], f[\"cb_wear_pct\"] = OPEN, CHG, WEAR\n    DSM = mx(r(\"ds1_motor_a\") / k[\"ds1m\"], r(\"es2_motor_a\") / k[\"es2m\"])\n    DST = mx(r(\"ds1_time_s\") / k[\"ds1t\"], r(\"es2_time_s\") / k[\"es2t\"])\n    f[\"ds_motor_ratio\"] = DSM\n    VT = (r(\"vt_bay_kv\") - r(\"vt_bus_kv\")) / r(\"vt_bus_kv\") * 100\n    CT = (r(\"ct_prot_a\") - r(\"ct_meas_a\")) / mx(r(\"ct_meas_a\"), 1) * 100\n    f[\"vt_drift_pct\"], f[\"ct_mismatch_pct\"] = VT, CT\n    PD = mx(*[r(f\"pd_{c}_dbm\") for c in COMPS])\n    H2O = mx(*[r(f\"gas_{c}_h2o_ppmv\") for c in COMPS])\n    f[\"pd_max_dbm\"] = PD\n    DEF = mx(*[(k[c][\"fill\"] - P[c]) / (k[c][\"fill\"] - k[c][\"alarm\"]) for c in COMPS])\n    hi = lambda *us: 100 - 60 * mx(*us)\n    f[\"hi_cb\"] = hi(u(OPEN, 1, L[\"open_ratio\"]), u(ARM, 1, L[\"armature_ratio\"]), u(CHG, 1, L[\"charge_ratio\"]), u(WEAR, 0, L[\"wear_pct\"]),\n                    u(COIL, 0, L[\"coil_dev\"]))\n    f[\"hi_ds\"] = hi(u(DSM, 1, L[\"ds_motor_ratio\"]), u(DST, 1, L[\"ds_time_ratio\"]))\n    f[\"hi_gas\"] = hi(clip(DEF, 0, 1.5), u(LEAK, 0, L[\"leak_pct_yr\"]), u(H2O, k[\"h2o0\"], L[\"h2o_ppmv\"]), u(r(\"cb_so2_ppmv\"), 0, L[\"so2_ppmv\"]),\n                     u(PD, k[\"noise\"], L[\"pd_dbm\"]))\n    f[\"hi_it\"] = hi(u(ab(VT), 0, L[\"vt_drift_pct\"]), u(ab(CT), 0, L[\"ct_mismatch_pct\"]))\n    f[\"hi_bay\"] = mn(f[\"hi_cb\"], f[\"hi_ds\"], f[\"hi_gas\"], f[\"hi_it\"])\n    rules = [\n        (\"GIS_DENSITY_ALARM\", anyof(*[P[c] < k[c][\"alarm\"] for c in COMPS]), \"Critical\", \"cb_compartment_leak\"),\n        (\"GIS_DENSITY_ALARM_SOON\", DAYS < L[\"days_to_alarm\"], \"High\", \"cb_compartment_leak\"),\n        (\"GIS_PD_DETECTED\", anyof(*[(r(f\"pd_{c}_dbm\") > L[\"pd_dbm\"]) & (r(f\"pd_{c}_pps\") > L[\"pd_pps\"]) for c in COMPS]), \"High\", \"internal_pd\"),\n        (\"GIS_SO2_HIGH\", r(\"cb_so2_ppmv\") > L[\"so2_ppmv\"], \"High\", \"cb_contact_wear\"),\n        (\"GIS_CB_SLOW_OPEN\", OPEN > L[\"open_ratio\"], \"High\", \"cb_slow_mechanism\"),\n        (\"GIS_LEAK_RATE_HIGH\", LEAK > L[\"leak_pct_yr\"], \"Medium\", \"cb_compartment_leak\"),\n        (\"GIS_DENSITY_ABOVE_FILL\", anyof(*[P[c] > k[c][\"fill\"] + L[\"above_fill_mpa\"] for c in COMPS]), \"Medium\", \"density_sensor_drift\"),\n        (\"GIS_CB_TRIP_COIL\", ARM > L[\"armature_ratio\"], \"Medium\", \"cb_slow_mechanism\"),\n        (\"GIS_CB_CHARGE_SLOW\", CHG > L[\"charge_ratio\"], \"Medium\", None),\n        (\"GIS_CB_WEAR_HIGH\", WEAR > L[\"wear_pct\"], \"Medium\", \"cb_contact_wear\"),\n        (\"GIS_DS_MOTOR_HIGH\", DSM > L[\"ds_motor_ratio\"], \"Medium\", \"ds_motor_wear\"),\n        (\"GIS_DS_SLOW\", DST > L[\"ds_time_ratio\"], \"Medium\", \"ds_motor_wear\"),\n        (\"GIS_MOISTURE_HIGH\", H2O > L[\"h2o_ppmv\"], \"Medium\", \"moisture_ingress\"),\n        (\"GIS_VT_DRIFT\", ab(VT) > L[\"vt_drift_pct\"], \"Medium\", \"vt_drift\"),\n        (\"GIS_CT_MISMATCH\", ab(CT) > L[\"ct_mismatch_pct\"], \"Medium\", None),\n    ]\n    extra = dict(arm_ratio=ARM, ds_time_ratio=DST, h2o_max=H2O, coil_dev=COIL, gas_deficit=DEF,\n                 **{f\"leak_{c}\": leak_pct(k, r, c) for c in COMPS}, **{f\"days_{c}\": days(k, r, c) for c in COMPS},\n                 **{f\"rho_{c}\": rho(k, r, c) for c in COMPS})\n    return f, rules, extra\n\n\ndef _col(name):\n    return E(f\"df['{name.upper()}']\")\n\n\ndef monitor_expressions(twin):\n    f, _, _ = _formulas(twin, _col)\n    return [(n.upper(), v.s) for n, v in f.items()]\n\n\ndef evaluate(twin, reading):\n    f, _, _ = _formulas(twin, lambda n: float(reading[n]))\n    return dict(f)\n\n\ndef details(twin, reading):\n    \"\"\"Per-compartment numbers that the rules use inline (density, leak rate, days) for figures and the post.\"\"\"\n    _, _, x = _formulas(twin, lambda n: float(reading[n]))\n    return x\n\n\ndef alert_rules(twin):\n    _, rules, _ = _formulas(twin, _col)\n    return [(n, e.s, sev, fm) for n, e, sev, fm in rules]\n\n\nSEVERITY_PENALTY = {\"Critical\": 60, \"High\": 30, \"Medium\": 15, \"Low\": 5}\nPART = {\"cb_compartment_leak\": \"gas\", \"density_sensor_drift\": \"gas\", \"internal_pd\": \"gas\", \"moisture_ingress\": \"gas\", \"cb_slow_mechanism\": \"breaker\",\n        \"cb_contact_wear\": \"breaker\", \"ds_motor_wear\": \"switches\", \"vt_drift\": \"instr\", None: \"bay\"}\n\n\ndef conditions(twin, r, t):\n    k, L = _k(twin), twin[\"twin_model\"][\"limits\"]\n    _, rules, x = _formulas(twin, lambda n: float(r[n]))\n    worst_p = min(COMPS, key=lambda c: t[f\"p20_{c}_mpa\"] - k[c][\"alarm\"])\n    worst_leak = max(COMPS, key=lambda c: x[f\"leak_{c}\"])\n    worst_pd = max(COMPS, key=lambda c: r[f\"pd_{c}_dbm\"])\n    worst_h2o = max(COMPS, key=lambda c: r[f\"gas_{c}_h2o_ppmv\"])\n    worst_fill = max(COMPS, key=lambda c: t[f\"p20_{c}_mpa\"] - k[c][\"fill\"])\n    text = {\n        \"GIS_DENSITY_ALARM\": f\"{worst_p.upper()} compartment at {t[f'p20_{worst_p}_mpa']:.3f} MPa (20 \u00b0C), below its alarm density {k[worst_p]['alarm']:.2f}\",\n        \"GIS_DENSITY_ALARM_SOON\": f\"{worst_p.upper()} compartment reaches its alarm density in {t['days_to_alarm_min']:.0f} days at the present leak rate\",\n        \"GIS_PD_DETECTED\": f\"Partial discharge on the {worst_pd.upper()} sensor: {r[f'pd_{worst_pd}_dbm']:.0f} dBm, {r[f'pd_{worst_pd}_pps']:.0f} pulses/s\",\n        \"GIS_SO2_HIGH\": f\"SO2 {r['cb_so2_ppmv']:.1f} ppmv in the CB compartment (action level {L['so2_ppmv']:.0f})\",\n        \"GIS_CB_SLOW_OPEN\": f\"Opening time {r['cb_open_ms']:.1f} ms, {t['cb_open_ratio']:.2f} x the routine test\",\n        \"GIS_LEAK_RATE_HIGH\": f\"{worst_leak.upper()} compartment loses {t['leak_pct_yr_max']:.2f} % of its gas per year (class {L['leak_pct_yr']} %)\",\n        \"GIS_DENSITY_ABOVE_FILL\": f\"{worst_fill.upper()} density reads {t[f'p20_{worst_fill}_mpa']:.3f} MPa, above the filled {k[worst_fill]['fill']:.2f}: sensor drift\",\n        \"GIS_CB_TRIP_COIL\": f\"Trip coil armature time {r['cb_armature_ms']:.1f} ms, {x['arm_ratio']:.2f} x the routine test\",\n        \"GIS_CB_CHARGE_SLOW\": f\"Spring charging took {r['cb_charge_s']:.1f} s, {t['cb_charge_ratio']:.2f} x normal\",\n        \"GIS_CB_WEAR_HIGH\": f\"Contact wear {t['cb_wear_pct']:.0f} % of the I\u00b2t allowance\",\n        \"GIS_DS_MOTOR_HIGH\": f\"Switch drive motor current {t['ds_motor_ratio']:.2f} x the routine test\",\n        \"GIS_DS_SLOW\": f\"Switch operating time {x['ds_time_ratio']:.2f} x the routine test\",\n        \"GIS_MOISTURE_HIGH\": f\"Moisture {r[f'gas_{worst_h2o}_h2o_ppmv']:.0f} ppmv in the {worst_h2o.upper()} compartment\",\n        \"GIS_VT_DRIFT\": f\"Bay VT reads {t['vt_drift_pct']:+.2f} % against the busbar VT\",\n        \"GIS_CT_MISMATCH\": f\"CT protection and metering cores differ by {t['ct_mismatch_pct']:+.2f} %\",\n    }\n    out = []\n    for name, cond, sev, fm in rules:\n        if cond:\n            out.append({\"name\": name, \"severity\": sev, \"text\": text[name], \"part\": PART[fm], \"failure_mode\": fm})\n    health = max(0, 100 - sum(SEVERITY_PENALTY[c[\"severity\"]] for c in out))\n    return out, health\n"}, TWIN = {"$comment": "GIS-7401 gas-insulated switchgear bay twin. Expected values in Maximo Monitor from the maker's ratings, the gas schematic and NIST SF6 data; the bay sends only what its IEDs measure.", "twin": {"id": "GIS-7401", "name": "Gas-insulated switchgear bay GIS-7401", "version": "1.0.0", "folder": "gis-twin"}, "identification": {"asset": "GIS-7401", "assetnum": "GIS-7401", "manufacturer": "Hitachi Energy", "model": "ELK-04 C 145 kV", "description": "132 kV cable feeder bay 4 of an indoor gas-insulated substation (one bay, four SF6 gas compartments)", "site": "Demo transmission substation (indoor GIS hall)", "bay": "Single busbar section, busbar disconnector DS1 + earthing switch ES1, circuit breaker CB with CTs, line disconnector DS2 + earthing switch ES2 + fast earthing switch FES, VT, cable sealing end", "monitoring": "Gas density transmitters per compartment, UHF partial discharge sensors, breaker and switch monitoring in the bay controller (IEC 61850)"}, "design": {"rating": {"ur_kv": 145.0, "system_kv": 132.0, "fr_hz": "50/60", "ud_kv": 275, "up_kv": 650, "ir_a": 3150, "isc_ka": 40, "tk_s": 3, "ip_ka": 108, "bay_width_mm": 800, "ambient_c": [-30, 55], "installation": "indoor / outdoor", "source": "Hitachi Energy, Gas-insulated switchgear ELK-04 C up to 145 kV, product page technical data"}, "compartments": {"cb": {"name": "Circuit breaker + current transformers", "volume_m3": 0.55, "fill_mpa": 0.7, "alarm_mpa": 0.64, "minimum_mpa": 0.62, "heat_k": 9.0}, "bb": {"name": "Busbar disconnector + earthing switch (bay part of the busbar)", "volume_m3": 0.8, "fill_mpa": 0.6, "alarm_mpa": 0.55, "minimum_mpa": 0.52, "heat_k": 5.0}, "ld": {"name": "Line disconnector + earthing switches + cable sealing end", "volume_m3": 0.45, "fill_mpa": 0.6, "alarm_mpa": 0.55, "minimum_mpa": 0.52, "heat_k": 4.0}, "vt": {"name": "Voltage transformer", "volume_m3": 0.35, "fill_mpa": 0.6, "alarm_mpa": 0.55, "minimum_mpa": 0.52, "heat_k": 3.0}, "source": "Four gas compartments per bay, volumes, rated filling, alarm and minimum functional pressures (absolute, at 20 \u00b0C), gas heating at rated current: assumption: typical value, replace with your switchgear's gas schematic, routine test report and manual"}, "sf6": {"gas": "SF6", "molar_mass_g_mol": 146.055, "r_j_kgk": 56.926929, "gwp100": 24300, "co2e_detection_t": 500, "eos_a": [-0.33193276, 259.15645, -57128.08, -5.7499945], "eos_q": [-0.0019542519, 8.1393436e-07], "eos_max_err_rho_pct": 0.35, "eos_max_err_p20_pct": 0.0021, "eos_range": "263.15 ... 333.15 K, 0.30 ... 0.80 MPa abs", "source": "Z(p,T) = 1 + p (a0 + a1/T + a2/T^2) + a3 p^2/T and p20 = rho R 293.15 (1 + q1 rho + q2 rho^2), least-squares fits of the NIST Chemistry WebBook SF6 isotherms listed in build_twin.py. GWP100 24 300 and the 500 t CO2e leakage-detection threshold: Regulation (EU) 2024/573."}, "tightness": {"type_test_pct_yr": 0.1, "class_pct_yr": 0.5, "source": "IEC 62271-203:2022 reduced the type-test tightness requirement for gases with GWP > 1000 from 0.5 % to 0.1 % per year per gas compartment. The twin alerts at 0.5 %/year (the older class most installed bays were tested to)."}, "breaker": {"mechanism": "stored-energy spring", "open_ms": 25.0, "close_ms": 55.0, "armature_ms": 7.0, "coil_v": 110.0, "coil_r_ohm": 55.0, "charge_s": 15.0, "wear_allow_ka2s": 480.0, "wear_note": "20 interruptions of 40 kA with 15 ms of arcing", "source": "Spring mechanism, operating times, trip coil, charging time and I\u00b2t wear allowance: assumption: typical value, replace with your switchgear's gas schematic, routine test report and manual"}, "switches": {"ds1_motor_a": 2.5, "ds1_time_s": 4.0, "es2_motor_a": 2.5, "es2_time_s": 3.0, "source": "Disconnector and earthing switch motor-drive peak current and operating time from the routine test: assumption: typical value, replace with your switchgear's gas schematic, routine test report and manual"}, "gas_quality": {"h2o_alert_ppmv": 300.0, "so2_alert_ppmv": 5.0, "source": "Moisture and SO2 action levels in service: assumption: typical value, replace with your switchgear's gas schematic, routine test report and manual (IEC 60480 gives the limits for re-use of recovered gas, not these)"}, "pd": {"noise_dbm": -72.0, "alert_dbm": -50.0, "alert_pps": 20.0, "source": "UHF sensor noise floor and the PD alarm (amplitude and pulse rate together), set at commissioning after the sensitivity check of IEC TS 62478: assumption: typical value, replace with your switchgear's gas schematic, routine test report and manual"}, "instr": {"vt_drift_alert_pct": 1.0, "ct_mismatch_alert_pct": 2.0, "vt_class": "0.5", "source": "Two class 0.5 voltage transformers may differ by up to 1 %; protection and metering core of the same CT should agree within 2 % at load: assumption: typical value, replace with your switchgear's gas schematic, routine test report and manual"}, "load": {"peak_a": 900.0, "min_a": 300.0, "hall_c": 24.0, "hall_swing_c": 5.0, "source": "Daily load profile of the feeder and GIS hall temperature: assumption: typical value, replace with your switchgear's gas schematic, routine test report and manual"}, "demo": {"time_scale": 60, "op_every_s": 30, "note": "Demo only: the plant clock runs 60 times faster, and the breaker and the switches are operated every 30 s of real time so their timings refresh; leak and wear figures come from the failure modes, not from the demo clock."}}, "telemetry": {"event": "gis", "publish_every_s": 10, "device_type": "GIS_BAY", "groups": {"GasCB": "Circuit breaker compartment", "GasBB": "Busbar disconnector compartment", "GasLD": "Line disconnector compartment", "GasVT": "Voltage transformer compartment", "PD": "UHF partial discharge monitor", "Breaker": "Circuit breaker monitoring", "Switches": "Disconnector and earthing switch drives", "Instr": "Instrument transformers", "Bay": "Bay and hall"}, "points": [{"metric": "gas_cb_p_mpa", "path": "GasCB.Pressure", "label": "Gas pressure, CB compartment (absolute)", "unit": "MPa abs"}, {"metric": "gas_cb_t_c", "path": "GasCB.Temperature", "label": "Gas temperature, CB compartment", "unit": "\u00b0C"}, {"metric": "gas_cb_slope_kpa_yr", "path": "GasCB.TrendP20", "label": "30-day trend of the pressure at 20 \u00b0C, CB (gas monitor)", "unit": "kPa/yr"}, {"metric": "gas_cb_h2o_ppmv", "path": "GasCB.Moisture", "label": "Moisture in the gas, CB compartment", "unit": "ppmv"}, {"metric": "pd_cb_dbm", "path": "PD.CBAmplitude", "label": "UHF partial discharge peak, CB sensor", "unit": "dBm"}, {"metric": "pd_cb_pps", "path": "PD.CBPulses", "label": "UHF partial discharge pulses per second, CB sensor", "unit": "1/s"}, {"metric": "gas_bb_p_mpa", "path": "GasBB.Pressure", "label": "Gas pressure, BB compartment (absolute)", "unit": "MPa abs"}, {"metric": "gas_bb_t_c", "path": "GasBB.Temperature", "label": "Gas temperature, BB compartment", "unit": "\u00b0C"}, {"metric": "gas_bb_slope_kpa_yr", "path": "GasBB.TrendP20", "label": "30-day trend of the pressure at 20 \u00b0C, BB (gas monitor)", "unit": "kPa/yr"}, {"metric": "gas_bb_h2o_ppmv", "path": "GasBB.Moisture", "label": "Moisture in the gas, BB compartment", "unit": "ppmv"}, {"metric": "pd_bb_dbm", "path": "PD.BBAmplitude", "label": "UHF partial discharge peak, BB sensor", "unit": "dBm"}, {"metric": "pd_bb_pps", "path": "PD.BBPulses", "label": "UHF partial discharge pulses per second, BB sensor", "unit": "1/s"}, {"metric": "gas_ld_p_mpa", "path": "GasLD.Pressure", "label": "Gas pressure, LD compartment (absolute)", "unit": "MPa abs"}, {"metric": "gas_ld_t_c", "path": "GasLD.Temperature", "label": "Gas temperature, LD compartment", "unit": "\u00b0C"}, {"metric": "gas_ld_slope_kpa_yr", "path": "GasLD.TrendP20", "label": "30-day trend of the pressure at 20 \u00b0C, LD (gas monitor)", "unit": "kPa/yr"}, {"metric": "gas_ld_h2o_ppmv", "path": "GasLD.Moisture", "label": "Moisture in the gas, LD compartment", "unit": "ppmv"}, {"metric": "pd_ld_dbm", "path": "PD.LDAmplitude", "label": "UHF partial discharge peak, LD sensor", "unit": "dBm"}, {"metric": "pd_ld_pps", "path": "PD.LDPulses", "label": "UHF partial discharge pulses per second, LD sensor", "unit": "1/s"}, {"metric": "gas_vt_p_mpa", "path": "GasVT.Pressure", "label": "Gas pressure, VT compartment (absolute)", "unit": "MPa abs"}, {"metric": "gas_vt_t_c", "path": "GasVT.Temperature", "label": "Gas temperature, VT compartment", "unit": "\u00b0C"}, {"metric": "gas_vt_slope_kpa_yr", "path": "GasVT.TrendP20", "label": "30-day trend of the pressure at 20 \u00b0C, VT (gas monitor)", "unit": "kPa/yr"}, {"metric": "gas_vt_h2o_ppmv", "path": "GasVT.Moisture", "label": "Moisture in the gas, VT compartment", "unit": "ppmv"}, {"metric": "pd_vt_dbm", "path": "PD.VTAmplitude", "label": "UHF partial discharge peak, VT sensor", "unit": "dBm"}, {"metric": "pd_vt_pps", "path": "PD.VTPulses", "label": "UHF partial discharge pulses per second, VT sensor", "unit": "1/s"}, {"metric": "cb_so2_ppmv", "path": "GasCB.SO2", "label": "SO2 in the CB compartment, last gas analysis", "unit": "ppmv"}, {"metric": "cb_open_ms", "path": "Breaker.OpenTime", "label": "Opening time, last operation (slowest pole)", "unit": "ms"}, {"metric": "cb_close_ms", "path": "Breaker.CloseTime", "label": "Closing time, last operation (slowest pole)", "unit": "ms"}, {"metric": "cb_armature_ms", "path": "Breaker.ArmatureTime", "label": "Trip coil current: time to the armature dip, last opening", "unit": "ms"}, {"metric": "cb_trip_coil_a", "path": "Breaker.TripCoilPeak", "label": "Trip coil peak current, last opening", "unit": "A"}, {"metric": "cb_charge_s", "path": "Breaker.ChargeTime", "label": "Spring charging motor run time, last charge", "unit": "s"}, {"metric": "cb_wear_ka2s", "path": "Breaker.WearI2t", "label": "Contact wear: sum of I\u00b2\u00b7t arcing, worst pole", "unit": "kA\u00b2s"}, {"metric": "cb_ops", "path": "Breaker.Operations", "label": "Breaker operations since commissioning", "unit": "count"}, {"metric": "ds1_motor_a", "path": "Switches.DS1MotorPeak", "label": "Busbar disconnector DS1: motor peak current, last operation", "unit": "A"}, {"metric": "ds1_time_s", "path": "Switches.DS1Time", "label": "Busbar disconnector DS1: operating time, last operation", "unit": "s"}, {"metric": "es2_motor_a", "path": "Switches.ES2MotorPeak", "label": "Line earthing switch ES2: motor peak current, last operation", "unit": "A"}, {"metric": "es2_time_s", "path": "Switches.ES2Time", "label": "Line earthing switch ES2: operating time, last operation", "unit": "s"}, {"metric": "vt_bay_kv", "path": "Instr.VTBay", "label": "Bay voltage transformer, phase-to-phase (primary)", "unit": "kV"}, {"metric": "vt_bus_kv", "path": "Instr.VTBus", "label": "Busbar voltage transformer, phase-to-phase (primary)", "unit": "kV"}, {"metric": "ct_prot_a", "path": "Instr.CTProtection", "label": "Feeder current, protection core", "unit": "A"}, {"metric": "ct_meas_a", "path": "Instr.CTMetering", "label": "Feeder current, metering core", "unit": "A"}, {"metric": "amb_t_c", "path": "Bay.Ambient", "label": "GIS hall air temperature", "unit": "\u00b0C"}]}, "twin_model": {"limits": {"leak_pct_yr": 0.5, "days_to_alarm": 90.0, "above_fill_mpa": 0.015, "open_ratio": 1.15, "armature_ratio": 1.25, "charge_ratio": 1.3, "wear_pct": 80.0, "ds_motor_ratio": 1.3, "ds_time_ratio": 1.25, "h2o_ppmv": 300.0, "so2_ppmv": 5.0, "pd_dbm": -50.0, "pd_pps": 20.0, "vt_drift_pct": 1.0, "ct_mismatch_pct": 2.0, "coil_dev": 0.2}, "health_index": {"penalty_at_limit": 60, "u_max": 1.5, "note": "Each part = 100 - 60 x the worst indicator's distance to its limit (0 = normal value, 1 = at the limit, capped at 1.5). Bay = the weakest part."}}, "failure_modes": {"$comment": "Each failure mode: what degrades, how it shows, the rules that see it.", "cb_compartment_leak": {"name": "SF6 leak, circuit breaker compartment", "part": "gas", "symptoms": "pressure at 20 \u00b0C falls, 30-day trend negative, leak rate above the tightness class, days to the alarm density shrink", "rules": ["GIS_LEAK_RATE_HIGH", "GIS_DENSITY_ALARM_SOON", "GIS_DENSITY_ALARM"], "default_ramp_min": 1.5}, "density_sensor_drift": {"name": "Gas density sensor drift, busbar compartment", "part": "gas", "symptoms": "reading above the filled density with a rising trend: physically impossible without a gas top-up, so the sensor drifts (and would hide a leak)", "rules": ["GIS_DENSITY_ABOVE_FILL"], "default_ramp_min": 1}, "cb_slow_mechanism": {"name": "Breaker mechanism slow (lubrication, latch)", "part": "breaker", "symptoms": "opening time and trip coil armature time up, coil current and charging normal", "rules": ["GIS_CB_SLOW_OPEN", "GIS_CB_TRIP_COIL"], "default_ramp_min": 1}, "cb_contact_wear": {"name": "Arcing contact wear after fault interruptions", "part": "breaker", "symptoms": "I\u00b2t sum near the allowance, SO2 from arcing rises in the CB compartment", "rules": ["GIS_CB_WEAR_HIGH", "GIS_SO2_HIGH"], "default_ramp_min": 1}, "ds_motor_wear": {"name": "Disconnector drive stiff (gearbox, linkage)", "part": "switches", "symptoms": "DS1 motor peak current and operating time up", "rules": ["GIS_DS_MOTOR_HIGH", "GIS_DS_SLOW"], "default_ramp_min": 1}, "moisture_ingress": {"name": "Moisture ingress, line disconnector compartment", "part": "gas", "symptoms": "moisture ppmv rises in one compartment, density normal", "rules": ["GIS_MOISTURE_HIGH"], "default_ramp_min": 1}, "internal_pd": {"name": "Internal partial discharge (particle, floating electrode), busbar compartment", "part": "gas", "symptoms": "UHF amplitude and pulse rate rise on one sensor only", "rules": ["GIS_PD_DETECTED"], "default_ramp_min": 0.5}, "vt_drift": {"name": "Voltage transformer output drift", "part": "instr", "symptoms": "bay VT reads away from the busbar VT with the disconnectors closed", "rules": ["GIS_VT_DRIFT"], "default_ramp_min": 1}}, "presentation": {"title": "GIS-7401 gas-insulated switchgear bay", "dashboard": "GIS_BAY"}}, EVERY = 10;
+  let latest = {}, history = [], published = 0, py = null;
+  let ready = false;
+  const say = t => { const l = document.getElementById('loading'); if (l) l.textContent = t; };
+  document.addEventListener('DOMContentLoaded', () => { if (!ready) say('Starting the twin in your browser (the first visit downloads Python, about 10 MB)…'); });
+  const boot = (async () => {
+    say('Starting the twin in your browser (first visit downloads Python, ~10 MB)…');
+    py = await loadPyodide();
+    if (false) await py.loadPackage('numpy');
+    py.FS.mkdirTree('/twin');
+    for (const [name, src] of Object.entries(PY)) py.FS.writeFile('/twin/' + name + '.py', src);
+    py.globals.set('TW_JSON', JSON.stringify(TWIN));
+    const now = new Date(), sod = now.getHours() * 3600 + now.getMinutes() * 60 + now.getSeconds();
+    py.runPython(`
+import sys, json, time
+sys.path.insert(0, '/twin')
+import physics, twin_calc
+TWIN = json.loads(TW_JSON)
+P = physics.Plant(TWIN)
+P.t = (${sod} - 7200) % 86400
+for _ in range(3600):
+    P.step(2.0)
+def _snap(published):
+    true = P.step(0.0)
+    meas = P.measure(true)
+    exp = twin_calc.evaluate(TWIN, meas)
+    conds, health = twin_calc.conditions(TWIN, meas, exp)
+    return json.dumps({"ts": time.time(), "reading": meas, "twin": {k: (round(v, 3) if abs(v) >= 0.01 else float(f"{v:.4g}")) for k, v in exp.items()},
+        "faults": P.fault_state(), "running": P.running, "trip": P.trip, "conditions": conds, "health": health,
+        "plant_time_h": round((P.t / 3600) % 24, 3), "load_source": getattr(P, "source", None),
+        "published": published, "failed": 0, "mqtt": False, "static": True})
+`);
+    const snap = () => {
+      latest = JSON.parse(py.globals.get('_snap')(published));
+      published += 1;
+      history.push({ t: Math.round(latest.ts), ...latest.reading, ...latest.twin });
+      history = history.slice(-Math.round(7200 / EVERY));
+    };
+    snap();
+    ready = true;
+    let n = 0;
+    setInterval(() => { py.runPython('P.step(1.0)'); if (++n % EVERY === 0) snap(); }, 1000);
+    window.__twinSnap = snap;
+  })();
+  const ok = obj => new Response(JSON.stringify(obj), { status: 200, headers: { 'Content-Type': 'application/json' } });
+  const realFetch = window.fetch.bind(window);
+  window.fetch = async (url, opt = {}) => {
+    const u = typeof url === 'string' ? url : (url instanceof URL ? url.href : (url && url.url) || String(url));
+    const path = u.replace(location.origin, '').split('?')[0];
+    if (!/^\/api\//.test(path)) return realFetch(url, opt);
+    await boot;
+    if (path === '/api/twin') return ok(TWIN);
+    if (path === '/api/state') return ok(latest);
+    if (path === '/api/history') return ok({ history });
+    if (path === '/api/summary') return ok({ ready: true });
+    const b = opt.body ? JSON.parse(opt.body) : {};
+    if (path === '/api/fault') {
+      const fm = TWIN.failure_modes[b.name];
+      if (!fm) return new Response('{"error":"unknown failure mode"}', { status: 400 });
+      const ramp = Math.max(0.1, Math.min(720, Number(b.ramp_min || fm.default_ramp_min)));
+      py.globals.set('_a', JSON.stringify([b.name, Number(b.severity ?? 1), ramp * 60]));
+      py.runPython('P.set_fault(*json.loads(_a))');
+    } else if (path === '/api/clear') {
+      py.runPython(`P.clear_faults(${Number(b.ramp_min ?? 0.1) * 60})`);
+    } else if (path === '/api/reset') {
+      py.runPython('P.reset()');
+    }
+    window.__twinSnap && window.__twinSnap();
+    return ok({ faults: latest.faults, running: latest.running });
+  };
+})();
+</script>
+<style>#key{display:none!important}</style>
+<script src="./vendor/three.min.js"></script>
+<script src="./vendor/OrbitControls.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+let TW = null, ST = null, cut = false, gasView = false;
+const fmt = (v, d = 2) => (v == null || isNaN(v)) ? '–' : Number(v).toFixed(d);
+const COMPS = ['cb', 'bb', 'ld', 'vt'];
+
+// ---------- scene ----------
+const stage = $('stage');
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
+stage.appendChild(renderer.domElement);
+const scene = new THREE.Scene(); scene.background = new THREE.Color(0x1c1f24);
+const cam = new THREE.PerspectiveCamera(40, 1, 0.05, 200);
+const ctl = new THREE.OrbitControls(cam, renderer.domElement); ctl.enableDamping = true;
+const home = () => { cam.position.set(4.6, 3.2, 5.6); ctl.target.set(0.1, 1.4, 0); ctl.update(); };
+home();
+scene.add(new THREE.HemisphereLight(0xdfe8ff, 0x30302a, 0.75));
+const sun = new THREE.DirectionalLight(0xffffff, 0.85); sun.position.set(4, 8, 6); scene.add(sun);
+scene.add(new THREE.GridHelper(14, 28, 0x3a3f47, 0x2a2e35));
+const M = (c, o = {}) => new THREE.MeshStandardMaterial({ color: c, metalness: o.m ?? .45, roughness: o.r ?? .45, transparent: !!o.t, opacity: o.t ?? 1, side: o.ds ? THREE.DoubleSide : THREE.FrontSide });
+const steel = M(0xb9bec4, { m: .65, r: .3 }), dark = M(0x3d4249), copper = M(0xc8823c, { m: .8, r: .3 }), grey = M(0x9aa3ad, { m: .5 });
+const barrier = M(0x2f8a4b, { m: .2, r: .5 }), cabinet = M(0xd0d4d9, { m: .2, r: .6 });
+const cyl = (r1, r2, h, m, s = 40) => new THREE.Mesh(new THREE.CylinderGeometry(r1, r2, h, s), m);
+const box = (w, h, d, m) => new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
+const at = (o, x, y, z) => { o.position.set(x, y, z); return o; };
+const add = o => (scene.add(o), o);
+// enclosure material per compartment (aluminium, tinted in "colour by gas")
+const encM = {}; COMPS.forEach(c => encM[c] = M(0xc3c9d0, { m: .55, r: .35, ds: true }));
+const encMeshes = [];
+const enc = (c, mesh) => { mesh.material = encM[c]; encMeshes.push(mesh); return add(mesh); };
+const hcyl = (r, len, m, axis = 'x') => { const o = cyl(r, r, len, m); if (axis === 'x') o.rotation.z = Math.PI / 2; if (axis === 'z') o.rotation.x = Math.PI / 2; return o; };
+const ring = (r, x, y, z, axis = 'y') => { const o = new THREE.Mesh(new THREE.TorusGeometry(r, .035, 10, 48), barrier); if (axis === 'x') o.rotation.y = Math.PI / 2; if (axis === 'y') o.rotation.x = Math.PI / 2; return add(at(o, x, y, z)); };
+// floor plinth and frame
+add(at(box(3.2, .12, 1.4, dark), 0, .06, 0));
+// BUSBAR (three-phase in one enclosure) runs across the bays along z; neighbouring bays drawn as ghost stubs
+enc('bb', at(hcyl(.28, .8, null, 'z'), -.9, 2.75, 0));
+[-1, 1].forEach(s => { add(at(hcyl(.28, 1.4, M(0x6b7380, { m: .4, t: .45 }), 'z'), -.9, 2.75, s * 1.1)); ring(.3, -.9, 2.75, s * .4, 'z'); });
+// BB compartment: busbar disconnector DS1 + earthing switch ES1 below the busbar
+enc('bb', at(cyl(.24, .24, .7, null), -.9, 2.15, 0));
+ring(.26, -.9, 1.8, 0);
+add(at(box(.22, .26, .2, M(0x2f6db5, { m: .3 })), -1.2, 2.2, .2));            // DS1 drive (motor) box
+// CB compartment: vertical breaker enclosure with the CTs at the top outlet
+enc('cb', at(cyl(.33, .33, 1.7, null), -.9, .95, 0));
+add(at(cyl(.36, .36, .06, steel), -.9, 1.8, 0)); add(at(cyl(.36, .36, .06, steel), -.9, .1, 0));
+enc('cb', at(hcyl(.2, 1.0, null), -.4, 1.45, 0));                                // outlet to the line side, with CTs
+[-.55, -.35].forEach(x => add(at(hcyl(.26, .1, M(0x6f4bd8, { m: .3 })), x, 1.45, 0)));
+ring(.22, .1, 1.45, 0, 'x');
+// spring operating mechanism cabinet in front of the breaker
+add(at(box(.55, .7, .35, cabinet), -.9, .6, .55));
+// LD compartment: line disconnector DS2, earthing switches ES2 / FES
+enc('ld', at(hcyl(.22, .6, null), .4, 1.45, 0));
+enc('ld', at(cyl(.26, .26, 1.0, null), .9, 1.25, 0));
+ring(.28, .9, 1.75, 0); ring(.28, .9, .75, 0);
+add(at(box(.22, .26, .2, M(0x2f6db5, { m: .3 })), .9, 1.35, .32));              // DS2 / ES2 drive
+// VT compartment: voltage transformer on top, cable sealing end below
+enc('vt', at(cyl(.27, .27, .75, null), .9, 2.15, 0));
+add(at(new THREE.Mesh(new THREE.SphereGeometry(.27, 32, 16, 0, Math.PI * 2, 0, Math.PI / 2), encM.vt), .9, 2.52, 0));
+enc('ld', at(cyl(.22, .22, .65, null), .9, .42, 0));
+add(at(cyl(.06, .06, 1.2, M(0x161616, { r: .9 })), .9, -.4, 0));                // HV cable going down into the cable trench
+// local control cabinet with the bay controller and the gas / PD monitor
+add(at(box(.5, 1.6, .45, cabinet), 2.3, .85, -.5));
+add(at(box(.4, .3, .02, M(0x0f62fe, { m: .1 })), 2.3, 1.25, -.27));
+// gas density transmitters (dial + ring) and UHF PD sensors (discs on the barriers)
+const dial = {}, pdS = {};
+const dialPos = { cb: [-.9, 1.2, .36], bb: [-.9, 2.25, .27], ld: [.9, 1.05, .29], vt: [.9, 2.0, .3] };
+const pdPos = { cb: [-.55, 1.8, .25], bb: [-.65, 2.75, .2], ld: [.9, 1.75, .3], vt: [.9, .75, .3] };
+COMPS.forEach(c => {
+  const g = new THREE.Group(); const d = cyl(.07, .07, .04, M(0xffffff, { m: .1 })); d.rotation.x = Math.PI / 2; g.add(d);
+  const rg = new THREE.Mesh(new THREE.TorusGeometry(.075, .015, 8, 30), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: .8 })); g.add(rg);
+  dial[c] = rg; add(at(g, ...dialPos[c]));
+  const s = new THREE.Mesh(new THREE.SphereGeometry(.05, 16, 12), new THREE.MeshStandardMaterial({ color: 0x8a3ffc, emissive: 0x000000 }));
+  pdS[c] = s; add(at(s, ...pdPos[c]));
+});
+// internals (visible in the cutaway): conductors, interrupter, moving contact
+const inner = new THREE.Group(); scene.add(inner); inner.visible = false;
+[-.12, 0, .12].forEach(z => inner.add(at(hcyl(.035, .8, copper, 'z'), -.9 + z * 0, 2.75 + (z === 0 ? .1 : -.05), z)));
+inner.add(at(cyl(.04, .04, .6, copper), -.9, 2.25, 0));
+const interrupter = at(cyl(.12, .12, .9, M(0xe8e8e8, { m: .3, t: .9 })), -.9, 1.0, 0); inner.add(interrupter);
+const fixedC = at(cyl(.045, .045, .3, copper), -.9, 1.35, 0); inner.add(fixedC);
+const movingC = at(cyl(.045, .045, .35, copper), -.9, .95, 0); inner.add(movingC);
+inner.add(at(hcyl(.04, 1.8, copper), 0, 1.45, 0));
+inner.add(at(cyl(.04, .04, 1.2, copper), .9, 1.25, 0));
+inner.add(at(cyl(.1, .1, .45, M(0x8d6e63, { m: .2 })), .9, 2.15, 0));            // VT winding
+const beacon = new THREE.Mesh(new THREE.SphereGeometry(.06, 16, 12), new THREE.MeshStandardMaterial({ color: 0x24a148, emissive: 0x24a148, emissiveIntensity: 1 }));
+add(at(beacon, 2.3, 1.72, -.5));
+
+// ---------- labels ----------
+const labelsEl = $('labels'), LBL = {};
+function lbl(id, pos) { const d = document.createElement('div'); d.className = 'lbl'; labelsEl.appendChild(d); LBL[id] = { el: d, pos: new THREE.Vector3(...pos) }; }
+lbl('bb', [-.9, 3.15, 0]); lbl('cb', [-1.3, 1.85, .2]); lbl('ld', [.5, 1.85, .2]); lbl('vt', [.9, 2.95, 0]);
+lbl('pd', [-.3, 2.9, .3]); lbl('mech', [-.9, .35, .8]); lbl('ds', [.9, .95, .55]); lbl('it', [1.6, 2.1, 0]); lbl('mass', [2.3, 2.0, -.5]);
+function placeLabels() {
+  const w = stage.clientWidth, h = stage.clientHeight;
+  for (const k in LBL) { const L = LBL[k], v = L.pos.clone().project(cam); const vis = v.z < 1; L.el.style.display = vis ? '' : 'none'; L.el.style.left = ((v.x + 1) / 2 * w) + 'px'; L.el.style.top = ((1 - v.y) / 2 * h) + 'px'; }
+}
+function setLbl(id, title, val, state) { const L = LBL[id]; L.el.className = 'lbl ' + (state || ''); L.el.innerHTML = `${val}<small>${title}</small>`; }
+
+// ---------- live state ----------
+let lastOps = null, opAnim = 0;
+const COL = { ok: 0x24a148, warn: 0xf1c21b, bad: 0xda1e28 };
+function apply() {
+  if (!ST || !ST.reading) return;
+  const r = ST.reading, t = ST.twin, L = TW.twin_model.limits, d = TW.design, C = d.compartments;
+  const names = new Set((ST.conditions || []).map(c => c.name));
+  const st = (bad, warn) => bad ? 'bad' : warn ? 'warn' : '';
+  const gasState = {};
+  COMPS.forEach(c => {
+    const p20 = t[`p20_${c}_mpa`], cc = C[c];
+    const bad = p20 < cc.alarm_mpa || p20 > cc.fill_mpa + L.above_fill_mpa || r[`gas_${c}_h2o_ppmv`] > L.h2o_ppmv || (r[`pd_${c}_dbm`] > L.pd_dbm && r[`pd_${c}_pps`] > L.pd_pps);
+    const warn = r[`gas_${c}_slope_kpa_yr`] < -0.5 * L.leak_pct_yr / 100 * cc.fill_mpa * 1000 || p20 < cc.alarm_mpa + .3 * (cc.fill_mpa - cc.alarm_mpa);
+    gasState[c] = bad ? 'bad' : warn ? 'warn' : 'ok';
+    dial[c].material.color.setHex(COL[gasState[c]]); dial[c].material.emissive.setHex(COL[gasState[c]]);
+    const hot = r[`pd_${c}_dbm`] > L.pd_dbm; pdS[c].material.emissive.setHex(hot ? 0xda1e28 : 0x000000);
+    encM[c].color.setHex(gasView ? ({ ok: 0x7fc79a, warn: 0xf1d36b, bad: 0xf08a8f })[gasState[c]] : 0xc3c9d0);
+  });
+  const leakCB = names.has('GIS_LEAK_RATE_HIGH') || names.has('GIS_DENSITY_ALARM_SOON') || names.has('GIS_DENSITY_ALARM');
+  setLbl('cb', `CB compartment · trend ${fmt(r.gas_cb_slope_kpa_yr, 1)} kPa/yr`, `${fmt(t.p20_cb_mpa, 3)} MPa @20 °C · ${fmt(r.gas_cb_h2o_ppmv, 0)} ppmv · SO2 ${fmt(r.cb_so2_ppmv, 1)}`, st(gasState.cb === 'bad' || leakCB || names.has('GIS_SO2_HIGH'), gasState.cb === 'warn'));
+  setLbl('bb', 'busbar / DS1 compartment', `${fmt(t.p20_bb_mpa, 3)} MPa @20 °C · ${fmt(r.gas_bb_h2o_ppmv, 0)} ppmv`, st(gasState.bb === 'bad', gasState.bb === 'warn'));
+  setLbl('ld', 'line disconnector compartment', `${fmt(t.p20_ld_mpa, 3)} MPa @20 °C · ${fmt(r.gas_ld_h2o_ppmv, 0)} ppmv`, st(gasState.ld === 'bad', gasState.ld === 'warn'));
+  setLbl('vt', 'VT compartment', `${fmt(t.p20_vt_mpa, 3)} MPa @20 °C · ${fmt(r.gas_vt_h2o_ppmv, 0)} ppmv`, st(gasState.vt === 'bad', gasState.vt === 'warn'));
+  const pdc = COMPS.reduce((a, c) => r[`pd_${c}_dbm`] > r[`pd_${a}_dbm`] ? c : a, 'cb');
+  setLbl('pd', `UHF partial discharge · worst sensor ${pdc.toUpperCase()}`, `${fmt(r[`pd_${pdc}_dbm`], 0)} dBm · ${fmt(r[`pd_${pdc}_pps`], 0)} /s`, st(names.has('GIS_PD_DETECTED'), r[`pd_${pdc}_dbm`] > L.pd_dbm - 10));
+  setLbl('mech', `breaker · wear ${fmt(t.cb_wear_pct, 0)} % · charge ${fmt(r.cb_charge_s, 1)} s`, `open ${fmt(r.cb_open_ms, 1)} ms · armature ${fmt(r.cb_armature_ms, 1)} ms`, st(names.has('GIS_CB_SLOW_OPEN') || names.has('GIS_CB_WEAR_HIGH'), names.has('GIS_CB_TRIP_COIL') || names.has('GIS_CB_CHARGE_SLOW')));
+  setLbl('ds', 'DS1 drive · ES2 drive', `${fmt(r.ds1_motor_a)} A ${fmt(r.ds1_time_s, 1)} s · ${fmt(r.es2_motor_a)} A ${fmt(r.es2_time_s, 1)} s`, st(names.has('GIS_DS_MOTOR_HIGH') || names.has('GIS_DS_SLOW')));
+  setLbl('it', `VT bay vs bus · CT cores ${fmt(t.ct_mismatch_pct)} %`, `${fmt(r.vt_bay_kv, 1)} / ${fmt(r.vt_bus_kv, 1)} kV · ${fmt(t.vt_drift_pct)} %`, st(names.has('GIS_VT_DRIFT') || names.has('GIS_CT_MISMATCH')));
+  setLbl('mass', `SF6 in the bay · feeder ${fmt(r.ct_meas_a, 0)} A`, `${fmt(t.sf6_mass_kg, 1)} kg · ${fmt(t.sf6_mass_kg * d.sf6.gwp100 / 1000, 0)} t CO2e`, '');
+  $('k-health').textContent = ST.health; $('k-hi').textContent = fmt(t.hi_bay, 0); $('k-mass').textContent = fmt(t.sf6_mass_kg, 1) + ' kg';
+  $('c-hi-t').textContent = `bay HI ${fmt(t.hi_bay, 0)}`; $('c-hi').className = 'chip ' + (t.hi_bay < 40 ? 'bad' : t.hi_bay < 70 ? 'warn' : 'ok');
+  $('c-link-t').textContent = ST.mqtt ? 'Monitor connected' : "Simulated in your browser"; $('c-link').className = 'chip ' + (ST.mqtt ? 'ok' : 'warn');
+  const P = [['Circuit breaker', t.hi_cb], ['Disconnectors', t.hi_ds], ['Gas compartments', t.hi_gas], ['Instr. transformers', t.hi_it]];
+  $('parts').innerHTML = P.map(([n, v]) => `<span>${n}</span><span class="bar"><i style="width:${Math.max(0, Math.min(100, v))}%;background:${v < 40 ? '#da1e28' : v < 70 ? '#f1c21b' : '#0f62fe'}"></i></span><span style="font-family:var(--mono);text-align:right">${fmt(v, 0)}</span>`).join('');
+  const row = (n, v, e, bad) => `<span>${n}</span><span class="v ${bad ? 'bad' : ''}">${v}</span><span class="e">${e}</span>`;
+  $('kv').innerHTML = `<span class="h">Value</span><span class="h" style="text-align:right">Live</span><span class="h" style="text-align:right">Expected</span>` +
+    COMPS.map(c => row(`${c.toUpperCase()} pressure at 20 °C (MPa)`, fmt(t[`p20_${c}_mpa`], 3), `${fmt(C[c].fill_mpa)} (alarm ${fmt(C[c].alarm_mpa)})`, t[`p20_${c}_mpa`] < C[c].alarm_mpa || t[`p20_${c}_mpa`] > C[c].fill_mpa + L.above_fill_mpa)).join('') +
+    row('Worst leak rate (%/yr)', fmt(t.leak_pct_yr_max), '≤ ' + L.leak_pct_yr, t.leak_pct_yr_max > L.leak_pct_yr) +
+    row('Days to the alarm density', t.days_to_alarm_min >= 9999 ? '> 27 y' : fmt(t.days_to_alarm_min, 0), '> ' + L.days_to_alarm, t.days_to_alarm_min < L.days_to_alarm) +
+    row('Opening time (ms)', fmt(r.cb_open_ms, 1), fmt(d.breaker.open_ms, 1), names.has('GIS_CB_SLOW_OPEN')) +
+    row('Armature time (ms)', fmt(r.cb_armature_ms, 1), fmt(d.breaker.armature_ms, 1), names.has('GIS_CB_TRIP_COIL')) +
+    row('Contact wear I²t (%)', fmt(t.cb_wear_pct, 0), '≤ ' + L.wear_pct, names.has('GIS_CB_WEAR_HIGH')) +
+    row('DS1 motor peak (A)', fmt(r.ds1_motor_a), fmt(d.switches.ds1_motor_a), names.has('GIS_DS_MOTOR_HIGH')) +
+    row('VT drift vs busbar (%)', fmt(t.vt_drift_pct), '± ' + L.vt_drift_pct, names.has('GIS_VT_DRIFT')) +
+    row('Worst PD (dBm)', fmt(t.pd_max_dbm, 0), '< ' + L.pd_dbm, names.has('GIS_PD_DETECTED'));
+  const al = (ST.conditions || []).slice().sort((a, b) => ['Critical', 'High', 'Medium', 'Low'].indexOf(a.severity) - ['Critical', 'High', 'Medium', 'Low'].indexOf(b.severity));
+  $('alerts').innerHTML = al.length ? al.map(c => `<li><span class="sev ${c.severity}">${c.severity}</span><span><b>${c.name}</b><br>${c.text}</span></li>`).join('') : '<li class="empty">none: the bay behaves as designed</li>';
+  const fs = ST.faults || {};
+  document.querySelectorAll('#faults button').forEach(b => b.classList.toggle('on', (fs[b.dataset.fm] || 0) > 0.01));
+  beacon.material.color.setHex(al.some(c => c.severity === 'Critical' || c.severity === 'High') ? 0xda1e28 : al.length ? 0xf1c21b : 0x24a148);
+  beacon.material.emissive.copy(beacon.material.color);
+  if (lastOps !== null && r.cb_ops !== lastOps) opAnim = 1.2;                 // the breaker just operated: animate open + reclose
+  lastOps = r.cb_ops;
+}
+async function post(path, bodyObj) {
+  await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Demo-Key': $('demokey').value }, body: JSON.stringify(bodyObj) });
+  poll();
+}
+async function poll() { try { ST = await (await fetch('/api/state')).json(); apply(); } catch (e) { $('c-link-t').textContent = 'twin offline'; } }
+
+(async () => {
+  TW = await (await fetch('/api/twin')).json();
+  $('sub').textContent = TW.identification.description;
+  $('faults').innerHTML = Object.entries(TW.failure_modes).filter(([k]) => !k.startsWith('$'))
+    .map(([k, f]) => `<button data-fm="${k}" title="${f.symptoms}">${f.name}</button>`).join('');
+  document.querySelectorAll('#faults button').forEach(b => b.onclick = () => post('/api/fault', b.classList.contains('on') ? { name: b.dataset.fm, severity: 0, ramp_min: 0.2 } : { name: b.dataset.fm, severity: 1 }));
+  $('b-clear').onclick = () => post('/api/clear', { ramp_min: 0.1 });
+  await poll();
+  $('loading').style.display = 'none';
+  setInterval(poll, 1000);
+})();
+
+// ---------- controls ----------
+$('t-view').onclick = home;
+$('t-cut').onclick = () => {
+  cut = !cut; $('t-cut').classList.toggle('on', cut); inner.visible = cut;
+  COMPS.forEach(c => { encM[c].transparent = true; encM[c].opacity = cut ? .22 : 1; encM[c].depthWrite = !cut; });
+};
+$('t-gas').onclick = () => { gasView = !gasView; $('t-gas').classList.toggle('on', gasView); apply(); };
+
+// ---------- loop ----------
+function resize() { const w = stage.clientWidth, h = stage.clientHeight; renderer.setSize(w, h); cam.aspect = w / h; cam.updateProjectionMatrix(); }
+window.addEventListener('resize', resize); resize();
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (opAnim > 0) opAnim = Math.max(0, opAnim - dt);
+  const gap = opAnim > 0 ? Math.sin(Math.PI * (1 - opAnim / 1.2)) * .18 : 0;  // moving contact drops away and comes back
+  movingC.position.y = .95 - gap;
+  ctl.update(); renderer.render(scene, cam); placeLabels();
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>
